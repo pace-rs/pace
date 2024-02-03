@@ -6,9 +6,9 @@ pace is a timetracking application for the command-line.
 
 ### Key
 
-⏲️ = work in progress
-
 ❌ = not implemented, yet
+
+⏲️ = work in progress
 
 ✅ = fully functioning
 
