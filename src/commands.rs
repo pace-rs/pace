@@ -10,9 +10,18 @@
 //! See the `impl Configurable` below for how to specify the path to the
 //! application's configuration file.
 
-mod start;
+mod begin;
+mod end;
+mod export;
+// TODO: mod import;
+mod hold;
+mod now;
+mod pomo;
+mod report;
+mod resume;
+mod set;
+mod tasks;
 
-use self::start::StartCmd;
 use crate::config::PaceConfig;
 use abscissa_core::{config::Override, Command, Configurable, FrameworkError, Runnable};
 use std::path::PathBuf;
@@ -24,8 +33,38 @@ pub const CONFIG_FILE: &str = "pace.toml";
 /// Subcommands need to be listed in an enum.
 #[derive(clap::Parser, Command, Debug, Runnable)]
 pub enum PaceCmd {
-    /// The `start` subcommand
-    Start(StartCmd),
+    /// Starts tracking time for the specified task. You can
+    /// optionally specify a category or project to help organize
+    /// your tasks.
+    Begin(begin::BeginCmd),
+
+    /// Stops time tracking for the specified task, marking it as completed or finished for the day.
+    End(end::EndCmd),
+
+    /// Exports your tracked data and reports in JSON or CSV format, suitable for analysis or record-keeping.
+    Export(export::ExportCmd),
+
+    /// Pauses the time tracking for the specified task. This is
+    /// useful for taking breaks without ending the task.
+    Hold(hold::HoldCmd),
+
+    /// Displays the currently running task, showing you at a glance what you're currently tracking.
+    Now(now::NowCmd),
+
+    /// Starts a Pomodoro session for the specified task, integrating the Pomodoro technique directly with your tasks.
+    Pomo(pomo::PomoCmd),
+
+    /// Generates a report for your tasks. You can specify the time frame for daily, weekly, or monthly reports.
+    Report(report::ReportCmd),
+
+    /// Resumes time tracking for a previously paused task, allowing you to continue where you left off.
+    Resume(resume::ResumeCmd),
+
+    /// Sets various application configurations, including Pomodoro lengths and preferred report formats.
+    Set(set::SetCmd),
+
+    /// Lists all tasks with optional filters. Use this to view active, completed, or today's tasks.
+    Tasks(tasks::TasksCmd),
 }
 
 /// Entry point for the application. It needs to be a struct to allow using subcommands!
@@ -76,12 +115,14 @@ impl Configurable<PaceConfig> for EntryPoint {
     /// This can be safely deleted if you don't want to override config
     /// settings from command-line options.
     fn process_config(&self, config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
-        match &self.cmd {
-            PaceCmd::Start(cmd) => cmd.override_config(config),
-            //
-            // If you don't need special overrides for some
-            // subcommands, you can just use a catch all
-            // _ => Ok(config),
-        }
+        // match &self.cmd {
+        // PaceCmd::Start(cmd) => cmd.override_config(config),
+        //
+        // If you don't need special overrides for some
+        // subcommands, you can just use a catch all
+        // _ => Ok(config),
+        // }
+
+        Ok(config)
     }
 }
