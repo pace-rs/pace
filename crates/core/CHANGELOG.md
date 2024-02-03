@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/pace-rs/pace/compare/pace_core-v0.1.1...pace_core-v0.2.0) - 2024-02-03
+
+### Fixed
+
+- *(manifest)* [**breaking**] use includes to only package the bare minimum for
+  crates.io
+
+### Other
+
+- pace 0.2.0 / pace-core 0.1.1
+
 ## [0.1.1](https://github.com/pace-rs/pace/compare/pace_core-v0.1.0...pace_core-v0.1.1) - 2024-02-03
 
 ### Added
