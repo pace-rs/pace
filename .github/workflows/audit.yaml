@@ -1,0 +1,58 @@
+name: Security audit
+
+on:
+  pull_request:
+  schedule:
+    # Runs at 00:00 UTC everyday
+    - cron: "0 0 * * *"
+  push:
+    paths:
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - "crates/**/Cargo.toml"
+      - "crates/**/Cargo.lock"
+  merge_group:
+    types: [checks_requested]
+
+jobs:
+  audit:
+    if: ${{ github.repository_owner == 'pace-rs' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      # Ensure that the latest version of Cargo is installed
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8 # v1
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2
+      - uses: rustsec/audit-check@dd51754d4e59da7395a4cd9b593f0ff2d61a9b95 # v1.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  cargo-deny:
+    name: Run cargo-deny
+    if: ${{ github.repository_owner == 'pace-rs' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+
+      - uses: EmbarkStudios/cargo-deny-action@2fad0807be2b6f4402fd9dd4225aa4e91b9ad879 # v1
+        with:
+          command: check bans licenses sources
+
+  result:
+    if: ${{ github.repository_owner == 'pace-rs' }}
+    name: Result (Audit)
+    runs-on: ubuntu-latest
+    needs:
+      - audit
+      - cargo-deny
+    steps:
+      - name: Mark the job as successful
+        run: exit 0
+        if: success()
+      - name: Mark the job as unsuccessful
+        run: exit 1
+        if: "!success()"
