@@ -19,8 +19,8 @@
 )]
 
 use abscissa_core::testing::prelude::*;
-use pace_rs::config::PaceRsConfig;
 use once_cell::sync::Lazy;
+use pace_rs::config::PaceRsConfig;
 
 /// Executes your application binary via `cargo run`.
 ///

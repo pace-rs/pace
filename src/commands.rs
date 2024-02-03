@@ -75,10 +75,7 @@ impl Configurable<PaceRsConfig> for EntryPoint {
     ///
     /// This can be safely deleted if you don't want to override config
     /// settings from command-line options.
-    fn process_config(
-        &self,
-        config: PaceRsConfig,
-    ) -> Result<PaceRsConfig, FrameworkError> {
+    fn process_config(&self, config: PaceRsConfig) -> Result<PaceRsConfig, FrameworkError> {
         match &self.cmd {
             PaceRsCmd::Start(cmd) => cmd.override_config(config),
             //
