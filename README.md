@@ -1,6 +1,6 @@
-# PaceRs
+# pace
 
-PaceRs is an application.
+pace is a timetracking application for the command-line.
 
 ## Getting Started
 
