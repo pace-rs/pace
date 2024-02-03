@@ -9,6 +9,12 @@ categories = ["command-line-utilities"]
 keywords = ["cli"]
 description = "pace - timetracking for the command line"
 
+[package.metadata.wix]
+upgrade-guid = "4D6D5C4F-3994-423F-9D4C-2F92C580F54B"
+path-guid = "441ECBBB-93E2-4DC2-9D74-F4B116EDFABE"
+license = false
+eula = false
+
 
 [dependencies]
 clap = "4"
@@ -24,4 +30,22 @@ version = "0.7.0"
 [dev-dependencies]
 abscissa_core = { version = "0.7.0", features = ["testing"] }
 once_cell = "1.2"
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.9.0"
+# CI backends to support
+ci = ["github"]
+# The installers to generate for each app
+installers = ["shell", "powershell", "msi"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
+# Publish jobs to run in CI
+pr-run-mode = "plan"
 
