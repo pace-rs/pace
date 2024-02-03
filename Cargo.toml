@@ -12,7 +12,13 @@ license = "AGPL-3.0-or-later"
 repository = "https://github.com/pace-rs/pace"
 description = "pace - timetracking for the command line"
 
-exclude = ["assets/8th-logo.png"]
+include = [
+  "LICENSE",
+  "README.md",
+  "CHANGELOG.md",
+  "src/**/*",
+  "Cargo.toml",
+]
 
 [package.metadata.wix]
 upgrade-guid = "4D6D5C4F-3994-423F-9D4C-2F92C580F54B"
