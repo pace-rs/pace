@@ -1,8 +1,14 @@
 [package]
 name = "pace-rs"
-authors = []
+authors = ["the pace-rs team"]
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/pace-rs/pace"
+license = "AGPL-3.0-or-later"
+categories = ["command-line-utilities"]
+keywords = ["cli"]
+description = "pace - timetracking for the command line"
+
 
 [dependencies]
 clap = "4"
