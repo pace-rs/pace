@@ -1,4 +1,4 @@
-//! PaceRs
+//! Pace
 //!
 //! Application based on the [Abscissa] framework.
 //!

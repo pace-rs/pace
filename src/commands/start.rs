@@ -4,7 +4,7 @@
 /// accessors along with logging macros. Customize as you see fit.
 use crate::prelude::*;
 
-use crate::config::PaceRsConfig;
+use crate::config::PaceConfig;
 use abscissa_core::{config, Command, FrameworkError, Runnable};
 
 /// `start` subcommand
@@ -28,11 +28,11 @@ impl Runnable for StartCmd {
     }
 }
 
-impl config::Override<PaceRsConfig> for StartCmd {
+impl config::Override<PaceConfig> for StartCmd {
     // Process the given command line options, overriding settings from
     // a configuration file using explicit flags taken from command-line
     // arguments.
-    fn override_config(&self, mut config: PaceRsConfig) -> Result<PaceRsConfig, FrameworkError> {
+    fn override_config(&self, mut config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
         if !self.recipient.is_empty() {
             config.hello.recipient = self.recipient.join(" ");
         }

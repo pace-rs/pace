@@ -1,4 +1,4 @@
-//! PaceRs Subcommands
+//! Pace Subcommands
 //!
 //! This is where you specify the subcommands of your application.
 //!
@@ -13,17 +13,17 @@
 mod start;
 
 use self::start::StartCmd;
-use crate::config::PaceRsConfig;
+use crate::config::PaceConfig;
 use abscissa_core::{config::Override, Command, Configurable, FrameworkError, Runnable};
 use std::path::PathBuf;
 
-/// PaceRs Configuration Filename
-pub const CONFIG_FILE: &str = "pace_rs.toml";
+/// Pace Configuration Filename
+pub const CONFIG_FILE: &str = "pace.toml";
 
-/// PaceRs Subcommands
+/// Pace Subcommands
 /// Subcommands need to be listed in an enum.
 #[derive(clap::Parser, Command, Debug, Runnable)]
-pub enum PaceRsCmd {
+pub enum PaceCmd {
     /// The `start` subcommand
     Start(StartCmd),
 }
@@ -33,7 +33,7 @@ pub enum PaceRsCmd {
 #[command(author, about, version)]
 pub struct EntryPoint {
     #[command(subcommand)]
-    cmd: PaceRsCmd,
+    cmd: PaceCmd,
 
     /// Enable verbose logging
     #[arg(short, long)]
@@ -51,7 +51,7 @@ impl Runnable for EntryPoint {
 }
 
 /// This trait allows you to define how application configuration is loaded.
-impl Configurable<PaceRsConfig> for EntryPoint {
+impl Configurable<PaceConfig> for EntryPoint {
     /// Location of the configuration file
     fn config_path(&self) -> Option<PathBuf> {
         // Check if the config file exists, and if it does not, ignore it.
@@ -75,9 +75,9 @@ impl Configurable<PaceRsConfig> for EntryPoint {
     ///
     /// This can be safely deleted if you don't want to override config
     /// settings from command-line options.
-    fn process_config(&self, config: PaceRsConfig) -> Result<PaceRsConfig, FrameworkError> {
+    fn process_config(&self, config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
         match &self.cmd {
-            PaceRsCmd::Start(cmd) => cmd.override_config(config),
+            PaceCmd::Start(cmd) => cmd.override_config(config),
             //
             // If you don't need special overrides for some
             // subcommands, you can just use a catch all

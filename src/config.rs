@@ -1,4 +1,4 @@
-//! PaceRs Config
+//! Pace Config
 //!
 //! See instructions in `commands.rs` to specify the path to your
 //! application's configuration file and/or command-line options
@@ -6,10 +6,10 @@
 
 use serde::{Deserialize, Serialize};
 
-/// PaceRs Configuration
+/// Pace Configuration
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct PaceRsConfig {
+pub struct PaceConfig {
     /// An example configuration section
     pub hello: ExampleSection,
 }
@@ -17,8 +17,8 @@ pub struct PaceRsConfig {
 /// Default configuration settings.
 ///
 /// Note: if your needs are as simple as below, you can
-/// use `#[derive(Default)]` on PaceRsConfig instead.
-impl Default for PaceRsConfig {
+/// use `#[derive(Default)]` on PaceConfig instead.
+impl Default for PaceConfig {
     fn default() -> Self {
         Self {
             hello: ExampleSection::default(),

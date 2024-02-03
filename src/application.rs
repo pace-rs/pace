@@ -1,6 +1,6 @@
-//! PaceRs Abscissa Application
+//! Pace Abscissa Application
 
-use crate::{commands::EntryPoint, config::PaceRsConfig};
+use crate::{commands::EntryPoint, config::PaceConfig};
 use abscissa_core::{
     application::{self, AppCell},
     config::{self, CfgCell},
@@ -8,13 +8,13 @@ use abscissa_core::{
 };
 
 /// Application state
-pub static APP: AppCell<PaceRsApp> = AppCell::new();
+pub static APP: AppCell<PaceApp> = AppCell::new();
 
-/// PaceRs Application
+/// Pace Application
 #[derive(Debug)]
-pub struct PaceRsApp {
+pub struct PaceApp {
     /// Application configuration.
-    config: CfgCell<PaceRsConfig>,
+    config: CfgCell<PaceConfig>,
 
     /// Application state.
     state: application::State<Self>,
@@ -24,7 +24,7 @@ pub struct PaceRsApp {
 ///
 /// By default no configuration is loaded, and the framework state is
 /// initialized to a default, empty state (no components, threads, etc).
-impl Default for PaceRsApp {
+impl Default for PaceApp {
     fn default() -> Self {
         Self {
             config: CfgCell::default(),
@@ -33,18 +33,18 @@ impl Default for PaceRsApp {
     }
 }
 
-impl Application for PaceRsApp {
+impl Application for PaceApp {
     /// Entrypoint command for this application.
     type Cmd = EntryPoint;
 
     /// Application configuration.
-    type Cfg = PaceRsConfig;
+    type Cfg = PaceConfig;
 
     /// Paths to resources within the application.
     type Paths = StandardPaths;
 
     /// Accessor for application configuration.
-    fn config(&self) -> config::Reader<PaceRsConfig> {
+    fn config(&self) -> config::Reader<PaceConfig> {
         self.config.read()
     }
 
