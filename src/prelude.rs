@@ -6,4 +6,4 @@
 pub use abscissa_core::prelude::*;
 
 /// Application state
-pub use crate::application::APP;
+pub use crate::application::PACE_APP;

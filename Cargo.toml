@@ -1,6 +1,9 @@
 [workspace]
 members = ["crates/core"]
 
+[workspace.dependencies]
+pace_core = { path = "crates/core" }
+
 [package]
 name = "pace-rs"
 version = "0.3.0"
@@ -27,9 +30,13 @@ license = false
 eula = false
 
 [dependencies]
+chrono = { version = "0.4.33", features = ["serde"] }
 clap = "4"
-serde = { version = "1", features = ["serde_derive"] }
-thiserror = "1"
+eyre = "0.6.12"
+pace_core = { workspace = true }
+serde = "1"
+serde_derive = "1"
+thiserror = "1.0.56"
 
 [dependencies.abscissa_core]
 version = "0.7.0"
@@ -68,7 +75,8 @@ pr-run-mode = "plan"
 # see: https://nnethercote.github.io/perf-book/build-configuration.html
 [profile.dev]
 opt-level = 0
-debug = true
+debug = 0 # try for faster builds, usually 'true'
+strip = "debuginfo" # try for faster builds
 rpath = false
 lto = false
 debug-assertions = true
@@ -108,7 +116,7 @@ codegen-units = 1
 
 # Allows quick RPM file generation, if "cargo-generate-rpm" is installed:
 #  cargo build --release; cargo generate-rpm
-# will result in a file like target/generate-rpm/rustic-rs-0.6.1-1.x86_64.rpm
+# will result in a file like target/generate-rpm/pace-rs-0.6.1-1.x86_64.rpm
 [package.metadata.generate-rpm]
 assets = [
   { source = "target/release/pace", dest = "/usr/bin/pace", mode = "0755", config = false, doc = false }, # user = "root", group = "root" },

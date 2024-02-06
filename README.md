@@ -18,21 +18,39 @@
 
 ⏲️ = work in progress
 
+🪧 = implemented, more testing needed
+
 ✅ = fully functioning
 
 ### Commands
 
-❌ **`pace begin <task-name>`**
+**Note:** The following commands are subject to change as the project develops.
+Currently they are stating the intended functionality and may not be fully
+implemented yet (e.g. using activities instead of tasks).
+
+🪧 **`pace begin <task-name>`**
 
 - **Description:** Starts tracking time for the specified task. You can
   optionally specify a category or project to help organize your tasks.
 - **Usage:** `pace begin "Design Work" --category "Freelance"`
 
-❌ **`pace hold <task-name>`**
+🪧 **`pace end <task-name>`**
 
-- **Description:** Pauses the time tracking for the specified task. This is
-  useful for taking breaks without ending the task.
-- **Usage:** `pace hold "Design Work"`
+- **Description:** Stops time tracking for the specified task, marking it as
+  completed or finished for the day.
+- **Usage:** `pace end "Design Work"`
+
+🪧 **`pace now`**
+
+- **Description:** Displays the currently running task, showing you at a glance
+  what you're currently tracking.
+- **Usage:** `pace now`
+
+❌ **`pace report --daily/--weekly/--monthly`**
+
+- **Description:** Generates a report for your tasks. You can specify the time
+  frame for daily, weekly, or monthly reports.
+- **Usage:** `pace report --weekly --summary`
 
 ❌ **`pace resume <task-name>`**
 
@@ -40,11 +58,19 @@
   you to continue where you left off.
 - **Usage:** `pace resume "Design Work"`
 
-❌ **`pace end <task-name>`**
+❌ **`pace hold <task-name>`**
 
-- **Description:** Stops time tracking for the specified task, marking it as
-  completed or finished for the day.
-- **Usage:** `pace end "Design Work"`
+- **Description:** Pauses the time tracking for the specified task. This is
+  useful for taking breaks without ending the task.
+- **Usage:** `pace hold` or `pace hold "Design Work"`
+
+✅ **`pace help`**
+
+- **Description:** Displays help information, offering quick access to command
+  usage and options.
+- **Usage:** `pace help` or `pace <command> --help`
+
+### Additional Commands
 
 ❌ **`pace tasks`**
 
@@ -52,23 +78,17 @@
   active, completed, or today's tasks.
 - **Usage:** `pace tasks --active`
 
-❌ **`pace now`**
+❌ **`pace projects`**
 
-- **Description:** Displays the currently running task, showing you at a glance
-  what you're currently tracking.
-- **Usage:** `pace now`
+- **Description:** Lists all projects with optional filters. Use this to view
+  all projects, subprojects and their associated tasks.
+- **Usage:** `pace projects`
 
 ❌ **`pace pomo <task-name>`**
 
 - **Description:** Starts a Pomodoro session for the specified task, integrating
   the Pomodoro technique directly with your tasks.
 - **Usage:** `pace pomo "Study Session"`
-
-❌ **`pace report --daily/--weekly/--monthly`**
-
-- **Description:** Generates a report for your tasks. You can specify the time
-  frame for daily, weekly, or monthly reports.
-- **Usage:** `pace report --weekly --summary`
 
 ❌ **`pace export --json/--csv`**
 
@@ -81,9 +101,3 @@
 - **Description:** Sets various application configurations, including Pomodoro
   lengths and preferred report formats.
 - **Usage:** `pace set --work 25 --break 5`
-
-❌ **`pace help`**
-
-- **Description:** Displays help information, offering quick access to command
-  usage and options.
-- **Usage:** `pace help` or `pace <command> --help`
