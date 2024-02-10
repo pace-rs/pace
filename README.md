@@ -101,3 +101,7 @@ implemented yet (e.g. using activities instead of tasks).
 - **Description:** Sets various application configurations, including Pomodoro
   lengths and preferred report formats.
 - **Usage:** `pace set --work 25 --break 5`
+
+## License
+
+**AGPL-3.0-or-later**; see [LICENSE](./LICENSE).
