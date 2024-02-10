@@ -11,14 +11,19 @@ and this project adheres to
 ## [0.4.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.3.0...pace-rs-v0.4.0) - 2024-02-10
 
 ### Added
-- *(commands)* [**breaking**] implement `begin`, `end`, and `now` command ([#1](https://github.com/pace-rs/pace/pull/1))
+
+- *(commands)* [**breaking**] implement `begin`, `end`, and `now` command
+  ([#1](https://github.com/pace-rs/pace/pull/1))
 - *(core)* add core library
 - *(commands)* add commands skeleton
 
 ### Fixed
-- *(manifest)* [**breaking**] use includes to only package the bare minimum for crates.io
+
+- *(manifest)* [**breaking**] use includes to only package the bare minimum for
+  crates.io
 
 ### Other
+
 - pace 0.3.0 / pace-core 0.2.0
 - pace 0.2.0 / pace-core 0.1.1
 - *(assets)* add logo to readme
