@@ -2,7 +2,7 @@
 members = ["crates/core"]
 
 [workspace.dependencies]
-pace_core = { path = "crates/core" }
+pace_core = { path = "crates/core", version = "0" }
 
 [package]
 name = "pace-rs"
