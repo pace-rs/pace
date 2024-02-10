@@ -1,0 +1,50 @@
+# Pace Project Configuration
+# This file contains the configuration for your project.
+# It is written in the TOML format. For more information, see https://toml.io/en/.
+
+# You can define the project name, description, categories, subprojects, and more.
+# TODO: IDs are optional and can be generated with the `pace id`(??? is that sensible, or something else?) command.
+# TODO: Add a `pace projects init` command to generate a new project configuration file.
+
+[project]
+id = "018d84a0-7847-7b2b-9cdb-6ba213f99a1d"
+name = "Pace Project"
+description = "An example project managed with Pace."
+root_tasks_file = "tasks.toml" # Path to the root tasks file
+
+[defaults]
+# Optional: Define a default category for your project
+category = { id = "018d85c0-a46f-7e95-8b95-f0bc961d4ee9", name = "Uncategorized", description = "Uncategorized Content" }
+
+[[categories]]
+# Optional: Define categories for your project
+id = "018d85c0-7823-7038-8e96-bc9c9330174a"
+name = "Development"
+description = "Development related tasks"
+# Optional: Define subcategories for your category
+# TODO: Add support for subcategories
+subcategories = [
+  { id = "018d85d5-e29d-7995-afc9-34175e0ce7b6", name = "Frontend", description = "Frontend Development" },
+  { id = "018d85d5-fa35-7bc3-a347-8284843c4188", name = "Backend", description = "Backend Development" },
+  { id = "018d85d6-110b-771b-828d-8cd68934fb61", name = "Fullstack", description = "Fullstack Development" },
+]
+
+[[categories]]
+# Optional: Define categories for your project
+id = "018d85c0-629b-737b-8f53-c307504d1c0a"
+name = "Design"
+description = "Design related tasks"
+
+[[subprojects]]
+# Optional: Define subprojects or directories with their own tasks
+id = "018d84a0-a2d1-7450-98ef-8b47e0ff42b5"
+name = "Pace Subproject A"
+description = ""
+tasks_file = "subproject-a/tasks.toml"
+
+[[subprojects]]
+# Optional: Define subprojects or directories with their own tasks
+id = "018d84a0-cc74-71b4-8dd4-d7d26d1f5924"
+name = "Pace Subproject B"
+description = ""
+tasks_file = "subproject-b/tasks.toml"

@@ -22,12 +22,15 @@ mod resume;
 mod set;
 mod tasks;
 
-use crate::config::PaceConfig;
-use abscissa_core::{config::Override, Command, Configurable, FrameworkError, Runnable};
+use abscissa_core::{Command, Configurable, FrameworkError, Runnable};
+use clap::builder::{styling::AnsiColor, Styles};
 use std::path::PathBuf;
 
+use pace_core::config::PaceConfig;
+
 /// Pace Configuration Filename
-pub const CONFIG_FILE: &str = "pace.toml";
+/// FIXME: Make this configurable
+pub const CONFIG_FILE: &str = "config/pace.toml";
 
 /// Pace Subcommands
 /// Subcommands need to be listed in an enum.
@@ -67,9 +70,18 @@ pub enum PaceCmd {
     Tasks(tasks::TasksCmd),
 }
 
+/// Define CLI colour styles for the application
+fn cli_colour_styles() -> Styles {
+    Styles::styled()
+        .header(AnsiColor::BrightBlue.on_default())
+        .usage(AnsiColor::BrightYellow.on_default())
+        .literal(AnsiColor::BrightGreen.on_default())
+        .placeholder(AnsiColor::Magenta.on_default())
+}
+
 /// Entry point for the application. It needs to be a struct to allow using subcommands!
 #[derive(clap::Parser, Command, Debug)]
-#[command(author, about, version)]
+#[command(author, about, styles=cli_colour_styles(), version)]
 pub struct EntryPoint {
     #[command(subcommand)]
     cmd: PaceCmd,

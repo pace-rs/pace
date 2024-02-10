@@ -66,7 +66,7 @@ doc *ARGS:
 # Format all code
 fmt:
     @just format
-    dprint fmt
+    @dprint fmt
 
 # Runs the formatter on all Rust files.
 format:

@@ -1,14 +1,16 @@
 //! Pace Abscissa Application
 
-use crate::{commands::EntryPoint, config::PaceConfig};
+use crate::commands::EntryPoint;
 use abscissa_core::{
     application::{self, AppCell},
     config::{self, CfgCell},
     trace, Application, FrameworkError, StandardPaths,
 };
 
+use pace_core::config::PaceConfig;
+
 /// Application state
-pub static APP: AppCell<PaceApp> = AppCell::new();
+pub static PACE_APP: AppCell<PaceApp> = AppCell::new();
 
 /// Pace Application
 #[derive(Debug)]

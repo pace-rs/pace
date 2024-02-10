@@ -11,7 +11,9 @@ and this project adheres to
 ## [0.3.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.2.0...pace-rs-v0.3.0) - 2024-02-03
 
 ### Fixed
-- *(manifest)* [**breaking**] use includes to only package the bare minimum for crates.io
+
+- *(manifest)* [**breaking**] use includes to only package the bare minimum for
+  crates.io
 
 ## [0.2.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.1.0...pace-rs-v0.2.0) - 2024-02-03
 
