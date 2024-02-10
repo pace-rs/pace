@@ -6,7 +6,7 @@ pace_core = { path = "crates/core" }
 
 [package]
 name = "pace-rs"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["the pace-rs team"]
 categories = ["command-line-utilities"]
 edition = "2021"
