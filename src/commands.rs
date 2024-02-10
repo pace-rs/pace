@@ -14,11 +14,12 @@ mod begin;
 mod end;
 mod export;
 // TODO: mod import;
+mod completions;
 mod hold;
 mod now;
 mod pomo;
-mod report;
 mod resume;
+mod review;
 mod set;
 mod tasks;
 
@@ -41,10 +42,13 @@ pub enum PaceCmd {
     /// your tasks.
     Begin(begin::BeginCmd),
 
+    /// Generate shell completions for the specified shell
+    Completions(completions::CompletionsCmd),
+
     /// Stops time tracking for the specified task, marking it as completed or finished for the day.
     End(end::EndCmd),
 
-    /// Exports your tracked data and reports in JSON or CSV format, suitable for analysis or record-keeping.
+    /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
     Export(export::ExportCmd),
 
     /// Pauses the time tracking for the specified task. This is
@@ -57,13 +61,13 @@ pub enum PaceCmd {
     /// Starts a Pomodoro session for the specified task, integrating the Pomodoro technique directly with your tasks.
     Pomo(pomo::PomoCmd),
 
-    /// Generates a report for your tasks. You can specify the time frame for daily, weekly, or monthly reports.
-    Report(report::ReportCmd),
+    /// Get insights on your activities and tasks. You can specify the time frame for daily, weekly, or monthly insights.
+    Review(review::ReviewCmd),
 
     /// Resumes time tracking for a previously paused task, allowing you to continue where you left off.
     Resume(resume::ResumeCmd),
 
-    /// Sets various application configurations, including Pomodoro lengths and preferred report formats.
+    /// Sets various application configurations, including Pomodoro lengths and preferred review formats.
     Set(set::SetCmd),
 
     /// Lists all tasks with optional filters. Use this to view active, completed, or today's tasks.

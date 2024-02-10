@@ -17,7 +17,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct PaceConfig {
     general: GeneralConfig,
-    reporting: ReportingConfig,
+    reviews: ReviewConfig,
     export: ExportConfig,
     database: Option<DatabaseConfig>, // Optional because it's only needed if log_storage is "database"
     pomodoro: PomodoroConfig,
@@ -36,9 +36,9 @@ pub struct GeneralConfig {
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters)]
-pub struct ReportingConfig {
-    report_format: String,
-    report_directory: String,
+pub struct ReviewConfig {
+    review_format: String,
+    review_directory: String,
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters)]

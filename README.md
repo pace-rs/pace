@@ -46,11 +46,11 @@ implemented yet (e.g. using activities instead of tasks).
   what you're currently tracking.
 - **Usage:** `pace now`
 
-❌ **`pace report --daily/--weekly/--monthly`**
+❌ **`pace review --daily/--weekly/--monthly`**
 
-- **Description:** Generates a report for your tasks. You can specify the time
-  frame for daily, weekly, or monthly reports.
-- **Usage:** `pace report --weekly --summary`
+- **Description:** Gain insight in your activities and tasks. You can specify
+  the time frame for daily, weekly, or monthly insights.
+- **Usage:** `pace review --weekly`
 
 ❌ **`pace resume <task-name>`**
 
@@ -92,14 +92,14 @@ implemented yet (e.g. using activities instead of tasks).
 
 ❌ **`pace export --json/--csv`**
 
-- **Description:** Exports your tracked data and reports in JSON or CSV format,
+- **Description:** Exports your tracked data and insights in JSON or CSV format,
   suitable for analysis or record-keeping.
 - **Usage:** `pace export --csv --from 2021-01-01 --to 2021-01-31`
 
 ❌ **`pace set`**
 
 - **Description:** Sets various application configurations, including Pomodoro
-  lengths and preferred report formats.
+  lengths and preferred review formats.
 - **Usage:** `pace set --work 25 --break 5`
 
 ## License
