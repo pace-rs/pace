@@ -5,7 +5,7 @@
 # TODO: IDs are optional and can be generated with the `pace id`(??? is that sensible, or something else?) command.
 # TODO: Add a `pace tasks init` command to generate a new project configuration file.
 
-[[task]]
+[[tasks]]
 id = "018d84a1-4540-7992-89f2-d87d9ee73524"
 title = "Implement feature X"
 created_at = "2024-02-04T12:34:56"
@@ -15,7 +15,7 @@ priority = "High"
 status = "Pending"
 tags = ["feature", "X"]
 
-[[task]]
+[[tasks]]
 id = "018d84a1-6cc8-7791-a92c-a077ef09de7f"
 title = "Fix bug Y"
 created_at = "2024-02-06T12:34:56"
