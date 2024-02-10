@@ -5,7 +5,7 @@ use derive_getters::Getters;
 use serde_derive::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashSet, VecDeque},
-    fmt::Display,
+    fmt::{format, Display},
     fs,
     path::Path,
 };
@@ -98,13 +98,13 @@ impl Default for ActivityId {
 
 impl Display for Activity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // FIXME: Refactor to use non-deprecated methods
-        let time = DateTime::from_local(
-            NaiveDateTime::new(self.start_date, self.start_time),
-            *Local::now().offset(),
-        );
-
-        let rel_time = duration_to_str(time);
+        let rel_time =
+            match NaiveDateTime::new(self.start_date, self.start_time).and_local_timezone(Local) {
+                chrono::LocalResult::Single(time) => duration_to_str(time),
+                chrono::LocalResult::None | chrono::LocalResult::Ambiguous(_, _) => {
+                    format!("at {} {}", self.start_date, self.start_time)
+                }
+            };
 
         write!(
             f,
