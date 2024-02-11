@@ -108,6 +108,8 @@ impl BeginCmd {
         activity_store.setup_storage()?;
         activity_store.save_activity(&activity)?;
 
+        println!("{activity}");
+
         Ok(())
     }
 }
