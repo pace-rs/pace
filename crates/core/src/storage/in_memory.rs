@@ -19,23 +19,3 @@ impl InMemoryActivityStorage {
         }
     }
 }
-
-impl ActivityStorage for InMemoryActivityStorage {
-    fn load_activities(&self) -> PaceResult<ActivityLog> {
-        // Cloning the vector to simulate loading from a persistent store
-        Ok(self
-            .activities
-            .into_inner()
-            .expect("Getting inner from unpoisened Mutex should succeed."))
-    }
-
-    fn save_activity(&self, activity: &Activity) -> PaceResult<()> {
-        // Simply push the new activity onto the vector
-        let mut guard = self
-            .activities
-            .lock()
-            .expect("Mutex should not be poisened.");
-        guard.add(activity.clone());
-        Ok(())
-    }
-}

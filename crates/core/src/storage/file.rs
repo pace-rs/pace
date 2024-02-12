@@ -1,6 +1,6 @@
-use chrono::{Local, NaiveTime};
+use chrono::{Local, NaiveTime, SubsecRound};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, VecDeque},
     fs::{self, File},
 };
 use std::{fs::OpenOptions, path::PathBuf};
@@ -11,10 +11,15 @@ use std::{
 use toml;
 use uuid::Uuid;
 
+use itertools::Itertools;
+
 use crate::{
-    domain::activity::{Activity, ActivityId, ActivityLog},
-    error::{PaceErrorKind, PaceResult},
-    storage::ActivityStorage,
+    domain::{
+        activity::{self, Activity, ActivityDequeCollection, ActivityId},
+        filter::{ActivityFilter, FilteredActivities},
+    },
+    error::{ActivityLogErrorKind, PaceErrorKind, PaceResult},
+    storage::{ActivityReadOps, ActivityStateManagement, ActivityStorage, ActivityWriteOps},
 };
 
 pub struct TomlActivityStorage {
@@ -37,62 +42,199 @@ impl ActivityStorage for TomlActivityStorage {
                     .parent()
                     .ok_or(PaceErrorKind::ParentDirNotFound(self.path.clone()))?,
             )?;
+
             let mut file = OpenOptions::new()
                 .write(true)
                 .create(true)
                 .open(&self.path)?;
+
             file.write_all(b"")?;
         }
         Ok(())
     }
-    fn load_all_activities(&self) -> PaceResult<ActivityLog> {
+}
+
+impl ActivityReadOps for TomlActivityStorage {
+    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
+        let activities = self.list_activities(ActivityFilter::default())?;
+        let activities = activities.into_activities();
+
+        let activity = activities
+            .iter()
+            .find(|activity| {
+                if let Some(id) = activity.id() {
+                    *id == activity_id
+                } else {
+                    false
+                }
+            })
+            .cloned();
+
+        Ok(activity)
+    }
+
+    fn list_activities(&self, filter: ActivityFilter) -> PaceResult<FilteredActivities> {
         let contents = fs::read_to_string(&self.path)?;
-        let activities: ActivityLog = toml::from_str(&contents)?;
-        Ok(activities)
+        let activities: ActivityDequeCollection = toml::from_str(&contents)?;
+
+        let filtered = activities
+            .into_iter()
+            .filter_map(|activity| match filter {
+                ActivityFilter::Active => {
+                    if activity.end_date().is_none() || activity.end_time().is_none() {
+                        Some(activity)
+                    } else {
+                        None
+                    }
+                }
+                ActivityFilter::Ended => {
+                    if activity.end_date().is_some() && activity.end_time().is_some() {
+                        Some(activity)
+                    } else {
+                        None
+                    }
+                }
+                ActivityFilter::All => Some(activity),
+                ActivityFilter::Archived => None, // TODO: Implement archived filter
+            })
+            .collect::<VecDeque<_>>();
+
+        match filter {
+            ActivityFilter::Active => Ok(FilteredActivities::Active(filtered)),
+            ActivityFilter::Ended => Ok(FilteredActivities::Ended(filtered)),
+            ActivityFilter::All => Ok(FilteredActivities::All(filtered)),
+            ActivityFilter::Archived => Ok(FilteredActivities::Archived(filtered)),
+        }
     }
+}
 
-    fn list_current_activities(&self) -> PaceResult<Option<Vec<Activity>>> {
-        let activities = self.load_all_activities()?;
-        Ok(activities.current_activities())
-    }
-
-    fn save_activity(&self, activity: &Activity) -> PaceResult<()> {
-        let mut activities = self.load_all_activities()?;
-        activities.add(activity.clone())?;
-
-        let toml = toml::to_string_pretty(&activities)?;
-
-        // Write the new contents back to the file
-        fs::write(&self.path, toml)?;
-        Ok(())
-    }
-
+impl ActivityStateManagement for TomlActivityStorage {
     fn end_all_unfinished_activities(
         &self,
         time: Option<NaiveTime>,
     ) -> PaceResult<Option<Vec<Activity>>> {
-        let mut activities = self.load_all_activities()?;
-        let unfinished = activities.end_all_unfinished_activities(time)?;
-        let toml = toml::to_string_pretty(&activities)?;
-        fs::write(&self.path, toml)?;
-        Ok(unfinished)
+        // TODO: Make date formats configurable
+        let date = Local::now().date_naive();
+        let time = time.unwrap_or_else(|| Local::now().time().round_subsecs(0));
+
+        let mut unfinished_activities: Vec<Activity> = vec![];
+
+        let activities = self
+            .list_activities(ActivityFilter::All)?
+            .into_activities()
+            .iter_mut()
+            .map(|activity| {
+                if activity.end_date().is_none() && activity.end_time().is_none() {
+                    activity.end_date_mut().replace(date);
+                    activity.end_time_mut().replace(time);
+                    unfinished_activities.push(activity.clone());
+                }
+
+                activity.clone()
+            })
+            .collect::<VecDeque<_>>();
+
+        // Return early with Ok(None) if there are no activities to end
+        if unfinished_activities.is_empty() {
+            Ok(None)
+        } else {
+            // Sort the activities by start date
+            unfinished_activities.sort_by(|a, b| a.start_date().cmp(b.start_date()));
+
+            // Write the updated (all activities) content back to the file
+            let toml = toml::to_string_pretty(&activities)?;
+            fs::write(&self.path, toml)?;
+
+            // Return the activities that were ended
+            Ok(Some(unfinished_activities))
+        }
     }
 
     fn end_last_unfinished_activity(
         &self,
         time: Option<NaiveTime>,
     ) -> PaceResult<Option<Activity>> {
-        let mut activities = self.load_all_activities()?;
-        let unfinished = activities.end_last_unfinished_activity(time)?;
-        let toml = toml::to_string_pretty(&activities)?;
+        let mut activities = self
+            .list_activities(ActivityFilter::Active)?
+            .into_activities();
+
+        let activity: Activity;
+
+        // Return early with Ok(None) if there are no activities to end
+        if activities.is_empty() {
+            return Ok(None);
+        }
+
+        // Scope for mutable borrow of last_activity
+        {
+            let Some(last_activity) = activities.front_mut() else {
+                return Err(ActivityLogErrorKind::NoActivityToEnd.into());
+            };
+
+            // TODO: Make date formats configurable
+            let date = Local::now().date_naive();
+            let time = time.unwrap_or_else(|| Local::now().time().round_subsecs(0));
+
+            // If the last activity already has an end date and time, return early with Ok(None)
+            if last_activity.end_date().is_some() && last_activity.end_time().is_some() {
+                return Ok(None);
+            }
+
+            last_activity.end_date_mut().replace(date);
+            last_activity.end_time_mut().replace(time);
+
+            // Clone the last activity to return it after the mutable borrow ends
+            activity = last_activity.clone();
+        }
+
+        let toml = toml::to_string_pretty(&activities.clone())?;
         fs::write(&self.path, toml)?;
-        Ok(unfinished)
+
+        Ok(Some(activity))
     }
 
-    fn get_activities_by_id(
+    fn start_activity(&self, activity: &Activity) -> PaceResult<ActivityId> {
+        todo!()
+    }
+
+    fn end_activity(
         &self,
-        _uuid: Uuid,
-    ) -> PaceResult<Option<BTreeMap<ActivityId, Activity>>> {
+        activity_id: ActivityId,
+        end_time: Option<NaiveTime>,
+    ) -> PaceResult<ActivityId> {
+        todo!()
+    }
+}
+
+impl ActivityWriteOps for TomlActivityStorage {
+    fn create_activity(&self, activity: &Activity) -> PaceResult<ActivityId> {
+        let mut activity = activity.clone();
+
+        let mut activities = self
+            .list_activities(ActivityFilter::default())?
+            .into_activities();
+
+        // Generate an ID for the activity if it doesn't have one
+        _ = activity.id_mut().get_or_insert_with(ActivityId::default);
+
+        let activity_id = activity.id().clone().unwrap();
+
+        activities.push_front(activity);
+
+        let toml = toml::to_string_pretty(&activities)?;
+
+        // Write the new contents back to the file
+        fs::write(&self.path, toml)?;
+
+        // Return the ID of the newly created activity
+        Ok(activity_id)
+    }
+
+    fn update_activity(&self, activity_id: ActivityId, activity: &Activity) -> PaceResult<()> {
+        todo!()
+    }
+
+    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<()> {
         todo!()
     }
 }

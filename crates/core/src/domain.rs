@@ -2,10 +2,12 @@
 
 pub mod activity;
 pub mod category;
+pub mod filter;
 pub mod inbox;
 pub mod intermission;
 pub mod priority;
 pub mod project;
+pub mod review;
 pub mod status;
 pub mod tag;
 pub mod task;

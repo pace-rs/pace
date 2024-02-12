@@ -15,7 +15,6 @@ pub mod error;
 pub mod service;
 pub mod storage;
 pub mod util;
-// pub mod event;
 
 use std::collections::{BinaryHeap, HashMap, VecDeque};
 use std::time::{SystemTime, UNIX_EPOCH};

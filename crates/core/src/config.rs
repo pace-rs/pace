@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use chrono::NaiveDateTime;
-use derive_getters::Getters;
+use getset::{CopyGetters, Getters, MutGetters, Setters};
 use serde_derive::{Deserialize, Serialize};
 
 use directories::ProjectDirs;
@@ -18,7 +18,8 @@ use crate::{
 #[derive(Debug, Deserialize, Default, Serialize, Getters)]
 #[serde(deny_unknown_fields)]
 pub struct PaceConfig {
-    pub general: GeneralConfig,
+    #[getset(get = "pub")]
+    general: GeneralConfig,
     reviews: ReviewConfig,
     export: ExportConfig,
     database: Option<DatabaseConfig>, // Optional because it's only needed if log_storage is "database"
@@ -27,10 +28,11 @@ pub struct PaceConfig {
     auto_archival: AutoArchivalConfig,
 }
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, MutGetters)]
 pub struct GeneralConfig {
     log_storage: String,
-    pub activity_log_file_path: String,
+    #[getset(get = "pub", get_mut = "pub")]
+    activity_log_file_path: String,
     log_format: String,
     autogenerate_ids: bool,
     category_separator: String,

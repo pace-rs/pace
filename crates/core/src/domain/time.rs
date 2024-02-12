@@ -1,5 +1,20 @@
 use chrono::{DateTime, Local};
 
+pub enum TimeFrame {
+    Custom {
+        start: DateTime<Local>,
+        end: DateTime<Local>,
+    },
+    Daily,
+    DaysInThePast(u32),
+    Monthly,
+    MonthsInThePast(u32),
+    Weekly,
+    WeeksInThePast(u32),
+    Yearly,
+    YearsInThePast(u32),
+}
+
 /// Converts Timespec to nice readable relative time string
 pub fn duration_to_str(init: DateTime<Local>) -> String {
     let now = Local::now();
