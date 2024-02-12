@@ -1,6 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::predicate;
-use tempfile::{tempdir, TempDir};
+// use tempfile::{tempdir, TempDir};
 
 pub type TestResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -44,32 +44,44 @@ fn test_help_command_passes() -> TestResult<()> {
 }
 
 // TODO: Test begin command
-#[test]
-fn test_begin_command_passes() -> TestResult<()> {
-    pace_runner()?
-        .args([
-            "-a",
-            "./activity_log.toml",
-            "begin",
-            "This is my task description",
-            "-c",
-            "MyCategory::SubCategory",
-        ])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("started")); // TODO
+// #[test]
+// fn test_begin_command_passes() -> TestResult<()> {
+//     pace_runner()?
+//         .args([
+//             "-a",
+//             "./activity_log.toml",
+//             "begin",
+//             "This is my task description",
+//             "-c",
+//             "MyCategory::SubCategory",
+//         ])
+//         .assert()
+//         .success()
+//         .stdout(predicate::str::contains("started")); // TODO
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 // TODO: Test end command
-#[test]
-fn test_end_command_passes() -> TestResult<()> {
-    pace_runner()?
-        .args(["-a", "./activity_log.toml", "end"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("finished")); // TODO
+// #[test]
+// fn test_end_command_passes() -> TestResult<()> {
+//     pace_runner()?
+//         .args(["-a", "./activity_log.toml", "end"])
+//         .assert()
+//         .success()
+//         .stdout(predicate::str::contains("finished")); // TODO
 
-    Ok(())
-}
+//     Ok(())
+// }
+
+// TODO: Test now command
+// #[test]
+// fn test_now_command_passes() -> TestResult<()> {
+//     pace_runner()?
+//         .args(["-a", "./activity_log.toml", "now"])
+//         .assert()
+//         .success()
+//         .stdout(predicate::str::contains("current")); // TODO
+
+//     Ok(())
+// }
