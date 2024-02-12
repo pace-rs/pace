@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/pace-rs/pace/compare/pace_core-v0.3.0...pace_core-v0.4.0) - 2024-02-12
+
+### Added
+- *(core)* subdivide storage trait and apply fixes ([#3](https://github.com/pace-rs/pace/pull/3))
+
 ## [0.3.0](https://github.com/pace-rs/pace/compare/pace_core-v0.2.0...pace_core-v0.3.0) - 2024-02-10
 
 ### Added
