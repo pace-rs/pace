@@ -28,17 +28,17 @@
 Currently they are stating the intended functionality and may not be fully
 implemented yet (e.g. using activities instead of tasks).
 
-🪧 **`pace begin <task-name>`**
+🪧 **`pace begin`**
 
 - **Description:** Starts tracking time for the specified task. You can
   optionally specify a category or project to help organize your tasks.
-- **Usage:** `pace begin "Design Work" --category "Freelance"`
+- **Usage:** `pace begin "Design Work" --category "Freelance" --time 10:00`
 
-🪧 **`pace end <task-name>`**
+🪧 **`pace end`**
 
 - **Description:** Stops time tracking for the specified task, marking it as
   completed or finished for the day.
-- **Usage:** `pace end "Design Work"`
+- **Usage:** `pace end --time 11:30 --only-last`
 
 🪧 **`pace now`**
 
@@ -46,19 +46,19 @@ implemented yet (e.g. using activities instead of tasks).
   what you're currently tracking.
 - **Usage:** `pace now`
 
-❌ **`pace review --daily/--weekly/--monthly`**
+⏲️ **`pace review`**
 
 - **Description:** Gain insight in your activities and tasks. You can specify
   the time frame for daily, weekly, or monthly insights.
 - **Usage:** `pace review --weekly`
 
-❌ **`pace resume <task-name>`**
+❌ **`pace resume`**
 
 - **Description:** Resumes time tracking for a previously paused task, allowing
   you to continue where you left off.
 - **Usage:** `pace resume "Design Work"`
 
-❌ **`pace hold <task-name>`**
+❌ **`pace hold`**
 
 - **Description:** Pauses the time tracking for the specified task. This is
   useful for taking breaks without ending the task.
@@ -84,7 +84,7 @@ implemented yet (e.g. using activities instead of tasks).
   all projects, subprojects and their associated tasks.
 - **Usage:** `pace projects`
 
-❌ **`pace pomo <task-name>`**
+❌ **`pace pomo`**
 
 - **Description:** Starts a Pomodoro session for the specified task, integrating
   the Pomodoro technique directly with your tasks.
