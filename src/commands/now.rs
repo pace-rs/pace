@@ -2,7 +2,7 @@
 
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 use clap::Parser;
-use eyre::{eyre, OptionExt, Result};
+use eyre::Result;
 
 use crate::prelude::PACE_APP;
 
@@ -34,12 +34,18 @@ impl NowCmd {
 
         activity_store.setup_storage()?;
 
-        activity_store
-            .list_activities(ActivityFilter::Active)?
-            .ok_or_eyre(eyre!("No activities are currently running"))?
-            .into_activities()
-            .into_iter()
-            .for_each(|activity| println!("{}", activity));
+        match activity_store.list_activities(ActivityFilter::Active)? {
+            Some(activities) => {
+                activities
+                    .into_log()
+                    .activities()
+                    .iter()
+                    .for_each(|activity| println!("{}", activity));
+            }
+            None => {
+                println!("No activities are currently running.");
+            }
+        }
 
         Ok(())
     }

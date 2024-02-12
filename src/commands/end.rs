@@ -64,6 +64,8 @@ impl EndCmd {
             for activity in unfinished_activities {
                 println!("Ended {activity}");
             }
+        } else {
+            println!("No unfinished activities to end.");
         }
 
         Ok(())

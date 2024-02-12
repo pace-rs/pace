@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     domain::{
-        activity::{Activity, ActivityDequeCollection, ActivityId, ActivityLog},
+        activity::{Activity, ActivityId, ActivityLog},
         filter::{ActivityFilter, FilteredActivities},
         review::ActivityStats,
         time::TimeFrame,
@@ -200,7 +200,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// A collection of the activities that are currently active.
     // TODO: should just use `list_activities` with a filter for `active = true`
     // TODO: Implement this as default
-    fn list_current_activities(&self) -> PaceResult<Option<ActivityDequeCollection>>;
+    fn list_current_activities(&self) -> PaceResult<Option<ActivityLog>>;
 
     /// Find activities within a specific date range.
     ///
@@ -222,7 +222,7 @@ pub trait ActivityQuerying: ActivityReadOps {
         &self,
         start_date: NaiveDate,
         end_date: NaiveDate,
-    ) -> PaceResult<ActivityDequeCollection>;
+    ) -> PaceResult<ActivityLog>;
 
     /// Get all activities by their ID.
     ///

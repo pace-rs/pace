@@ -7,6 +7,7 @@ use std::{
     collections::{BTreeMap, HashSet, VecDeque},
     fmt::{format, Display},
     fs,
+    iter::FromIterator,
     path::Path,
 };
 use typed_builder::TypedBuilder;
@@ -25,8 +26,6 @@ use crate::{
     error::{ActivityLogErrorKind, PaceErrorKind, PaceResult},
     storage::ActivityStorage,
 };
-
-pub type ActivityDequeCollection = VecDeque<Activity>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, Copy)]
 #[serde(rename_all = "lowercase")]
@@ -162,14 +161,17 @@ impl Activity {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Getters)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Getters, MutGetters)]
 pub struct ActivityLog {
-    activities: ActivityDequeCollection,
+    #[getset(get = "pub", get_mut = "pub")]
+    activities: VecDeque<Activity>,
 }
 
-impl From<ActivityDequeCollection> for ActivityLog {
-    fn from(activities: ActivityDequeCollection) -> Self {
-        Self { activities }
+impl FromIterator<Activity> for ActivityLog {
+    fn from_iter<T: IntoIterator<Item = Activity>>(iter: T) -> Self {
+        Self {
+            activities: iter.into_iter().collect::<VecDeque<Activity>>(),
+        }
     }
 }
 
@@ -212,7 +214,7 @@ mod tests {
         #[files("../../data/*.toml")] activity_path: PathBuf,
     ) -> TestResult<()> {
         let toml_string = fs::read_to_string(activity_path)?;
-        let _ = toml::from_str::<Vec<Activity>>(&toml_string)?;
+        let _ = toml::from_str::<ActivityLog>(&toml_string)?;
 
         Ok(())
     }

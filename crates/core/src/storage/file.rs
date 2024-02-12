@@ -15,7 +15,7 @@ use itertools::Itertools;
 
 use crate::{
     domain::{
-        activity::{self, Activity, ActivityDequeCollection, ActivityId},
+        activity::{self, Activity, ActivityId, ActivityLog},
         filter::{ActivityFilter, FilteredActivities},
     },
     error::{ActivityLogErrorKind, PaceErrorKind, PaceResult},
@@ -58,44 +58,43 @@ impl ActivityReadOps for TomlActivityStorage {
     fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
         self.list_activities(ActivityFilter::default())?
             .map(|filtered| {
-                filtered.into_activities().into_iter().find(|activity| {
-                    if let Some(id) = activity.id() {
-                        *id == activity_id
-                    } else {
-                        false
-                    }
-                })
+                filtered
+                    .into_log()
+                    .activities()
+                    .iter()
+                    .find(|activity| {
+                        if let Some(id) = activity.id() {
+                            *id == activity_id
+                        } else {
+                            false
+                        }
+                    })
+                    .cloned()
             })
             .ok_or(ActivityLogErrorKind::FailedToReadActivity(activity_id).into())
     }
 
     fn list_activities(&self, filter: ActivityFilter) -> PaceResult<Option<FilteredActivities>> {
         let contents = fs::read_to_string(&self.path)?;
-        let activities: ActivityDequeCollection = toml::from_str(&contents)?;
+        let activity_log: ActivityLog = toml::from_str(&contents)?;
 
-        let filtered = activities
-            .into_iter()
-            .filter_map(|activity| match filter {
+        let filtered = activity_log
+            .activities()
+            .iter()
+            .filter(|activity| match filter {
                 ActivityFilter::Active => {
-                    if activity.end_date().is_none() || activity.end_time().is_none() {
-                        Some(activity)
-                    } else {
-                        None
-                    }
+                    activity.end_date().is_none() || activity.end_time().is_none()
                 }
                 ActivityFilter::Ended => {
-                    if activity.end_date().is_some() && activity.end_time().is_some() {
-                        Some(activity)
-                    } else {
-                        None
-                    }
+                    activity.end_date().is_some() && activity.end_time().is_some()
                 }
-                ActivityFilter::All => Some(activity),
-                ActivityFilter::Archived => None, // TODO: Implement archived filter
+                ActivityFilter::All => true,
+                ActivityFilter::Archived => false, // TODO: Implement archived filter
             })
-            .collect::<VecDeque<_>>();
+            .cloned()
+            .collect::<ActivityLog>();
 
-        if filtered.is_empty() {
+        if filtered.activities().is_empty() {
             return Ok(None);
         }
 
@@ -121,7 +120,8 @@ impl ActivityStateManagement for TomlActivityStorage {
 
         let activities = self.list_activities(ActivityFilter::All)?.map(|filtered| {
             filtered
-                .into_activities()
+                .into_log()
+                .activities_mut()
                 .iter_mut()
                 .map(|activity| {
                     if activity.end_date().is_none() && activity.end_time().is_none() {
@@ -132,7 +132,7 @@ impl ActivityStateManagement for TomlActivityStorage {
 
                     activity.clone()
                 })
-                .collect::<VecDeque<_>>()
+                .collect::<ActivityLog>()
         });
 
         // Return early with Ok(None) if there are no activities to end
@@ -155,21 +155,21 @@ impl ActivityStateManagement for TomlActivityStorage {
         &self,
         time: Option<NaiveTime>,
     ) -> PaceResult<Option<Activity>> {
-        let mut activities = self
+        let mut activity_log = self
             .list_activities(ActivityFilter::Active)?
             .ok_or(ActivityLogErrorKind::NoActivityToEnd)?
-            .into_activities();
+            .into_log();
 
         let activity: Activity;
 
         // Return early with Ok(None) if there are no activities to end
-        if activities.is_empty() {
+        if activity_log.activities().is_empty() {
             return Ok(None);
         }
 
         // Scope for mutable borrow of last_activity
         {
-            let Some(last_activity) = activities.front_mut() else {
+            let Some(last_activity) = activity_log.activities_mut().front_mut() else {
                 return Err(ActivityLogErrorKind::NoActivityToEnd.into());
             };
 
@@ -189,20 +189,20 @@ impl ActivityStateManagement for TomlActivityStorage {
             activity = last_activity.clone();
         }
 
-        let toml = toml::to_string_pretty(&activities.clone())?;
+        let toml = toml::to_string_pretty(&activity_log.clone())?;
         fs::write(&self.path, toml)?;
 
         Ok(Some(activity))
     }
 
-    fn start_activity(&self, activity: &Activity) -> PaceResult<ActivityId> {
+    fn start_activity(&self, _activity: &Activity) -> PaceResult<ActivityId> {
         todo!()
     }
 
     fn end_activity(
         &self,
-        activity_id: ActivityId,
-        end_time: Option<NaiveTime>,
+        _activity_id: ActivityId,
+        _end_time: Option<NaiveTime>,
     ) -> PaceResult<ActivityId> {
         todo!()
     }
@@ -212,19 +212,19 @@ impl ActivityWriteOps for TomlActivityStorage {
     fn create_activity(&self, activity: &Activity) -> PaceResult<ActivityId> {
         let mut activity = activity.clone();
 
-        let mut activities = self
+        let mut activity_log = self
             .list_activities(ActivityFilter::default())?
             .ok_or(ActivityLogErrorKind::NoActivitiesFound)?
-            .into_activities();
+            .into_log();
 
         // Generate an ID for the activity if it doesn't have one
         _ = activity.id_mut().get_or_insert_with(ActivityId::default);
 
         let activity_id = activity.id().clone().unwrap();
 
-        activities.push_front(activity);
+        activity_log.activities_mut().push_front(activity);
 
-        let toml = toml::to_string_pretty(&activities)?;
+        let toml = toml::to_string_pretty(&activity_log)?;
 
         // Write the new contents back to the file
         fs::write(&self.path, toml)?;
@@ -233,11 +233,11 @@ impl ActivityWriteOps for TomlActivityStorage {
         Ok(activity_id)
     }
 
-    fn update_activity(&self, activity_id: ActivityId, activity: &Activity) -> PaceResult<()> {
+    fn update_activity(&self, _activity_id: ActivityId, _activity: &Activity) -> PaceResult<()> {
         todo!()
     }
 
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<()> {
+    fn delete_activity(&self, _activity_id: ActivityId) -> PaceResult<()> {
         todo!()
     }
 }

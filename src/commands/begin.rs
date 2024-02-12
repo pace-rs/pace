@@ -1,14 +1,16 @@
 //! `begin` subcommand
 
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
-use chrono::{Local, NaiveTime, SubsecRound};
 use clap::Parser;
 use eyre::Result;
 
 use crate::prelude::PACE_APP;
 
 use pace_core::{
-    domain::activity::{Activity, ActivityKind},
+    domain::{
+        activity::{Activity, ActivityKind},
+        time::extract_time_or_now,
+    },
     service::activity_store::ActivityStore,
     storage::{file::TomlActivityStorage, ActivityStorage, ActivityWriteOps},
 };
@@ -59,19 +61,8 @@ impl BeginCmd {
             ..
         } = self;
 
-        // parse time from string or set now
-        let (time, date) = if let Some(ref time) = time {
-            (
-                NaiveTime::parse_from_str(time, "%H:%M")?,
-                Local::now().date_naive(),
-            )
-        } else {
-            // if no time is given, use the current time
-            (
-                Local::now().time().round_subsecs(0),
-                Local::now().date_naive(),
-            )
-        };
+        // parse time from string or get now
+        let (time, date) = extract_time_or_now(time)?;
 
         // TODO: Parse categories and subcategories from string
         // let (category, subcategory) = if let Some(ref category) = category {

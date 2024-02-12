@@ -1,6 +1,4 @@
-use std::collections::VecDeque;
-
-use crate::domain::activity::Activity;
+use crate::domain::activity::{Activity, ActivityLog};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ActivityFilter {
@@ -13,14 +11,14 @@ pub enum ActivityFilter {
 
 #[derive(Debug, Clone)]
 pub enum FilteredActivities {
-    All(VecDeque<Activity>),
-    Active(VecDeque<Activity>),
-    Archived(VecDeque<Activity>),
-    Ended(VecDeque<Activity>),
+    All(ActivityLog),
+    Active(ActivityLog),
+    Archived(ActivityLog),
+    Ended(ActivityLog),
 }
 
 impl FilteredActivities {
-    pub fn into_activities(self) -> VecDeque<Activity> {
+    pub fn into_log(self) -> ActivityLog {
         match self {
             FilteredActivities::All(activities)
             | FilteredActivities::Active(activities)

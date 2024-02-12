@@ -58,6 +58,8 @@ pub enum PaceErrorKind {
     ActivityLog(#[from] ActivityLogErrorKind),
     #[error(transparent)]
     SQLite(#[from] rusqlite::Error),
+    #[error(transparent)]
+    ChronoParse(#[from] chrono::ParseError),
     /// Config file {file_name} not found in directory hierarchy starting from {current_dir}
     ConfigFileNotFound {
         current_dir: String,
@@ -82,6 +84,7 @@ impl PaceErrorMarker for std::io::Error {}
 impl PaceErrorMarker for toml::de::Error {}
 impl PaceErrorMarker for toml::ser::Error {}
 impl PaceErrorMarker for rusqlite::Error {}
+impl PaceErrorMarker for chrono::ParseError {}
 impl PaceErrorMarker for ActivityLogErrorKind {}
 
 impl<E> From<E> for PaceError
