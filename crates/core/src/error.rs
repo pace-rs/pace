@@ -7,6 +7,8 @@ use std::{
 use strum_macros::Display;
 use thiserror::Error;
 
+use crate::domain::activity::ActivityId;
+
 #[cfg(test)]
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
 
@@ -70,6 +72,8 @@ pub enum PaceErrorKind {
 #[derive(Error, Debug, Display)]
 pub enum ActivityLogErrorKind {
     NoActivityToEnd,
+    NoActivitiesFound,
+    FailedToReadActivity(ActivityId),
 }
 
 trait PaceErrorMarker: Error {}

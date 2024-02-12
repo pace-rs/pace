@@ -56,24 +56,20 @@ impl ActivityStorage for TomlActivityStorage {
 
 impl ActivityReadOps for TomlActivityStorage {
     fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
-        let activities = self.list_activities(ActivityFilter::default())?;
-        let activities = activities.into_activities();
-
-        let activity = activities
-            .iter()
-            .find(|activity| {
-                if let Some(id) = activity.id() {
-                    *id == activity_id
-                } else {
-                    false
-                }
+        self.list_activities(ActivityFilter::default())?
+            .map(|filtered| {
+                filtered.into_activities().into_iter().find(|activity| {
+                    if let Some(id) = activity.id() {
+                        *id == activity_id
+                    } else {
+                        false
+                    }
+                })
             })
-            .cloned();
-
-        Ok(activity)
+            .ok_or(ActivityLogErrorKind::FailedToReadActivity(activity_id).into())
     }
 
-    fn list_activities(&self, filter: ActivityFilter) -> PaceResult<FilteredActivities> {
+    fn list_activities(&self, filter: ActivityFilter) -> PaceResult<Option<FilteredActivities>> {
         let contents = fs::read_to_string(&self.path)?;
         let activities: ActivityDequeCollection = toml::from_str(&contents)?;
 
@@ -99,11 +95,15 @@ impl ActivityReadOps for TomlActivityStorage {
             })
             .collect::<VecDeque<_>>();
 
+        if filtered.is_empty() {
+            return Ok(None);
+        }
+
         match filter {
-            ActivityFilter::Active => Ok(FilteredActivities::Active(filtered)),
-            ActivityFilter::Ended => Ok(FilteredActivities::Ended(filtered)),
-            ActivityFilter::All => Ok(FilteredActivities::All(filtered)),
-            ActivityFilter::Archived => Ok(FilteredActivities::Archived(filtered)),
+            ActivityFilter::Active => Ok(Some(FilteredActivities::Active(filtered))),
+            ActivityFilter::Ended => Ok(Some(FilteredActivities::Ended(filtered))),
+            ActivityFilter::All => Ok(Some(FilteredActivities::All(filtered))),
+            ActivityFilter::Archived => Ok(Some(FilteredActivities::Archived(filtered))),
         }
     }
 }
@@ -119,20 +119,21 @@ impl ActivityStateManagement for TomlActivityStorage {
 
         let mut unfinished_activities: Vec<Activity> = vec![];
 
-        let activities = self
-            .list_activities(ActivityFilter::All)?
-            .into_activities()
-            .iter_mut()
-            .map(|activity| {
-                if activity.end_date().is_none() && activity.end_time().is_none() {
-                    activity.end_date_mut().replace(date);
-                    activity.end_time_mut().replace(time);
-                    unfinished_activities.push(activity.clone());
-                }
+        let activities = self.list_activities(ActivityFilter::All)?.map(|filtered| {
+            filtered
+                .into_activities()
+                .iter_mut()
+                .map(|activity| {
+                    if activity.end_date().is_none() && activity.end_time().is_none() {
+                        activity.end_date_mut().replace(date);
+                        activity.end_time_mut().replace(time);
+                        unfinished_activities.push(activity.clone());
+                    }
 
-                activity.clone()
-            })
-            .collect::<VecDeque<_>>();
+                    activity.clone()
+                })
+                .collect::<VecDeque<_>>()
+        });
 
         // Return early with Ok(None) if there are no activities to end
         if unfinished_activities.is_empty() {
@@ -156,6 +157,7 @@ impl ActivityStateManagement for TomlActivityStorage {
     ) -> PaceResult<Option<Activity>> {
         let mut activities = self
             .list_activities(ActivityFilter::Active)?
+            .ok_or(ActivityLogErrorKind::NoActivityToEnd)?
             .into_activities();
 
         let activity: Activity;
@@ -212,6 +214,7 @@ impl ActivityWriteOps for TomlActivityStorage {
 
         let mut activities = self
             .list_activities(ActivityFilter::default())?
+            .ok_or(ActivityLogErrorKind::NoActivitiesFound)?
             .into_activities();
 
         // Generate an ID for the activity if it doesn't have one

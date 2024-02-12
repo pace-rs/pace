@@ -2,13 +2,14 @@
 
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 use clap::Parser;
-use eyre::Result;
+use eyre::{eyre, OptionExt, Result};
 
 use crate::prelude::PACE_APP;
 
 use pace_core::{
+    domain::filter::ActivityFilter,
     service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, ActivityStorage},
+    storage::{file::TomlActivityStorage, ActivityReadOps, ActivityStorage},
 };
 
 /// `now` subcommand
@@ -33,15 +34,12 @@ impl NowCmd {
 
         activity_store.setup_storage()?;
 
-        let current_activities = activity_store.list_current_activities()?;
-
-        if let Some(activities) = current_activities {
-            for activity in activities {
-                println!("{}", activity);
-            }
-        } else {
-            println!("No activities are currently running");
-        }
+        activity_store
+            .list_activities(ActivityFilter::Active)?
+            .ok_or_eyre(eyre!("No activities are currently running"))?
+            .into_activities()
+            .into_iter()
+            .for_each(|activity| println!("{}", activity));
 
         Ok(())
     }

@@ -10,7 +10,7 @@ use crate::prelude::PACE_APP;
 use pace_core::{
     domain::activity::{Activity, ActivityKind},
     service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, ActivityStorage},
+    storage::{file::TomlActivityStorage, ActivityStorage, ActivityWriteOps},
 };
 
 /// `begin` subcommand
@@ -106,7 +106,7 @@ impl BeginCmd {
         )));
 
         activity_store.setup_storage()?;
-        activity_store.save_activity(&activity)?;
+        activity_store.create_activity(&activity)?;
 
         println!("{activity}");
 

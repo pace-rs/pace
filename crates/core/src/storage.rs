@@ -70,7 +70,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// A collection of the activities that were loaded from the storage backend.
-    fn list_activities(&self, filter: ActivityFilter) -> PaceResult<FilteredActivities>;
+    fn list_activities(&self, filter: ActivityFilter) -> PaceResult<Option<FilteredActivities>>;
 }
 
 /// Basic CRUD Operations for Activities in the storage backend.
