@@ -11,6 +11,7 @@ id = "018d84a0-7847-7b2b-9cdb-6ba213f99a1d"
 name = "Pace Project"
 description = "An example project managed with Pace."
 root_tasks_file = "tasks.toml" # Path to the root tasks file
+filters = ["*pace*"] # Optional: Define default filters for your project
 
 [defaults]
 # Optional: Define a default category for your project
@@ -41,6 +42,10 @@ id = "018d84a0-a2d1-7450-98ef-8b47e0ff42b5"
 name = "Pace Subproject A"
 description = ""
 tasks_file = "subproject-a/tasks.toml"
+# Optional: Define default filters for your project
+filters = [
+  "*pace*, *subproject-a",
+]
 
 [[subprojects]]
 # Optional: Define subprojects or directories with their own tasks
@@ -48,3 +53,7 @@ id = "018d84a0-cc74-71b4-8dd4-d7d26d1f5924"
 name = "Pace Subproject B"
 description = ""
 tasks_file = "subproject-b/tasks.toml"
+# Optional: Define default filters for your project
+filters = [
+  "*pace*, *subproject-b",
+]

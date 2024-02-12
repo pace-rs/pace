@@ -40,8 +40,10 @@ pub struct Project {
     root_tasks_file: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TypedBuilder)]
 struct Subproject {
+    #[builder(default, setter(strip_option))]
+    id: Option<ProjectId>,
     name: String,
     description: String,
     tasks_file: String,

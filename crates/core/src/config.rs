@@ -5,8 +5,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use chrono::NaiveDateTime;
-use derive_getters::Getters;
+use getset::{CopyGetters, Getters, MutGetters, Setters};
 use serde_derive::{Deserialize, Serialize};
+
+use directories::ProjectDirs;
 
 use crate::{
     domain::category::Category,
@@ -16,8 +18,9 @@ use crate::{
 #[derive(Debug, Deserialize, Default, Serialize, Getters)]
 #[serde(deny_unknown_fields)]
 pub struct PaceConfig {
+    #[getset(get = "pub")]
     general: GeneralConfig,
-    reporting: ReportingConfig,
+    reviews: ReviewConfig,
     export: ExportConfig,
     database: Option<DatabaseConfig>, // Optional because it's only needed if log_storage is "database"
     pomodoro: PomodoroConfig,
@@ -25,9 +28,10 @@ pub struct PaceConfig {
     auto_archival: AutoArchivalConfig,
 }
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, MutGetters)]
 pub struct GeneralConfig {
     log_storage: String,
+    #[getset(get = "pub", get_mut = "pub")]
     activity_log_file_path: String,
     log_format: String,
     autogenerate_ids: bool,
@@ -36,9 +40,9 @@ pub struct GeneralConfig {
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters)]
-pub struct ReportingConfig {
-    report_format: String,
-    report_directory: String,
+pub struct ReviewConfig {
+    review_format: String,
+    review_directory: String,
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters)]
@@ -123,15 +127,111 @@ pub fn find_config_file(starting_directory: impl AsRef<Path>, file_name: &str) -
 /// # Returns
 ///
 /// The path to the file if found
-pub fn find_config_file_path_from_current_dir(file_name: &str) -> PaceResult<PathBuf> {
-    let current_dir = env::current_dir()?;
+pub fn find_root_config_file_path(
+    current_dir: impl AsRef<Path>,
+    file_name: &str,
+) -> PaceResult<PathBuf> {
     find_config_file(&current_dir, file_name).ok_or(
         PaceErrorKind::ConfigFileNotFound {
-            current_dir: current_dir.clone().to_string_lossy().to_string(),
+            current_dir: current_dir.as_ref().to_string_lossy().to_string(),
             file_name: file_name.to_string(),
         }
         .into(),
     )
+}
+
+/// Get the paths to the config file
+///
+/// # Arguments
+///
+/// * `filename` - name of the config file
+///
+/// # Returns
+///
+/// A vector of [`PathBuf`]s to the config files
+fn get_config_paths(filename: &str) -> Vec<PathBuf> {
+    #[allow(unused_mut)]
+    let mut paths = vec![
+        get_home_config_path(),
+        ProjectDirs::from("", "", "pace")
+            .map(|project_dirs| project_dirs.config_dir().to_path_buf()),
+        get_global_config_path(),
+        Some(PathBuf::from(".")),
+    ];
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(win_compatibility_paths) = get_windows_portability_config_directories() {
+            paths.extend(win_compatibility_paths);
+        };
+    }
+
+    paths
+        .into_iter()
+        .filter_map(|path| path.map(|p| p.join(filename)))
+        .collect::<Vec<_>>()
+}
+
+/// Get the path to the home config directory.
+///
+/// # Returns
+///
+/// The path to the home config directory.
+/// If the environment variable `PACE_HOME` is not set, `None` is returned.
+fn get_home_config_path() -> Option<PathBuf> {
+    std::env::var_os("PACE_HOME").map(|home_dir| PathBuf::from(home_dir).join(r"config"))
+}
+
+/// Get the paths to the user profile config directories on Windows.
+///
+/// # Returns
+///
+/// A collection of possible paths to the user profile config directory on Windows.
+///
+/// # Note
+///
+/// If the environment variable `USERPROFILE` is not set, `None` is returned.
+#[cfg(target_os = "windows")]
+fn get_windows_portability_config_directories() -> Option<Vec<Option<PathBuf>>> {
+    std::env::var_os("USERPROFILE").map(|path| {
+        vec![
+            Some(PathBuf::from(path.clone()).join(r".config\pace")),
+            Some(PathBuf::from(path).join(".pace")),
+        ]
+    })
+}
+
+/// Get the path to the global config directory on Windows.
+///
+/// # Returns
+///
+/// The path to the global config directory on Windows.
+/// If the environment variable `PROGRAMDATA` is not set, `None` is returned.
+#[cfg(target_os = "windows")]
+fn get_global_config_path() -> Option<PathBuf> {
+    std::env::var_os("PROGRAMDATA")
+        .map(|program_data| PathBuf::from(program_data).join(r"pace\config"))
+}
+
+/// Get the path to the global config directory on ios and wasm targets.
+///
+/// # Returns
+///
+/// `None` is returned.
+#[cfg(any(target_os = "ios", target_arch = "wasm32"))]
+fn get_global_config_path() -> Option<PathBuf> {
+    None
+}
+
+/// Get the path to the global config directory on non-Windows,
+/// non-iOS, non-wasm targets.
+///
+/// # Returns
+///
+/// "/etc/pace" is returned.
+#[cfg(not(any(target_os = "windows", target_os = "ios", target_arch = "wasm32")))]
+fn get_global_config_path() -> Option<PathBuf> {
+    Some(PathBuf::from("/etc/pace"))
 }
 
 #[cfg(test)]
@@ -155,7 +255,7 @@ mod tests {
 
     #[rstest]
     fn test_parse_project_file_passes(
-        #[files("../../config/project.toml")] config_path: PathBuf,
+        #[files("../../config/projects.pace.toml")] config_path: PathBuf,
     ) -> TestResult<()> {
         let toml_string = fs::read_to_string(config_path)?;
         let _ = toml::from_str::<ProjectConfig>(&toml_string)?;
@@ -165,7 +265,7 @@ mod tests {
 
     #[rstest]
     fn test_parse_tasks_file_passes(
-        #[files("../../config/tasks.toml")] config_path: PathBuf,
+        #[files("../../config/tasks.pace.toml")] config_path: PathBuf,
     ) -> TestResult<()> {
         let toml_string = fs::read_to_string(config_path)?;
         let _ = toml::from_str::<TaskList>(&toml_string)?;

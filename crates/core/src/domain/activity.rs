@@ -1,12 +1,13 @@
 //! Activity entity and business logic
 
 use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
-use derive_getters::Getters;
+use getset::{CopyGetters, Getters, MutGetters, Setters};
 use serde_derive::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashSet, VecDeque},
     fmt::{format, Display},
     fs,
+    iter::FromIterator,
     path::Path,
 };
 use typed_builder::TypedBuilder;
@@ -15,6 +16,7 @@ use uuid::Uuid;
 use crate::{
     domain::{
         category::Category,
+        filter::ActivityFilter,
         intermission::{self, IntermissionPeriod},
         status::ItemStatus,
         tag::Tag,
@@ -44,9 +46,10 @@ enum PomodoroCycle {
     Intermission,
 }
 
-#[derive(Debug, Serialize, Deserialize, TypedBuilder, Getters, Clone)]
+#[derive(Debug, Serialize, Deserialize, TypedBuilder, Getters, MutGetters, Clone)]
 pub struct Activity {
     #[builder(default = Some(ActivityId::default()), setter(strip_option))]
+    #[getset(get = "pub", get_mut = "pub")]
     id: Option<ActivityId>,
 
     // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
@@ -58,13 +61,17 @@ pub struct Activity {
     description: Option<String>,
 
     #[builder(default, setter(strip_option))]
+    #[getset(get = "pub", get_mut = "pub")]
     end_date: Option<NaiveDate>,
 
     #[builder(default, setter(strip_option))]
+    #[getset(get = "pub", get_mut = "pub")]
     end_time: Option<NaiveTime>,
 
+    #[getset(get = "pub")]
     start_date: NaiveDate,
 
+    #[getset(get = "pub")]
     start_time: NaiveTime,
 
     kind: ActivityKind,
@@ -148,24 +155,27 @@ impl Activity {
             }
         }
     }
+
+    pub fn archived(&self) -> bool {
+        self.end_date.is_some() && self.end_time.is_some()
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Getters)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Getters, MutGetters)]
 pub struct ActivityLog {
+    #[getset(get = "pub", get_mut = "pub")]
     activities: VecDeque<Activity>,
 }
 
+impl FromIterator<Activity> for ActivityLog {
+    fn from_iter<T: IntoIterator<Item = Activity>>(iter: T) -> Self {
+        Self {
+            activities: iter.into_iter().collect::<VecDeque<Activity>>(),
+        }
+    }
+}
+
 impl ActivityLog {
-    pub fn load(activity_path: impl AsRef<Path>) -> PaceResult<Self> {
-        let toml_string = fs::read_to_string(activity_path)?;
-        Ok(toml::from_str::<Self>(&toml_string)?)
-    }
-
-    pub fn add(&mut self, activity: Activity) -> PaceResult<()> {
-        self.activities.push_front(activity);
-        Ok(())
-    }
-
     pub fn current_activities(&self) -> Option<Vec<Activity>> {
         let current_activities = self
             .activities
@@ -179,54 +189,6 @@ impl ActivityLog {
         }
 
         Some(current_activities)
-    }
-
-    pub fn end_all_unfinished_activities(
-        &mut self,
-        time: Option<NaiveTime>,
-    ) -> PaceResult<Option<Vec<Activity>>> {
-        // TODO: Make date formats configurable
-        let date = Local::now().date_naive();
-        let time = time.unwrap_or_else(|| Local::now().time().round_subsecs(0));
-
-        let unfinished_activities = self
-            .activities
-            .iter_mut()
-            .filter(|activity| activity.end_date.is_none() || activity.end_time.is_none())
-            .map(|activity| {
-                activity.end_date = Some(date);
-                activity.end_time = Some(time);
-                activity.clone()
-            })
-            .collect::<Vec<Activity>>();
-
-        if unfinished_activities.is_empty() {
-            return Ok(None);
-        }
-
-        Ok(Some(unfinished_activities))
-    }
-
-    pub fn end_last_unfinished_activity(
-        &mut self,
-        time: Option<NaiveTime>,
-    ) -> PaceResult<Option<Activity>> {
-        let Some(last_activity) = self.activities.front_mut() else {
-            return Err(ActivityLogErrorKind::NoActivityToEnd.into());
-        };
-
-        // TODO: Make date formats configurable
-        let date = Local::now().date_naive();
-        let time = time.unwrap_or_else(|| Local::now().time().round_subsecs(0));
-
-        if last_activity.end_date.is_some() && last_activity.end_time.is_some() {
-            return Ok(None);
-        }
-
-        last_activity.end_date = Some(date);
-        last_activity.end_time = Some(time);
-
-        Ok(Some(last_activity.clone()))
     }
 
     // pub fn activities_by_id(&self) -> PaceResult<BTreeMap<ActivityId, Activity>> {

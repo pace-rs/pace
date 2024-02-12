@@ -7,8 +7,9 @@ use eyre::Result;
 use crate::prelude::PACE_APP;
 
 use pace_core::{
+    domain::filter::ActivityFilter,
     service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, ActivityStorage},
+    storage::{file::TomlActivityStorage, ActivityReadOps, ActivityStorage},
 };
 
 /// `now` subcommand
@@ -33,14 +34,17 @@ impl NowCmd {
 
         activity_store.setup_storage()?;
 
-        let current_activities = activity_store.list_current_activities()?;
-
-        if let Some(activities) = current_activities {
-            for activity in activities {
-                println!("{}", activity);
+        match activity_store.list_activities(ActivityFilter::Active)? {
+            Some(activities) => {
+                activities
+                    .into_log()
+                    .activities()
+                    .iter()
+                    .for_each(|activity| println!("{}", activity));
             }
-        } else {
-            println!("No activities are currently running");
+            None => {
+                println!("No activities are currently running.");
+            }
         }
 
         Ok(())

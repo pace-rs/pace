@@ -7,7 +7,9 @@ use std::{
 use strum_macros::Display;
 use thiserror::Error;
 
-#[cfg(test)]
+use crate::domain::activity::ActivityId;
+
+/// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
 
 /// Result type that is being returned from methods that can fail and thus have [`PaceError`]s.
@@ -56,6 +58,8 @@ pub enum PaceErrorKind {
     ActivityLog(#[from] ActivityLogErrorKind),
     #[error(transparent)]
     SQLite(#[from] rusqlite::Error),
+    #[error(transparent)]
+    ChronoParse(#[from] chrono::ParseError),
     /// Config file {file_name} not found in directory hierarchy starting from {current_dir}
     ConfigFileNotFound {
         current_dir: String,
@@ -70,6 +74,8 @@ pub enum PaceErrorKind {
 #[derive(Error, Debug, Display)]
 pub enum ActivityLogErrorKind {
     NoActivityToEnd,
+    NoActivitiesFound,
+    FailedToReadActivity(ActivityId),
 }
 
 trait PaceErrorMarker: Error {}
@@ -78,6 +84,7 @@ impl PaceErrorMarker for std::io::Error {}
 impl PaceErrorMarker for toml::de::Error {}
 impl PaceErrorMarker for toml::ser::Error {}
 impl PaceErrorMarker for rusqlite::Error {}
+impl PaceErrorMarker for chrono::ParseError {}
 impl PaceErrorMarker for ActivityLogErrorKind {}
 
 impl<E> From<E> for PaceError

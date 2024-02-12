@@ -9,7 +9,7 @@ use crate::prelude::PACE_APP;
 
 use pace_core::{
     service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, ActivityStorage},
+    storage::{file::TomlActivityStorage, ActivityStateManagement, ActivityStorage},
 };
 
 /// `end` subcommand
@@ -64,6 +64,8 @@ impl EndCmd {
             for activity in unfinished_activities {
                 println!("Ended {activity}");
             }
+        } else {
+            println!("No unfinished activities to end.");
         }
 
         Ok(())

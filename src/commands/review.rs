@@ -1,9 +1,9 @@
-//! `report` subcommand
+//! `review` subcommand
 
 use abscissa_core::{Command, Runnable};
 use clap::Parser;
 
-/// `report` subcommand
+/// `review` subcommand
 ///
 /// The `Parser` proc macro generates an option parser based on the struct
 /// definition, and is defined in the `clap` crate. See their documentation
@@ -11,7 +11,7 @@ use clap::Parser;
 ///
 /// <https://docs.rs/clap/>
 #[derive(Command, Debug, Parser)]
-pub struct ReportCmd {
+pub struct ReviewCmd {
     // /// Option foobar. Doc comments are the help description
     // #[clap(short)]
     // foobar: Option<PathBuf>
@@ -24,7 +24,7 @@ pub struct ReportCmd {
     // free_args: Vec<String>,
 }
 
-impl Runnable for ReportCmd {
+impl Runnable for ReviewCmd {
     /// Start the application.
     fn run(&self) {
         // Your code goes here
