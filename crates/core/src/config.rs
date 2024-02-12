@@ -146,7 +146,14 @@ pub fn find_config_file_path_from_current_dir(file_name: &str) -> PaceResult<Pat
 ///
 /// A vector of [`PathBuf`]s to the config files
 fn get_config_paths(filename: &str) -> Vec<PathBuf> {
-    let mut paths = vec![];
+    #[allow(unused_mut)]
+    let mut paths = vec![
+        get_home_config_path(),
+        ProjectDirs::from("", "", "pace")
+            .map(|project_dirs| project_dirs.config_dir().to_path_buf()),
+        get_global_config_path(),
+        Some(PathBuf::from(".")),
+    ];
 
     #[cfg(target_os = "windows")]
     {
@@ -155,24 +162,10 @@ fn get_config_paths(filename: &str) -> Vec<PathBuf> {
         };
     }
 
-    let dirs = vec![
-        get_home_config_path(),
-        ProjectDirs::from("", "", "pace")
-            .map(|project_dirs| project_dirs.config_dir().to_path_buf()),
-        get_global_config_path(),
-        Some(PathBuf::from(".")),
-    ]
-    .into_iter()
-    .filter_map(|path| {
-        path.map(|mut p| {
-            p.push(filename);
-            p
-        })
-    })
-    .collect::<Vec<_>>();
-
-    paths.extend(dirs);
     paths
+        .into_iter()
+        .filter_map(|path| path.map(|p| p.join(filename)))
+        .collect::<Vec<_>>()
 }
 
 /// Get the path to the home config directory.
@@ -195,11 +188,11 @@ fn get_home_config_path() -> Option<PathBuf> {
 ///
 /// If the environment variable `USERPROFILE` is not set, `None` is returned.
 #[cfg(target_os = "windows")]
-fn get_windows_portability_config_directories() -> Option<Vec<PathBuf>> {
+fn get_windows_portability_config_directories() -> Option<Vec<Option<PathBuf>>> {
     std::env::var_os("USERPROFILE").map(|path| {
         vec![
-            PathBuf::from(path.clone()).join(r".config\pace"),
-            PathBuf::from(path).join(".pace"),
+            Some(PathBuf::from(path.clone()).join(r".config\pace")),
+            Some(PathBuf::from(path).join(".pace")),
         ]
     })
 }

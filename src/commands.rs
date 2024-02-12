@@ -134,16 +134,7 @@ impl Configurable<PaceConfig> for EntryPoint {
     ///
     /// This can be safely deleted if you don't want to override config
     /// settings from command-line options.
-    fn process_config(&self, _config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
-        // Get a mutable reference to the config
-        let mut config = self.config.clone();
-
-        let activity_log_str = config.general.activity_log_file_path.as_mut_str();
-
-        if let Some(activity_log_file) = &self.activity_log_file {
-            *activity_log_str = *activity_log_file.as_str();
-        }
-
+    fn process_config(&self, config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
         // match &self.cmd {
         // PaceCmd::Start(cmd) => cmd.override_config(config),
         //
