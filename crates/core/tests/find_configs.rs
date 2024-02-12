@@ -1,24 +1,27 @@
-use pace_core::config::find_config_file_path_from_current_dir;
+use pace_core::{config::find_root_config_file_path, error::TestResult};
 
-use std::io::Write;
-use std::{env, fs::File, path::Path};
+use std::env;
 
 use rstest::rstest;
 
 #[rstest]
-fn test_find_root_projects_file() -> Result<(), Box<dyn std::error::Error>> {
+fn test_find_root_projects_file() -> TestResult<()> {
+    let current_dir = env::current_dir()?;
     let projects_config_name = "projects.pace.toml";
 
     // navigate to the test directory for the fixtures
-    let root = Path::new(".\\tests\\fixtures\\project1\\subproject-a\\").canonicalize()?;
-    assert!(env::set_current_dir(root).is_ok());
+    let root = current_dir
+        .join("tests/fixtures/project1/subproject-a/")
+        .canonicalize()?;
 
     // get the path to the projects config file
-    let projects_config_path = find_config_file_path_from_current_dir(projects_config_name)?;
+    let projects_config_path = find_root_config_file_path(root, projects_config_name)?;
 
     assert_eq!(
         projects_config_path,
-        Path::new(".\\tests\\fixtures\\project1\\projects.pace.toml").canonicalize()?
+        current_dir
+            .join("tests/fixtures/project1/projects.pace.toml")
+            .canonicalize()?
     );
 
     Ok(())

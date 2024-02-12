@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use crate::domain::activity::ActivityId;
 
-#[cfg(test)]
+/// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
 
 /// Result type that is being returned from methods that can fail and thus have [`PaceError`]s.

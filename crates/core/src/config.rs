@@ -127,11 +127,13 @@ pub fn find_config_file(starting_directory: impl AsRef<Path>, file_name: &str) -
 /// # Returns
 ///
 /// The path to the file if found
-pub fn find_config_file_path_from_current_dir(file_name: &str) -> PaceResult<PathBuf> {
-    let current_dir = env::current_dir()?;
+pub fn find_root_config_file_path(
+    current_dir: impl AsRef<Path>,
+    file_name: &str,
+) -> PaceResult<PathBuf> {
     find_config_file(&current_dir, file_name).ok_or(
         PaceErrorKind::ConfigFileNotFound {
-            current_dir: current_dir.clone().to_string_lossy().to_string(),
+            current_dir: current_dir.as_ref().to_string_lossy().to_string(),
             file_name: file_name.to_string(),
         }
         .into(),
