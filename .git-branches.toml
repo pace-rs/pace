@@ -54,7 +54,6 @@ sync-before-ship = true
 sync-upstream = true
 
 [branches]
-
 # The main branch is the branch from which you cut new feature branches,
 # and into which you ship feature branches when they are done.
 # This branch is often called "main", "master", or "development".
@@ -67,7 +66,6 @@ main = "main"
 perennials = ["develop"]
 
 [hosting]
-
 # Knowing the type of code hosting platform allows Git Town
 # to open browser URLs and talk to the code hosting API.
 # Most people can leave this on "auto-detect".
@@ -80,7 +78,6 @@ platform = "github"
 # origin-hostname = ""
 
 [sync-strategy]
-
 # How should Git Town synchronize feature branches?
 # Feature branches are short-lived branches cut from
 # the main branch and shipped back into the main branch.
