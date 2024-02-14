@@ -1,12 +1,12 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/pace-rs/pace/main/assets/8th-logo-header.png" height="350" />
+<img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header.png" height="350" />
 </p>
 <p align="center"><b>pace is a timetracking application for the command line.</b></p>
 
 <p align="center">
 <a href="https://crates.io/crates/pace-rs"><img src="https://img.shields.io/crates/v/pace-rs.svg" /></a>
 <a href="https://docs.rs/pace-rs/"><img src="https://img.shields.io/docsrs/pace-rs?style=flat&amp;labelColor=1c1d42&amp;color=4f396a&amp;logo=Rust&amp;logoColor=white" /></a>
-<a href="https://raw.githubusercontent.com/pace-rs/pace/main/"><img src="https://img.shields.io/badge/license-AGPLv3+-red.svg" /></a>
+<a href="https://raw.githubusercontent.com/pace-rs/pace/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPLv3+-red.svg" /></a>
 <a href="https://crates.io/crates/pace-rs"><img src="https://img.shields.io/crates/d/pace-rs.svg" /></a>
 <p>
 
