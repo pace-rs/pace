@@ -11,6 +11,7 @@ and this project adheres to
 ## [0.1.1](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.0...pace_cli-v0.1.1) - 2024-02-14
 
 ### Other
+
 - add discord server
 - update urls
 - update links to contribution guide
