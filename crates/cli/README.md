@@ -33,7 +33,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pace_cli = "0.4"
+pace_cli = "0.1"
 ```
 
 or use

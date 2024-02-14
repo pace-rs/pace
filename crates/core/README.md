@@ -32,7 +32,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pace_core = "0.4"
+pace_core = "0.5"
 ```
 
 or use
