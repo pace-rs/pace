@@ -40,7 +40,7 @@ license = false
 eula = false
 
 [dependencies]
-chrono = { version = "0.4.33", features = ["serde"] }
+chrono = { version = "0.4.34", features = ["serde"] }
 clap = "4"
 clap_complete = "4.5.0"
 dialoguer = { version = "0.11.0", features = ["history", "fuzzy-select"] }
@@ -50,7 +50,7 @@ pace_cli = { workspace = true }
 pace_core = { workspace = true }
 serde = "1"
 serde_derive = "1"
-thiserror = "1.0.56"
+thiserror = "1.0.57"
 toml = { version = "0.8.10", features = ["preserve_order"] }
 
 [dependencies.abscissa_core]
