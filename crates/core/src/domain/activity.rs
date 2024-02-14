@@ -94,6 +94,23 @@ pub struct Activity {
     intermission_periods: Option<Vec<IntermissionPeriod>>,
 }
 
+impl Default for Activity {
+    fn default() -> Self {
+        Self {
+            id: Some(ActivityId::default()),
+            category: Some("Uncategorized".to_string()),
+            description: Some("This is an example activity".to_string()),
+            end_date: Some(NaiveDate::from_ymd_opt(2021, 1, 1).unwrap_or_default()),
+            end_time: Some(NaiveTime::from_hms_opt(12, 0, 0).unwrap_or_default()),
+            start_date: Local::now().date_naive(),
+            start_time: Local::now().time().round_subsecs(0),
+            kind: ActivityKind::Activity,
+            pomodoro_cycle: None,
+            intermission_periods: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq)]
 pub struct ActivityId(Uuid);
 
@@ -161,10 +178,18 @@ impl Activity {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Getters, MutGetters)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters, MutGetters)]
 pub struct ActivityLog {
     #[getset(get = "pub", get_mut = "pub")]
     activities: VecDeque<Activity>,
+}
+
+impl Default for ActivityLog {
+    fn default() -> Self {
+        Self {
+            activities: VecDeque::from(vec![Activity::default()]),
+        }
+    }
 }
 
 impl FromIterator<Activity> for ActivityLog {

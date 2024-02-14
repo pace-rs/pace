@@ -21,6 +21,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::domain::activity::Activity;
 
+// Re-export commonly used external crates
+pub use toml;
+
 // fn process_activity_log(file_path: &str) {
 //     let activities = parse_activity_file(file_path); // Synchronously read and parse the file
 //     for activity in activities {

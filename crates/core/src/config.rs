@@ -27,6 +27,14 @@ pub struct PaceConfig {
     inbox: InboxConfig,
     auto_archival: AutoArchivalConfig,
 }
+impl PaceConfig {
+    pub fn with_activity_log(self, activity_log: impl AsRef<Path>) -> PaceConfig {
+        let mut new_config = self;
+        new_config.general.activity_log_file_path =
+            activity_log.as_ref().to_string_lossy().to_string();
+        new_config
+    }
+}
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters, MutGetters)]
 pub struct GeneralConfig {
@@ -91,7 +99,10 @@ pub struct AutoArchivalConfig {
 /// # Returns
 ///
 /// The path to the file if found, otherwise None
-pub fn find_config_file(starting_directory: impl AsRef<Path>, file_name: &str) -> Option<PathBuf> {
+pub fn find_root_project_file(
+    starting_directory: impl AsRef<Path>,
+    file_name: &str,
+) -> Option<PathBuf> {
     let mut current_dir = starting_directory.as_ref();
 
     loop {
@@ -131,13 +142,38 @@ pub fn find_root_config_file_path(
     current_dir: impl AsRef<Path>,
     file_name: &str,
 ) -> PaceResult<PathBuf> {
-    find_config_file(&current_dir, file_name).ok_or(
+    find_root_project_file(&current_dir, file_name).ok_or(
         PaceErrorKind::ConfigFileNotFound {
             current_dir: current_dir.as_ref().to_string_lossy().to_string(),
             file_name: file_name.to_string(),
         }
         .into(),
     )
+}
+
+/// Get the paths to the activity log file
+///
+/// # Arguments
+///
+/// * `filename` - name of the config file
+///
+/// # Returns
+///
+/// A vector of [`PathBuf`]s to the activity log files
+pub fn get_activity_log_paths(filename: &str) -> Vec<PathBuf> {
+    vec![
+        ProjectDirs::from("org", "pace-rs", "pace").map(|project_dirs| {
+            project_dirs
+                .data_local_dir()
+                .to_path_buf()
+                .join("activities")
+        }),
+        // Fallback to the current directory
+        Some(PathBuf::from(".")),
+    ]
+    .into_iter()
+    .filter_map(|path| path.map(|p| p.join(filename)))
+    .collect::<Vec<_>>()
 }
 
 /// Get the paths to the config file
@@ -149,13 +185,14 @@ pub fn find_root_config_file_path(
 /// # Returns
 ///
 /// A vector of [`PathBuf`]s to the config files
-fn get_config_paths(filename: &str) -> Vec<PathBuf> {
+pub fn get_config_paths(filename: &str) -> Vec<PathBuf> {
     #[allow(unused_mut)]
     let mut paths = vec![
         get_home_config_path(),
-        ProjectDirs::from("", "", "pace")
+        ProjectDirs::from("org", "pace-rs", "pace")
             .map(|project_dirs| project_dirs.config_dir().to_path_buf()),
         get_global_config_path(),
+        // Fallback to the current directory
         Some(PathBuf::from(".")),
     ];
 
@@ -172,6 +209,16 @@ fn get_config_paths(filename: &str) -> Vec<PathBuf> {
         .collect::<Vec<_>>()
 }
 
+/// Get the path to the home activity log directory.
+///
+/// # Returns
+///
+/// The path to the home activity log directory.
+/// If the environment variable `PACE_HOME` is not set, `None` is returned.
+fn get_home_activity_log_path() -> Option<PathBuf> {
+    std::env::var_os("PACE_HOME").map(|home_dir| PathBuf::from(home_dir).join("activities"))
+}
+
 /// Get the path to the home config directory.
 ///
 /// # Returns
@@ -179,7 +226,7 @@ fn get_config_paths(filename: &str) -> Vec<PathBuf> {
 /// The path to the home config directory.
 /// If the environment variable `PACE_HOME` is not set, `None` is returned.
 fn get_home_config_path() -> Option<PathBuf> {
-    std::env::var_os("PACE_HOME").map(|home_dir| PathBuf::from(home_dir).join(r"config"))
+    std::env::var_os("PACE_HOME").map(|home_dir| PathBuf::from(home_dir).join("config"))
 }
 
 /// Get the paths to the user profile config directories on Windows.

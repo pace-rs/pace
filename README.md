@@ -28,6 +28,11 @@
 Currently they are stating the intended functionality and may not be fully
 implemented yet (e.g. using activities instead of tasks).
 
+⏲️ **`pace craft`**
+
+- **Description:** Cr
+- **Usage:** `pace begin "Design Work" --category "Freelance" --time 10:00`
+
 🪧 **`pace begin`**
 
 - **Description:** Starts tracking time for the specified task. You can
@@ -46,7 +51,7 @@ implemented yet (e.g. using activities instead of tasks).
   what you're currently tracking.
 - **Usage:** `pace now`
 
-⏲️ **`pace review`**
+❌ **`pace review`**
 
 - **Description:** Gain insight in your activities and tasks. You can specify
   the time frame for daily, weekly, or monthly insights.
