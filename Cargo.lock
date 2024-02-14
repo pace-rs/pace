@@ -890,7 +890,7 @@ dependencies = [
 
 [[package]]
 name = "pace_cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dialoguer",
  "eyre",

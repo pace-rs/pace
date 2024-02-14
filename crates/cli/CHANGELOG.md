@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.0...pace_cli-v0.1.1) - 2024-02-14
+
+### Other
+- add discord server
+- update urls
+- update links to contribution guide
+- fix version number for usage
+
 ## [0.1.0](https://github.com/pace-rs/pace/releases/tag/pace_cli-v0.1.0) - 2024-02-14
 
 ### Added
