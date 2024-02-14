@@ -11,6 +11,7 @@ and this project adheres to
 ## [0.5.1](https://github.com/pace-rs/pace/compare/pace_core-v0.5.0...pace_core-v0.5.1) - 2024-02-14
 
 ### Other
+
 - add discord server
 - *(deps)* update dependencies
 - update urls
