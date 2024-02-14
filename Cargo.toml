@@ -1,7 +1,8 @@
 [workspace]
-members = ["crates/core"]
+members = ["crates/cli", "crates/core"]
 
 [workspace.dependencies]
+pace_cli = { path = "crates/cli", version = "0" }
 pace_core = { path = "crates/core", version = "0" }
 
 [package]
@@ -33,12 +34,15 @@ eula = false
 chrono = { version = "0.4.33", features = ["serde"] }
 clap = "4"
 clap_complete = "4.5.0"
+dialoguer = { version = "0.11.0", features = ["history", "fuzzy-select"] }
 directories = "5.0.1"
 eyre = "0.6.12"
+pace_cli = { workspace = true }
 pace_core = { workspace = true }
 serde = "1"
 serde_derive = "1"
 thiserror = "1.0.56"
+toml = { version = "0.8.10", features = ["preserve_order"] }
 
 [dependencies.abscissa_core]
 version = "0.7.0"

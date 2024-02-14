@@ -1,0 +1,27 @@
+[package]
+name = "pace_cli"
+version = "0.1.0"
+authors = ["the pace-rs team"]
+categories = ["command-line-utilities"]
+edition = "2021"
+keywords = ["cli"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/pace-rs/pace"
+description = "pace-cli - library to support timetracking on the command line"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+include = [
+  "LICENSE",
+  "README.md",
+  "CHANGELOG.md",
+  "src/**/*",
+  "Cargo.toml",
+]
+
+[dependencies]
+dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
+eyre = "0.6.12"
+getset = "0.1.2"
+pace_core = { workspace = true }
+tracing = { version = "0.1.40", features = ["log"] }
+typed-builder = "0.18.1"

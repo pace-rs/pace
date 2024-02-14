@@ -11,7 +11,6 @@ use clap_complete::{generate, shells, Generator};
 /// `completions` subcommand
 #[derive(clap::Parser, Command, Debug)]
 pub struct CompletionsCmd {
-    /// Shell to generate completions for
     #[clap(value_enum)]
     sh: Variant,
 }
