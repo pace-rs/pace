@@ -11,9 +11,12 @@ and this project adheres to
 ## [0.5.0](https://github.com/pace-rs/pace/compare/pace_core-v0.4.0...pace_core-v0.5.0) - 2024-02-14
 
 ### Added
-- *(commands)* introduce new `pace craft setup` command to make onboarding easier ([#10](https://github.com/pace-rs/pace/pull/10))
+
+- *(commands)* introduce new `pace craft setup` command to make onboarding
+  easier ([#10](https://github.com/pace-rs/pace/pull/10))
 
 ### Other
+
 - update readmes
 - update cargo manifests
 
