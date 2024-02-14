@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.6.0...pace-rs-v0.6.1) - 2024-02-14
+
+### Other
+
+- *(pace_core)* release v0.5.1 ([#23](https://github.com/pace-rs/pace/pull/23))
+- *(pace_cli)* release v0.1.1 ([#21](https://github.com/pace-rs/pace/pull/21))
+- add pull request template
+- fix product-scope in feature request template
+- add issue and feature request template
+- add discord server
+- *(deps)* update dependencies
+- fmt
+- update urls
+- remove pinning for action digests
+- update links to contribution guide
+
 ## [0.6.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.5.0...pace-rs-v0.6.0) - 2024-02-14
 
 ### Added
