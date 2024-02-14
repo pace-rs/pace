@@ -69,7 +69,7 @@
 
         <Package Id='*'
             Keywords='Installer'
-            Description='pace - timetracking for the command line'
+            Description='pace - Mindful Time Tracking: Simplify Your Focus and Boost Productivity Effortlessly.'
             Manufacturer='the pace-rs team'
             InstallerVersion='450'
             Languages='1033'
