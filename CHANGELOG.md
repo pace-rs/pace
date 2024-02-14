@@ -11,6 +11,7 @@ and this project adheres to
 ## [0.6.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.6.0...pace-rs-v0.6.1) - 2024-02-14
 
 ### Other
+
 - *(pace_core)* release v0.5.1 ([#23](https://github.com/pace-rs/pace/pull/23))
 - *(pace_cli)* release v0.1.1 ([#21](https://github.com/pace-rs/pace/pull/21))
 - add pull request template
