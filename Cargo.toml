@@ -15,7 +15,7 @@ pace_core = { path = "crates/core", version = "0" }
 
 [package]
 name = "pace-rs"
-version = "0.5.0"
+version = "0.6.0"
 authors = { workspace = true }
 categories = { workspace = true }
 edition = { workspace = true }
