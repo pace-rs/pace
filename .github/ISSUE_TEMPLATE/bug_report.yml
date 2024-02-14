@@ -1,0 +1,230 @@
+name: Bug Report
+description: Create a report to help us improve
+title: "[Bug]: "
+labels: ["C-bug", "S-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thank you for taking the time to report a bug in **pace**!
+
+        Please fill out the following template to help us reproduce the issue and fix it as soon as possible.
+  - type: markdown
+    attributes:
+      value: |
+        Please note that this is only for reporting bugs in **pace** itself. 
+
+        If you have a question about how to use **pace**, please use the [discussions](https://github.com/pace-rs/discussions) instead.
+
+  - type: checkboxes
+    id: product-scope
+    attributes:
+      label: Which part(s) of the pace ecosystem are we talking about?
+      description: You may select more than one.
+      options:
+        - label: pace
+        - label: pace_core
+        - label: pace_cli
+        - label: other (specify below)
+
+  - type: input
+    id: product-scope-other
+    attributes:
+      label: Other product scope
+      description: Please specify the part(s) of the pace ecosystem you are referring to.
+    validations:
+      required: false
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current Behavior
+      description: A clear and concise description of what you're experiencing and what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Reproduction steps
+      description: How do you trigger this bug? Please walk us through it step by step.
+      value: |
+        1.
+        2.
+        3.
+        ...
+      render: bash
+    validations:
+      required: false
+
+  - type: textarea
+    id: bug-prevalence
+    attributes:
+      label: Bug prevalence
+      description: How often do you encounter this bug?
+      placeholder: "Example: Whenever I run `pace begin` (100% of the time), or sometimes when I run `pace end` (50% of the time)"
+    validations:
+      required: true
+
+  - type: input
+    id: pace-version
+    attributes:
+      label: Pace Version
+      description: Which version of Pace are you using?
+      placeholder: "e.g., pace v0.6.0 or pace_core v0.4.0"
+    validations:
+      required: true
+
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      placeholder: "e.g., Windows 10, macOS Big Sur, Ubuntu 20.04"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened.
+      placeholder: "Instead of the expected result, what happened was..."
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Environment
+
+        Please fill out the following information about your environment.
+
+  - type: dropdown
+    id: install-type
+    attributes:
+      label: Where did you get pace from?
+      multiple: false
+      options:
+        - Built from source
+        - Github Releases
+        - Binary from Package-management System
+        - Other (Please specify below)
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: install-type-other
+    attributes:
+      label: Other install type
+      description: "Where else did you get **pace** from?"
+      placeholder: "Example: I installed it with `cargo binstall pace`."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Anything else?
+      description: |
+        Links? References? Anything that will give us more context about the issue you are encountering!
+
+        Tip: You can attach images or log files by clicking this area to highlight it and then dragging files in.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Questionnaire
+
+        Please fill out the following questionnaire to help us improve **pace**.
+
+  - type: dropdown
+    id: user-friendliness
+    attributes:
+      label: |
+        How would you rate the ease of use of pace?
+      description: |
+        Consider a scale from -2 (Very difficult) to +2 (Very easy).
+      options:
+        - "-2 - Very Difficult"
+        - "-1 - Difficult"
+        - "0 - Neutral"
+        - "+1 - Easy"
+        - "+2 - Very Easy"
+      default: 3
+    validations:
+      required: false
+
+  - type: dropdown
+    id: clarity-of-information
+    attributes:
+      label: |
+        Was the information and feedback provided by pace clear and understandable?
+      description: |
+        Consider a scale from -2 (Very unclear) to +2 (Very clear).
+      options:
+        - "-2 - Very Unclear"
+        - "-1 - Somewhat Unclear"
+        - "0 - Neutral"
+        - "+1 - Clear"
+        - "+2 - Very Clear"
+      default: 3
+    validations:
+      required: false
+
+  - type: dropdown
+    id: satisfaction
+    attributes:
+      label: |
+        Overall, how satisfied are you with pace?
+      description: |
+        Consider a scale from -2 (I'm mad as hell, and I can't take it anymore) to +2 (I can't go back to any other time tracking solution anymore).
+      options:
+        - "-2 - Very Dissatisfied"
+        - "-1 - Dissatisfied "
+        - "0 - Neutral"
+        - "+1 - Satisfied"
+        - "+2 - Very Satisfied"
+      default: 3
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        Please make sure, you have searched/tried the following resources before submitting this issue:
+
+        * search our [documentation](https://pace.cli.rs/docs/)
+        * search our [discussions](https://github.com/pace-rs/discussions)
+        * search the [issue list (incl. closed issues)](https://github.com/pace-rs/pace/issues?q=is%3Aissue)
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Thank you for the report!
+
+        ### We'll look into it as soon as possible.
