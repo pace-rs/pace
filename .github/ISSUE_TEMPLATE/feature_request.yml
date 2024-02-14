@@ -28,10 +28,10 @@ body:
         - label: pace_cli
         - label: other (specify below)
 
-  - type: textarea
-    id: product-scope-extra
+  - type: input
+    id: product-scope-other
     attributes:
-      label: Which part(s) of the pace ecosystem are we talking about?
+      label: Other product scope
       description: Please specify the part(s) of the pace ecosystem you are referring to.
     validations:
       required: false
