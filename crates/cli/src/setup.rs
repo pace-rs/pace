@@ -159,7 +159,7 @@ pub fn print_intro(term: &Term) -> Result<()> {
 
     println!("{assistant_headline}");
 
-    let intro_text = r#"Welcome to pace-rs, your time tracking tool!
+    let intro_text = r#"Welcome to pace, your time tracking tool!
 
 Whether you're diving in for the first time or keen on refining your setup,
 this assistant is here to seamlessly tailor your environment to your preferences.
@@ -174,7 +174,7 @@ journey’s end, giving you the freedom to experiment. And if you decide to bow 
 no sweat — Q, ESC, or Ctrl-C will let you exit gracefully without a trace of change.
 
 Let’s embark on this customization adventure together—press ENTER when you’re ready
-to elevate your productivity with pace-rs."#;
+to elevate your productivity with pace."#;
 
     println!("{intro_text}\n");
 
