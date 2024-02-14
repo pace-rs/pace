@@ -23,7 +23,7 @@ keywords = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 rust-version = "1.74.1"
-description = "pace - timetracking for the command line"
+description = "pace - Mindful Time Tracking: Simplify Your Focus and Boost Productivity Effortlessly."
 
 include = [
   "LICENSE",

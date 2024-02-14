@@ -1,7 +1,7 @@
 <p align="center">
 <img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header.png" height="350" />
 </p>
-<p align="center"><b>pace is a timetracking application for the command line.</b></p>
+<p align="center"><b>Mindful Time Tracking: Simplify Your Focus and Boost Productivity Effortlessly.</b></p>
 
 <p align="center">
 <a href="https://crates.io/crates/pace-rs"><img src="https://img.shields.io/crates/v/pace-rs.svg" /></a>
