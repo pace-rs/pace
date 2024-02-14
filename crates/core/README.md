@@ -19,7 +19,7 @@ core library for the `pace` timetracking application.
 
 You can ask questions in the
 [Discussions](https://github.com/pace-rs/pace/discussions) or have a look at the
-[FAQ](https://pace.cli.rs/docs/FAQ.html).
+[FAQ](https://pace-rs.github.io/docs/FAQ.html).
 
 | Contact       | Where?                                                             |
 | ------------- | ------------------------------------------------------------------ |
@@ -61,7 +61,7 @@ Got an idea for an improvement? Don't keep it to yourself!
   via a pull requests!
 
 Please make sure, that you read the
-[contribution guide](https://pace.cli.rs/docs/contributing_to_pace.html).
+[contribution guide](https://pace-rs.github.io/docs/contributing_to_pace.html).
 
 ## Minimum Rust version policy
 
