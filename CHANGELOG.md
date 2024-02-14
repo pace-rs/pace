@@ -11,9 +11,12 @@ and this project adheres to
 ## [0.6.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.5.0...pace-rs-v0.6.0) - 2024-02-14
 
 ### Added
-- *(commands)* introduce new `pace craft setup` command to make onboarding easier ([#10](https://github.com/pace-rs/pace/pull/10))
+
+- *(commands)* introduce new `pace craft setup` command to make onboarding
+  easier ([#10](https://github.com/pace-rs/pace/pull/10))
 
 ### Other
+
 - fix version number for usage
 - *(pace_core)* release v0.5.0 ([#17](https://github.com/pace-rs/pace/pull/17))
 - *(pace_cli)* release v0.1.0 ([#14](https://github.com/pace-rs/pace/pull/14))
