@@ -61,7 +61,7 @@ Got an idea for an improvement? Don't keep it to yourself!
   via a pull requests!
 
 Please make sure, that you read the
-[contribution guide](https://pace.cli.rs/docs/contributing-to-pace.html).
+[contribution guide](https://pace.cli.rs/docs/contributing_to_pace.html).
 
 ## Minimum Rust version policy
 
