@@ -10,7 +10,76 @@
 <a href="https://crates.io/crates/pace-rs"><img src="https://img.shields.io/crates/d/pace-rs.svg" /></a>
 <p>
 
-## Command Overview
+## About
+
+`pace` is a mindful productivity tool designed to help you keep track of your
+activities with ease and intention.
+
+Born from the desire to blend simplicity with effectiveness, pace offers a
+command-line interface (CLI) that encourages focused work sessions, thoughtful
+reflection on task durations, and a harmonious balance between work and rest.
+
+Whether you're a developer, a writer, or anyone who values structured time
+management, pace provides the framework to log activities, review progress, and
+optimize how you spend your time.
+
+With features like the first activity wizard for onboarding new users, real-time
+configuration validation (upcoming), and personalized activity logs, pace is
+more than a time tracker — it's your partner in crafting a productive and
+mindful routine.
+
+## Contact
+
+You can ask questions in the
+[Discussions](https://github.com/pace-rs/pace/discussions) or have a look at the
+[FAQ](https://pace.cli.rs/docs/FAQ.html).
+
+| Contact       | Where?                                                             |
+| ------------- | ------------------------------------------------------------------ |
+| Issue Tracker | [GitHub Issues](https://github.com/pace-rs/pace/issues/new/choose) |
+| Discussions   | [GitHub Discussions](https://github.com/pace-rs/discussions)       |
+
+## Getting started
+
+Please check our [documentation](https://pace.cli.rs/docs/getting_started.html)
+for more information on how to get started.
+
+## Installation
+
+<!-- TODO! ### From binaries
+
+#### [cargo-binstall](https://crates.io/crates/cargo-binstall)
+
+```bash
+cargo binstall pace-rs
+``` -->
+
+<!-- TODO! #### Windows
+
+##### [Scoop](https://scoop.sh/)
+
+```bash
+scoop install pace
+``` -->
+
+Check out the [releases](https://github.com/pace-rs/pace/releases).
+
+### From source
+
+**Beware**: This installs the latest development version, which might be
+unstable.
+
+```bash
+cargo install --git https://github.com/pace-rs/pace.git pace-rs
+```
+
+### crates.io
+
+```bash
+cargo install pace-rs
+```
+
+## Usage
 
 ### Key
 
@@ -28,10 +97,14 @@
 Currently they are stating the intended functionality and may not be fully
 implemented yet (e.g. using activities instead of tasks).
 
-⏲️ **`pace craft`**
+🪧 **`pace craft`**
 
-- **Description:** Cr
-- **Usage:** `pace begin "Design Work" --category "Freelance" --time 10:00`
+- **Description:** Craft configuration files for pace, including the main
+  configuration file and any additional settings. This is useful for setting up
+  pace for the first time or when you need to change your settings. You can also
+  generate shell completions for your shell of choice. And generate a project
+  configuration file.
+- **Usage:** `pace craft setup`
 
 🪧 **`pace begin`**
 
@@ -106,6 +179,31 @@ implemented yet (e.g. using activities instead of tasks).
 - **Description:** Sets various application configurations, including Pomodoro
   lengths and preferred review formats.
 - **Usage:** `pace set --work 25 --break 5`
+
+## Contributing
+
+Found a bug? [Open an issue!](https://github.com/pace-rs/pace/issues/new/choose)
+
+Got an idea for an improvement? Don't keep it to yourself!
+
+- [Contribute fixes](https://github.com/pace-rs/pace/contribute) or new features
+  via a pull requests!
+
+Please make sure, that you read the
+[contribution guide](https://pace.cli.rs/docs/contributing-to-pace.html).
+
+## Minimum Rust version policy
+
+This crate's minimum supported `rustc` version is `1.74.1`.
+
+The current policy is that the minimum Rust version required to use this crate
+can be increased in minor version updates. For example, if `crate 1.0` requires
+Rust 1.20.0, then `crate 1.0.z` for all values of `z` will also require Rust
+1.20.0 or newer. However, `crate 1.y` for `y > 0` may require a newer minimum
+version of Rust.
+
+In general, this crate will be conservative with respect to the minimum
+supported version of Rust.
 
 ## License
 
