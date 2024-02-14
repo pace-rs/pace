@@ -1,6 +1,14 @@
 [workspace]
 members = ["crates/cli", "crates/core"]
 
+[workspace.package]
+authors = ["the pace-rs team"]
+categories = ["command-line-utilities"]
+edition = "2021"
+keywords = ["cli"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/pace-rs/pace"
+
 [workspace.dependencies]
 pace_cli = { path = "crates/cli", version = "0" }
 pace_core = { path = "crates/core", version = "0" }
@@ -8,12 +16,13 @@ pace_core = { path = "crates/core", version = "0" }
 [package]
 name = "pace-rs"
 version = "0.5.0"
-authors = ["the pace-rs team"]
-categories = ["command-line-utilities"]
-edition = "2021"
-keywords = ["cli"]
-license = "AGPL-3.0-or-later"
-repository = "https://github.com/pace-rs/pace"
+authors = { workspace = true }
+categories = { workspace = true }
+edition = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = "1.74.1"
 description = "pace - timetracking for the command line"
 
 include = [

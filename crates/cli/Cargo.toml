@@ -1,12 +1,13 @@
 [package]
 name = "pace_cli"
 version = "0.1.0"
-authors = ["the pace-rs team"]
-categories = ["command-line-utilities"]
-edition = "2021"
-keywords = ["cli"]
-license = "AGPL-3.0-or-later"
-repository = "https://github.com/pace-rs/pace"
+authors = { workspace = true }
+categories = { workspace = true }
+edition = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = "1.74.1"
 description = "pace-cli - library to support timetracking on the command line"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
