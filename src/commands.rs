@@ -23,7 +23,7 @@ mod review;
 mod set;
 mod tasks;
 
-use abscissa_core::{Command, Configurable, FrameworkError, Runnable};
+use abscissa_core::{config::Override, Command, Configurable, FrameworkError, Runnable};
 use clap::builder::{styling::AnsiColor, Styles};
 use human_panic::setup_panic;
 use std::path::PathBuf;
@@ -107,6 +107,20 @@ impl Runnable for EntryPoint {
     }
 }
 
+impl Override<PaceConfig> for EntryPoint {
+    fn override_config(&self, mut config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
+        // Override the activity log file if it's set
+        if let Some(activity_log_file) = &self.activity_log_file {
+            if activity_log_file.exists() {
+                *config.general_mut().activity_log_file_path_mut() =
+                    activity_log_file.to_string_lossy().to_string();
+            }
+        };
+
+        Ok(config)
+    }
+}
+
 /// This trait allows you to define how application configuration is loaded.
 impl Configurable<PaceConfig> for EntryPoint {
     /// Location of the configuration file
@@ -140,14 +154,9 @@ impl Configurable<PaceConfig> for EntryPoint {
     ///
     /// This can be safely deleted if you don't want to override config
     /// settings from command-line options.
-    fn process_config(&self, mut config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
-        // Override the activity log file if it's set
-        if let Some(activity_log_file) = &self.activity_log_file {
-            if activity_log_file.exists() {
-                *config.general_mut().activity_log_file_path_mut() =
-                    activity_log_file.to_string_lossy().to_string();
-            }
-        };
+    fn process_config(&self, config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
+        // Override the config file with options from CLI arguments globally
+        let config = self.override_config(config)?;
 
         // You can also override settings based on the subcommand
         // match &self.cmd {
