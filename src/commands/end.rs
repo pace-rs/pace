@@ -63,9 +63,9 @@ impl EndCmd {
         } else if let Some(unfinished_activities) =
             activity_store.end_all_unfinished_activities(time)?
         {
-            for activity in unfinished_activities {
+            unfinished_activities.iter().for_each(|activity| {
                 println!("Ended {activity}");
-            }
+            });
         } else {
             println!("No unfinished activities to end.");
         }

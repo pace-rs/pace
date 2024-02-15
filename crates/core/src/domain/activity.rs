@@ -47,6 +47,15 @@ enum PomodoroCycle {
     Intermission,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ActivityDuration(u64);
+
+impl From<Duration> for ActivityDuration {
+    fn from(duration: Duration) -> Self {
+        Self(duration.as_secs())
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, Getters, MutGetters, Clone)]
 pub struct Activity {
     #[builder(default = Some(ActivityId::default()), setter(strip_option))]
@@ -70,7 +79,7 @@ pub struct Activity {
 
     #[builder(default, setter(strip_option))]
     #[getset(get = "pub", get_mut = "pub")]
-    duration: Option<Duration>,
+    duration: Option<ActivityDuration>,
 
     kind: ActivityKind,
 

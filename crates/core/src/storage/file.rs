@@ -126,7 +126,7 @@ impl ActivityStateManagement for TomlActivityStorage {
                 if activity.is_active() {
                     match activity.calculate_duration(date_time) {
                         Ok(duration) => {
-                            activity.duration_mut().replace(duration);
+                            activity.duration_mut().replace(duration.into());
                             activity.end_mut().replace(date_time);
                             unfinished_activities.push(activity.clone());
                         }
@@ -180,7 +180,7 @@ impl ActivityStateManagement for TomlActivityStorage {
 
             match last_activity.calculate_duration(date_time) {
                 Ok(duration) => {
-                    last_activity.duration_mut().replace(duration);
+                    last_activity.duration_mut().replace(duration.into());
                     last_activity.end_mut().replace(date_time);
                 }
                 Err(_) => {
