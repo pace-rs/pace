@@ -942,7 +942,7 @@ dependencies = [
 
 [[package]]
 name = "pace_core"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-condvar-fair",
  "chrono",

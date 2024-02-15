@@ -8,6 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/pace-rs/pace/compare/pace_core-v0.5.1...pace_core-v0.6.0) - 2024-02-15
+
+### Added
+
+- *(config)* Implement reading from configuration file and improve error
+  handling for onboarding UX
+
 ## [0.5.1](https://github.com/pace-rs/pace/compare/pace_core-v0.5.0...pace_core-v0.5.1) - 2024-02-14
 
 ### Other
