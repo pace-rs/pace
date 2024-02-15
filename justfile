@@ -95,7 +95,7 @@ miri *ARGS:
 
 # Runs the test suites.
 test: check lint
-    cargo test --all-features
+    cargo nextest run --all-features --workspace
 
 # Runs the test suites.
 dtest: check lint
@@ -114,8 +114,11 @@ nitest:
 natest *ARGS:
     cargo nextest run --all-features --workspace -E 'test({{ARGS}})'
 
-
 # list the inverse dependencies
 # as in which feature enables a given crate
 inv-ft *ARGS:
 	cargo tree -e features -i {{ARGS}}
+
+# prepare for making a PR
+pr:
+	just fmt lint test
