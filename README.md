@@ -32,7 +32,7 @@ mindful routine.
 
 You can ask questions in the
 [Discussions](https://github.com/pace-rs/pace/discussions) or have a look at the
-[FAQ](https://pace-rs.github.io/docs/FAQ.html).
+[FAQ](https://pace.cli.rs/docs/FAQ.html).
 
 | Contact       | Where?                                                                                                          |
 | ------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -42,9 +42,8 @@ You can ask questions in the
 
 ## Getting started
 
-Please check our
-[documentation](https://pace-rs.github.io/docs/getting_started.html) for more
-information on how to get started.
+Please check our [documentation](https://pace.cli.rs/docs/getting_started.html)
+for more information on how to get started.
 
 ## Installation
 
@@ -192,7 +191,7 @@ Got an idea for an improvement? Don't keep it to yourself!
   via a pull requests!
 
 Please make sure, that you read the
-[contribution guide](https://pace-rs.github.io/docs/contributing_to_pace.html).
+[contribution guide](https://pace.cli.rs/docs/contributing_to_pace.html).
 
 ## Minimum Rust version policy
 

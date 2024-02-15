@@ -17,7 +17,7 @@ contributions will be licensed under:
 ### Checklist
 
 - [ ] I have read the
-      [Contribution Guidelines](https://pace-rs.github.io/docs/contributing_to_pace.html)
+      [Contribution Guidelines](https://pace.cli.rs/docs/contributing_to_pace.html)
       document.
 - [ ] I grant the project the right to include and distribute the code under the
       [AGPL-3.0-or-later](https://raw.githubusercontent.com/pace-rs/pace/main/LICENSE).
