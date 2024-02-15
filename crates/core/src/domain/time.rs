@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local, NaiveDate, NaiveTime, SubsecRound};
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound};
 
 use crate::error::PaceResult;
 
@@ -66,17 +66,14 @@ pub fn duration_to_str(initial_time: DateTime<Local>) -> String {
 /// # Returns
 ///
 /// A tuple containing the time and date
-pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<(NaiveTime, NaiveDate)> {
+pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<NaiveDateTime> {
     Ok(if let Some(ref time) = time {
-        (
-            NaiveTime::parse_from_str(time, "%H:%M")?,
+        NaiveDateTime::new(
             Local::now().date_naive(),
+            NaiveTime::parse_from_str(time, "%H:%M")?,
         )
     } else {
         // if no time is given, use the current time
-        (
-            Local::now().time().round_subsecs(0),
-            Local::now().date_naive(),
-        )
+        Local::now().naive_local().round_subsecs(0)
     })
 }

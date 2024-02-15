@@ -62,7 +62,7 @@ impl BeginCmd {
         } = self;
 
         // parse time from string or get now
-        let (time, date) = extract_time_or_now(time)?;
+        let date_time = extract_time_or_now(time)?;
 
         // TODO: Parse categories and subcategories from string
         // let (category, subcategory) = if let Some(ref category) = category {
@@ -86,8 +86,7 @@ impl BeginCmd {
 
         let activity = Activity::builder()
             .description(description.clone())
-            .start_time(time)
-            .start_date(date)
+            .begin(date_time)
             .kind(ActivityKind::default())
             .category(category.clone())
             .build();

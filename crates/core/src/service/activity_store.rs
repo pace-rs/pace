@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use chrono::NaiveTime;
+use chrono::{NaiveDateTime, NaiveTime};
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -50,21 +50,6 @@ impl ActivityReadOps for ActivityStore {
     ) -> PaceResult<Option<FilteredActivities>> {
         self.storage.list_activities(filter)
     }
-    // TODO: Caching?
-    // fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
-    //     if let Some(activity) = self.cache.activities_by_id.get(&activity_id) {
-    //         return Ok(Some(activity.clone()));
-    //     }
-
-    //     let activity = self.storage.read_activity(activity_id)?;
-
-    //     if let Some(activity) = activity.clone() {
-    //         self.cache.activities_by_id.insert(activity_id, activity.clone());
-    //         self.cache.last_entries.push_back(activity_id);
-    //     }
-
-    //     Ok(activity)
-    // }
 }
 
 impl ActivityWriteOps for ActivityStore {
@@ -89,21 +74,21 @@ impl ActivityStateManagement for ActivityStore {
     fn end_activity(
         &self,
         activity_id: ActivityId,
-        end_time: Option<NaiveTime>,
+        end_time: Option<NaiveDateTime>,
     ) -> PaceResult<ActivityId> {
         self.storage.end_activity(activity_id, end_time)
     }
 
     fn end_all_unfinished_activities(
         &self,
-        time: Option<NaiveTime>,
+        time: Option<NaiveDateTime>,
     ) -> PaceResult<Option<Vec<Activity>>> {
         self.storage.end_all_unfinished_activities(time)
     }
 
     fn end_last_unfinished_activity(
         &self,
-        time: Option<NaiveTime>,
+        time: Option<NaiveDateTime>,
     ) -> PaceResult<Option<Activity>> {
         self.storage.end_last_unfinished_activity(time)
     }

@@ -41,11 +41,12 @@ eula = false
 
 [dependencies]
 chrono = { version = "0.4.34", features = ["serde"] }
-clap = "4"
+clap = { version = "4", features = ["env", "wrap_help"] }
 clap_complete = "4.5.0"
 dialoguer = { version = "0.11.0", features = ["history", "fuzzy-select"] }
 directories = "5.0.1"
 eyre = "0.6.12"
+human-panic = "1.2.3"
 pace_cli = { workspace = true }
 pace_core = { workspace = true }
 serde = "1"

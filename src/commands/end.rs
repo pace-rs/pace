@@ -1,7 +1,7 @@
 //! `end` subcommand
 
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
-use chrono::NaiveTime;
+use chrono::{Local, NaiveDateTime, NaiveTime};
 use clap::Parser;
 use eyre::Result;
 
@@ -42,12 +42,14 @@ impl EndCmd {
 
         let time = time
             .as_ref()
-            .map(|time| {
-                NaiveTime::parse_from_str(time, "%H:%M")
-                    .map_err(|err| eyre::eyre!("Invalid time format: {}", err))
+            .map(|time| -> Result<NaiveDateTime> {
+                let time = NaiveTime::parse_from_str(time, "%H:%M")
+                    .map_err(|err| eyre::eyre!("Invalid time format: {}", err))?;
+                Ok(NaiveDateTime::new(Local::now().date_naive(), time))
             })
             .transpose()?;
 
+        // TODO!: Make storage configurable via Config file
         let activity_store = ActivityStore::new(Box::new(TomlActivityStorage::new(
             PACE_APP.config().general().activity_log_file_path(),
         )));

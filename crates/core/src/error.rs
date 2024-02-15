@@ -1,10 +1,10 @@
 //! Error types and Result module.
 
+use displaydoc::Display;
 use std::{
     error::Error,
     path::{Display, PathBuf},
 };
-use strum_macros::Display;
 use thiserror::Error;
 
 use crate::domain::activity::ActivityId;
@@ -50,22 +50,30 @@ pub enum PaceErrorKind {
     /// [`std::io::Error`]
     #[error(transparent)]
     StdIo(#[from] std::io::Error),
-    /// Toml serialization error: {0}
-    TomlSerialize(#[from] toml::ser::Error),
+    /// Serialization to TOML failed: {0}
     #[error(transparent)]
-    TomlDeserialize(#[from] toml::de::Error),
+    SerializationToTomlFailed(#[from] toml::ser::Error),
+    /// Deserialization from TOML failed: {0}
+    #[error(transparent)]
+    DeserializationFromTomlFailed(#[from] toml::de::Error),
+    /// Activity log error: {0}
     #[error(transparent)]
     ActivityLog(#[from] ActivityLogErrorKind),
+    /// SQLite error: {0}
     #[error(transparent)]
     SQLite(#[from] rusqlite::Error),
+    /// Chrono parse error: {0}
     #[error(transparent)]
     ChronoParse(#[from] chrono::ParseError),
+    /// Chrono duration is negative: {0}
+    #[error(transparent)]
+    ChronoDurationIsNegative(#[from] chrono::OutOfRangeError),
     /// Config file {file_name} not found in directory hierarchy starting from {current_dir}
     ConfigFileNotFound {
         current_dir: String,
         file_name: String,
     },
-    /// Parent directory not found in directory hierarchy: {0}
+    /// Configuration file not found, please run `pace craft setup` to initialize `pace`
     ParentDirNotFound(PathBuf),
 }
 
@@ -73,9 +81,14 @@ pub enum PaceErrorKind {
 #[non_exhaustive]
 #[derive(Error, Debug, Display)]
 pub enum ActivityLogErrorKind {
+    /// Activity log file not found:
     NoActivityToEnd,
+    /// No activities found in the activity log
     NoActivitiesFound,
+    /// Activity with ID {0} not found
     FailedToReadActivity(ActivityId),
+    /// Negative duration for activity
+    NegativeDuration,
 }
 
 trait PaceErrorMarker: Error {}
@@ -85,6 +98,7 @@ impl PaceErrorMarker for toml::de::Error {}
 impl PaceErrorMarker for toml::ser::Error {}
 impl PaceErrorMarker for rusqlite::Error {}
 impl PaceErrorMarker for chrono::ParseError {}
+impl PaceErrorMarker for chrono::OutOfRangeError {}
 impl PaceErrorMarker for ActivityLogErrorKind {}
 
 impl<E> From<E> for PaceError

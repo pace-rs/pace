@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use chrono::{NaiveDate, NaiveTime};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -148,7 +148,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     fn end_activity(
         &self,
         activity_id: ActivityId,
-        end_time: Option<NaiveTime>,
+        end_time: Option<NaiveDateTime>,
     ) -> PaceResult<ActivityId>;
 
     /// End all unfinished activities in the storage backend.
@@ -166,7 +166,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     /// A collection of the activities that were ended.
     fn end_all_unfinished_activities(
         &self,
-        time: Option<NaiveTime>,
+        time: Option<NaiveDateTime>,
     ) -> PaceResult<Option<Vec<Activity>>>;
 
     /// End the last unfinished activity in the storage backend.
@@ -182,8 +182,10 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     /// # Returns
     ///
     /// The activity that was ended.
-    fn end_last_unfinished_activity(&self, time: Option<NaiveTime>)
-        -> PaceResult<Option<Activity>>;
+    fn end_last_unfinished_activity(
+        &self,
+        time: Option<NaiveDateTime>,
+    ) -> PaceResult<Option<Activity>>;
 }
 
 /// Querying Activities

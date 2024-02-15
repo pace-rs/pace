@@ -25,13 +25,10 @@ mod tasks;
 
 use abscissa_core::{Command, Configurable, FrameworkError, Runnable};
 use clap::builder::{styling::AnsiColor, Styles};
+use human_panic::setup_panic;
 use std::path::PathBuf;
 
-use pace_core::config::PaceConfig;
-
-/// Pace Configuration Filename
-/// FIXME: Make this configurable
-pub const CONFIG_FILE: &str = "config/pace.toml";
+use pace_core::config::{get_config_paths, PaceConfig};
 
 /// Pace Subcommands
 /// Subcommands need to be listed in an enum.
@@ -96,15 +93,16 @@ pub struct EntryPoint {
 
     /// Use the specified config file
     #[arg(short, long)]
-    pub config: Option<String>,
+    pub config: Option<PathBuf>,
 
     /// Use the specified activity log file
     #[arg(short, long)]
-    pub activity_log_file: Option<String>,
+    pub activity_log_file: Option<PathBuf>,
 }
 
 impl Runnable for EntryPoint {
     fn run(&self) {
+        setup_panic!();
         self.cmd.run()
     }
 }
@@ -113,19 +111,27 @@ impl Runnable for EntryPoint {
 impl Configurable<PaceConfig> for EntryPoint {
     /// Location of the configuration file
     fn config_path(&self) -> Option<PathBuf> {
-        // Check if the config file exists, and if it does not, ignore it.
-        // If you'd like for a missing configuration file to be a hard error
-        // instead, always return `Some(CONFIG_FILE)` here.
+        let config_paths = get_config_paths("pace.toml")
+            .into_iter()
+            .filter(|f| f.exists())
+            .collect::<Vec<_>>();
+
+        // Get the first path that exists
+        // FIXME: This feels hacky, is this sensible?
+        let path = config_paths.first();
+
         let filename = self
             .config
             .as_ref()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| CONFIG_FILE.into());
+            .and_then(|f| if f.exists() { Some(f) } else { None });
 
-        if filename.exists() {
-            Some(filename)
-        } else {
-            None
+        // If the user has specified a config file, use that
+        // otherwise, use the first config file found in specified
+        // standard locations
+        match (filename, path) {
+            (Some(filename), _) => Some(filename.clone()),
+            (None, Some(filename)) => Some(filename.clone()),
+            _ => None,
         }
     }
 
@@ -134,7 +140,16 @@ impl Configurable<PaceConfig> for EntryPoint {
     ///
     /// This can be safely deleted if you don't want to override config
     /// settings from command-line options.
-    fn process_config(&self, config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
+    fn process_config(&self, mut config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
+        // Override the activity log file if it's set
+        if let Some(activity_log_file) = &self.activity_log_file {
+            if activity_log_file.exists() {
+                *config.general_mut().activity_log_file_path_mut() =
+                    activity_log_file.to_string_lossy().to_string();
+            }
+        };
+
+        // You can also override settings based on the subcommand
         // match &self.cmd {
         // PaceCmd::Start(cmd) => cmd.override_config(config),
         //

@@ -15,10 +15,10 @@ use crate::{
     error::{PaceErrorKind, PaceResult},
 };
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, Clone, MutGetters)]
 #[serde(deny_unknown_fields)]
 pub struct PaceConfig {
-    #[getset(get = "pub")]
+    #[getset(get = "pub", get_mut = "pub")]
     general: GeneralConfig,
     reviews: ReviewConfig,
     export: ExportConfig,
@@ -36,7 +36,7 @@ impl PaceConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters, MutGetters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, MutGetters, Clone)]
 pub struct GeneralConfig {
     log_storage: String,
     #[getset(get = "pub", get_mut = "pub")]
@@ -47,27 +47,27 @@ pub struct GeneralConfig {
     default_priority: String,
 }
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 pub struct ReviewConfig {
     review_format: String,
     review_directory: String,
 }
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 pub struct ExportConfig {
     export_include_tags: bool,
     export_include_descriptions: bool,
     export_time_format: String,
 }
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 pub struct DatabaseConfig {
     #[serde(rename = "type")]
     db_type: String, // `type` is a reserved keyword in Rust
     connection_string: String,
 }
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 pub struct PomodoroConfig {
     work_duration_minutes: u32,
     break_duration_minutes: u32,
@@ -75,14 +75,14 @@ pub struct PomodoroConfig {
     sessions_before_long_break: u32,
 }
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 pub struct InboxConfig {
     max_size: u32,
     default_priority: String,
     auto_archive_after_days: u32,
 }
 
-#[derive(Debug, Deserialize, Default, Serialize, Getters)]
+#[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 pub struct AutoArchivalConfig {
     enabled: bool,
     archive_after_days: u32,

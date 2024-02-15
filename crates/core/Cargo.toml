@@ -23,6 +23,7 @@ include = [
 async-condvar-fair = "1.0.0"
 chrono = { version = "0.4.34", features = ["serde"] }
 directories = "5.0.1"
+displaydoc = "0.2.4"
 futures = "0.3.30"
 getset = "0.1.2"
 itertools = "0.12.1"

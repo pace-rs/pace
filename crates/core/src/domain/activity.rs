@@ -9,6 +9,7 @@ use std::{
     fs,
     iter::FromIterator,
     path::Path,
+    time::Duration,
 };
 use typed_builder::TypedBuilder;
 use uuid::Uuid;
@@ -62,17 +63,14 @@ pub struct Activity {
 
     #[builder(default, setter(strip_option))]
     #[getset(get = "pub", get_mut = "pub")]
-    end_date: Option<NaiveDate>,
+    end: Option<NaiveDateTime>,
+
+    #[getset(get = "pub")]
+    begin: NaiveDateTime,
 
     #[builder(default, setter(strip_option))]
     #[getset(get = "pub", get_mut = "pub")]
-    end_time: Option<NaiveTime>,
-
-    #[getset(get = "pub")]
-    start_date: NaiveDate,
-
-    #[getset(get = "pub")]
-    start_time: NaiveTime,
+    duration: Option<Duration>,
 
     kind: ActivityKind,
 
@@ -100,10 +98,9 @@ impl Default for Activity {
             id: Some(ActivityId::default()),
             category: Some("Uncategorized".to_string()),
             description: Some("This is an example activity".to_string()),
-            end_date: Some(NaiveDate::from_ymd_opt(2021, 1, 1).unwrap_or_default()),
-            end_time: Some(NaiveTime::from_hms_opt(12, 0, 0).unwrap_or_default()),
-            start_date: Local::now().date_naive(),
-            start_time: Local::now().time().round_subsecs(0),
+            end: None,
+            begin: Local::now().naive_local().round_subsecs(0),
+            duration: None,
             kind: ActivityKind::Activity,
             pomodoro_cycle: None,
             intermission_periods: None,
@@ -114,6 +111,12 @@ impl Default for Activity {
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq)]
 pub struct ActivityId(Uuid);
 
+impl Display for ActivityId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 impl Default for ActivityId {
     fn default() -> Self {
         Self(Uuid::now_v7())
@@ -122,13 +125,12 @@ impl Default for ActivityId {
 
 impl Display for Activity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let rel_time =
-            match NaiveDateTime::new(self.start_date, self.start_time).and_local_timezone(Local) {
-                chrono::LocalResult::Single(time) => duration_to_str(time),
-                chrono::LocalResult::None | chrono::LocalResult::Ambiguous(_, _) => {
-                    format!("at {} {}", self.start_date, self.start_time)
-                }
-            };
+        let rel_time = match self.begin.and_local_timezone(Local) {
+            chrono::LocalResult::Single(time) => duration_to_str(time),
+            chrono::LocalResult::None | chrono::LocalResult::Ambiguous(_, _) => {
+                format!("at {}", self.begin)
+            }
+        };
 
         write!(
             f,
@@ -155,6 +157,19 @@ impl rusqlite::types::ToSql for ActivityId {
 }
 
 impl Activity {
+    pub fn is_active(&self) -> bool {
+        self.end.is_none()
+    }
+    pub fn has_ended(&self) -> bool {
+        self.end.is_some()
+    }
+
+    pub fn calculate_duration(&self, end: NaiveDateTime) -> PaceResult<Duration> {
+        let duration = end.signed_duration_since(self.begin).to_std()?;
+
+        Ok(duration)
+    }
+
     pub fn start_intermission(&mut self, date: NaiveDate, time: NaiveTime) {
         let new_intermission = IntermissionPeriod::new(date, time);
         if let Some(ref mut periods) = self.intermission_periods {
@@ -171,10 +186,6 @@ impl Activity {
                 last_period.end(date, time);
             }
         }
-    }
-
-    pub fn archived(&self) -> bool {
-        self.end_date.is_some() && self.end_time.is_some()
     }
 }
 
@@ -205,7 +216,7 @@ impl ActivityLog {
         let current_activities = self
             .activities
             .iter()
-            .filter(|activity| activity.end_date.is_none() || activity.end_time.is_none())
+            .filter(|activity| activity.is_active())
             .cloned()
             .collect::<Vec<Activity>>();
 

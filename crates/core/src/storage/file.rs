@@ -1,13 +1,12 @@
-use chrono::{Local, NaiveTime, SubsecRound};
 use std::{
     collections::{BTreeMap, VecDeque},
-    fs::{self, File},
-};
-use std::{fs::OpenOptions, path::PathBuf};
-use std::{
+    fs::{self, File, OpenOptions},
     io::{Read, Write},
-    path::Path,
+    ops::ControlFlow,
+    path::{Path, PathBuf},
 };
+
+use chrono::{Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound};
 use toml;
 use uuid::Uuid;
 
@@ -82,12 +81,8 @@ impl ActivityReadOps for TomlActivityStorage {
             .activities()
             .iter()
             .filter(|activity| match filter {
-                ActivityFilter::Active => {
-                    activity.end_date().is_none() || activity.end_time().is_none()
-                }
-                ActivityFilter::Ended => {
-                    activity.end_date().is_some() && activity.end_time().is_some()
-                }
+                ActivityFilter::Active => activity.is_active(),
+                ActivityFilter::Ended => activity.has_ended(),
                 ActivityFilter::All => true,
                 ActivityFilter::Archived => false, // TODO: Implement archived filter
             })
@@ -110,50 +105,52 @@ impl ActivityReadOps for TomlActivityStorage {
 impl ActivityStateManagement for TomlActivityStorage {
     fn end_all_unfinished_activities(
         &self,
-        time: Option<NaiveTime>,
+        time: Option<NaiveDateTime>,
     ) -> PaceResult<Option<Vec<Activity>>> {
         // TODO: Make date formats configurable
-        let date = Local::now().date_naive();
-        let time = time.unwrap_or_else(|| Local::now().time().round_subsecs(0));
+        let date_time = time.unwrap_or_else(|| Local::now().naive_local().round_subsecs(0));
 
         let mut unfinished_activities: Vec<Activity> = vec![];
 
-        let activities = self.list_activities(ActivityFilter::All)?.map(|filtered| {
-            filtered
-                .into_log()
-                .activities_mut()
-                .iter_mut()
-                .map(|activity| {
-                    if activity.end_date().is_none() && activity.end_time().is_none() {
-                        activity.end_date_mut().replace(date);
-                        activity.end_time_mut().replace(time);
-                        unfinished_activities.push(activity.clone());
-                    }
-
-                    activity.clone()
-                })
-                .collect::<ActivityLog>()
-        });
-
         // Return early with Ok(None) if there are no activities to end
-        if unfinished_activities.is_empty() {
-            Ok(None)
-        } else {
-            // Sort the activities by start date
-            unfinished_activities.sort_by(|a, b| a.start_date().cmp(b.start_date()));
+        let Some(activities) = self.list_activities(ActivityFilter::All)? else {
+            return Ok(None);
+        };
 
-            // Write the updated (all activities) content back to the file
-            let toml = toml::to_string_pretty(&activities)?;
-            fs::write(&self.path, toml)?;
+        let mut activity_log = activities.into_log();
 
-            // Return the activities that were ended
-            Ok(Some(unfinished_activities))
-        }
+        activity_log
+            .activities_mut()
+            .iter_mut()
+            .for_each(|activity| {
+                if activity.is_active() {
+                    match activity.calculate_duration(date_time) {
+                        Ok(duration) => {
+                            activity.duration_mut().replace(duration);
+                            activity.end_mut().replace(date_time);
+                            unfinished_activities.push(activity.clone());
+                        }
+                        Err(_) => {
+                            log::error!("Activity cannot end: {} before it started: {}, please check the provided time for: {activity}", date_time.time(), activity.begin().time())
+                        }
+                    }
+                }
+            });
+
+        // Sort the activities by start date
+        unfinished_activities.sort_by(|a, b| a.begin().cmp(b.begin()));
+
+        // Write the updated (all activities) content back to the file
+        let toml = toml::to_string_pretty(&activity_log)?;
+        fs::write(&self.path, toml)?;
+
+        // Return the activities that were ended
+        Ok(Some(unfinished_activities))
     }
 
     fn end_last_unfinished_activity(
         &self,
-        time: Option<NaiveTime>,
+        time: Option<NaiveDateTime>,
     ) -> PaceResult<Option<Activity>> {
         let mut activity_log = self
             .list_activities(ActivityFilter::Active)?
@@ -174,16 +171,22 @@ impl ActivityStateManagement for TomlActivityStorage {
             };
 
             // TODO: Make date formats configurable
-            let date = Local::now().date_naive();
-            let time = time.unwrap_or_else(|| Local::now().time().round_subsecs(0));
+            let date_time = time.unwrap_or_else(|| Local::now().naive_local().round_subsecs(0));
 
             // If the last activity already has an end date and time, return early with Ok(None)
-            if last_activity.end_date().is_some() && last_activity.end_time().is_some() {
+            if last_activity.has_ended() {
                 return Ok(None);
             }
 
-            last_activity.end_date_mut().replace(date);
-            last_activity.end_time_mut().replace(time);
+            match last_activity.calculate_duration(date_time) {
+                Ok(duration) => {
+                    last_activity.duration_mut().replace(duration);
+                    last_activity.end_mut().replace(date_time);
+                }
+                Err(_) => {
+                    log::error!("Activity cannot end before it started, please check the provided end time {date_time} for: {last_activity}")
+                }
+            }
 
             // Clone the last activity to return it after the mutable borrow ends
             activity = last_activity.clone();
@@ -202,7 +205,7 @@ impl ActivityStateManagement for TomlActivityStorage {
     fn end_activity(
         &self,
         _activity_id: ActivityId,
-        _end_time: Option<NaiveTime>,
+        _end_time: Option<NaiveDateTime>,
     ) -> PaceResult<ActivityId> {
         todo!()
     }

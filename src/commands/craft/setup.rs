@@ -52,7 +52,7 @@ impl SetupSubCmd {
 
         let current_month_year = chrono::Local::now().format("%Y-%m").to_string();
 
-        let activity_log_filename = format!("pace_{}.toml", current_month_year);
+        let activity_log_filename = format!("activity_{}.pace.toml", current_month_year);
 
         let activity_log_paths = get_activity_log_paths(&activity_log_filename)
             .into_iter()
