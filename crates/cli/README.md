@@ -28,21 +28,6 @@ You can ask questions in the
 | Discord       | [![Discord](https://dcbadge.vercel.app/api/server/RKSWrAcYdG?style=flat-square)](https://discord.gg/RKSWrAcYdG) |
 | Discussions   | [GitHub Discussions](https://github.com/pace-rs/discussions)                                                    |
 
-## Usage
-
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-pace_cli = "0.1"
-```
-
-or use
-
-```console
-cargo add pace_cli
-```
-
 ## Examples
 
 TODO!

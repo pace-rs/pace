@@ -27,21 +27,6 @@ You can ask questions in the
 | Discord       | [![Discord](https://dcbadge.vercel.app/api/server/RKSWrAcYdG?style=flat-square)](https://discord.gg/RKSWrAcYdG) |
 | Discussions   | [GitHub Discussions](https://github.com/pace-rs/discussions)                                                    |
 
-## Usage
-
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-pace_core = "0.5"
-```
-
-or use
-
-```console
-cargo add pace_core
-```
-
 ## Features
 
 - **Time Tracking**: Track your time on the command line.
