@@ -8,6 +8,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.1...pace_cli-v0.1.2) - 2024-02-15
+
+### Fixed
+
+- typo in setup intro text
+
 ## [0.1.1](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.0...pace_cli-v0.1.1) - 2024-02-14
 
 ### Other
