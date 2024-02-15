@@ -8,6 +8,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.6.2](https://github.com/pace-rs/pace/compare/pace-rs-v0.6.1...pace-rs-v0.6.2) - 2024-02-15
+
+### Added
+
+- *(config)* Implement reading from configuration file and improve error
+  handling for onboarding UX
+
+### Fixed
+
+- *(data)* apply fixes to example data for making the tests pass again
+- typo in setup intro text
+
+### Other
+
+- pace_core-v0.6.0
+- pace_cli v0.1.2
+
 ## [0.6.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.6.0...pace-rs-v0.6.1) - 2024-02-14
 
 ### Other

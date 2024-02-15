@@ -906,7 +906,7 @@ checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 
 [[package]]
 name = "pace-rs"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "abscissa_core",
  "assert_cmd",
