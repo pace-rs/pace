@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/pace-rs/pace/compare/pace_core-v0.6.0...pace_core-v0.7.0) - 2024-02-16
+
+### Added
+
+- *(activity)* use only seconds for duration
+
+### Other
+
+- *(storage)* implement in-memory storage
+  ([#28](https://github.com/pace-rs/pace/pull/28))
+- remove usage from library readmes as it's cumbersome to update and crates.io
+  gives good advices anyway
+- update domain
+
 ## [0.6.0](https://github.com/pace-rs/pace/compare/pace_core-v0.5.1...pace_core-v0.6.0) - 2024-02-15
 
 ### Added

@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.2...pace_cli-v0.1.3) - 2024-02-16
+
+### Other
+
+- *(storage)* implement in-memory storage
+  ([#28](https://github.com/pace-rs/pace/pull/28))
+- remove usage from library readmes as it's cumbersome to update and crates.io
+  gives good advices anyway
+- update domain
+
 ## [0.1.2](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.1...pace_cli-v0.1.2) - 2024-02-15
 
 ### Fixed
