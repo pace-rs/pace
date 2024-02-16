@@ -38,7 +38,7 @@ You can ask questions in the
 | ------------- | --------------------------------------------------------------------------------------------------------------- |
 | Issue Tracker | [GitHub Issues](https://github.com/pace-rs/pace/issues/new/choose)                                              |
 | Discord       | [![Discord](https://dcbadge.vercel.app/api/server/RKSWrAcYdG?style=flat-square)](https://discord.gg/RKSWrAcYdG) |
-| Discussions   | [GitHub Discussions](https://github.com/pace-rs/discussions)                                                    |
+| Discussions   | [GitHub Discussions](https://github.com/orgs/pace-rs/discussions)                                               |
 
 ## Getting started
 

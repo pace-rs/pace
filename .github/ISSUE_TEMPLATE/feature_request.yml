@@ -15,7 +15,7 @@ body:
       value: |
         Please note that this is only for proposing new features to **pace** itself. 
 
-        If you have a question about how to use **pace**, please use the [discussions](https://github.com/pace-rs/discussions) instead.
+        If you have a question about how to use **pace**, please use the [discussions](https://github.com/orgs/pace-rs/discussions) instead.
 
   - type: checkboxes
     id: product-scope

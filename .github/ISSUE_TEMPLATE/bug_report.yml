@@ -14,7 +14,7 @@ body:
       value: |
         Please note that this is only for reporting bugs in **pace** itself. 
 
-        If you have a question about how to use **pace**, please use the [discussions](https://github.com/pace-rs/discussions) instead.
+        If you have a question about how to use **pace**, please use the [discussions](https://github.com/orgs/pace-rs/discussions) instead.
 
   - type: checkboxes
     id: product-scope
@@ -219,7 +219,7 @@ body:
         Please make sure, you have searched/tried the following resources before submitting this issue:
 
         * search our [documentation](https://pace.cli.rs/docs/)
-        * search our [discussions](https://github.com/pace-rs/discussions)
+        * search our [discussions](https://github.com/orgs/pace-rs/discussions)
         * search the [issue list (incl. closed issues)](https://github.com/pace-rs/pace/issues?q=is%3Aissue)
 
   - type: markdown
