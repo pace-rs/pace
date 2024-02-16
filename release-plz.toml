@@ -1,0 +1,21 @@
+[workspace]
+pr_draft = true
+dependencies_update = true
+
+[[package]]
+name = "pace-rs"
+changelog_include = [
+  "pace_cli",
+  "pace_core",
+] # include commits from these package in the changelog
+changelog_update = true
+# release-plz doesn't work well with cargo-dist, so we deactivate releases here
+# and let cargo-dist handle the release
+git_release_enable = false
+# same applies to git-tag WRT to cargo-dist
+git_tag_enable = false
+# but we want to publish the crate to crates.io
+publish = true
+
+[changelog]
+protect_breaking_commits = true
