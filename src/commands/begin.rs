@@ -54,7 +54,7 @@ impl Runnable for BeginCmd {
 
 impl BeginCmd {
     pub fn inner_run(&self) -> Result<()> {
-        let BeginCmd {
+        let Self {
             category,
             time,
             description,
@@ -94,7 +94,7 @@ impl BeginCmd {
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
         activity_store.setup_storage()?;
-        activity_store.begin_activity(activity.clone())?;
+        let _activity = activity_store.begin_activity(activity.clone())?;
         activity_store.sync()?;
 
         println!("{activity}");

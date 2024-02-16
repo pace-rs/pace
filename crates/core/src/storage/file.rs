@@ -29,7 +29,10 @@ use crate::{
 ///
 /// This storage is backed by an in-memory cache and a TOML file on disk for persistence.
 pub struct TomlActivityStorage {
+    /// The in-memory cache
     cache: InMemoryActivityStorage,
+
+    /// The path to the TOML file
     path: PathBuf,
 }
 
@@ -40,19 +43,41 @@ impl SyncStorage for TomlActivityStorage {
 }
 
 impl TomlActivityStorage {
-    pub fn new(path: impl AsRef<Path>) -> Self {
+    /// Create a new `TomlActivityStorage`
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the TOML file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the path is not a valid file path.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `TomlActivityStorage`
+    pub fn new(path: impl AsRef<Path>) -> PaceResult<Self> {
         let mut storage = Self {
             cache: InMemoryActivityStorage::new(),
             path: path.as_ref().to_path_buf(),
         };
 
-        storage
-            .load()
-            .expect("Shouldn't fail to load data from Toml file into the cache.");
+        storage.load()?;
 
-        storage
+        Ok(storage)
     }
 
+    /// Load the TOML file into the in-memory cache
+    ///
+    /// This will read the TOML file from disk and load it into the in-memory cache
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read or the data cannot be deserialized
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the data is loaded successfully
     fn load(&mut self) -> PaceResult<()> {
         let data = std::fs::read_to_string(&self.path)?;
         self.cache = InMemoryActivityStorage::from(toml::from_str::<ActivityLog>(&data)?);
@@ -60,10 +85,19 @@ impl TomlActivityStorage {
         Ok(())
     }
 
+    /// Sync the in-memory cache to the TOML file
+    ///
+    /// This will write the in-memory cache to the TOML file on disk
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cache cannot be written to the file
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the cache is written successfully
     pub fn sync_to_file(&self) -> PaceResult<()> {
-        let cache = &self.cache;
-
-        let data = toml::to_string(&cache.get_activity_log()?)?;
+        let data = toml::to_string(&self.cache.get_activity_log()?)?;
         std::fs::write(&self.path, data)?;
         Ok(())
     }

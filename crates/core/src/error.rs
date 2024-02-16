@@ -34,6 +34,7 @@ impl PaceError {
     /// Expose the inner error kind.
     ///
     /// This is useful for matching on the error kind.
+    #[must_use]
     pub fn into_inner(self) -> PaceErrorKind {
         self.0
     }
@@ -73,7 +74,10 @@ pub enum PaceErrorKind {
     ChronoDurationIsNegative(#[from] chrono::OutOfRangeError),
     /// Config file {file_name} not found in directory hierarchy starting from {current_dir}
     ConfigFileNotFound {
+        /// The current directory
         current_dir: String,
+
+        /// The file name
         file_name: String,
     },
     /// Configuration file not found, please run `pace craft setup` to initialize `pace`

@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 use crate::domain::{activity::PaceDuration, status::ItemStatus, tag::Tag, task::TaskList};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct IntermissionPeriod {
     begin: NaiveDateTime,
     end: Option<NaiveDateTime>,

@@ -36,7 +36,7 @@ impl Runnable for EndCmd {
 
 impl EndCmd {
     pub fn inner_run(&self) -> Result<()> {
-        let EndCmd {
+        let Self {
             time, only_last, ..
         } = self;
 
@@ -53,9 +53,9 @@ impl EndCmd {
         } else if let Some(unfinished_activities) =
             activity_store.end_all_unfinished_activities(time)?
         {
-            unfinished_activities.iter().for_each(|activity| {
+            for activity in &unfinished_activities {
                 println!("Ended {activity} ({:?})", activity.duration());
-            });
+            }
         } else {
             println!("No unfinished activities to end.");
         }

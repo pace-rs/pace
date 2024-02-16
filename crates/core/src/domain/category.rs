@@ -6,13 +6,21 @@ use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use uuid::Uuid;
 
+/// The category entity
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, Clone)]
 pub struct Category {
+    /// The category description
     #[builder(default, setter(strip_option))]
     description: Option<String>,
+
+    /// The category id
     #[builder(default = Some(CategoryId::default()), setter(strip_option))]
     id: Option<CategoryId>,
+
+    /// The category name
     name: String,
+
+    /// The category's subcategories
     // TODO: Add support for subcategories
     #[builder(default, setter(strip_option))]
     subcategories: Option<Vec<Category>>,
@@ -28,6 +36,7 @@ pub struct Category {
 /// # Returns
 ///
 /// A tuple containing the category and subcategory
+#[must_use]
 pub fn extract_categories(category_string: &str, separator: &str) -> (Category, Option<Category>) {
     let parts: Vec<_> = category_string.split(separator).collect();
     if parts.len() > 1 {
@@ -46,7 +55,8 @@ pub fn extract_categories(category_string: &str, separator: &str) -> (Category, 
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+/// The category id
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct CategoryId(Uuid);
 
 impl Default for CategoryId {

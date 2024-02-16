@@ -16,20 +16,26 @@ use crate::{
     },
 };
 
+/// The activity store entity
 pub struct ActivityStore {
+    /// In-memory cache for activities
     cache: ActivityStoreCache,
+
+    /// The storage backend
     storage: Box<dyn ActivityStorage>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct ActivityStoreCache {
+struct ActivityStoreCache {
     activities_by_id: BTreeMap<ActivityId, Activity>,
     last_entries: VecDeque<ActivityId>,
 }
 
 impl ActivityStore {
+    /// Create a new `ActivityStore`
+    #[must_use]
     pub fn new(storage: Box<dyn ActivityStorage>) -> Self {
-        ActivityStore {
+        Self {
             cache: ActivityStoreCache::default(),
             storage,
         }

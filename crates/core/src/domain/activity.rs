@@ -28,26 +28,41 @@ use crate::{
     storage::ActivityStorage,
 };
 
+/// The kind of activity a user can track
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityKind {
+    /// A generic activity
     #[default]
     Activity,
+
+    /// A task
     Task,
+
+    /// A break
     Intermission,
+
+    /// A pomodoro work session
     PomodoroWork,
+
+    /// A pomodoro break
     PomodoroIntermission,
 }
 
-// Optional: Track Pomodoro work/break cycles
+/// The cycle of pomodoro activity a user can track
+// TODO!: Optional: Track Pomodoro work/break cycles
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 enum PomodoroCycle {
+    /// A work session
     Work(usize), // usize could represent the work session number in a sequence
+
+    // A break
     #[default]
     Intermission,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+/// The duration of an activity
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct PaceDuration(u64);
 
 impl From<Duration> for PaceDuration {
@@ -56,32 +71,42 @@ impl From<Duration> for PaceDuration {
     }
 }
 
+/// The activity entity
+///
+/// The activity entity is used to store and manage an activity
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, Getters, MutGetters, Clone)]
 #[getset(get = "pub")]
 pub struct Activity {
+    /// The activity's unique identifier
     #[builder(default = Some(ActivityId::default()), setter(strip_option))]
     #[getset(get_copy, get_mut = "pub")]
     id: Option<ActivityId>,
 
+    /// The category of the activity
     // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
     // TODO: Reconsider when we implement the project management part
     // category: Category,
     category: Option<String>,
 
+    /// The description of the activity
     #[builder(default, setter(strip_option))]
     description: Option<String>,
 
+    /// The end date and time of the activity
     #[builder(default, setter(strip_option))]
     #[getset(get = "pub", get_mut = "pub")]
     end: Option<NaiveDateTime>,
 
+    /// The start date and time of the activity
     #[getset(get = "pub")]
     begin: NaiveDateTime,
 
+    /// The duration of the activity
     #[builder(default, setter(strip_option))]
     #[getset(get = "pub", get_mut = "pub")]
     duration: Option<PaceDuration>,
 
+    /// The kind of activity
     kind: ActivityKind,
 
     // TODO: How to better support subcategories
@@ -94,10 +119,12 @@ pub struct Activity {
     // tags: Option<Vec<String>>,
 
     // Pomodoro-specific attributes
+    /// The pomodoro cycle of the activity
     #[builder(default, setter(strip_option))]
     pomodoro_cycle: Option<PomodoroCycle>,
 
     // Intermission-specific attributes
+    /// The intermission periods of the activity
     #[builder(default, setter(strip_option))]
     intermission_periods: Option<Vec<IntermissionPeriod>>,
 }
@@ -118,7 +145,8 @@ impl Default for Activity {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq)]
+/// The unique identifier of an activity
+#[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy)]
 pub struct ActivityId(Uuid);
 
 impl Display for ActivityId {
@@ -154,9 +182,7 @@ impl Display for Activity {
 impl rusqlite::types::FromSql for ActivityId {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let bytes = <[u8; 16]>::column_result(value)?;
-        Ok(ActivityId(uuid::Uuid::from_u128(u128::from_be_bytes(
-            bytes,
-        ))))
+        Ok(Self(uuid::Uuid::from_u128(u128::from_be_bytes(bytes))))
     }
 }
 
@@ -167,13 +193,31 @@ impl rusqlite::types::ToSql for ActivityId {
 }
 
 impl Activity {
-    pub fn is_active(&self) -> bool {
+    /// If the activity is active, so if it is currently being tracked
+    #[must_use]
+    pub const fn is_active(&self) -> bool {
         self.end.is_none()
     }
-    pub fn has_ended(&self) -> bool {
+
+    /// If the activity has ended
+    #[must_use]
+    pub const fn has_ended(&self) -> bool {
         self.end.is_some()
     }
 
+    /// Calculate the duration of the activity
+    ///
+    /// # Arguments
+    ///
+    /// * `end` - The end date and time of the activity
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the duration can't be calculated or is negative
+    ///
+    /// # Returns
+    ///
+    /// Returns the duration of the activity
     pub fn calculate_duration(&self, end: NaiveDateTime) -> PaceResult<Duration> {
         let duration = end.signed_duration_since(self.begin).to_std()?;
 

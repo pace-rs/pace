@@ -36,7 +36,7 @@ impl NowCmd {
                 activities
                     .activities()
                     .iter()
-                    .for_each(|activity| println!("{}", activity));
+                    .for_each(|activity| println!("{activity}"));
             }
             None => {
                 println!("No activities are currently running.");

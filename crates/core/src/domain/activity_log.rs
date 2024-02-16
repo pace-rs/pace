@@ -27,6 +27,9 @@ use crate::{
     storage::ActivityStorage,
 };
 
+/// The activity log entity
+///
+/// The activity log entity is used to store and manage activities
 #[derive(Debug, Clone, Serialize, Deserialize, Getters, MutGetters)]
 pub struct ActivityLog {
     #[getset(get = "pub", get_mut = "pub")]
@@ -47,31 +50,6 @@ impl FromIterator<Activity> for ActivityLog {
             activities: iter.into_iter().collect::<VecDeque<Activity>>(),
         }
     }
-}
-
-impl ActivityLog {
-    pub fn current_activities(&self) -> Option<Vec<Activity>> {
-        let current_activities = self
-            .activities
-            .iter()
-            .filter(|activity| activity.is_active())
-            .cloned()
-            .collect::<Vec<Activity>>();
-
-        if current_activities.is_empty() {
-            return None;
-        }
-
-        Some(current_activities)
-    }
-
-    // pub fn activities_by_id(&self) -> PaceResult<BTreeMap<ActivityId, Activity>> {
-    //     let activities_by_id = self
-    //         .activities
-    //         .into_iter()
-    //         .map(|activity| (activity.id, activity))
-    //         .collect::<BTreeMap<ActivityId, Activity>>();
-    // }
 }
 
 #[cfg(test)]

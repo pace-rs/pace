@@ -18,30 +18,37 @@ use crate::{
     },
 };
 
-/// Type for shared ActivityLog
+/// Type for shared `ActivityLog`
 type SharedActivityLog = Arc<Mutex<ActivityLog>>;
 
 /// In-memory storage for activities
+#[derive(Debug, Clone)]
 pub struct InMemoryActivityStorage {
     activities: SharedActivityLog,
 }
 
 impl From<ActivityLog> for InMemoryActivityStorage {
     fn from(activities: ActivityLog) -> Self {
-        InMemoryActivityStorage {
+        Self {
             activities: Arc::new(Mutex::new(activities)),
         }
     }
 }
 
 impl InMemoryActivityStorage {
+    /// Create a new `InMemoryActivityStorage`
+    #[must_use]
     pub fn new() -> Self {
-        InMemoryActivityStorage {
+        Self {
             activities: Arc::new(Mutex::new(ActivityLog::default())),
         }
     }
 
-    /// Try to convert the InMemoryActivityStorage into an ActivityLog
+    /// Try to convert the `InMemoryActivityStorage` into an `ActivityLog`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the mutex has been poisoned
     pub fn get_activity_log(&self) -> PaceResult<ActivityLog> {
         let Ok(activity_log) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
@@ -79,11 +86,10 @@ impl ActivityReadOps for InMemoryActivityStorage {
             .activities()
             .iter()
             .find(|activity| {
-                if let Some(orig_activity_id) = activity.id() {
-                    *orig_activity_id == activity_id
-                } else {
-                    false
-                }
+                activity
+                    .id()
+                    .as_ref()
+                    .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
             .cloned())
     }
@@ -140,13 +146,12 @@ impl ActivityWriteOps for InMemoryActivityStorage {
             .activities_mut()
             .iter_mut()
             .find(|activity| {
-                if let Some(orig_activity_id) = activity.id() {
-                    *orig_activity_id == activity_id
-                } else {
-                    false
-                }
+                activity
+                    .id()
+                    .as_ref()
+                    .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
-            .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id.clone()))?;
+            .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
 
         *orig_activity = activity;
 
@@ -162,13 +167,12 @@ impl ActivityWriteOps for InMemoryActivityStorage {
             .activities_mut()
             .iter()
             .position(|activity| {
-                if let Some(orig_activity_id) = activity.id() {
-                    *orig_activity_id == activity_id
-                } else {
-                    false
-                }
+                activity
+                    .id()
+                    .as_ref()
+                    .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
-            .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id.clone()))?;
+            .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
 
         let activity = activities.activities_mut().remove(activity_index);
 
@@ -190,24 +194,23 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
-        let end_time = end_time.unwrap_or(Local::now().naive_local());
+        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local());
 
         let activity = activities
             .activities_mut()
             .iter_mut()
             .find(|activity| {
-                if let Some(orig_activity_id) = activity.id() {
-                    *orig_activity_id == activity_id
-                } else {
-                    false
-                }
+                activity
+                    .id()
+                    .as_ref()
+                    .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
-            .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id.clone()))?;
+            .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
 
         let duration = activity.calculate_duration(end_time)?;
 
-        activity.end_mut().replace(end_time);
-        activity.duration_mut().replace(duration.into());
+        _ = activity.end_mut().replace(end_time);
+        _ = activity.duration_mut().replace(duration.into());
 
         Ok(activity_id)
     }
@@ -220,7 +223,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
-        let end_time = end_time.unwrap_or(Local::now().naive_local());
+        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local());
 
         let Some(last_unfinished_activity) = activities
             .activities_mut()
@@ -232,8 +235,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let duration = last_unfinished_activity.calculate_duration(end_time)?;
 
-        last_unfinished_activity.end_mut().replace(end_time);
-        last_unfinished_activity
+        _ = last_unfinished_activity.end_mut().replace(end_time);
+        _ = last_unfinished_activity
             .duration_mut()
             .replace(duration.into());
 
@@ -246,7 +249,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     ) -> PaceOptResult<Vec<Activity>> {
         let mut ended_activities = vec![];
 
-        let end_time = end_time.unwrap_or(Local::now().naive_local());
+        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local());
 
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
@@ -259,15 +262,15 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             .for_each(|activity| {
                 match activity.calculate_duration(end_time) {
                     Ok(duration) => {
-                        activity.end_mut().replace(end_time);
-                        activity.duration_mut().replace(duration.into());
+                        _ = activity.end_mut().replace(end_time);
+                        _ = activity.duration_mut().replace(duration.into());
 
                         ended_activities.push(activity.clone());
                     },
                     Err(_) => {
                         log::warn!(
                             "Activity {} ends before it began. That's impossible. Skipping activity.", activity
-                        )
+                        );
                     }
                 };
             });
