@@ -1,15 +1,15 @@
 //! `end` subcommand
 
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
-use chrono::{Local, NaiveDateTime, NaiveTime};
 use clap::Parser;
 use eyre::Result;
 
 use crate::prelude::PACE_APP;
 
 use pace_core::{
+    domain::time::parse_time_from_user_input,
     service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, ActivityStateManagement, ActivityStorage},
+    storage::{get_storage_from_config, ActivityStateManagement, ActivityStorage, SyncStorage},
 };
 
 /// `end` subcommand
@@ -36,39 +36,31 @@ impl Runnable for EndCmd {
 
 impl EndCmd {
     pub fn inner_run(&self) -> Result<()> {
-        let EndCmd {
+        let Self {
             time, only_last, ..
         } = self;
 
-        let time = time
-            .as_ref()
-            .map(|time| -> Result<NaiveDateTime> {
-                let time = NaiveTime::parse_from_str(time, "%H:%M")
-                    .map_err(|err| eyre::eyre!("Invalid time format: {}", err))?;
-                Ok(NaiveDateTime::new(Local::now().date_naive(), time))
-            })
-            .transpose()?;
+        let time = parse_time_from_user_input(time)?;
 
-        // TODO!: Make storage configurable via Config file
-        let activity_store = ActivityStore::new(Box::new(TomlActivityStorage::new(
-            PACE_APP.config().general().activity_log_file_path(),
-        )));
+        let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
         activity_store.setup_storage()?;
 
         if *only_last {
             if let Some(last_activity) = activity_store.end_last_unfinished_activity(time)? {
-                println!("Ended {last_activity}");
+                println!("Ended {last_activity} ({:?})", last_activity.duration());
             }
         } else if let Some(unfinished_activities) =
             activity_store.end_all_unfinished_activities(time)?
         {
-            unfinished_activities.iter().for_each(|activity| {
-                println!("Ended {activity}");
-            });
+            for activity in &unfinished_activities {
+                println!("Ended {activity} ({:?})", activity.duration());
+            }
         } else {
             println!("No unfinished activities to end.");
         }
+
+        activity_store.sync()?;
 
         Ok(())
     }

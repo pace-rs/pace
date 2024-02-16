@@ -7,13 +7,16 @@ use std::{
 };
 use thiserror::Error;
 
-use crate::domain::activity::ActivityId;
+use crate::domain::{activity::ActivityId, activity_log::ActivityLog};
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
 
 /// Result type that is being returned from methods that can fail and thus have [`PaceError`]s.
 pub type PaceResult<T> = Result<T, PaceError>;
+
+/// Result type that is being returned from methods that have optional return values and can fail thus having [`PaceError`]s.
+pub type PaceOptResult<T> = PaceResult<Option<T>>;
 
 // [`Error`] is public, but opaque and easy to keep compatible.
 #[derive(Error, Debug)]
@@ -31,6 +34,7 @@ impl PaceError {
     /// Expose the inner error kind.
     ///
     /// This is useful for matching on the error kind.
+    #[must_use]
     pub fn into_inner(self) -> PaceErrorKind {
         self.0
     }
@@ -70,25 +74,44 @@ pub enum PaceErrorKind {
     ChronoDurationIsNegative(#[from] chrono::OutOfRangeError),
     /// Config file {file_name} not found in directory hierarchy starting from {current_dir}
     ConfigFileNotFound {
+        /// The current directory
         current_dir: String,
+
+        /// The file name
         file_name: String,
     },
     /// Configuration file not found, please run `pace craft setup` to initialize `pace`
     ParentDirNotFound(PathBuf),
+    /// Database storage not implemented, yet!
+    DatabaseStorageNotImplemented,
+    /// Failed to parse time '{0}' from user input, please use the format HH:MM
+    ParsingTimeFromUserInputFailed(String),
 }
 
 /// [`ActivityLogErrorKind`] describes the errors that can happen while dealing with the activity log.
 #[non_exhaustive]
 #[derive(Error, Debug, Display)]
 pub enum ActivityLogErrorKind {
-    /// Activity log file not found:
-    NoActivityToEnd,
     /// No activities found in the activity log
     NoActivitiesFound,
     /// Activity with ID {0} not found
     FailedToReadActivity(ActivityId),
     /// Negative duration for activity
     NegativeDuration,
+    /// There are no activities to hold
+    NoActivityToHold,
+    /// Failed to unwrap Arc
+    ArcUnwrapFailed,
+    /// Mutex lock failed, it has been poisoned
+    MutexHasBeenPoisoned,
+    /// There are no unfinished activities to end
+    NoUnfinishedActivities,
+    /// There is no cache to sync
+    NoCacheToSync,
+    /// Cache not available
+    CacheNotAvailable,
+    /// Activity with id {0} not found
+    ActivityNotFound(ActivityId),
 }
 
 trait PaceErrorMarker: Error {}

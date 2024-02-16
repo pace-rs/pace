@@ -1,7 +1,15 @@
 //! Domain models and business rules
 
+/// The kind of activity a user can track
 pub mod activity;
+
+/// A log file  of activities
+pub mod activity_log;
+
+/// A category for activities
 pub mod category;
+
+/// A filter for activities
 pub mod filter;
 pub mod inbox;
 pub mod intermission;
@@ -11,6 +19,8 @@ pub mod review;
 pub mod status;
 pub mod tag;
 pub mod task;
+
+/// Time utilities
 pub mod time;
 
 struct Session {

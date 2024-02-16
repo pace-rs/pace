@@ -1,32 +1,51 @@
 //! `hold` subcommand
 
-use abscissa_core::{Command, Runnable};
-use clap::Parser;
+use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 
-/// `hold` subcommand
-///
-/// The `Parser` proc macro generates an option parser based on the struct
-/// definition, and is defined in the `clap` crate. See their documentation
-/// for a more comprehensive example:
-///
-/// <https://docs.rs/clap/>
+use clap::Parser;
+use eyre::Result;
+
+use crate::prelude::PACE_APP;
+
+/// `hold` subcommand>
 #[derive(Command, Debug, Parser)]
 pub struct HoldCmd {
-    // /// Option foobar. Doc comments are the help description
-    // #[clap(short)]
-    // foobar: Option<PathBuf>
-
-    // /// Baz path
-    // #[clap(long)]
-    // baz: Option<PathBuf>
-
-    // "free" arguments don't need a macro
-    // free_args: Vec<String>,
+    /// The time the activity has been holded (defaults to the current time if not provided). Format: HH:MM
+    #[clap(long)]
+    time: Option<String>,
 }
 
 impl Runnable for HoldCmd {
     /// Start the application.
     fn run(&self) {
-        // Your code goes here
+        if let Err(err) = self.inner_run() {
+            status_err!("{}", err);
+            PACE_APP.shutdown(Shutdown::Crash);
+        };
+    }
+}
+
+impl HoldCmd {
+    pub fn inner_run(&self) -> Result<()> {
+        // TODO!: Implement hold command
+        //
+        // let HoldCmd { time } = self;
+
+        // let time = parse_time_from_user_input(time)?;
+
+        // let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
+
+        // activity_store.setup_storage()?;
+
+        // if let Some(held_activity) = activity_store
+        //     .end_or_hold_activities(ActivityEndKind::Hold, time)?
+        //     .try_into_hold()?
+        // {
+        //     println!("Held {held_activity}");
+        // } else {
+        //     println!("No unfinished activities to hold.");
+        // }
+
+        Ok(())
     }
 }

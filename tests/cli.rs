@@ -2,7 +2,7 @@ use assert_cmd::Command;
 use predicates::prelude::predicate;
 // use tempfile::{tempdir, TempDir};
 
-pub type TestResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 pub fn pace_runner(/*temp_dir: &TempDir*/) -> TestResult<Command> {
     // TODO: when we have implemented init, we can use this to create a new pace project
@@ -23,7 +23,7 @@ pub fn pace_runner(/*temp_dir: &TempDir*/) -> TestResult<Command> {
 
 #[test]
 fn test_version_command_passes() -> TestResult<()> {
-    pace_runner()?
+    _ = pace_runner()?
         .arg("--version")
         .assert()
         .success()
@@ -34,7 +34,7 @@ fn test_version_command_passes() -> TestResult<()> {
 
 #[test]
 fn test_help_command_passes() -> TestResult<()> {
-    pace_runner()?
+    _ = pace_runner()?
         .arg("--help")
         .assert()
         .success()

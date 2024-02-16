@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound};
 
-use crate::error::PaceResult;
+use crate::error::{PaceErrorKind, PaceOptResult, PaceResult};
 
 pub enum TimeFrame {
     Custom {
@@ -76,4 +76,29 @@ pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<NaiveDateTime> {
         // if no time is given, use the current time
         Local::now().naive_local().round_subsecs(0)
     })
+}
+
+/// Parses time from user input
+///
+/// # Arguments
+///
+/// * `time` - The time to parse
+///
+/// # Errors
+///
+/// [`PaceErrorKind::ParsingTimeFromUserInputFailed`] - If the time cannot be parsed
+///
+/// # Returns
+///
+/// The parsed time or None
+pub fn parse_time_from_user_input(time: &Option<String>) -> PaceOptResult<NaiveDateTime> {
+    time.as_ref()
+        .map(|time| -> PaceResult<NaiveDateTime> {
+            let Ok(time) = NaiveTime::parse_from_str(time, "%H:%M") else {
+                return Err(PaceErrorKind::ParsingTimeFromUserInputFailed(time.clone()).into());
+            };
+
+            Ok(NaiveDateTime::new(Local::now().date_naive(), time))
+        })
+        .transpose()
 }

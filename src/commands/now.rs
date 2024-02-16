@@ -7,9 +7,8 @@ use eyre::Result;
 use crate::prelude::PACE_APP;
 
 use pace_core::{
-    domain::filter::ActivityFilter,
     service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, ActivityReadOps, ActivityStorage},
+    storage::{get_storage_from_config, ActivityQuerying, ActivityStorage},
 };
 
 /// `now` subcommand
@@ -28,19 +27,16 @@ impl Runnable for NowCmd {
 
 impl NowCmd {
     pub fn inner_run(&self) -> Result<()> {
-        let activity_store = ActivityStore::new(Box::new(TomlActivityStorage::new(
-            PACE_APP.config().general().activity_log_file_path(),
-        )));
+        let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
         activity_store.setup_storage()?;
 
-        match activity_store.list_activities(ActivityFilter::Active)? {
+        match activity_store.list_current_activities()? {
             Some(activities) => {
                 activities
-                    .into_log()
                     .activities()
                     .iter()
-                    .for_each(|activity| println!("{}", activity));
+                    .for_each(|activity| println!("{activity}"));
             }
             None => {
                 println!("No activities are currently running.");

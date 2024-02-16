@@ -13,7 +13,13 @@ use getset::{Getters, MutGetters};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-use pace_core::{config::PaceConfig, domain::activity::ActivityLog, toml};
+use pace_core::{
+    config::{get_activity_log_paths, get_config_paths, PaceConfig},
+    domain::activity_log::ActivityLog,
+    toml,
+};
+
+use crate::{get_activity_log_path, get_config_file_path};
 
 /// Final paths for the configuration and activity log files
 ///
@@ -43,17 +49,15 @@ pub struct FinalSetupPaths {
 
 impl Display for FinalSetupPaths {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let config_root = if let Some(config_root) = self.config_root.clone() {
-            config_root
-        } else {
-            PathBuf::new()
-        };
+        let config_root = self
+            .config_root
+            .clone()
+            .map_or_else(PathBuf::new, |config_root| config_root);
 
-        let config_path = if let Some(config_path) = self.config_path.clone() {
-            config_path
-        } else {
-            PathBuf::new()
-        };
+        let config_path = self
+            .config_path
+            .clone()
+            .map_or_else(PathBuf::new, |config_path| config_path);
 
         writeln!(f, "Configuration root: {:?}", style(config_root).cyan())?;
         writeln!(f, "Configuration: {:?}", style(config_path).cyan())?;
@@ -70,6 +74,21 @@ impl Display for FinalSetupPaths {
     }
 }
 
+/// Asks the user if they know how to set environment variables
+/// and provides a guide if they don't
+///
+/// # Arguments
+///
+/// * `term` - The terminal to use for the prompt
+/// * `config_root` - The root directory for the configuration file
+///
+/// # Errors
+///
+/// Returns an error if the prompt fails
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the prompt succeeds
 pub fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
     let env_var_knowledge = Confirm::new()
         .with_prompt("Do you know how to set environment variables?")
@@ -81,7 +100,7 @@ pub fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
     'env: loop {
         term.clear_screen()?;
 
-        if let Some(true) = env_var_knowledge {
+        if env_var_knowledge == Some(true) {
             break 'env;
         }
 
@@ -102,7 +121,7 @@ pub fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
             .default(false)
             .interact_opt()?;
 
-        if let Some(true) = ready_to_continue {
+        if ready_to_continue == Some(true) {
             break 'env;
         }
     }
@@ -110,8 +129,23 @@ pub fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Writes the configuration to the file system
+///
+/// # Arguments
+///
+/// * `config` - The configuration to write
+/// * `config_root` - The root directory for the configuration file
+/// * `config_path` - The path to the configuration file
+///
+/// # Errors
+///
+/// Returns an error if the configuration cannot be written to the file system
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the configuration is written successfully
 pub fn write_config(
-    config: PaceConfig,
+    config: &PaceConfig,
     config_root: &PathBuf,
     config_path: &PathBuf,
 ) -> Result<()> {
@@ -129,6 +163,19 @@ pub fn write_config(
     Ok(())
 }
 
+/// Writes the activity log to the file system
+///
+/// # Arguments
+///
+/// * `final_paths` - The final paths for the activity log file
+///
+/// # Errors
+///
+/// Returns an error if the activity log cannot be written to the file system
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the activity log is written successfully
 pub fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
     let activity_log = ActivityLog::default();
 
@@ -148,18 +195,50 @@ pub fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
     Ok(())
 }
 
+/// Prints the introduction to the setup assistant
+///
+/// # Arguments
+///
+/// * `term` - The terminal to use for the prompt
+///
+/// # Errors
+///
+/// Returns an error if the prompt fails
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the prompt succeeds
 pub fn print_intro(term: &Term) -> Result<()> {
-    let assistant_headline = style("Pace Setup Assistant\n")
+    // Font name: Font Name: Georgia11
+    // Source: https://patorjk.com/software/taag/#p=display&f=Georgia11&t=PACE
+    let logo = style(
+        r#"
+`7MM"""Mq.   db       .g8"""bgd `7MM"""YMM  
+  MM   `MM. ;MM:    .dP'     `M   MM    `7  
+  MM   ,M9 ,V^MM.   dM'       `   MM   d    
+  MMmmdM9 ,M  `MM   MM            MMmmMM    
+  MM      AbmmmqMA  MM.           MM   Y  , 
+  MM     A'     VML `Mb.     ,'   MM     ,M 
+.JMML. .AMA.   .AMMA. `"bmmmd'  .JMMmmmmMMM 
+    "#,
+    )
+    .italic()
+    .green()
+    .bold();
+
+    let assistant_headline = style("Setup Assistant")
         .white()
         .on_black()
         .bold()
         .underlined();
 
     term.clear_screen()?;
+    println!("{logo}");
 
     println!("{assistant_headline}");
 
-    let intro_text = r#"Welcome to pace, your time tracking tool!
+    let intro_text = r"
+Welcome to pace, your time tracking tool!
 
 Whether you're diving in for the first time or keen on refining your setup,
 this assistant is here to seamlessly tailor your environment to your preferences.
@@ -174,7 +253,7 @@ journey’s end, giving you the freedom to experiment. And if you decide to bow 
 no sweat — Q, ESC, or Ctrl-C will let you exit gracefully without a trace of change.
 
 Let’s embark on this customization adventure together—press ENTER when you’re ready
-to elevate your productivity with pace."#;
+to elevate your productivity with pace.";
 
     println!("{intro_text}\n");
 
@@ -183,22 +262,121 @@ to elevate your productivity with pace."#;
         .default(true)
         .interact_opt()?;
 
-    if let Some(false) = confirmation {
+    if confirmation == Some(false) {
         eyre::bail!("Exiting setup assistant.");
     }
 
     Ok(())
 }
 
-pub fn confirmation_or_break(prompt: &str) -> Result<bool> {
+/// Prompts the user to confirm their choices or break the setup assistant
+///
+/// # Arguments
+///
+/// * `prompt` - The prompt to display to the user
+///
+/// # Errors
+///
+/// Returns an error if the wants to break the setup assistant or
+/// if the prompt fails
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the user confirms their choices
+pub fn confirmation_or_break(prompt: &str) -> Result<()> {
     let confirmation = Confirm::new()
         .with_prompt(prompt)
         .default(true)
         .interact_opt()?;
 
-    if let Some(false) = confirmation {
+    if confirmation == Some(false) {
         eyre::bail!("Exiting setup assistant. No changes were made.");
     } else {
-        Ok(true)
+        Ok(())
     }
+}
+
+/// The `craft setup` commands interior for the pace application
+///
+/// # Arguments
+///
+/// * `term` - The terminal to use for the prompt
+///
+/// # Errors
+///
+/// Returns an error if the setup assistant fails
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the setup assistant succeeds
+pub fn craft_setup(term: &Term) -> Result<()> {
+    let default_config_content = PaceConfig::default();
+
+    let config_paths = get_config_paths("pace.toml")
+        .into_iter()
+        .map(|f| f.to_string_lossy().to_string())
+        .collect::<Vec<String>>();
+
+    let current_month_year = chrono::Local::now().format("%Y-%m").to_string();
+
+    let activity_log_filename = format!("activity_{current_month_year}.pace.toml");
+
+    let activity_log_paths = get_activity_log_paths(&activity_log_filename)
+        .into_iter()
+        .map(|f| f.to_string_lossy().to_string())
+        .collect::<Vec<String>>();
+
+    print_intro(term)?;
+
+    term.clear_screen()?;
+
+    let final_paths = get_activity_log_path(&activity_log_paths)?;
+
+    let config = default_config_content.with_activity_log(final_paths.activity_log_path());
+
+    let final_paths = get_config_file_path(final_paths, config_paths.as_slice())?;
+
+    let prompt = "Do you want the files to be written?";
+
+    confirmation_or_break(prompt)?;
+
+    term.clear_screen()?;
+
+    write_activity_log(&final_paths)?;
+
+    let Some(config_root) = final_paths.config_root() else {
+        eyre::bail!("No config root. Exiting setup assistant.");
+    };
+
+    let Some(config_path) = final_paths.config_path() else {
+        eyre::bail!("No config path. Exiting setup assistant.");
+    };
+
+    write_config(&config, config_root, config_path)?;
+
+    println!(
+        "To prioritize this configuration, set the `{}` environment variable to '{}'.",
+        style("PACE_HOME").bold().red(),
+        style(config_root.display()).bold().green()
+    );
+
+    env_knowledge_loop(term, config_root)?;
+
+    term.clear_screen()?;
+
+    println!(
+        "{}",
+        style("Configuration assistant completed successfully, here are the final paths:").green()
+    );
+
+    println!();
+
+    println!(
+        "Environment variable: PACE_HOME=\"{}\".",
+        style(config_root.display()).cyan()
+    );
+
+    println!("{final_paths}");
+
+    Ok(())
 }

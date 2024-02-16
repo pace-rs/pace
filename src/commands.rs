@@ -72,7 +72,7 @@ pub enum PaceCmd {
 }
 
 /// Define CLI colour styles for the application
-fn cli_colour_styles() -> Styles {
+const fn cli_colour_styles() -> Styles {
     Styles::styled()
         .header(AnsiColor::BrightBlue.on_default())
         .usage(AnsiColor::BrightYellow.on_default())
@@ -103,7 +103,7 @@ pub struct EntryPoint {
 impl Runnable for EntryPoint {
     fn run(&self) {
         setup_panic!();
-        self.cmd.run()
+        self.cmd.run();
     }
 }
 
@@ -144,7 +144,7 @@ impl Configurable<PaceConfig> for EntryPoint {
         // standard locations
         match (filename, path) {
             (Some(filename), _) => Some(filename.clone()),
-            (None, Some(filename)) => Some(filename.clone()),
+            (None, Some(first_path)) => Some(first_path.clone()),
             _ => None,
         }
     }
