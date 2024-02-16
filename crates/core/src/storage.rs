@@ -4,13 +4,16 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    config::PaceConfig,
     domain::{
-        activity::{Activity, ActivityId, ActivityLog},
+        activity::{Activity, ActivityId},
+        activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
         review::ActivityStats,
         time::TimeFrame,
     },
-    error::{PaceErrorKind, PaceResult},
+    error::{PaceErrorKind, PaceOptResult, PaceResult},
+    storage::file::TomlActivityStorage,
 };
 
 pub mod file;
@@ -18,9 +21,18 @@ pub mod in_memory;
 // TODO: Implement conversion FromSQL and ToSQL
 // pub mod sqlite;
 
+/// A type of storage that can be synced to a persistent medium.
+///
+/// This is useful for in-memory storage that needs to be persisted to disk or a database.
+pub trait SyncStorage {
+    /// Sync the storage to a persistent medium.
+    fn sync(&self) -> PaceResult<()>;
+}
+
 /// The trait that all storage backends must implement. This allows us to swap out the storage
 /// backend without changing the rest of the application.
-pub trait ActivityStorage: ActivityReadOps + ActivityWriteOps + ActivityStateManagement
+pub trait ActivityStorage:
+    ActivityReadOps + ActivityWriteOps + ActivityStateManagement + SyncStorage + ActivityQuerying
 // TODO!: Implement other traits
 // + ActivityTagging
 // + ActivityArchiving
@@ -55,7 +67,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// The activity that was read from the storage backend. If no activity is found, it should return `Ok(None)`.
-    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>>;
+    fn read_activity(&self, activity_id: ActivityId) -> PaceOptResult<Activity>;
 
     /// List activities from the storage backend.
     ///
@@ -69,8 +81,8 @@ pub trait ActivityReadOps {
     ///
     /// # Returns
     ///
-    /// A collection of the activities that were loaded from the storage backend.
-    fn list_activities(&self, filter: ActivityFilter) -> PaceResult<Option<FilteredActivities>>;
+    /// A collection of the activities that were loaded from the storage backend. Returns Ok(None) if no activities are found.
+    fn list_activities(&self, filter: ActivityFilter) -> PaceOptResult<FilteredActivities>;
 }
 
 /// Basic CRUD Operations for Activities in the storage backend.
@@ -88,7 +100,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity was created successfully it should return the ID of the created activity.
-    fn create_activity(&self, activity: &Activity) -> PaceResult<ActivityId>;
+    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityId>;
 
     /// Update an existing activity in the storage backend.
     ///
@@ -100,7 +112,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Errors
     ///
     /// This function should return an error if the activity cannot be updated.
-    fn update_activity(&self, activity_id: ActivityId, activity: &Activity) -> PaceResult<()>;
+    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<()>;
 
     /// Delete an activity from the storage backend.
     ///
@@ -111,7 +123,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Errors
     ///
     /// This function should return an error if the activity cannot be deleted.
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<()>;
+    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>>;
 }
 
 /// Managing Activity State
@@ -129,7 +141,9 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     /// # Returns
     ///
     /// If the activity was started successfully it should return the ID of the started activity.
-    fn start_activity(&self, activity: &Activity) -> PaceResult<ActivityId>;
+    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityId> {
+        self.create_activity(activity)
+    }
 
     /// End an activity in the storage backend.
     ///
@@ -145,7 +159,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     /// # Returns
     ///
     /// If the activity was ended successfully it should return the ID of the ended activity.
-    fn end_activity(
+    fn end_single_activity(
         &self,
         activity_id: ActivityId,
         end_time: Option<NaiveDateTime>,
@@ -163,11 +177,11 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     ///
     /// # Returns
     ///
-    /// A collection of the activities that were ended.
+    /// A collection of the activities that were ended. Returns Ok(None) if no activities were ended.
     fn end_all_unfinished_activities(
         &self,
-        time: Option<NaiveDateTime>,
-    ) -> PaceResult<Option<Vec<Activity>>>;
+        end_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<Vec<Activity>>;
 
     /// End the last unfinished activity in the storage backend.
     ///
@@ -181,11 +195,30 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     ///
     /// # Returns
     ///
-    /// The activity that was ended.
+    /// The activity that was ended. Returns Ok(None) if no activity was ended.
     fn end_last_unfinished_activity(
         &self,
-        time: Option<NaiveDateTime>,
-    ) -> PaceResult<Option<Activity>>;
+        end_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<Activity>;
+
+    /// Hold an activity in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `time` - The time (HH:MM) to hold the activity at. If `None`, the current time is used.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be held or if there are no activities to hold.
+    ///
+    /// # Returns
+    ///
+    /// The activity that was held if there was an unfinished activity to hold.
+    /// If there are no activities to hold, it should return `Ok(None)`.
+    fn hold_last_unfinished_activity(
+        &self,
+        end_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<Activity>;
 }
 
 /// Querying Activities
@@ -200,9 +233,11 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// # Returns
     ///
     /// A collection of the activities that are currently active.
-    // TODO: should just use `list_activities` with a filter for `active = true`
-    // TODO: Implement this as default
-    fn list_current_activities(&self) -> PaceResult<Option<ActivityLog>>;
+    fn list_current_activities(&self) -> PaceOptResult<ActivityLog> {
+        Ok(self
+            .list_activities(ActivityFilter::Active)?
+            .map(|activities| activities.into_log()))
+    }
 
     /// Find activities within a specific date range.
     ///
@@ -236,7 +271,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// A collection of the activities that were loaded from the storage backend by their ID in a BTreeMap.
     /// If no activities are found, it should return `Ok(None)`.
-    fn list_activities_by_id(&self) -> PaceResult<Option<BTreeMap<ActivityId, Activity>>>;
+    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityId, Activity>>;
 }
 
 pub trait ActivityTagging {
@@ -288,4 +323,45 @@ pub trait ActivityStatistics {
     ///
     /// A summary or statistics of activities within the specified time frame.
     fn generate_activity_statistics(&self, time_frame: TimeFrame) -> PaceResult<ActivityStats>;
+}
+
+pub trait ActivityReview {
+    /// Review activities within a specific date range.
+    ///
+    /// # Arguments
+    ///
+    /// * `start_date` - The start date of the range.
+    /// * `end_date` - The end date of the range.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activities cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the activities that fall within the specified date range.
+    fn review_activities_in_date_range(
+        &self,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> PaceResult<ActivityLog>;
+}
+
+/// Get the storage backend from the configuration.
+///
+/// # Arguments
+///
+/// * `config` - The application configuration.
+///
+/// # Returns
+///
+/// The storage backend.
+pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Box<dyn ActivityStorage>> {
+    let storage = match config.general().log_storage().as_str() {
+        "file" => TomlActivityStorage::new(config.general().activity_log_file_path()),
+        "database" => return Err(PaceErrorKind::DatabaseStorageNotImplemented.into()),
+        _ => TomlActivityStorage::new(config.general().activity_log_file_path()),
+    };
+
+    Ok(Box::new(storage))
 }

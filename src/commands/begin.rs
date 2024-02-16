@@ -12,7 +12,7 @@ use pace_core::{
         time::extract_time_or_now,
     },
     service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, ActivityStorage, ActivityWriteOps},
+    storage::{get_storage_from_config, ActivityStateManagement, ActivityStorage, SyncStorage},
 };
 
 /// `begin` subcommand
@@ -91,12 +91,11 @@ impl BeginCmd {
             .category(category.clone())
             .build();
 
-        let activity_store = ActivityStore::new(Box::new(TomlActivityStorage::new(
-            PACE_APP.config().general().activity_log_file_path(),
-        )));
+        let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
         activity_store.setup_storage()?;
-        activity_store.create_activity(&activity)?;
+        activity_store.begin_activity(activity.clone())?;
+        activity_store.sync()?;
 
         println!("{activity}");
 

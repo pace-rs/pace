@@ -1,4 +1,4 @@
-use crate::domain::activity::{Activity, ActivityLog};
+use crate::domain::{activity::Activity, activity_log::ActivityLog};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ActivityFilter {

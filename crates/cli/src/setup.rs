@@ -13,7 +13,7 @@ use getset::{Getters, MutGetters};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-use pace_core::{config::PaceConfig, domain::activity::ActivityLog, toml};
+use pace_core::{config::PaceConfig, domain::activity_log::ActivityLog, toml};
 
 /// Final paths for the configuration and activity log files
 ///

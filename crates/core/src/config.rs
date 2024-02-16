@@ -17,6 +17,7 @@ use crate::{
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone, MutGetters)]
 #[serde(deny_unknown_fields)]
+#[getset(get = "pub")]
 pub struct PaceConfig {
     #[getset(get = "pub", get_mut = "pub")]
     general: GeneralConfig,
@@ -37,6 +38,7 @@ impl PaceConfig {
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters, MutGetters, Clone)]
+#[getset(get = "pub")]
 pub struct GeneralConfig {
     log_storage: String,
     #[getset(get = "pub", get_mut = "pub")]
@@ -48,12 +50,14 @@ pub struct GeneralConfig {
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
+#[getset(get = "pub")]
 pub struct ReviewConfig {
     review_format: String,
     review_directory: String,
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
+#[getset(get = "pub")]
 pub struct ExportConfig {
     export_include_tags: bool,
     export_include_descriptions: bool,
@@ -61,6 +65,7 @@ pub struct ExportConfig {
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
+#[getset(get = "pub")]
 pub struct DatabaseConfig {
     #[serde(rename = "type")]
     db_type: String, // `type` is a reserved keyword in Rust
@@ -68,6 +73,7 @@ pub struct DatabaseConfig {
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
+#[getset(get = "pub")]
 pub struct PomodoroConfig {
     work_duration_minutes: u32,
     break_duration_minutes: u32,
@@ -76,6 +82,7 @@ pub struct PomodoroConfig {
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
+#[getset(get = "pub")]
 pub struct InboxConfig {
     max_size: u32,
     default_priority: String,
@@ -83,6 +90,7 @@ pub struct InboxConfig {
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
+#[getset(get = "pub")]
 pub struct AutoArchivalConfig {
     enabled: bool,
     archive_after_days: u32,

@@ -29,7 +29,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, Copy)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum ActivityKind {
     #[default]
     Activity,
@@ -48,18 +48,19 @@ enum PomodoroCycle {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ActivityDuration(u64);
+pub struct PaceDuration(u64);
 
-impl From<Duration> for ActivityDuration {
+impl From<Duration> for PaceDuration {
     fn from(duration: Duration) -> Self {
         Self(duration.as_secs())
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, Getters, MutGetters, Clone)]
+#[getset(get = "pub")]
 pub struct Activity {
     #[builder(default = Some(ActivityId::default()), setter(strip_option))]
-    #[getset(get = "pub", get_mut = "pub")]
+    #[getset(get_copy, get_mut = "pub")]
     id: Option<ActivityId>,
 
     // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
@@ -79,7 +80,7 @@ pub struct Activity {
 
     #[builder(default, setter(strip_option))]
     #[getset(get = "pub", get_mut = "pub")]
-    duration: Option<ActivityDuration>,
+    duration: Option<PaceDuration>,
 
     kind: ActivityKind,
 
@@ -179,88 +180,21 @@ impl Activity {
         Ok(duration)
     }
 
-    pub fn start_intermission(&mut self, date: NaiveDate, time: NaiveTime) {
-        let new_intermission = IntermissionPeriod::new(date, time);
-        if let Some(ref mut periods) = self.intermission_periods {
-            periods.push(new_intermission);
-        } else {
-            self.intermission_periods = Some(vec![new_intermission]);
-        }
-    }
-
-    pub fn end_intermission(&mut self, date: NaiveDate, time: NaiveTime) {
-        if let Some(intermission_periods) = &mut self.intermission_periods {
-            if let Some(last_period) = intermission_periods.last_mut() {
-                // Assuming intermissions can't overlap, the last one is the one to end
-                last_period.end(date, time);
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, MutGetters)]
-pub struct ActivityLog {
-    #[getset(get = "pub", get_mut = "pub")]
-    activities: VecDeque<Activity>,
-}
-
-impl Default for ActivityLog {
-    fn default() -> Self {
-        Self {
-            activities: VecDeque::from(vec![Activity::default()]),
-        }
-    }
-}
-
-impl FromIterator<Activity> for ActivityLog {
-    fn from_iter<T: IntoIterator<Item = Activity>>(iter: T) -> Self {
-        Self {
-            activities: iter.into_iter().collect::<VecDeque<Activity>>(),
-        }
-    }
-}
-
-impl ActivityLog {
-    pub fn current_activities(&self) -> Option<Vec<Activity>> {
-        let current_activities = self
-            .activities
-            .iter()
-            .filter(|activity| activity.is_active())
-            .cloned()
-            .collect::<Vec<Activity>>();
-
-        if current_activities.is_empty() {
-            return None;
-        }
-
-        Some(current_activities)
-    }
-
-    // pub fn activities_by_id(&self) -> PaceResult<BTreeMap<ActivityId, Activity>> {
-    //     let activities_by_id = self
-    //         .activities
-    //         .into_iter()
-    //         .map(|activity| (activity.id, activity))
-    //         .collect::<BTreeMap<ActivityId, Activity>>();
+    // pub fn start_intermission(&mut self, date: NaiveDate, time: NaiveTime) {
+    //     let new_intermission = IntermissionPeriod::new(date, time);
+    //     if let Some(ref mut periods) = self.intermission_periods {
+    //         periods.push(new_intermission);
+    //     } else {
+    //         self.intermission_periods = Some(vec![new_intermission]);
+    //     }
     // }
-}
 
-#[cfg(test)]
-mod tests {
-
-    use crate::{domain::project::ProjectConfig, domain::task::TaskList, error::TestResult};
-
-    use super::*;
-    use rstest::*;
-    use std::{fs, path::PathBuf};
-
-    #[rstest]
-    fn test_parse_activity_log_passes(
-        #[files("../../data/*.toml")] activity_path: PathBuf,
-    ) -> TestResult<()> {
-        let toml_string = fs::read_to_string(activity_path)?;
-        let _ = toml::from_str::<ActivityLog>(&toml_string)?;
-
-        Ok(())
-    }
+    // pub fn end_intermission(&mut self, date: NaiveDate, time: NaiveTime) {
+    //     if let Some(intermission_periods) = &mut self.intermission_periods {
+    //         if let Some(last_period) = intermission_periods.last_mut() {
+    //             // Assuming intermissions can't overlap, the last one is the one to end
+    //             last_period.end(date, time);
+    //         }
+    //     }
+    // }
 }

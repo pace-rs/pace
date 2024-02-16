@@ -1,6 +1,7 @@
 //! Domain models and business rules
 
 pub mod activity;
+pub mod activity_log;
 pub mod category;
 pub mod filter;
 pub mod inbox;

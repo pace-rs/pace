@@ -4,28 +4,40 @@ use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::domain::{status::ItemStatus, tag::Tag, task::TaskList};
+use crate::domain::{activity::PaceDuration, status::ItemStatus, tag::Tag, task::TaskList};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IntermissionPeriod {
-    start_date: NaiveDate,
-    start_time: NaiveTime,
-    end_date: Option<NaiveDate>,
-    end_time: Option<NaiveTime>,
+    begin: NaiveDateTime,
+    end: Option<NaiveDateTime>,
+    duration: Option<PaceDuration>,
+}
+
+impl Default for IntermissionPeriod {
+    fn default() -> Self {
+        Self {
+            begin: Local::now().naive_local(),
+            end: None,
+            duration: None,
+        }
+    }
 }
 
 impl IntermissionPeriod {
-    pub fn new(start_date: NaiveDate, start_time: NaiveTime) -> Self {
+    pub fn new(
+        begin: NaiveDateTime,
+        end: Option<NaiveDateTime>,
+        duration: Option<PaceDuration>,
+    ) -> Self {
         Self {
-            start_date,
-            start_time,
-            end_date: None,
-            end_time: None,
+            begin,
+            end,
+            duration,
         }
     }
 
-    pub fn end(&mut self, end_date: NaiveDate, end_time: NaiveTime) {
-        self.end_date = Some(end_date);
-        self.end_time = Some(end_time);
+    pub fn end(&mut self, end: NaiveDateTime) {
+        // TODO!: Calculate duration
+        self.end = Some(end);
     }
 }
