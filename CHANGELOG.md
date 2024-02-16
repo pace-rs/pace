@@ -11,12 +11,17 @@ and this project adheres to
 ## [0.6.3](https://github.com/pace-rs/pace/compare/pace-rs-v0.6.2...pace-rs-v0.6.3) - 2024-02-16
 
 ### Added
+
 - *(activity)* use only seconds for duration
-- *(cli)* implement overriding config values with global cli arguments (-a/--activity_log_file)
+- *(cli)* implement overriding config values with global cli arguments
+  (-a/--activity_log_file)
 
 ### Other
-- *(storage)* implement in-memory storage ([#28](https://github.com/pace-rs/pace/pull/28))
-- remove usage from library readmes as it's cumbersome to update and crates.io gives good advices anyway
+
+- *(storage)* implement in-memory storage
+  ([#28](https://github.com/pace-rs/pace/pull/28))
+- remove usage from library readmes as it's cumbersome to update and crates.io
+  gives good advices anyway
 - add pr command to Justfile
 - update example data filename
 - add release plz action
