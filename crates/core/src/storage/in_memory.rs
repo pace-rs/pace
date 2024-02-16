@@ -181,10 +181,6 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 }
 
 impl ActivityStateManagement for InMemoryActivityStorage {
-    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityId> {
-        self.create_activity(activity)
-    }
-
     fn end_single_activity(
         &self,
         activity_id: ActivityId,
