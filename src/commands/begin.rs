@@ -86,7 +86,7 @@ impl BeginCmd {
 
         let activity = Activity::builder()
             .description(description.clone())
-            .begin(date_time)
+            .begin(date_time.into())
             .kind(ActivityKind::default())
             .category(category.clone())
             .build();

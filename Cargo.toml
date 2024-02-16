@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/cli", "crates/core"]
+members = ["crates/cli", "crates/core", "xtask"]
 
 [workspace.package]
 authors = ["the pace-rs team"]
@@ -10,6 +10,8 @@ license = "AGPL-3.0-or-later"
 repository = "https://github.com/pace-rs/pace"
 
 [workspace.dependencies]
+clap = { version = "4", features = ["env", "wrap_help", "derive"] }
+eyre = "0.6.12"
 pace_cli = { path = "crates/cli", version = "0" }
 pace_core = { path = "crates/core", version = "0" }
 
@@ -41,11 +43,11 @@ eula = false
 
 [dependencies]
 chrono = { version = "0.4.34", features = ["serde"] }
-clap = { version = "4", features = ["env", "wrap_help"] }
+clap = { workspace = true }
 clap_complete = "4.5.0"
 dialoguer = { version = "0.11.0", features = ["history", "fuzzy-select"] }
 directories = "5.0.1"
-eyre = "0.6.12"
+eyre = { workspace = true }
 human-panic = "1.2.3"
 pace_cli = { workspace = true }
 pace_core = { workspace = true }

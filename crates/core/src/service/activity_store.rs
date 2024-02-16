@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, HashSet, VecDeque};
 
 use chrono::{NaiveDateTime, NaiveTime};
 use serde_derive::{Deserialize, Serialize};
@@ -25,8 +25,10 @@ pub struct ActivityStore {
     storage: Box<dyn ActivityStorage>,
 }
 
+/// TODO: Optimization for later to make lookup faster
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct ActivityStoreCache {
+    activity_ids: HashSet<ActivityId>,
     activities_by_id: BTreeMap<ActivityId, Activity>,
     last_entries: VecDeque<ActivityId>,
 }
@@ -55,7 +57,7 @@ impl SyncStorage for ActivityStore {
 }
 
 impl ActivityReadOps for ActivityStore {
-    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
+    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
         self.storage.read_activity(activity_id)
     }
 
@@ -72,11 +74,11 @@ impl ActivityWriteOps for ActivityStore {
         self.storage.create_activity(activity)
     }
 
-    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<()> {
+    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<Activity> {
         self.storage.update_activity(activity_id, activity)
     }
 
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
+    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
         self.storage.delete_activity(activity_id)
     }
 }

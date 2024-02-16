@@ -1,4 +1,7 @@
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound};
+use std::fmt::{Display, Formatter};
+
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
+use serde_derive::{Deserialize, Serialize};
 
 use crate::error::{PaceErrorKind, PaceOptResult, PaceResult};
 
@@ -101,4 +104,59 @@ pub fn parse_time_from_user_input(time: &Option<String>) -> PaceOptResult<NaiveD
             Ok(NaiveDateTime::new(Local::now().date_naive(), time))
         })
         .transpose()
+}
+
+/// The duration of an activity
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct PaceDuration(u64);
+
+impl From<std::time::Duration> for PaceDuration {
+    fn from(duration: std::time::Duration) -> Self {
+        Self(duration.as_secs())
+    }
+}
+
+impl From<chrono::Duration> for PaceDuration {
+    fn from(duration: chrono::Duration) -> Self {
+        Self(
+            duration
+                .num_seconds()
+                .try_into()
+                .expect("Can't convert chrono duration to pace duration"),
+        )
+    }
+}
+
+/// Wrapper for the start time of an activity to implement default
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq)]
+pub struct BeginDateTime(NaiveDateTime);
+
+impl BeginDateTime {
+    /// Convert to a naive date time
+    pub fn naive_date_time(&self) -> NaiveDateTime {
+        self.0
+    }
+
+    pub fn and_local_timezone<Tz: TimeZone>(&self, tz: Tz) -> chrono::LocalResult<DateTime<Tz>> {
+        self.0.and_local_timezone(tz)
+    }
+}
+
+impl Display for BeginDateTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        <NaiveDateTime as Display>::fmt(&self.0, f)
+    }
+}
+
+// Default BeginTime to now
+impl Default for BeginDateTime {
+    fn default() -> Self {
+        Self(Local::now().naive_local().round_subsecs(0))
+    }
+}
+
+impl From<NaiveDateTime> for BeginDateTime {
+    fn from(time: NaiveDateTime) -> Self {
+        Self(time)
+    }
 }

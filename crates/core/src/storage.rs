@@ -24,6 +24,29 @@ pub mod in_memory;
 // TODO: Implement conversion FromSQL and ToSQL
 // pub mod sqlite;
 
+/// Get the storage backend from the configuration.
+///
+/// # Arguments
+///
+/// * `config` - The application configuration.
+///
+/// # Errors
+///
+/// This function should return an error if the storage backend cannot be created or is not supported.
+///
+/// # Returns
+///
+/// The storage backend.
+pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Box<dyn ActivityStorage>> {
+    let storage = match config.general().log_storage().as_str() {
+        "file" => TomlActivityStorage::new(config.general().activity_log_file_path())?,
+        "database" => return Err(PaceErrorKind::DatabaseStorageNotImplemented.into()),
+        _ => TomlActivityStorage::new(config.general().activity_log_file_path())?,
+    };
+
+    Ok(Box::new(storage))
+}
+
 /// A type of storage that can be synced to a persistent medium.
 ///
 /// This is useful for in-memory storage that needs to be persisted to disk or a database.
@@ -85,7 +108,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// The activity that was read from the storage backend. If no activity is found, it should return `Ok(None)`.
-    fn read_activity(&self, activity_id: ActivityId) -> PaceOptResult<Activity>;
+    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Activity>;
 
     /// List activities from the storage backend.
     ///
@@ -125,6 +148,15 @@ pub trait ActivityWriteOps: ActivityReadOps {
 
     /// Update an existing activity in the storage backend.
     ///
+    /// # Note
+    ///
+    /// This function should not be used to update the state of an activity (e.g., start, end, hold, resume) directly.
+    /// Use the `ActivityStateManagement` trait for that. This function is only for updating (as in replacing) the complete
+    /// data of an activity.
+    ///
+    /// Warning: It can't be used to update the ID of an activity, because that's the primary key.
+    /// So it is immutable.
+    ///      
     /// # Arguments
     ///
     /// * `activity_id` - The ID of the activity to update.
@@ -133,7 +165,11 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Errors
     ///
     /// This function should return an error if the activity cannot be updated.
-    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<()>;
+    ///
+    /// # Returns
+    ///
+    /// If the activity was updated successfully it should return the activity before it was updated.
+    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<Activity>;
 
     /// Delete an activity from the storage backend.
     ///
@@ -144,7 +180,11 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Errors
     ///
     /// This function should return an error if the activity cannot be deleted.
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>>;
+    ///
+    /// # Returns
+    ///
+    /// If the activity was deleted successfully it should return the activity that was deleted.
+    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Activity>;
 }
 
 /// Managing Activity State
@@ -436,27 +476,4 @@ pub trait ActivityReview {
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> PaceResult<ActivityLog>;
-}
-
-/// Get the storage backend from the configuration.
-///
-/// # Arguments
-///
-/// * `config` - The application configuration.
-///
-/// # Errors
-///
-/// This function should return an error if the storage backend cannot be created or is not supported.
-///
-/// # Returns
-///
-/// The storage backend.
-pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Box<dyn ActivityStorage>> {
-    let storage = match config.general().log_storage().as_str() {
-        "file" => TomlActivityStorage::new(config.general().activity_log_file_path())?,
-        "database" => return Err(PaceErrorKind::DatabaseStorageNotImplemented.into()),
-        _ => TomlActivityStorage::new(config.general().activity_log_file_path())?,
-    };
-
-    Ok(Box::new(storage))
 }

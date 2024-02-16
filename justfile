@@ -122,3 +122,7 @@ inv-ft *ARGS:
 # prepare for making a PR
 pr:
 	just fmt lint test
+
+# Run the test suite with coverage for the given package
+coverage *ARGS: 
+	cargo tarpaulin --output-dir coverage/ -p {{ARGS}} -o Lcov
