@@ -110,8 +110,14 @@ pub enum ActivityLogErrorKind {
     NoCacheToSync,
     /// Cache not available
     CacheNotAvailable,
-    /// Activity with id {0} not found
+    /// Activity with id '{0}' not found
     ActivityNotFound(ActivityId),
+    /// Activity with id '{0}' can't be removed from the activity log
+    ActivityCantBeRemoved(usize),
+    /// This activity has no id
+    ActivityIdNotSet,
+    /// Activity with id '{0}' already in use, can't create a new activity with the same id
+    ActivityIdAlreadyInUse(ActivityId),
 }
 
 trait PaceErrorMarker: Error {}

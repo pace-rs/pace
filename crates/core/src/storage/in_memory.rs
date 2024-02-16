@@ -44,6 +44,21 @@ impl InMemoryActivityStorage {
         }
     }
 
+    /// Creates a new `InMemoryActivityStorage` from an `ActivityLog`
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_log` - The `ActivityLog` to use
+    ///
+    /// # Returns
+    ///
+    /// A new `InMemoryActivityStorage` with the given `ActivityLog`
+    pub fn new_with_activity_log(activity_log: ActivityLog) -> Self {
+        Self {
+            activities: Arc::new(Mutex::new(activity_log)),
+        }
+    }
+
     /// Try to convert the `InMemoryActivityStorage` into an `ActivityLog`
     ///
     /// # Errors
@@ -77,12 +92,12 @@ impl SyncStorage for InMemoryActivityStorage {
 }
 
 impl ActivityReadOps for InMemoryActivityStorage {
-    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
+    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
         let Ok(activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
-        Ok(activities
+        let activity = activities
             .activities()
             .iter()
             .find(|activity| {
@@ -91,7 +106,10 @@ impl ActivityReadOps for InMemoryActivityStorage {
                     .as_ref()
                     .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
-            .cloned())
+            .cloned()
+            .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
+
+        Ok(activity)
     }
 
     fn list_activities(&self, filter: ActivityFilter) -> PaceOptResult<FilteredActivities> {
@@ -130,19 +148,38 @@ impl ActivityWriteOps for InMemoryActivityStorage {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
-        let activity_id = activity.id().to_owned().expect("Activity ID should exist.");
+        let Some(activity_id) = activity.id() else {
+            return Err(ActivityLogErrorKind::ActivityIdNotSet.into());
+        };
 
-        activities.activities_mut().push_front(activity);
+        // Search for the activity in the list of activities to see if the ID is already in use.
+        if activities
+            .activities()
+            .iter()
+            .any(|activity| activity.id().as_ref().map_or(false, |id| id == activity_id))
+        {
+            return Err(ActivityLogErrorKind::ActivityIdAlreadyInUse(*activity_id).into());
+        }
 
-        Ok(activity_id)
+        activities.activities_mut().push_front(activity.clone());
+
+        Ok(*activity_id)
     }
 
-    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<()> {
+    fn update_activity(
+        &self,
+        activity_id: ActivityId,
+        mut activity: Activity,
+    ) -> PaceResult<Activity> {
+        // First things, first. Replace new activity's id with the original ID we are looking for.
+        // To make sure we are not accidentally changing the ID.
+        let _ = activity.id_mut().replace(activity_id);
+
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
-        let orig_activity = activities
+        let og_activity = activities
             .activities_mut()
             .iter_mut()
             .find(|activity| {
@@ -153,12 +190,14 @@ impl ActivityWriteOps for InMemoryActivityStorage {
             })
             .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
 
-        *orig_activity = activity;
+        let original_activity = og_activity.clone();
 
-        Ok(())
+        *og_activity = activity;
+
+        Ok(original_activity)
     }
 
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
+    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
@@ -174,7 +213,10 @@ impl ActivityWriteOps for InMemoryActivityStorage {
             })
             .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
 
-        let activity = activities.activities_mut().remove(activity_index);
+        let activity = activities
+            .activities_mut()
+            .remove(activity_index)
+            .ok_or(ActivityLogErrorKind::ActivityCantBeRemoved(activity_index))?;
 
         Ok(activity)
     }
@@ -262,10 +304,12 @@ impl ActivityStateManagement for InMemoryActivityStorage {
                         _ = activity.duration_mut().replace(duration.into());
 
                         ended_activities.push(activity.clone());
-                    },
+                    }
                     Err(_) => {
                         log::warn!(
-                            "Activity {} ends before it began. That's impossible. Skipping activity.", activity
+                            "Activity {} ends before it began. That's impossible. Skipping \
+                             activity.",
+                            activity
                         );
                     }
                 };

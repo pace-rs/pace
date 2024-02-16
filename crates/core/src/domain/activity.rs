@@ -1,7 +1,9 @@
 //! Activity entity and business logic
 
 use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
+use core::fmt::Formatter;
 use getset::{CopyGetters, Getters, MutGetters, Setters};
+use merge::Merge;
 use serde_derive::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashSet, VecDeque},
@@ -22,7 +24,7 @@ use crate::{
         status::ItemStatus,
         tag::Tag,
         task::TaskList,
-        time::duration_to_str,
+        time::{duration_to_str, BeginDateTime, PaceDuration},
     },
     error::{ActivityLogErrorKind, PaceErrorKind, PaceResult},
     storage::ActivityStorage,
@@ -51,7 +53,7 @@ pub enum ActivityKind {
 
 /// The cycle of pomodoro activity a user can track
 // TODO!: Optional: Track Pomodoro work/break cycles
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 enum PomodoroCycle {
     /// A work session
     Work(usize), // usize could represent the work session number in a sequence
@@ -61,21 +63,14 @@ enum PomodoroCycle {
     Intermission,
 }
 
-/// The duration of an activity
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct PaceDuration(u64);
-
-impl From<Duration> for PaceDuration {
-    fn from(duration: Duration) -> Self {
-        Self(duration.as_secs())
-    }
-}
-
 /// The activity entity
 ///
 /// The activity entity is used to store and manage an activity
-#[derive(Debug, Serialize, Deserialize, TypedBuilder, Getters, MutGetters, Clone)]
+#[derive(
+    Debug, Serialize, Deserialize, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq,
+)]
 #[getset(get = "pub")]
+#[derive(Merge)]
 pub struct Activity {
     /// The activity's unique identifier
     #[builder(default = Some(ActivityId::default()), setter(strip_option))]
@@ -86,9 +81,12 @@ pub struct Activity {
     // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
     // TODO: Reconsider when we implement the project management part
     // category: Category,
+    #[builder(default)]
     category: Option<String>,
 
     /// The description of the activity
+    // This needs to be an Optional, because we use the whole activity struct
+    // as well for intermissions, which don't have a description
     #[builder(default, setter(strip_option))]
     description: Option<String>,
 
@@ -99,7 +97,9 @@ pub struct Activity {
 
     /// The start date and time of the activity
     #[getset(get = "pub")]
-    begin: NaiveDateTime,
+    #[builder(default)]
+    #[merge(skip)]
+    begin: BeginDateTime,
 
     /// The duration of the activity
     #[builder(default, setter(strip_option))]
@@ -107,6 +107,8 @@ pub struct Activity {
     duration: Option<PaceDuration>,
 
     /// The kind of activity
+    #[builder(default)]
+    #[merge(skip)]
     kind: ActivityKind,
 
     // TODO: How to better support subcategories
@@ -136,7 +138,7 @@ impl Default for Activity {
             category: Some("Uncategorized".to_string()),
             description: Some("This is an example activity".to_string()),
             end: None,
-            begin: Local::now().naive_local().round_subsecs(0),
+            begin: BeginDateTime::default(),
             duration: None,
             kind: ActivityKind::Activity,
             pomodoro_cycle: None,
@@ -146,11 +148,11 @@ impl Default for Activity {
 }
 
 /// The unique identifier of an activity
-#[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy)]
+#[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
 pub struct ActivityId(Uuid);
 
 impl Display for ActivityId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -162,7 +164,7 @@ impl Default for ActivityId {
 }
 
 impl Display for Activity {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let rel_time = match self.begin.and_local_timezone(Local) {
             chrono::LocalResult::Single(time) => duration_to_str(time),
             chrono::LocalResult::None | chrono::LocalResult::Ambiguous(_, _) => {
@@ -219,7 +221,9 @@ impl Activity {
     ///
     /// Returns the duration of the activity
     pub fn calculate_duration(&self, end: NaiveDateTime) -> PaceResult<Duration> {
-        let duration = end.signed_duration_since(self.begin).to_std()?;
+        let duration = end
+            .signed_duration_since(self.begin.naive_date_time())
+            .to_std()?;
 
         Ok(duration)
     }

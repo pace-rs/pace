@@ -7,10 +7,9 @@ use std::{
 };
 
 use chrono::{Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound};
+use itertools::Itertools;
 use toml;
 use uuid::Uuid;
-
-use itertools::Itertools;
 
 use crate::{
     domain::{
@@ -124,7 +123,7 @@ impl ActivityStorage for TomlActivityStorage {
 }
 
 impl ActivityReadOps for TomlActivityStorage {
-    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
+    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
         self.cache.read_activity(activity_id)
     }
 
@@ -166,11 +165,11 @@ impl ActivityWriteOps for TomlActivityStorage {
         self.cache.create_activity(activity)
     }
 
-    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<()> {
+    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<Activity> {
         self.cache.update_activity(activity_id, activity)
     }
 
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Option<Activity>> {
+    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
         self.cache.delete_activity(activity_id)
     }
 }

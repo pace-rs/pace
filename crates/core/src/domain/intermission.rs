@@ -4,9 +4,9 @@ use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::domain::{activity::PaceDuration, status::ItemStatus, tag::Tag, task::TaskList};
+use crate::domain::{status::ItemStatus, tag::Tag, task::TaskList, time::PaceDuration};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub struct IntermissionPeriod {
     begin: NaiveDateTime,
     end: Option<NaiveDateTime>,
