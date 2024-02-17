@@ -7,18 +7,18 @@ pub mod activity;
 pub mod activity_log;
 
 /// A category for activities
-pub mod category;
+pub(crate) mod category;
 
 /// A filter for activities
 pub mod filter;
-pub mod inbox;
-pub mod intermission;
-pub mod priority;
-pub mod project;
-pub mod review;
-pub mod status;
-pub mod tag;
-pub mod task;
+pub(crate) mod inbox;
+pub(crate) mod intermission;
+pub(crate) mod priority;
+pub(crate) mod project;
+pub(crate) mod review;
+pub(crate) mod status;
+pub(crate) mod tag;
+pub(crate) mod task;
 
 /// Time utilities
 pub mod time;

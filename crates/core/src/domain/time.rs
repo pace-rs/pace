@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
+use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::error::{PaceErrorKind, PaceOptResult, PaceResult};

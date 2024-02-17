@@ -13,19 +13,15 @@ use getset::{Getters, MutGetters};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-use pace_core::{
-    config::{get_activity_log_paths, get_config_paths, PaceConfig},
-    domain::activity_log::ActivityLog,
-    toml,
-};
+use pace_core::{get_activity_log_paths, get_config_paths, toml, ActivityLog, PaceConfig};
 
-use crate::{get_activity_log_path, get_config_file_path};
+use crate::prompt::{prompt_activity_log_path, prompt_config_file_path};
 
 /// Final paths for the configuration and activity log files
 ///
 /// This struct is used to store the final paths for the configuration and activity log files
 #[derive(Debug, TypedBuilder, Getters, MutGetters)]
-pub struct FinalSetupPaths {
+pub(crate) struct FinalSetupPaths {
     /// The path to the activity log file
     #[builder(default)]
     #[getset(get = "pub")]
@@ -89,7 +85,7 @@ impl Display for FinalSetupPaths {
 /// # Returns
 ///
 /// Returns `Ok(())` if the prompt succeeds
-pub fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
+pub(crate) fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
     let env_var_knowledge = Confirm::new()
         .with_prompt("Do you know how to set environment variables?")
         .default(true)
@@ -144,7 +140,7 @@ pub fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
 /// # Returns
 ///
 /// Returns `Ok(())` if the configuration is written successfully
-pub fn write_config(
+pub(crate) fn write_config(
     config: &PaceConfig,
     config_root: &PathBuf,
     config_path: &PathBuf,
@@ -176,7 +172,7 @@ pub fn write_config(
 /// # Returns
 ///
 /// Returns `Ok(())` if the activity log is written successfully
-pub fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
+pub(crate) fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
     let activity_log = ActivityLog::default();
 
     let activity_log_content = toml::to_string_pretty(&activity_log)?;
@@ -208,7 +204,7 @@ pub fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
 /// # Returns
 ///
 /// Returns `Ok(())` if the prompt succeeds
-pub fn print_intro(term: &Term) -> Result<()> {
+pub(crate) fn print_intro(term: &Term) -> Result<()> {
     // Font name: Font Name: Georgia11
     // Source: https://patorjk.com/software/taag/#p=display&f=Georgia11&t=PACE
     let logo = style(
@@ -283,7 +279,7 @@ to elevate your productivity with pace.";
 /// # Returns
 ///
 /// Returns `Ok(())` if the user confirms their choices
-pub fn confirmation_or_break(prompt: &str) -> Result<()> {
+pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
     let confirmation = Confirm::new()
         .with_prompt(prompt)
         .default(true)
@@ -330,11 +326,11 @@ pub fn craft_setup(term: &Term) -> Result<()> {
 
     term.clear_screen()?;
 
-    let final_paths = get_activity_log_path(&activity_log_paths)?;
+    let final_paths = prompt_activity_log_path(&activity_log_paths)?;
 
     let config = default_config_content.with_activity_log(final_paths.activity_log_path());
 
-    let final_paths = get_config_file_path(final_paths, config_paths.as_slice())?;
+    let final_paths = prompt_config_file_path(final_paths, config_paths.as_slice())?;
 
     let prompt = "Do you want the files to be written?";
 

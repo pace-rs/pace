@@ -1,7 +1,5 @@
 //! Category entity and business logic
 
-use std::str::FromStr;
-
 use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use uuid::Uuid;

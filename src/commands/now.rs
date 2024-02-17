@@ -6,10 +6,7 @@ use eyre::Result;
 
 use crate::prelude::PACE_APP;
 
-use pace_core::{
-    service::activity_store::ActivityStore,
-    storage::{get_storage_from_config, ActivityQuerying, ActivityStorage},
-};
+use pace_core::{get_storage_from_config, ActivityQuerying, ActivityStorage, ActivityStore};
 
 /// `now` subcommand
 #[derive(Command, Debug, Parser)]

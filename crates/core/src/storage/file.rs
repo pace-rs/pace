@@ -1,23 +1,21 @@
 use std::{
-    collections::{BTreeMap, VecDeque},
-    fs::{self, File, OpenOptions},
-    io::{Read, Write},
-    ops::ControlFlow,
+    collections::BTreeMap,
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
 };
 
-use chrono::{Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound};
-use itertools::Itertools;
+use chrono::{NaiveDate, NaiveDateTime};
+
 use toml;
-use uuid::Uuid;
 
 use crate::{
     domain::{
-        activity::{self, Activity, ActivityId},
+        activity::{Activity, ActivityId},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
     },
-    error::{ActivityLogErrorKind, PaceErrorKind, PaceOptResult, PaceResult},
+    error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::{
         in_memory::InMemoryActivityStorage, ActivityQuerying, ActivityReadOps,
         ActivityStateManagement, ActivityStorage, ActivityWriteOps, SyncStorage,

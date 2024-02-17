@@ -1,13 +1,10 @@
-use std::{
-    f32::consts::E,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use chrono::{Local, NaiveDateTime};
 
 use crate::{
     domain::{
-        activity::{self, Activity, ActivityId},
+        activity::{Activity, ActivityId},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
     },

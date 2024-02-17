@@ -7,12 +7,8 @@ use eyre::Result;
 use crate::prelude::PACE_APP;
 
 use pace_core::{
-    domain::{
-        activity::{Activity, ActivityKind},
-        time::extract_time_or_now,
-    },
-    service::activity_store::ActivityStore,
-    storage::{get_storage_from_config, ActivityStateManagement, ActivityStorage, SyncStorage},
+    extract_time_or_now, get_storage_from_config, Activity, ActivityKind, ActivityStateManagement,
+    ActivityStorage, ActivityStore, SyncStorage,
 };
 
 /// `begin` subcommand

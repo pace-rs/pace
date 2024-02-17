@@ -1,5 +1,3 @@
-use std::collections::BinaryHeap;
-
 use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use uuid::Uuid;

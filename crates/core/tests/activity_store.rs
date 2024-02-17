@@ -1,13 +1,8 @@
 // Test the ActivityStore implementation with a InMemoryStorage backend.
 
-use pace_core::{domain::activity_log::ActivityLog, service::activity_store::ActivityStore};
 use pace_core::{
-    domain::{
-        activity::{Activity, ActivityId},
-        filter::ActivityFilter,
-    },
-    error::TestResult,
-    storage::{in_memory::InMemoryActivityStorage, ActivityReadOps, ActivityWriteOps},
+    Activity, ActivityFilter, ActivityId, ActivityLog, ActivityReadOps, ActivityStore,
+    ActivityWriteOps, InMemoryActivityStorage, TestResult,
 };
 
 use rstest::{fixture, rstest};

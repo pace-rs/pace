@@ -1,10 +1,9 @@
 //! Intermission entity and business logic
 
-use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{Local, NaiveDateTime};
 use serde_derive::{Deserialize, Serialize};
-use std::collections::HashSet;
 
-use crate::domain::{status::ItemStatus, tag::Tag, task::TaskList, time::PaceDuration};
+use crate::domain::time::PaceDuration;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub struct IntermissionPeriod {

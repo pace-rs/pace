@@ -1,4 +1,4 @@
-use pace_core::{config::find_root_config_file_path, error::TestResult};
+use pace_core::{find_root_config_file_path, TestResult};
 
 use std::env;
 

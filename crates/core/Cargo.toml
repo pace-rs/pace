@@ -46,13 +46,13 @@ rstest = "0.18.2"
 
 [lints.rust]
 unsafe_code = "forbid"
-# missing_docs = "warn"
+missing_docs = "allow" # TODO!: For now, we allow missing docs, but we should fix this
 rust_2018_idioms = "warn"
 trivial_casts = "warn"
 unused_lifetimes = "warn"
 unused_qualifications = "warn"
 bad_style = "warn"
-dead_code = "warn"
+dead_code = "allow" # TODO!: For now, we allow dead code, but we should fix this
 improper_ctypes = "warn"
 # missing_copy_implementations = "warn"
 # missing_debug_implementations = "warn"

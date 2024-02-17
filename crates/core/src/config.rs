@@ -1,19 +1,14 @@
 //! Pace Config
 
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use chrono::NaiveDateTime;
-use getset::{CopyGetters, Getters, MutGetters, Setters};
+use getset::{Getters, MutGetters};
 use serde_derive::{Deserialize, Serialize};
 
 use directories::ProjectDirs;
 
-use crate::{
-    domain::category::Category,
-    error::{PaceErrorKind, PaceResult},
-};
+use crate::error::{PaceErrorKind, PaceResult};
 
 /// The pace configuration file
 ///
@@ -293,7 +288,7 @@ pub fn get_config_paths(filename: &str) -> Vec<PathBuf> {
 ///
 /// The path to the home activity log directory.
 /// If the environment variable `PACE_HOME` is not set, `None` is returned.
-fn get_home_activity_log_path() -> Option<PathBuf> {
+pub fn get_home_activity_log_path() -> Option<PathBuf> {
     std::env::var_os("PACE_HOME").map(|home_dir| PathBuf::from(home_dir).join("activities"))
 }
 
@@ -303,7 +298,7 @@ fn get_home_activity_log_path() -> Option<PathBuf> {
 ///
 /// The path to the home config directory.
 /// If the environment variable `PACE_HOME` is not set, `None` is returned.
-fn get_home_config_path() -> Option<PathBuf> {
+pub fn get_home_config_path() -> Option<PathBuf> {
     std::env::var_os("PACE_HOME").map(|home_dir| PathBuf::from(home_dir).join("config"))
 }
 

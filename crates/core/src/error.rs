@@ -1,13 +1,10 @@
 //! Error types and Result module.
 
 use displaydoc::Display;
-use std::{
-    error::Error,
-    path::{Display, PathBuf},
-};
+use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
-use crate::domain::{activity::ActivityId, activity_log::ActivityLog};
+use crate::domain::activity::ActivityId;
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;

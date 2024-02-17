@@ -1,33 +1,20 @@
 //! Activity entity and business logic
 
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
+use chrono::{Local, NaiveDateTime};
 use core::fmt::Formatter;
-use getset::{CopyGetters, Getters, MutGetters, Setters};
+use getset::{Getters, MutGetters, Setters};
 use merge::Merge;
 use serde_derive::{Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
-    fmt::{format, Display},
-    fs,
-    iter::FromIterator,
-    path::Path,
-    time::Duration,
-};
+use std::{fmt::Display, time::Duration};
 use typed_builder::TypedBuilder;
 use uuid::Uuid;
 
 use crate::{
     domain::{
-        category::Category,
-        filter::ActivityFilter,
-        intermission::{self, IntermissionPeriod},
-        status::ItemStatus,
-        tag::Tag,
-        task::TaskList,
+        intermission::IntermissionPeriod,
         time::{duration_to_str, BeginDateTime, PaceDuration},
     },
-    error::{ActivityLogErrorKind, PaceErrorKind, PaceResult},
-    storage::ActivityStorage,
+    error::PaceResult,
 };
 
 /// The kind of activity a user can track

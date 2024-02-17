@@ -1,4 +1,4 @@
-use crate::domain::{activity::Activity, activity_log::ActivityLog};
+use crate::domain::activity_log::ActivityLog;
 
 /// Filter for activities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

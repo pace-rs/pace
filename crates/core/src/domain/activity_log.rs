@@ -1,31 +1,8 @@
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
-use getset::{CopyGetters, Getters, MutGetters, Setters};
+use getset::{Getters, MutGetters};
 use serde_derive::{Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
-    fmt::{format, Display},
-    fs,
-    iter::FromIterator,
-    path::Path,
-    time::Duration,
-};
-use typed_builder::TypedBuilder;
-use uuid::Uuid;
+use std::{collections::VecDeque, iter::FromIterator};
 
-use crate::{
-    domain::{
-        activity::Activity,
-        category::Category,
-        filter::ActivityFilter,
-        intermission::{self, IntermissionPeriod},
-        status::ItemStatus,
-        tag::Tag,
-        task::TaskList,
-        time::duration_to_str,
-    },
-    error::{ActivityLogErrorKind, PaceErrorKind, PaceResult},
-    storage::ActivityStorage,
-};
+use crate::domain::activity::Activity;
 
 /// The activity log entity
 ///
@@ -55,7 +32,7 @@ impl FromIterator<Activity> for ActivityLog {
 #[cfg(test)]
 mod tests {
 
-    use crate::{domain::project::ProjectConfig, domain::task::TaskList, error::TestResult};
+    use crate::error::TestResult;
 
     use super::*;
     use rstest::*;

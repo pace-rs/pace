@@ -7,11 +7,9 @@ use eyre::Result;
 use crate::prelude::PACE_APP;
 
 use pace_core::{
-    domain::time::parse_time_from_user_input,
-    service::activity_store::ActivityStore,
-    storage::{get_storage_from_config, ActivityStateManagement, ActivityStorage, SyncStorage},
+    get_storage_from_config, parse_time_from_user_input, ActivityStateManagement, ActivityStorage,
+    ActivityStore, SyncStorage,
 };
-
 /// `end` subcommand
 #[derive(Command, Debug, Parser)]
 pub struct EndCmd {
