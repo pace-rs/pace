@@ -115,10 +115,11 @@ fn test_activity_store_read_activity_fails(activity_log_empty: ActivityLog) {
     assert!(store.read_activity(activity_id).is_err());
 }
 
+// TODO!: Test the list_activities method with all the other filters.
 // List activities can hardly fail, as it returns an empty list if no activities are found.
 // Therefore, we only test the success case. It would fail if the mutex is poisoned.
 #[rstest]
-fn test_activity_store_list_activities_passes(
+fn test_activity_store_list_active_activities_passes(
     activity_log_with_content: (Vec<Activity>, ActivityLog),
 ) -> TestResult<()> {
     let (activities, activity_log) = activity_log_with_content;

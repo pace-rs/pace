@@ -1,7 +1,9 @@
 use std::sync::{Arc, Mutex};
 
 use chrono::{Local, NaiveDateTime};
-use rayon::prelude::*;
+use rayon::prelude::{
+    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
+};
 
 use crate::{
     domain::{
@@ -107,6 +109,8 @@ impl ActivityReadOps for InMemoryActivityStorage {
             .cloned()
             .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
 
+        drop(activities);
+
         Ok(activity)
     }
 
@@ -131,11 +135,13 @@ impl ActivityReadOps for InMemoryActivityStorage {
             return Ok(None);
         }
 
+        drop(activities);
+
         match filter {
-            ActivityFilter::All => Ok(Some(FilteredActivities::All(activities.clone()))),
-            ActivityFilter::Active => Ok(Some(FilteredActivities::Active(activities.clone()))),
-            ActivityFilter::Archived => Ok(Some(FilteredActivities::Archived(activities.clone()))),
-            ActivityFilter::Ended => Ok(Some(FilteredActivities::Ended(activities.clone()))),
+            ActivityFilter::All => Ok(Some(FilteredActivities::All(filtered.clone()))),
+            ActivityFilter::Active => Ok(Some(FilteredActivities::Active(filtered.clone()))),
+            ActivityFilter::Archived => Ok(Some(FilteredActivities::Archived(filtered.clone()))),
+            ActivityFilter::Ended => Ok(Some(FilteredActivities::Ended(filtered.clone()))),
         }
     }
 }
@@ -160,6 +166,8 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         }
 
         activities.activities_mut().push_front(activity.clone());
+
+        drop(activities);
 
         Ok(*activity_id)
     }
@@ -192,6 +200,8 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 
         *og_activity = activity;
 
+        drop(activities);
+
         Ok(original_activity)
     }
 
@@ -215,6 +225,8 @@ impl ActivityWriteOps for InMemoryActivityStorage {
             .activities_mut()
             .remove(activity_index)
             .ok_or(ActivityLogErrorKind::ActivityCantBeRemoved(activity_index))?;
+
+        drop(activities);
 
         Ok(activity)
     }
@@ -247,6 +259,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         _ = activity.end_mut().replace(end_time);
         _ = activity.duration_mut().replace(duration.into());
+
+        drop(activities);
 
         Ok(activity_id)
     }
@@ -312,6 +326,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
                     }
                 };
             });
+
+        drop(activities);
 
         if ended_activities.is_empty() {
             return Ok(None);
