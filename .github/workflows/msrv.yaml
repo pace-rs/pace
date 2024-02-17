@@ -22,9 +22,10 @@ jobs:
       matrix:
         crate: [pace-rs, pace_core, pace_cli]
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@v4
+
       - name: Install cargo-hack
-        uses: taiki-e/install-action@3ed9916b5427bc0679b294607ea47d1d8007b53f # v2
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack
 
