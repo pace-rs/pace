@@ -1,13 +1,14 @@
 [build]
 rustdocflags = ["--document-private-items"]
-rustflags = "-C target-cpu=native -D warnings"
+# rustflags = "-C target-cpu=native -D warnings"
+rustflags = "-D warnings"
 # incremental = true
 
 [alias]
 xtask = "run --package xtask --"
 
-[target.x86_64-pc-windows-msvc]
-linker = "rust-lld.exe"
+# [target.x86_64-pc-windows-msvc]
+# linker = "rust-lld.exe"
 
 # NOTE: you must manually install https://github.com/michaeleisel/zld on mac. you can easily do this with the "brew" package manager:
 # `brew install michaeleisel/zld/zld`
