@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header_cli.png" style="width: 66%; height: auto" />
+<img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header_cli.png" style="max-width:500px; width:100%; height: auto" />
 </p>
 <p align="center"><b>pace-cli - library to support timetracking on the command line</b></p>
 
