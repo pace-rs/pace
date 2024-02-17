@@ -1,6 +1,7 @@
 use assert_cmd::Command;
+use pace_core::ActivityLog;
 use predicates::prelude::predicate;
-// use tempfile::{tempdir, TempDir};
+use tempfile::tempdir;
 
 pub type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -44,23 +45,53 @@ fn test_help_command_passes() -> TestResult<()> {
 }
 
 // TODO: Test begin command
-// #[test]
-// fn test_begin_command_passes() -> TestResult<()> {
-//     pace_runner()?
-//         .args([
-//             "-a",
-//             "./activity_log.toml",
-//             "begin",
-//             "This is my task description",
-//             "-c",
-//             "MyCategory::SubCategory",
-//         ])
-//         .assert()
-//         .success()
-//         .stdout(predicate::str::contains("started")); // TODO
+#[test]
+fn test_begin_command_passes() -> TestResult<()> {
+    let activity_log_file = tempdir()?.into_path().join("activity_log.toml");
 
-//     Ok(())
-// }
+    let desc = "Test description";
+    let category = "Test::Category";
+    let time = "22:00";
+
+    if activity_log_file.exists() {
+        std::fs::remove_file(&activity_log_file)?;
+    }
+
+    std::fs::write(&activity_log_file, "")?;
+
+    _ = pace_runner()?
+        .args([
+            "-a",
+            activity_log_file.as_path().to_str().unwrap(),
+            "begin",
+            desc,
+            "-c",
+            category,
+            "-t",
+            time,
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("started"));
+
+    let contents = std::fs::read_to_string(&activity_log_file)?;
+
+    let activity_log = toml::from_str::<ActivityLog>(&contents)?;
+
+    assert_eq!(activity_log.activities().len(), 1);
+
+    let activity = activity_log.activities().front().unwrap();
+
+    assert_eq!(activity.description(), &Some(desc.to_string()));
+    assert_eq!(activity.category(), &Some(category.to_string()));
+    assert_eq!(format!("{:?}", activity.begin()), time);
+
+    if activity_log_file.exists() {
+        std::fs::remove_file(&activity_log_file)?;
+    }
+
+    Ok(())
+}
 
 // TODO: Test end command
 // #[test]

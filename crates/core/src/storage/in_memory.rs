@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use chrono::{Local, NaiveDateTime};
+use rayon::prelude::*;
 
 use crate::{
     domain::{
@@ -96,8 +97,8 @@ impl ActivityReadOps for InMemoryActivityStorage {
 
         let activity = activities
             .activities()
-            .iter()
-            .find(|activity| {
+            .par_iter()
+            .find_first(|activity| {
                 activity
                     .id()
                     .as_ref()
@@ -152,7 +153,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         // Search for the activity in the list of activities to see if the ID is already in use.
         if activities
             .activities()
-            .iter()
+            .par_iter()
             .any(|activity| activity.id().as_ref().map_or(false, |id| id == activity_id))
         {
             return Err(ActivityLogErrorKind::ActivityIdAlreadyInUse(*activity_id).into());
@@ -178,8 +179,8 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 
         let og_activity = activities
             .activities_mut()
-            .iter_mut()
-            .find(|activity| {
+            .par_iter_mut()
+            .find_first(|activity| {
                 activity
                     .id()
                     .as_ref()
@@ -201,8 +202,8 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 
         let activity_index = activities
             .activities_mut()
-            .iter()
-            .position(|activity| {
+            .par_iter()
+            .position_first(|activity| {
                 activity
                     .id()
                     .as_ref()
@@ -233,8 +234,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let activity = activities
             .activities_mut()
-            .iter_mut()
-            .find(|activity| {
+            .par_iter_mut()
+            .find_first(|activity| {
                 activity
                     .id()
                     .as_ref()
@@ -262,8 +263,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let Some(last_unfinished_activity) = activities
             .activities_mut()
-            .iter_mut()
-            .find(|activity| activity.is_active())
+            .par_iter_mut()
+            .find_first(|activity| activity.is_active())
         else {
             return Ok(None);
         };
