@@ -84,13 +84,19 @@ cargo install pace-rs
 
 ### Key
 
-❌ = not implemented, yet
+✅ = fully functioning
 
-⏲️ = work in progress
+🔍 = review and testing in progress
 
 🪧 = implemented, more testing needed
 
-✅ = fully functioning
+⏲️ = work in progress
+
+❌ = not implemented, yet
+
+📜 = design stage
+
+💡 = idea
 
 ### Commands
 
@@ -107,37 +113,37 @@ implemented yet (e.g. using activities instead of tasks).
   configuration file.
 - **Usage:** `pace craft setup`
 
-🪧 **`pace begin`**
+🔍 **`pace begin`**
 
 - **Description:** Starts tracking time for the specified task. You can
   optionally specify a category or project to help organize your tasks.
 - **Usage:** `pace begin "Design Work" --category "Freelance" --time 10:00`
 
-🪧 **`pace end`**
+🔍 **`pace end`**
 
 - **Description:** Stops time tracking for the specified task, marking it as
   completed or finished for the day.
 - **Usage:** `pace end --time 11:30 --only-last`
 
-🪧 **`pace now`**
+🔍 **`pace now`**
 
 - **Description:** Displays the currently running task, showing you at a glance
   what you're currently tracking.
 - **Usage:** `pace now`
 
-❌ **`pace review`**
+📜 **`pace review`**
 
 - **Description:** Gain insight in your activities and tasks. You can specify
   the time frame for daily, weekly, or monthly insights.
 - **Usage:** `pace review --weekly`
 
-❌ **`pace resume`**
+⏲️ **`pace resume`**
 
 - **Description:** Resumes time tracking for a previously paused task, allowing
   you to continue where you left off.
 - **Usage:** `pace resume "Design Work"`
 
-❌ **`pace hold`**
+⏲️ **`pace hold`**
 
 - **Description:** Pauses the time tracking for the specified task. This is
   useful for taking breaks without ending the task.
@@ -149,33 +155,33 @@ implemented yet (e.g. using activities instead of tasks).
   usage and options.
 - **Usage:** `pace help` or `pace <command> --help`
 
-### Additional Commands
+### Ideas For Additional Useful Commands
 
-❌ **`pace tasks`**
-
-- **Description:** Lists all tasks with optional filters. Use this to view
-  active, completed, or today's tasks.
-- **Usage:** `pace tasks --active`
-
-❌ **`pace projects`**
-
-- **Description:** Lists all projects with optional filters. Use this to view
-  all projects, subprojects and their associated tasks.
-- **Usage:** `pace projects`
-
-❌ **`pace pomo`**
-
-- **Description:** Starts a Pomodoro session for the specified task, integrating
-  the Pomodoro technique directly with your tasks.
-- **Usage:** `pace pomo "Study Session"`
-
-❌ **`pace export --json/--csv`**
+💡 **`pace export --json/--csv`**
 
 - **Description:** Exports your tracked data and insights in JSON or CSV format,
   suitable for analysis or record-keeping.
 - **Usage:** `pace export --csv --from 2021-01-01 --to 2021-01-31`
 
-❌ **`pace set`**
+💡 **`pace tasks`**
+
+- **Description:** Lists all tasks with optional filters. Use this to view
+  active, completed, or today's tasks.
+- **Usage:** `pace tasks --active`
+
+💡 **`pace projects`**
+
+- **Description:** Lists all projects with optional filters. Use this to view
+  all projects, subprojects and their associated tasks.
+- **Usage:** `pace projects`
+
+💡 **`pace pomo`**
+
+- **Description:** Starts a Pomodoro session for the specified task, integrating
+  the Pomodoro technique directly with your tasks.
+- **Usage:** `pace pomo "Study Session"`
+
+💡 **`pace set`**
 
 - **Description:** Sets various application configurations, including Pomodoro
   lengths and preferred review formats.
