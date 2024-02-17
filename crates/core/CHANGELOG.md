@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/pace-rs/pace/compare/pace_core-v0.7.0...pace_core-v0.8.0) - 2024-02-17
+
+### Added
+- *(api)* [**breaking**] refine core api and cleanup library interfaces
+
+### Other
+- implement more tests for ActivityStore and setup code coverage ([#31](https://github.com/pace-rs/pace/pull/31))
+- update discussions link
+
 ## [0.7.0](https://github.com/pace-rs/pace/compare/pace_core-v0.6.0...pace_core-v0.7.0) - 2024-02-16
 
 ### Added

@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.3...pace_cli-v0.2.0) - 2024-02-17
+
+### Added
+- *(api)* [**breaking**] refine core api and cleanup library interfaces
+
+### Other
+- update discussions link
+
 ## [0.1.3](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.2...pace_cli-v0.1.3) - 2024-02-16
 
 ### Other
