@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header.png" height="350" />
+<img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header.png" style="width: 66%; height: auto" />
 </p>
 <p align="center"><b>Mindful Time Tracking: Simplify Your Focus and Boost Productivity Effortlessly.</b></p>
 
