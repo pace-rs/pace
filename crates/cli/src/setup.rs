@@ -306,7 +306,7 @@ pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
 ///
 /// Returns `Ok(())` if the setup assistant succeeds
 pub fn craft_setup(term: &Term) -> Result<()> {
-    let default_config_content = PaceConfig::default();
+    let mut config = PaceConfig::default();
 
     let config_paths = get_config_paths("pace.toml")
         .into_iter()
@@ -328,7 +328,7 @@ pub fn craft_setup(term: &Term) -> Result<()> {
 
     let final_paths = prompt_activity_log_path(&activity_log_paths)?;
 
-    let config = default_config_content.with_activity_log(final_paths.activity_log_path());
+    config.add_activity_log_path(final_paths.activity_log_path());
 
     let final_paths = prompt_config_file_path(final_paths, config_paths.as_slice())?;
 

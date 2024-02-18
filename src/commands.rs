@@ -10,18 +10,18 @@
 //! See the `impl Configurable` below for how to specify the path to the
 //! application's configuration file.
 
-mod begin;
-mod end;
-mod export;
-// TODO: mod import;
-mod craft;
-mod hold;
-mod now;
-mod pomo;
-mod resume;
-mod review;
-mod set;
-mod tasks;
+pub mod begin;
+pub mod end;
+pub mod export;
+// TODO: pub mod import;
+pub mod craft;
+pub mod hold;
+pub mod now;
+pub mod pomo;
+pub mod resume;
+pub mod review;
+pub mod set;
+pub mod tasks;
 
 use abscissa_core::{config::Override, Command, Configurable, FrameworkError, Runnable};
 use clap::builder::{styling::AnsiColor, Styles};

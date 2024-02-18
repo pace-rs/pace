@@ -4,7 +4,7 @@ use displaydoc::Display;
 use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
-use crate::domain::activity::ActivityId;
+use crate::domain::activity::ActivityGuid;
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
@@ -92,7 +92,7 @@ pub enum ActivityLogErrorKind {
     /// No activities found in the activity log
     NoActivitiesFound,
     /// Activity with ID {0} not found
-    FailedToReadActivity(ActivityId),
+    FailedToReadActivity(ActivityGuid),
     /// Negative duration for activity
     NegativeDuration,
     /// There are no activities to hold
@@ -108,13 +108,13 @@ pub enum ActivityLogErrorKind {
     /// Cache not available
     CacheNotAvailable,
     /// Activity with id '{0}' not found
-    ActivityNotFound(ActivityId),
+    ActivityNotFound(ActivityGuid),
     /// Activity with id '{0}' can't be removed from the activity log
     ActivityCantBeRemoved(usize),
     /// This activity has no id
     ActivityIdNotSet,
     /// Activity with id '{0}' already in use, can't create a new activity with the same id
-    ActivityIdAlreadyInUse(ActivityId),
+    ActivityIdAlreadyInUse(ActivityGuid),
 }
 
 trait PaceErrorMarker: Error {}

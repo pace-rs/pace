@@ -33,7 +33,7 @@ impl Runnable for EndCmd {
 }
 
 impl EndCmd {
-    pub fn inner_run(&self) -> Result<()> {
+    fn inner_run(&self) -> Result<()> {
         let Self {
             time, only_last, ..
         } = self;

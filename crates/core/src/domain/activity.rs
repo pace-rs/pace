@@ -60,26 +60,30 @@ enum PomodoroCycle {
 #[derive(Merge)]
 pub struct Activity {
     /// The activity's unique identifier
-    #[builder(default = Some(ActivityId::default()), setter(strip_option))]
+    #[builder(default = Some(ActivityGuid::default()), setter(strip_option))]
     #[getset(get_copy, get_mut = "pub")]
-    id: Option<ActivityId>,
+    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    guid: Option<ActivityGuid>,
 
     /// The category of the activity
     // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
     // TODO: Reconsider when we implement the project management part
     // category: Category,
     #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     category: Option<String>,
 
     /// The description of the activity
     // This needs to be an Optional, because we use the whole activity struct
     // as well for intermissions, which don't have a description
     #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
 
     /// The end date and time of the activity
     #[builder(default, setter(strip_option))]
     #[getset(get = "pub", get_mut = "pub")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     end: Option<NaiveDateTime>,
 
     /// The start date and time of the activity
@@ -91,6 +95,7 @@ pub struct Activity {
     /// The duration of the activity
     #[builder(default, setter(strip_option))]
     #[getset(get = "pub", get_mut = "pub")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     duration: Option<PaceDuration>,
 
     /// The kind of activity
@@ -110,18 +115,20 @@ pub struct Activity {
     // Pomodoro-specific attributes
     /// The pomodoro cycle of the activity
     #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pomodoro_cycle: Option<PomodoroCycle>,
 
     // Intermission-specific attributes
     /// The intermission periods of the activity
     #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     intermission_periods: Option<Vec<IntermissionPeriod>>,
 }
 
 impl Default for Activity {
     fn default() -> Self {
         Self {
-            id: Some(ActivityId::default()),
+            guid: Some(ActivityGuid::default()),
             category: Some("Uncategorized".to_string()),
             description: Some("This is an example activity".to_string()),
             end: None,
@@ -136,15 +143,15 @@ impl Default for Activity {
 
 /// The unique identifier of an activity
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
-pub struct ActivityId(Ulid);
+pub struct ActivityGuid(Ulid);
 
-impl Display for ActivityId {
+impl Display for ActivityGuid {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl Default for ActivityId {
+impl Default for ActivityGuid {
     fn default() -> Self {
         Self(Ulid::new())
     }
@@ -168,14 +175,14 @@ impl Display for Activity {
     }
 }
 
-impl rusqlite::types::FromSql for ActivityId {
+impl rusqlite::types::FromSql for ActivityGuid {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let bytes = <[u8; 16]>::column_result(value)?;
         Ok(Self(Ulid::from(u128::from_be_bytes(bytes))))
     }
 }
 
-impl rusqlite::types::ToSql for ActivityId {
+impl rusqlite::types::ToSql for ActivityGuid {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
         Ok(rusqlite::types::ToSqlOutput::from(self.0.to_string()))
     }

@@ -19,13 +19,23 @@ impl Default for TaskId {
 #[derive(Debug, TypedBuilder, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Task {
     created_at: NaiveDateTime,
+
     description: String,
-    finished_at: Option<NaiveDateTime>,
+
     #[builder(default, setter(strip_option))]
-    id: Option<TaskId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    finished_at: Option<NaiveDateTime>,
+
+    #[builder(default, setter(strip_option))]
+    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    guid: Option<TaskId>,
+
     priority: ItemPriority,
+
     status: ItemStatus,
+
     tags: Vec<String>,
+
     title: String,
     // TODO: It would be nice to have a way to track the number of pomodoro cycles for each task
 }

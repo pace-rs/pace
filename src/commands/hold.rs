@@ -26,6 +26,7 @@ impl Runnable for HoldCmd {
 }
 
 impl HoldCmd {
+    /// Inner run implementation for the hold command
     pub fn inner_run(&self) -> Result<()> {
         // TODO!: Implement hold command
         //

@@ -1,7 +1,7 @@
 // Test the ActivityStore implementation with a InMemoryStorage backend.
 
 use pace_core::{
-    Activity, ActivityFilter, ActivityId, ActivityLog, ActivityReadOps, ActivityStore,
+    Activity, ActivityFilter, ActivityGuid, ActivityLog, ActivityReadOps, ActivityStore,
     ActivityWriteOps, InMemoryActivityStorage, TestResult,
 };
 use rstest::{fixture, rstest};
@@ -31,7 +31,7 @@ fn activity_log_with_content() -> (Vec<Activity>, ActivityLog) {
 #[fixture]
 fn activity_store_with_item(
     activity_log_empty: ActivityLog,
-) -> TestResult<(ActivityId, Activity, ActivityStore)> {
+) -> TestResult<(ActivityGuid, Activity, ActivityStore)> {
     let store = ActivityStore::new(Box::new(InMemoryActivityStorage::new_with_activity_log(
         activity_log_empty,
     )));
@@ -58,7 +58,7 @@ fn test_activity_store_create_activity_passes(activity_log_empty: ActivityLog) -
         .build();
 
     let og_activity = activity.clone();
-    let og_activity_id = activity.id().expect("Activity ID should be set.");
+    let og_activity_id = activity.guid().expect("Activity ID should be set.");
 
     let activity_id = store.create_activity(activity)?;
 
@@ -80,10 +80,10 @@ fn test_activity_store_create_activity_fails(
         activity_log,
     )));
 
-    let id = activities[0].id().expect("Activity ID should be set.");
+    let id = activities[0].guid().expect("Activity ID should be set.");
 
     let activity = Activity::builder()
-        .id(id)
+        .guid(id)
         .description("Test Description".to_string())
         .category(Some("Test::Category".to_string()))
         .build();
@@ -93,7 +93,7 @@ fn test_activity_store_create_activity_fails(
 
 #[rstest]
 fn test_activity_store_read_activity_passes(
-    activity_store_with_item: TestResult<(ActivityId, Activity, ActivityStore)>,
+    activity_store_with_item: TestResult<(ActivityGuid, Activity, ActivityStore)>,
 ) -> TestResult<()> {
     let (og_activity_id, og_activity, store) = activity_store_with_item?;
 
@@ -110,7 +110,7 @@ fn test_activity_store_read_activity_fails(activity_log_empty: ActivityLog) {
         activity_log_empty,
     )));
 
-    let activity_id = ActivityId::default();
+    let activity_id = ActivityGuid::default();
 
     assert!(store.read_activity(activity_id).is_err());
 }
@@ -141,7 +141,7 @@ fn test_activity_store_list_active_activities_passes(
 
 #[rstest]
 fn test_activity_store_update_activity_passes(
-    activity_store_with_item: TestResult<(ActivityId, Activity, ActivityStore)>,
+    activity_store_with_item: TestResult<(ActivityGuid, Activity, ActivityStore)>,
 ) -> TestResult<()> {
     let (og_activity_id, og_activity, store) = activity_store_with_item?;
 
@@ -159,7 +159,7 @@ fn test_activity_store_update_activity_passes(
 
     let stored_activity = store.read_activity(og_activity_id)?;
 
-    _ = new_activity.id_mut().replace(og_activity_id);
+    _ = new_activity.guid_mut().replace(og_activity_id);
 
     assert_eq!(stored_activity, new_activity);
 
@@ -168,7 +168,7 @@ fn test_activity_store_update_activity_passes(
 
 #[rstest]
 fn test_activity_store_delete_activity_passes(
-    activity_store_with_item: TestResult<(ActivityId, Activity, ActivityStore)>,
+    activity_store_with_item: TestResult<(ActivityGuid, Activity, ActivityStore)>,
 ) -> TestResult<()> {
     let (og_activity_id, og_activity, store) = activity_store_with_item?;
 
@@ -190,7 +190,7 @@ fn test_activity_store_delete_activity_fails(
         activity_log,
     )));
 
-    let activity_id = ActivityId::default();
+    let activity_id = ActivityGuid::default();
 
     assert!(store.delete_activity(activity_id).is_err());
 }
@@ -209,7 +209,7 @@ fn test_activity_store_update_activity_fails(
         .category(Some("test".to_string()))
         .build();
 
-    let activity_id = ActivityId::default();
+    let activity_id = ActivityGuid::default();
 
     assert!(store.update_activity(activity_id, new_activity).is_err());
 }

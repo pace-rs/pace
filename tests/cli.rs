@@ -1,8 +1,9 @@
 use assert_cmd::Command;
-// use pace_core::ActivityLog;
 use predicates::prelude::predicate;
-// use tempfile::tempdir;
 // use similar_asserts::assert_eq;
+// use tempfile::tempdir;
+
+// use pace_core::ActivityLog;
 
 pub type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -79,6 +80,7 @@ fn test_help_command_passes() -> TestResult<()> {
 
 //     let activity_log = toml::from_str::<ActivityLog>(&contents)?;
 
+//     insta::assert_toml_snapshot!(activity_log);
 //     assert_eq!(activity_log.activities().len(), 1);
 
 //     let activity = activity_log.activities().front().unwrap();

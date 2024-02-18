@@ -9,11 +9,13 @@ use ulid::Ulid;
 pub struct Category {
     /// The category description
     #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
 
     /// The category id
-    #[builder(default = Some(CategoryId::default()), setter(strip_option))]
-    id: Option<CategoryId>,
+    #[builder(default = Some(CategoryGuid::default()), setter(strip_option))]
+    #[serde(rename = "id")]
+    guid: Option<CategoryGuid>,
 
     /// The category name
     name: String,
@@ -21,6 +23,7 @@ pub struct Category {
     /// The category's subcategories
     // TODO: Add support for subcategories
     #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     subcategories: Option<Vec<Category>>,
 }
 
@@ -55,9 +58,9 @@ pub fn extract_categories(category_string: &str, separator: &str) -> (Category, 
 
 /// The category id
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct CategoryId(Ulid);
+pub struct CategoryGuid(Ulid);
 
-impl Default for CategoryId {
+impl Default for CategoryGuid {
     fn default() -> Self {
         Self(Ulid::new())
     }
@@ -66,7 +69,7 @@ impl Default for CategoryId {
 impl Default for Category {
     fn default() -> Self {
         Self {
-            id: Some(CategoryId::default()),
+            guid: Some(CategoryGuid::default()),
             name: "Uncategorized".to_string(),
             description: Some("Uncategorized category".to_string()),
             subcategories: Option::default(),
@@ -74,14 +77,14 @@ impl Default for Category {
     }
 }
 
-impl rusqlite::types::FromSql for CategoryId {
+impl rusqlite::types::FromSql for CategoryGuid {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let bytes = <[u8; 16]>::column_result(value)?;
         Ok(Self(Ulid::from(u128::from_be_bytes(bytes))))
     }
 }
 
-impl rusqlite::types::ToSql for CategoryId {
+impl rusqlite::types::ToSql for CategoryGuid {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
         Ok(rusqlite::types::ToSqlOutput::from(self.0.to_string()))
     }

@@ -7,7 +7,7 @@ use rayon::prelude::{
 
 use crate::{
     domain::{
-        activity::{Activity, ActivityId},
+        activity::{Activity, ActivityGuid},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
     },
@@ -92,7 +92,7 @@ impl SyncStorage for InMemoryActivityStorage {
 }
 
 impl ActivityReadOps for InMemoryActivityStorage {
-    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
         let Ok(activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
@@ -102,7 +102,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
             .par_iter()
             .find_first(|activity| {
                 activity
-                    .id()
+                    .guid()
                     .as_ref()
                     .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
@@ -147,21 +147,22 @@ impl ActivityReadOps for InMemoryActivityStorage {
 }
 
 impl ActivityWriteOps for InMemoryActivityStorage {
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityId> {
+    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
-        let Some(activity_id) = activity.id() else {
+        let Some(activity_id) = activity.guid() else {
             return Err(ActivityLogErrorKind::ActivityIdNotSet.into());
         };
 
         // Search for the activity in the list of activities to see if the ID is already in use.
-        if activities
-            .activities()
-            .par_iter()
-            .any(|activity| activity.id().as_ref().map_or(false, |id| id == activity_id))
-        {
+        if activities.activities().par_iter().any(|activity| {
+            activity
+                .guid()
+                .as_ref()
+                .map_or(false, |id| id == activity_id)
+        }) {
             return Err(ActivityLogErrorKind::ActivityIdAlreadyInUse(*activity_id).into());
         }
 
@@ -174,12 +175,12 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 
     fn update_activity(
         &self,
-        activity_id: ActivityId,
+        activity_id: ActivityGuid,
         mut activity: Activity,
     ) -> PaceResult<Activity> {
         // First things, first. Replace new activity's id with the original ID we are looking for.
         // To make sure we are not accidentally changing the ID.
-        let _ = activity.id_mut().replace(activity_id);
+        let _ = activity.guid_mut().replace(activity_id);
 
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
@@ -190,7 +191,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
             .par_iter_mut()
             .find_first(|activity| {
                 activity
-                    .id()
+                    .guid()
                     .as_ref()
                     .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
@@ -205,7 +206,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         Ok(original_activity)
     }
 
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
+    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
@@ -215,7 +216,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
             .par_iter()
             .position_first(|activity| {
                 activity
-                    .id()
+                    .guid()
                     .as_ref()
                     .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
@@ -235,9 +236,9 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 impl ActivityStateManagement for InMemoryActivityStorage {
     fn end_single_activity(
         &self,
-        activity_id: ActivityId,
+        activity_id: ActivityGuid,
         end_time: Option<NaiveDateTime>,
-    ) -> PaceResult<ActivityId> {
+    ) -> PaceResult<ActivityGuid> {
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
@@ -249,7 +250,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             .par_iter_mut()
             .find_first(|activity| {
                 activity
-                    .id()
+                    .guid()
                     .as_ref()
                     .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
@@ -355,7 +356,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
 
     fn list_activities_by_id(
         &self,
-    ) -> PaceOptResult<std::collections::BTreeMap<ActivityId, Activity>> {
+    ) -> PaceOptResult<std::collections::BTreeMap<ActivityGuid, Activity>> {
         todo!("Implement list_activities_by_id for InMemoryActivityStorage")
     }
 }

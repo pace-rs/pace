@@ -24,6 +24,7 @@ pub enum CraftSubCmd {
     Completions(completions::CompletionsCmd),
 }
 
+/// `craft` subcommand
 #[derive(Command, Debug, Parser, Runnable)]
 pub struct CraftCmd {
     #[clap(subcommand)]

@@ -2,11 +2,11 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::activity::{Activity, ActivityId};
+use crate::domain::activity::{Activity, ActivityGuid};
 
 // This struct represents the overall structure for tracking activities and their intermissions.
 #[derive(Default, Debug, Clone)]
 struct ActivityTracker {
-    activities: BTreeMap<ActivityId, Activity>,
-    intermissions: BTreeMap<ActivityId, Vec<Activity>>,
+    activities: BTreeMap<ActivityGuid, Activity>,
+    intermissions: BTreeMap<ActivityGuid, Vec<Activity>>,
 }
