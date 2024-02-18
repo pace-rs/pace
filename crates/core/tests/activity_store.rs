@@ -4,8 +4,8 @@ use pace_core::{
     Activity, ActivityFilter, ActivityId, ActivityLog, ActivityReadOps, ActivityStore,
     ActivityWriteOps, InMemoryActivityStorage, TestResult,
 };
-
 use rstest::{fixture, rstest};
+use similar_asserts::assert_eq;
 
 #[fixture]
 fn activity_log_empty() -> ActivityLog {

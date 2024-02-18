@@ -18,7 +18,14 @@ include = [
   "Cargo.toml",
 ]
 
+# TODO!: Use features for adding optional dependencies for testing and merging etc.
+# [features]
+# default = []
+# testing = ["dep:arbitrary"]
+
 [dependencies]
+# We'd rather have this only for testing but we do integration tests, and this wouldn't be build then
+arbitrary = { version = "1", features = ["derive"] }
 chrono = { version = "0.4.34", features = ["serde"] }
 directories = "5.0.1"
 displaydoc = "0.2.4"
@@ -27,7 +34,7 @@ itertools = "0.12.1"
 log = "0.4.20"
 merge = "0.1.0"
 rayon = "1.8.1"
-rusqlite = { version = "0.30.0", features = ["bundled", "chrono", "uuid"] }
+rusqlite = { version = "0.31.0", features = ["bundled", "chrono", "uuid"] }
 serde = "1.0.197"
 serde_derive = "1.0.197"
 strum = "0.26.1"
@@ -35,10 +42,11 @@ strum_macros = "0.26.1"
 thiserror = "1.0.57"
 toml = { version = "0.8.10", features = ["indexmap", "preserve_order"] }
 typed-builder = "0.18.1"
-uuid = { version = "1.7.0", features = ["serde", "fast-rng", "v7"] }
+ulid = { version = "1.1.2", features = ["serde"] }
 
 [dev-dependencies]
 rstest = "0.18.2"
+similar-asserts = { workspace = true }
 
 [lints.rust]
 unsafe_code = "forbid"

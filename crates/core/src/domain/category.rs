@@ -2,7 +2,7 @@
 
 use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
-use uuid::Uuid;
+use ulid::Ulid;
 
 /// The category entity
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, Clone)]
@@ -55,11 +55,11 @@ pub fn extract_categories(category_string: &str, separator: &str) -> (Category, 
 
 /// The category id
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct CategoryId(Uuid);
+pub struct CategoryId(Ulid);
 
 impl Default for CategoryId {
     fn default() -> Self {
-        Self(Uuid::now_v7())
+        Self(Ulid::new())
     }
 }
 
@@ -71,5 +71,18 @@ impl Default for Category {
             description: Some("Uncategorized category".to_string()),
             subcategories: Option::default(),
         }
+    }
+}
+
+impl rusqlite::types::FromSql for CategoryId {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        let bytes = <[u8; 16]>::column_result(value)?;
+        Ok(Self(Ulid::from(u128::from_be_bytes(bytes))))
+    }
+}
+
+impl rusqlite::types::ToSql for CategoryId {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        Ok(rusqlite::types::ToSqlOutput::from(self.0.to_string()))
     }
 }

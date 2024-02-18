@@ -2,6 +2,7 @@ use assert_cmd::Command;
 // use pace_core::ActivityLog;
 use predicates::prelude::predicate;
 // use tempfile::tempdir;
+// use similar_asserts::assert_eq;
 
 pub type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 

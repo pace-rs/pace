@@ -7,7 +7,7 @@
 # TODO: Add a `pace projects init` command to generate a new project configuration file.
 
 [project]
-id = "018d84a0-7847-7b2b-9cdb-6ba213f99a1d"
+id = "01HPY7F03JBVKSWDNTM2RSBXSJ"
 name = "Pace Project"
 description = "An example project managed with Pace."
 root_tasks_file = "tasks.toml" # Path to the root tasks file
@@ -15,30 +15,30 @@ filters = ["*pace*"] # Optional: Define default filters for your project
 
 [defaults]
 # Optional: Define a default category for your project
-category = { id = "018d85c0-a46f-7e95-8b95-f0bc961d4ee9", name = "Uncategorized", description = "Uncategorized Content" }
+category = { id = "01HPY7F03K4AZMA0DVW3A1M0TG", name = "Uncategorized", description = "Uncategorized Content" }
 
 [[categories]]
 # Optional: Define categories for your project
-id = "018d85c0-7823-7038-8e96-bc9c9330174a"
+id = "01HPY7F03K3JCWK5ZJJ02TT12G"
 name = "Development"
 description = "Development related tasks"
 # Optional: Define subcategories for your category
 # TODO: Add support for subcategories
 subcategories = [
-  { id = "018d85d5-e29d-7995-afc9-34175e0ce7b6", name = "Frontend", description = "Frontend Development" },
-  { id = "018d85d5-fa35-7bc3-a347-8284843c4188", name = "Backend", description = "Backend Development" },
-  { id = "018d85d6-110b-771b-828d-8cd68934fb61", name = "Fullstack", description = "Fullstack Development" },
+  { id = "01HPY7F03K1H1A8A7S0K1ZCFX3", name = "Frontend", description = "Frontend Development" },
+  { id = "01HPY7F03KSF8TXQQWZDF63DFD", name = "Backend", description = "Backend Development" },
+  { id = "01HPY7F03KK3FGAJTHP2MBZA37", name = "Fullstack", description = "Fullstack Development" },
 ]
 
 [[categories]]
 # Optional: Define categories for your project
-id = "018d85c0-629b-737b-8f53-c307504d1c0a"
+id = "01HPY7F03KS1YHKT86BXSMMEMX"
 name = "Design"
 description = "Design related tasks"
 
 [[subprojects]]
 # Optional: Define subprojects or directories with their own tasks
-id = "018d84a0-a2d1-7450-98ef-8b47e0ff42b5"
+id = "01HPY7F03K6TT2KKFEYVJT79ZB"
 name = "Pace Subproject A"
 description = ""
 tasks_file = "subproject-a/tasks.toml"
@@ -49,7 +49,7 @@ filters = [
 
 [[subprojects]]
 # Optional: Define subprojects or directories with their own tasks
-id = "018d84a0-cc74-71b4-8dd4-d7d26d1f5924"
+id = "01HPY7F03KF7VE3K9E51P0H1TB"
 name = "Pace Subproject B"
 description = ""
 tasks_file = "subproject-b/tasks.toml"

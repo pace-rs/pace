@@ -7,7 +7,7 @@ use merge::Merge;
 use serde_derive::{Deserialize, Serialize};
 use std::{fmt::Display, time::Duration};
 use typed_builder::TypedBuilder;
-use uuid::Uuid;
+use ulid::Ulid;
 
 use crate::{
     domain::{
@@ -136,7 +136,7 @@ impl Default for Activity {
 
 /// The unique identifier of an activity
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
-pub struct ActivityId(Uuid);
+pub struct ActivityId(Ulid);
 
 impl Display for ActivityId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -146,7 +146,7 @@ impl Display for ActivityId {
 
 impl Default for ActivityId {
     fn default() -> Self {
-        Self(Uuid::now_v7())
+        Self(Ulid::new())
     }
 }
 
@@ -171,13 +171,13 @@ impl Display for Activity {
 impl rusqlite::types::FromSql for ActivityId {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let bytes = <[u8; 16]>::column_result(value)?;
-        Ok(Self(uuid::Uuid::from_u128(u128::from_be_bytes(bytes))))
+        Ok(Self(Ulid::from(u128::from_be_bytes(bytes))))
     }
 }
 
 impl rusqlite::types::ToSql for ActivityId {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-        self.0.as_ref().to_sql()
+        Ok(rusqlite::types::ToSqlOutput::from(self.0.to_string()))
     }
 }
 
