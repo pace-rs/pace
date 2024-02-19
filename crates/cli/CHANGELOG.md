@@ -11,16 +11,18 @@ and this project adheres to
 ## [0.2.1](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.0...pace_cli-v0.2.1) - 2024-02-19
 
 ### Other
+
 - add pace-server library
-- update asset auto size
 - update asset auto size
 
 ## [0.2.0](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.3...pace_cli-v0.2.0) - 2024-02-17
 
 ### Added
+
 - *(api)* [**breaking**] refine core api and cleanup library interfaces
 
 ### Other
+
 - update discussions link
 
 ## [0.1.3](https://github.com/pace-rs/pace/compare/pace_cli-v0.1.2...pace_cli-v0.1.3) - 2024-02-16
