@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.7.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.7.0...pace-rs-v0.7.1) - 2024-02-19
+
+### Other
+- update changelog
+- add pace-server library
+- harmonize github workflows
+- update asset auto size
+- update asset auto size
+- rework key for commands and enhanced plausibility
+- *(deps)* remove unnecessary async dep bloat (tokio, condvar, futures)
+
 ## [0.7.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.6.3...pace-rs-v0.7.0) - 2024-02-17
 
 ### Added

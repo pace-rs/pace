@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.8.1](https://github.com/pace-rs/pace/compare/pace_core-v0.8.0...pace_core-v0.8.1) - 2024-02-19
+
+### Other
+- add pace-server library
+- update asset auto size
+- update asset auto size
+- *(deps)* remove unnecessary async dep bloat (tokio, condvar, futures)
+
 ## [0.8.0](https://github.com/pace-rs/pace/compare/pace_core-v0.7.0...pace_core-v0.8.0) - 2024-02-17
 
 ### Added

@@ -18,7 +18,7 @@ pace_server = { path = "crates/server", version = "0" }
 
 [package]
 name = "pace-rs"
-version = "0.7.0"
+version = "0.7.1"
 authors = { workspace = true }
 categories = { workspace = true }
 edition = { workspace = true }
