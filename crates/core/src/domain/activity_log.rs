@@ -1,6 +1,6 @@
 use getset::{Getters, MutGetters};
 use serde_derive::{Deserialize, Serialize};
-use std::{collections::VecDeque, iter::FromIterator};
+use std::collections::VecDeque;
 
 use crate::domain::activity::Activity;
 

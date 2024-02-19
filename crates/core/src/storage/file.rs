@@ -7,8 +7,6 @@ use std::{
 
 use chrono::{NaiveDate, NaiveDateTime};
 
-use toml;
-
 use crate::{
     domain::{
         activity::{Activity, ActivityId},
@@ -112,6 +110,7 @@ impl ActivityStorage for TomlActivityStorage {
             let mut file = OpenOptions::new()
                 .write(true)
                 .create(true)
+                .truncate(true)
                 .open(&self.path)?;
 
             file.write_all(b"")?;
