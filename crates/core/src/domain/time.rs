@@ -132,6 +132,10 @@ impl From<chrono::Duration> for PaceDuration {
 pub struct BeginDateTime(NaiveDateTime);
 
 impl BeginDateTime {
+    pub fn new(time: NaiveDateTime) -> Self {
+        Self(time)
+    }
+
     /// Convert to a naive date time
     pub fn naive_date_time(&self) -> NaiveDateTime {
         self.0

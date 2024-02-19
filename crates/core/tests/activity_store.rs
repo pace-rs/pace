@@ -1,8 +1,9 @@
 // Test the ActivityStore implementation with a InMemoryStorage backend.
 
+use chrono::{Local, NaiveDateTime};
 use pace_core::{
     Activity, ActivityFilter, ActivityGuid, ActivityLog, ActivityReadOps, ActivityStore,
-    ActivityWriteOps, InMemoryActivityStorage, TestResult,
+    ActivityWriteOps, BeginDateTime, InMemoryActivityStorage, TestResult,
 };
 use rstest::{fixture, rstest};
 use similar_asserts::assert_eq;
@@ -12,6 +13,27 @@ fn activity_log_empty() -> ActivityLog {
     let activities = vec![];
 
     ActivityLog::from_iter(activities)
+}
+
+#[fixture]
+fn activity_log_with_variety_content() -> (Vec<Activity>, ActivityLog) {
+    let activities = vec![
+        Activity::default(),
+        Activity::default(),
+        Activity::builder()
+            .description("Test Description".to_string())
+            .begin(BeginDateTime::default())
+            .end(NaiveDateTime::new(
+                Local::now().date_naive(),
+                Local::now().time() + chrono::Duration::minutes(30),
+            ))
+            .build(),
+        Activity::default(),
+        Activity::default(),
+        Activity::default(),
+    ];
+
+    (activities.clone(), ActivityLog::from_iter(activities))
 }
 
 #[fixture]
@@ -135,6 +157,66 @@ fn test_activity_store_list_active_activities_passes(
         activities.len(),
         loaded_activities.into_log().activities().len()
     );
+
+    Ok(())
+}
+
+#[rstest]
+fn test_activity_store_list_ended_activities_passes(
+    activity_log_with_variety_content: (Vec<Activity>, ActivityLog),
+) -> TestResult<()> {
+    let (_activities, activity_log) = activity_log_with_variety_content;
+    let store = ActivityStore::new(Box::new(InMemoryActivityStorage::new_with_activity_log(
+        activity_log,
+    )));
+
+    let loaded_activities = store
+        .list_activities(ActivityFilter::Ended)?
+        .expect("Should have activities.");
+
+    assert_eq!(1, loaded_activities.into_log().activities().len());
+
+    Ok(())
+}
+
+#[rstest]
+#[ignore = "We need to implement the archiving feature first."]
+fn test_activity_store_list_archived_activities_passes() -> TestResult<()> {
+    // TODO!: We need to implement the archiving feature first.
+    todo!()
+}
+
+#[rstest]
+fn test_activity_store_list_all_activities_passes(
+    activity_log_with_variety_content: (Vec<Activity>, ActivityLog),
+) -> TestResult<()> {
+    let (activities, activity_log) = activity_log_with_variety_content;
+    let store = ActivityStore::new(Box::new(InMemoryActivityStorage::new_with_activity_log(
+        activity_log,
+    )));
+
+    let loaded_activities = store
+        .list_activities(ActivityFilter::All)?
+        .expect("Should have activities.");
+
+    assert_eq!(
+        activities.len(),
+        loaded_activities.into_log().activities().len()
+    );
+
+    Ok(())
+}
+
+#[rstest]
+fn test_activity_store_list_all_activities_empty_result_passes(
+    activity_log_empty: ActivityLog,
+) -> TestResult<()> {
+    let activity_log = activity_log_empty;
+    let store = ActivityStore::new(Box::new(InMemoryActivityStorage::new_with_activity_log(
+        activity_log,
+    )));
+
+    assert!(store.list_activities(ActivityFilter::All)?.is_none());
 
     Ok(())
 }

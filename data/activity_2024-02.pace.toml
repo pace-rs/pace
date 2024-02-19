@@ -28,16 +28,18 @@ kind = "activity"
 
 [[activities]]
 id = "01HPY70577MQYQXTR4YFJ6NB1Y"
-category = "intermission"
-end = "2024-02-04T00:15:00"
-begin = "2024-02-03T22:30:00"
+end = "2024-02-04T00:00:00"
+begin = "2024-02-03T23:30:00"
+duration = 1800
 kind = "intermission"
+parent-id = "01HPY70577HJBZ20NQR15AR9G0"
 
 [[activities]]
 id = "01HPY70577HJBZ20NQR15AR9G0"
 category = "design::pace"
 description = "Initial design process and requirements analysis."
 end = "2024-02-04T00:15:00"
+duration = 6300
 begin = "2024-02-03T22:30:00"
 kind = "task"
 
@@ -47,6 +49,7 @@ category = "development::pace"
 description = "Implemented the login feature."
 end = "2024-02-04T10:30:00"
 begin = "2024-02-04T09:00:00"
+duration = 5400
 kind = "task"
 
 [[activities]]
@@ -55,4 +58,5 @@ category = "research::pace"
 description = "Researched secure authentication methods."
 end = "2024-02-04T12:00:00"
 begin = "2024-02-04T11:00:00"
+duration = 3600
 kind = "task"

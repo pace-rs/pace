@@ -20,7 +20,10 @@ pub use crate::{
         activity::{Activity, ActivityGuid, ActivityKind},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
-        time::{extract_time_or_now, parse_time_from_user_input},
+        time::{
+            duration_to_str, extract_time_or_now, parse_time_from_user_input, BeginDateTime,
+            PaceDuration,
+        },
     },
     error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult},
     service::activity_store::ActivityStore,
