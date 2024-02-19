@@ -31,7 +31,7 @@ mindful routine.
 ## Contact
 
 You can ask questions in the
-[Discussions](https://github.com/pace-rs/pace/discussions) or have a look at the
+[Discussions](https://github.com/orgs/pace-rs/discussions) or have a look at the
 [FAQ](https://pace.cli.rs/docs/FAQ.html).
 
 | Contact       | Where?                                                                                                          |

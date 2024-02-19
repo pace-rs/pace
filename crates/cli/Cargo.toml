@@ -10,7 +10,6 @@ repository = { workspace = true }
 rust-version = "1.74.1"
 description = "pace-cli - library to support timetracking on the command line"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 include = [
   "LICENSE",
   "README.md",

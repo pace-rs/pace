@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/cli", "crates/core", "xtask"]
+members = ["crates/cli", "crates/core", "crates/server", "xtask"]
 
 [workspace.package]
 authors = ["the pace-rs team"]
@@ -14,6 +14,7 @@ clap = { version = "4", features = ["env", "wrap_help", "derive"] }
 eyre = "0.6.12"
 pace_cli = { path = "crates/cli", version = "0" }
 pace_core = { path = "crates/core", version = "0" }
+pace_server = { path = "crates/server", version = "0" }
 
 [package]
 name = "pace-rs"
