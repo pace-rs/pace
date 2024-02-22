@@ -34,5 +34,5 @@ pub use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    util::overwrite,
+    util::overwrite_left_with_right,
 };

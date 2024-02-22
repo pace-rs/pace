@@ -67,6 +67,7 @@ pub struct Activity {
     // TODO: Reconsider when we implement the project management part
     // category: Category,
     #[builder(default)]
+    #[getset(get = "pub", get_mut = "pub")]
     #[serde(skip_serializing_if = "Option::is_none")]
     category: Option<String>,
 
