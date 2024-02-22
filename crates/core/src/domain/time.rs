@@ -271,4 +271,50 @@ mod tests {
         let result = PaceDuration::from(duration);
         assert_eq!(result, PaceDuration(1));
     }
+
+    #[test]
+    fn test_begin_date_time_new_passes() {
+        let time = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        );
+        let result = BeginDateTime::new(time);
+        assert_eq!(result, BeginDateTime(time));
+    }
+
+    #[test]
+    fn test_begin_date_time_naive_date_time_passes() {
+        let time = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        );
+        let begin_date_time = BeginDateTime::new(time);
+        let result = begin_date_time.naive_date_time();
+        assert_eq!(result, time);
+    }
+
+    #[test]
+    fn test_begin_date_time_default_passes() {
+        let result = BeginDateTime::default();
+        assert_eq!(
+            result,
+            BeginDateTime(Local::now().naive_local().round_subsecs(0))
+        );
+    }
+
+    #[test]
+    fn test_begin_date_time_from_naive_date_time_passes() {
+        let time = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        );
+        let result = BeginDateTime::from(time);
+        assert_eq!(result, BeginDateTime(time));
+    }
+
+    #[test]
+    fn test_pace_duration_default_passes() {
+        let result = PaceDuration::default();
+        assert_eq!(result, PaceDuration(0));
+    }
 }
