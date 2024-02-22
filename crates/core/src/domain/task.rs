@@ -5,7 +5,7 @@ use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
-use crate::domain::{priority::ItemPriority, status::ItemStatus};
+use crate::domain::{priority::ItemPriorityKind, status::ItemStatus};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 pub struct TaskId(Ulid);
@@ -30,7 +30,7 @@ pub struct Task {
     #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
     guid: Option<TaskId>,
 
-    priority: ItemPriority,
+    priority: ItemPriorityKind,
 
     status: ItemStatus,
 

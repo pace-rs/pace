@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use chrono::{NaiveDate, NaiveDateTime};
 
 use crate::{
-    config::PaceConfig,
+    config::{ActivityLogStorageKind, PaceConfig},
     domain::{
         activity::{Activity, ActivityGuid},
         activity_log::ActivityLog,
@@ -38,13 +38,22 @@ pub mod in_memory;
 ///
 /// The storage backend.
 pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Box<dyn ActivityStorage>> {
-    let storage = match config.general().log_storage().as_str() {
-        "file" => TomlActivityStorage::new(config.general().activity_log_file_path())?,
-        "database" => return Err(PaceErrorKind::DatabaseStorageNotImplemented.into()),
-        _ => TomlActivityStorage::new(config.general().activity_log_file_path())?,
+    let storage: Box<dyn ActivityStorage> = match config
+        .general()
+        .activity_log_options()
+        .activity_log_storage()
+    {
+        ActivityLogStorageKind::File => Box::new(TomlActivityStorage::new(
+            config.general().activity_log_options().activity_log_path(),
+        )?),
+        ActivityLogStorageKind::Database => {
+            return Err(PaceErrorKind::DatabaseStorageNotImplemented.into())
+        }
+        #[cfg(test)]
+        ActivityLogStorageKind::InMemory => Box::new(in_memory::InMemoryActivityStorage::new()),
     };
 
-    Ok(Box::new(storage))
+    Ok(storage)
 }
 
 /// A type of storage that can be synced to a persistent medium.

@@ -116,8 +116,10 @@ impl Override<PaceConfig> for EntryPoint {
         // Override the activity log file if it's set
         if let Some(activity_log_file) = &self.activity_log_file {
             if activity_log_file.exists() {
-                *config.general_mut().activity_log_file_path_mut() =
-                    activity_log_file.to_string_lossy().to_string();
+                *config
+                    .general_mut()
+                    .activity_log_options_mut()
+                    .activity_log_path_mut() = activity_log_file.to_path_buf();
             }
         };
 
