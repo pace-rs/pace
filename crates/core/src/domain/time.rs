@@ -179,6 +179,15 @@ impl From<NaiveDateTime> for BeginDateTime {
     }
 }
 
+impl From<Option<NaiveDateTime>> for BeginDateTime {
+    fn from(time: Option<NaiveDateTime>) -> Self {
+        match time {
+            Some(time) => Self(time),
+            None => Self::default(),
+        }
+    }
+}
+
 /// Calculate the duration of the activity
 ///
 /// # Arguments

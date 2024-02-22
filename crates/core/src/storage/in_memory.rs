@@ -30,9 +30,7 @@ pub struct InMemoryActivityStorage {
 
 impl From<ActivityLog> for InMemoryActivityStorage {
     fn from(activities: ActivityLog) -> Self {
-        Self {
-            activities: Arc::new(Mutex::new(activities)),
-        }
+        Self::new_with_activity_log(activities)
     }
 }
 
@@ -358,5 +356,25 @@ impl ActivityQuerying for InMemoryActivityStorage {
         &self,
     ) -> PaceOptResult<std::collections::BTreeMap<ActivityGuid, Activity>> {
         todo!("Implement list_activities_by_id for InMemoryActivityStorage")
+    }
+
+    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
+        let Ok(activities) = self.activities.lock() else {
+            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+        };
+
+        let activity = activities
+            .activities()
+            .par_iter()
+            .find_first(|activity| {
+                activity.is_active()
+                    && !activity.kind().is_intermission()
+                    && !activity.kind().is_pomodoro_intermission()
+            })
+            .cloned();
+
+        drop(activities);
+
+        Ok(activity)
     }
 }

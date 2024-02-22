@@ -1,11 +1,12 @@
 use std::collections::{BTreeMap, HashSet, VecDeque};
 
-use chrono::NaiveDateTime;
+use chrono::{prelude::NaiveDate, NaiveDateTime};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     domain::{
         activity::{Activity, ActivityGuid},
+        activity_log::ActivityLog,
         filter::FilteredActivities,
     },
     error::{PaceOptResult, PaceResult},
@@ -121,13 +122,18 @@ impl ActivityStateManagement for ActivityStore {
 impl ActivityQuerying for ActivityStore {
     fn find_activities_in_date_range(
         &self,
-        _start_date: chrono::prelude::NaiveDate,
-        _end_date: chrono::prelude::NaiveDate,
-    ) -> PaceResult<crate::domain::activity_log::ActivityLog> {
-        todo!("Implement find_activities_in_date_range for ActivityStore")
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> PaceResult<ActivityLog> {
+        self.storage
+            .find_activities_in_date_range(start_date, end_date)
     }
 
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
-        todo!("Implement list_activities_by_id for ActivityStore")
+        self.storage.list_activities_by_id()
+    }
+
+    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
+        self.storage.latest_active_activity()
     }
 }

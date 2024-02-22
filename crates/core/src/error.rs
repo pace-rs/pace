@@ -84,6 +84,8 @@ pub enum PaceErrorKind {
     DatabaseStorageNotImplemented,
     /// Failed to parse time '{0}' from user input, please use the format HH:MM
     ParsingTimeFromUserInputFailed(String),
+    /// There is no path available to store the activity log
+    NoPathAvailable,
 }
 
 /// [`ActivityLogErrorKind`] describes the errors that can happen while dealing with the activity log.

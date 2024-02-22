@@ -177,14 +177,19 @@ impl ActivityWriteOps for TomlActivityStorage {
 
 impl ActivityQuerying for TomlActivityStorage {
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
-        todo!("Implement `activities_by_id` for `TomlActivityStorage`")
+        self.cache.list_activities_by_id()
     }
 
     fn find_activities_in_date_range(
         &self,
-        _start_date: NaiveDate,
-        _end_date: NaiveDate,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
     ) -> PaceResult<ActivityLog> {
-        todo!("Implement `find_activities_in_date_range` for `TomlActivityStorage`")
+        self.cache
+            .find_activities_in_date_range(start_date, end_date)
+    }
+
+    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
+        self.cache.latest_active_activity()
     }
 }

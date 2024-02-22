@@ -3,7 +3,7 @@
 use chrono::{Local, NaiveDateTime};
 use pace_core::{
     Activity, ActivityFilter, ActivityGuid, ActivityLog, ActivityReadOps, ActivityStore,
-    ActivityWriteOps, BeginDateTime, InMemoryActivityStorage, TestResult,
+    ActivityWriteOps, BeginDateTime, InMemoryActivityStorage, PaceResult, TestResult,
 };
 use rstest::{fixture, rstest};
 use similar_asserts::assert_eq;
@@ -300,4 +300,33 @@ fn test_activity_store_update_activity_fails(
     let activity_id = ActivityGuid::default();
 
     assert!(store.update_activity(activity_id, new_activity).is_err());
+}
+
+#[rstest]
+fn test_activity_store_begin_intermission_passes() -> PaceResult<()> {
+    let toml_string = r#"
+[[activities]]
+id = "01HQ8B27751H7QPBD2V7CZD1B7"
+description = "Intermission Test"
+begin = "2024-02-22T13:01:25"
+kind = "intermission"
+parent-id = "01HQ8B1WS5X0GZ660738FNED91"
+
+[[activities]]
+id = "01HQ8B1WS5X0GZ660738FNED91"
+category = "MyCategory::SubCategory"
+description = "Intermission Test"
+begin = "2024-02-22T13:01:14"
+kind = "activity"
+"#;
+
+    let activity_log = toml::from_str::<ActivityLog>(toml_string)?;
+
+    let _store = ActivityStore::new(Box::new(InMemoryActivityStorage::new_with_activity_log(
+        activity_log,
+    )));
+
+    // TODO!: Implement intermission handling.
+
+    Ok(())
 }

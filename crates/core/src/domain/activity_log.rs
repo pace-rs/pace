@@ -13,6 +13,14 @@ pub struct ActivityLog {
     activities: VecDeque<Activity>,
 }
 
+impl std::ops::Deref for ActivityLog {
+    type Target = VecDeque<Activity>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.activities
+    }
+}
+
 impl FromIterator<Activity> for ActivityLog {
     fn from_iter<T: IntoIterator<Item = Activity>>(iter: T) -> Self {
         Self {

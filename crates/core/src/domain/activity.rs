@@ -37,6 +37,48 @@ pub enum ActivityKind {
     PomodoroIntermission,
 }
 
+impl ActivityKind {
+    /// Returns `true` if the activity kind is [`Activity`].
+    ///
+    /// [`Activity`]: ActivityKind::Activity
+    #[must_use]
+    pub fn is_activity(&self) -> bool {
+        matches!(self, Self::Activity)
+    }
+
+    /// Returns `true` if the activity kind is [`Task`].
+    ///
+    /// [`Task`]: ActivityKind::Task
+    #[must_use]
+    pub fn is_task(&self) -> bool {
+        matches!(self, Self::Task)
+    }
+
+    /// Returns `true` if the activity kind is [`Intermission`].
+    ///
+    /// [`Intermission`]: ActivityKind::Intermission
+    #[must_use]
+    pub fn is_intermission(&self) -> bool {
+        matches!(self, Self::Intermission)
+    }
+
+    /// Returns `true` if the activity kind is [`PomodoroWork`].
+    ///
+    /// [`PomodoroWork`]: ActivityKind::PomodoroWork
+    #[must_use]
+    pub fn is_pomodoro_work(&self) -> bool {
+        matches!(self, Self::PomodoroWork)
+    }
+
+    /// Returns `true` if the activity kind is [`PomodoroIntermission`].
+    ///
+    /// [`PomodoroIntermission`]: ActivityKind::PomodoroIntermission
+    #[must_use]
+    pub fn is_pomodoro_intermission(&self) -> bool {
+        matches!(self, Self::PomodoroIntermission)
+    }
+}
+
 /// The cycle of pomodoro activity a user can track
 // TODO!: Optional: Track Pomodoro work/break cycles
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -150,6 +192,14 @@ pub struct ActivityKindOptions {
     parent_id: Option<ActivityGuid>,
 }
 
+impl ActivityKindOptions {
+    pub fn new(parent_id: impl Into<Option<ActivityGuid>>) -> Self {
+        Self {
+            parent_id: parent_id.into(),
+        }
+    }
+}
+
 impl Default for Activity {
     fn default() -> Self {
         Self {
@@ -246,24 +296,6 @@ impl Activity {
         self.end_activity(end_opts);
         Ok(())
     }
-
-    // pub fn start_intermission(&mut self, date: NaiveDate, time: NaiveTime) {
-    //     let new_intermission = IntermissionPeriod::new(date, time);
-    //     if let Some(ref mut periods) = self.intermission_periods {
-    //         periods.push(new_intermission);
-    //     } else {
-    //         self.intermission_periods = Some(vec![new_intermission]);
-    //     }
-    // }
-
-    // pub fn end_intermission(&mut self, date: NaiveDate, time: NaiveTime) {
-    //     if let Some(intermission_periods) = &mut self.intermission_periods {
-    //         if let Some(last_period) = intermission_periods.last_mut() {
-    //             // Assuming intermissions can't overlap, the last one is the one to end
-    //             last_period.end(date, time);
-    //         }
-    //     }
-    // }
 }
 
 #[cfg(test)]

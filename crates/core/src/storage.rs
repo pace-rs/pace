@@ -358,6 +358,18 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// A collection of the activities that were loaded from the storage backend by their ID in a `BTreeMap`.
     /// If no activities are found, it should return `Ok(None)`.
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>>;
+
+    /// Get the latest active activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// The latest active activity.
+    /// If no activity is found, it should return `Ok(None)`.
+    fn latest_active_activity(&self) -> PaceOptResult<Activity>;
 }
 
 /// Tagging Activities
