@@ -186,13 +186,6 @@ fn test_activity_store_list_ended_activities_passes(
 }
 
 #[rstest]
-#[ignore = "We need to implement the archiving feature first."]
-fn test_activity_store_list_archived_activities_passes() -> TestResult<()> {
-    // TODO!: We need to implement the archiving feature first.
-    todo!()
-}
-
-#[rstest]
 fn test_activity_store_list_all_activities_passes(
     activity_log_with_variety_content: (Vec<Activity>, ActivityLog),
 ) -> TestResult<()> {

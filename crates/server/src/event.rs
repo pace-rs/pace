@@ -49,11 +49,9 @@ enum PaceEventType {
     // A more generalized way to handle any activity, whether it's a task, an intermission, or part of a Pomodoro session. This approach provides flexibility for future extensions.
     BeginActivity {
         activity_id: u32,
-        activity_type: ActivityType,
     },
     EndActivity {
         activity_id: u32,
-        activity_type: ActivityType,
     },
 
     // Additional system events

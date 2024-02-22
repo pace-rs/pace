@@ -49,23 +49,6 @@ impl Runnable for BeginCmd {
 }
 
 impl BeginCmd {
-    /// Create a new instance of the `begin` subcommand
-    pub fn new(
-        category: impl Into<Option<String>>,
-        time: impl Into<Option<String>>,
-        description: String,
-        tags: impl Into<Option<Vec<String>>>,
-        projects: impl Into<Option<Vec<String>>>,
-    ) -> Self {
-        Self {
-            category: category.into(),
-            time: time.into(),
-            description,
-            tags: tags.into(),
-            _projects: projects.into(),
-        }
-    }
-
     /// Inner run implementation for the begin command
     pub fn inner_run(&self, config: &PaceConfig) -> Result<()> {
         let Self {
@@ -121,37 +104,3 @@ impl BeginCmd {
         eyre::bail!("Failed to start {activity}");
     }
 }
-
-// TODO!: Test pace-rs begin command
-// #[cfg(test)]
-// mod tests {
-
-//     use std::env::temp_dir;
-
-//     use abscissa_core::fs::create_dir_all;
-//     use eyre::Ok;
-
-//     use super::*;
-
-//     #[test]
-//     fn test_begin_subcommand_creates_activity_passes() -> Result<()> {
-//         let temp_dir = temp_dir();
-//         let temp_file = temp_dir.join("activity_log.toml");
-//         create_dir_all(temp_dir)?;
-
-//         let cmd = BeginCmd::new(
-//             "Test::Category".to_string(),
-//             "22:00".to_string(),
-//             "Test description".to_string(),
-//             None,
-//             None,
-//         );
-
-//         let mut pace_config = PaceConfig::default();
-//         pace_config.add_activity_log_path(temp_file.to_string_lossy().to_string());
-
-//         cmd.inner_run(&pace_config)?;
-
-//         Ok(())
-//     }
-// }
