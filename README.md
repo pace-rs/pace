@@ -92,9 +92,9 @@ cargo install pace-rs
 
 ⏲️ = work in progress
 
-❌ = not implemented, yet
-
 📜 = design stage
+
+❌ = not implemented, yet
 
 💡 = idea
 
@@ -104,7 +104,7 @@ cargo install pace-rs
 Currently they are stating the intended functionality and may not be fully
 implemented yet (e.g. using activities instead of tasks).
 
-🪧 **`pace craft`**
+🔍 **`pace craft`**
 
 - **Description:** Craft configuration files for pace, including the main
   configuration file and any additional settings. This is useful for setting up
@@ -131,11 +131,11 @@ implemented yet (e.g. using activities instead of tasks).
   what you're currently tracking.
 - **Usage:** `pace now`
 
-📜 **`pace review`**
+🪧 **`pace hold`**
 
-- **Description:** Gain insight in your activities and tasks. You can specify
-  the time frame for daily, weekly, or monthly insights.
-- **Usage:** `pace review --weekly`
+- **Description:** Pauses the time tracking for the specified task. This is
+  useful for taking breaks without ending the task.
+- **Usage:** `pace hold` or `pace hold "Design Work"`
 
 ⏲️ **`pace resume`**
 
@@ -143,11 +143,11 @@ implemented yet (e.g. using activities instead of tasks).
   you to continue where you left off.
 - **Usage:** `pace resume "Design Work"`
 
-⏲️ **`pace hold`**
+📜 **`pace review`**
 
-- **Description:** Pauses the time tracking for the specified task. This is
-  useful for taking breaks without ending the task.
-- **Usage:** `pace hold` or `pace hold "Design Work"`
+- **Description:** Gain insight in your activities and tasks. You can specify
+  the time frame for daily, weekly, or monthly insights.
+- **Usage:** `pace review --weekly`
 
 ✅ **`pace help`**
 
