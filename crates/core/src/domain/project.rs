@@ -19,6 +19,7 @@ impl Default for ProjectGuid {
     }
 }
 
+#[cfg(feature = "sqlite")]
 impl rusqlite::types::FromSql for ProjectGuid {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let bytes = <[u8; 16]>::column_result(value)?;
@@ -26,6 +27,7 @@ impl rusqlite::types::FromSql for ProjectGuid {
     }
 }
 
+#[cfg(feature = "sqlite")]
 impl rusqlite::types::ToSql for ProjectGuid {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
         Ok(rusqlite::types::ToSqlOutput::from(self.0.to_string()))

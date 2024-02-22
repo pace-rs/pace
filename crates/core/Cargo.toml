@@ -19,8 +19,9 @@ include = [
 ]
 
 # TODO!: Use features for adding optional dependencies for testing and merging etc.
-# [features]
-# default = []
+[features]
+default = []
+sqlite = ["dep:rusqlite"]
 # testing = ["dep:arbitrary"]
 
 [dependencies]
@@ -32,7 +33,7 @@ itertools = "0.12.1"
 log = "0.4.20"
 merge = "0.1.0"
 rayon = "1.8.1"
-rusqlite = { version = "0.31.0", features = ["bundled", "chrono", "uuid"] }
+rusqlite = { version = "0.31.0", features = ["bundled", "chrono", "uuid"], optional = true }
 serde = "1.0.197"
 serde_derive = "1.0.197"
 strum = "0.26.1"

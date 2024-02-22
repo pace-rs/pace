@@ -60,6 +60,7 @@ pub enum PaceErrorKind {
     /// Activity log error: {0}
     #[error(transparent)]
     ActivityLog(#[from] ActivityLogErrorKind),
+    #[cfg(feature = "sqlite")]
     /// SQLite error: {0}
     #[error(transparent)]
     SQLite(#[from] rusqlite::Error),
@@ -122,6 +123,7 @@ trait PaceErrorMarker: Error {}
 impl PaceErrorMarker for std::io::Error {}
 impl PaceErrorMarker for toml::de::Error {}
 impl PaceErrorMarker for toml::ser::Error {}
+#[cfg(feature = "sqlite")]
 impl PaceErrorMarker for rusqlite::Error {}
 impl PaceErrorMarker for chrono::ParseError {}
 impl PaceErrorMarker for chrono::OutOfRangeError {}

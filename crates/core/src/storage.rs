@@ -21,6 +21,7 @@ pub mod file;
 /// An in-memory storage backend for activities.
 pub mod in_memory;
 // TODO: Implement conversion FromSQL and ToSQL
+// #[cfg(feature = "sqlite")]
 // pub mod sqlite;
 
 /// Get the storage backend from the configuration.
