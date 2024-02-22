@@ -196,6 +196,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_duration_to_str_passes() {
+        let initial_time = Local::now();
+        let result = duration_to_str(initial_time);
+        assert_eq!(result, "just now");
+    }
+
+    #[test]
+    fn test_extract_time_or_now_passes() {
+        let time = Some("12:00".to_string());
+        let result = extract_time_or_now(&time).expect("Time extraction failed");
+        assert_eq!(
+            result,
+            NaiveDateTime::new(
+                Local::now().date_naive(),
+                NaiveTime::from_hms_opt(12, 0, 0).expect("Invalid date"),
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_time_from_user_input_passes() {
+        let time = Some("12:00".to_string());
+        let result = parse_time_from_user_input(&time).expect("Time parsing failed");
+        assert_eq!(
+            result,
+            Some(NaiveDateTime::new(
+                Local::now().date_naive(),
+                NaiveTime::from_hms_opt(12, 0, 0).expect("Invalid date"),
+            ))
+        );
+    }
+
+    #[test]
     fn test_calculate_duration_passes() {
         let begin = BeginDateTime::new(NaiveDateTime::new(
             NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
@@ -223,5 +256,19 @@ mod tests {
 
         let duration = calculate_duration(&begin, end);
         assert!(duration.is_err());
+    }
+
+    #[test]
+    fn test_pace_duration_from_duration_passes() {
+        let duration = Duration::from_secs(1);
+        let result = PaceDuration::from(duration);
+        assert_eq!(result, PaceDuration(1));
+    }
+
+    #[test]
+    fn test_pace_duration_from_chrono_duration_passes() {
+        let duration = chrono::Duration::seconds(1);
+        let result = PaceDuration::from(duration);
+        assert_eq!(result, PaceDuration(1));
     }
 }
