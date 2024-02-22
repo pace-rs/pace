@@ -23,6 +23,7 @@ impl Runnable for NowCmd {
 }
 
 impl NowCmd {
+    /// Inner run implementation for the now command
     pub fn inner_run(&self) -> Result<()> {
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 

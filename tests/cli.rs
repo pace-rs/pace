@@ -1,6 +1,9 @@
 use assert_cmd::Command;
 use predicates::prelude::predicate;
-// use tempfile::{tempdir, TempDir};
+// use similar_asserts::assert_eq;
+// use tempfile::tempdir;
+
+// use pace_core::ActivityLog;
 
 pub type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -43,21 +46,52 @@ fn test_help_command_passes() -> TestResult<()> {
     Ok(())
 }
 
-// TODO: Test begin command
+// TODO!: Test begin command
 // #[test]
 // fn test_begin_command_passes() -> TestResult<()> {
-//     pace_runner()?
+//     let activity_log_file = tempdir()?.into_path().join("activity_log.toml");
+
+//     let desc = "Test description";
+//     let category = "Test::Category";
+//     let time = "22:00";
+
+//     if activity_log_file.exists() {
+//         std::fs::remove_file(&activity_log_file)?;
+//     }
+
+//     std::fs::write(&activity_log_file, "")?;
+
+//     _ = pace_runner()?
 //         .args([
 //             "-a",
-//             "./activity_log.toml",
+//             activity_log_file.as_path().to_str().unwrap(),
 //             "begin",
-//             "This is my task description",
+//             desc,
 //             "-c",
-//             "MyCategory::SubCategory",
+//             category,
+//             "-t",
+//             time,
 //         ])
 //         .assert()
 //         .success()
-//         .stdout(predicate::str::contains("started")); // TODO
+//         .stdout(predicate::str::contains("started"));
+
+//     let contents = std::fs::read_to_string(&activity_log_file)?;
+
+//     let activity_log = toml::from_str::<ActivityLog>(&contents)?;
+
+//     insta::assert_toml_snapshot!(activity_log);
+//     assert_eq!(activity_log.activities().len(), 1);
+
+//     let activity = activity_log.activities().front().unwrap();
+
+//     assert_eq!(activity.description(), &Some(desc.to_string()));
+//     assert_eq!(activity.category(), &Some(category.to_string()));
+//     assert_eq!(format!("{:?}", activity.begin()), time);
+
+//     if activity_log_file.exists() {
+//         std::fs::remove_file(&activity_log_file)?;
+//     }
 
 //     Ok(())
 // }

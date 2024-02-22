@@ -3,9 +3,9 @@ use std::collections::BTreeMap;
 use chrono::{NaiveDate, NaiveDateTime};
 
 use crate::{
-    config::PaceConfig,
+    config::{ActivityLogStorageKind, PaceConfig},
     domain::{
-        activity::{Activity, ActivityId},
+        activity::{Activity, ActivityGuid},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
         review::ActivityStats,
@@ -21,6 +21,7 @@ pub mod file;
 /// An in-memory storage backend for activities.
 pub mod in_memory;
 // TODO: Implement conversion FromSQL and ToSQL
+// #[cfg(feature = "sqlite")]
 // pub mod sqlite;
 
 /// Get the storage backend from the configuration.
@@ -37,13 +38,22 @@ pub mod in_memory;
 ///
 /// The storage backend.
 pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Box<dyn ActivityStorage>> {
-    let storage = match config.general().log_storage().as_str() {
-        "file" => TomlActivityStorage::new(config.general().activity_log_file_path())?,
-        "database" => return Err(PaceErrorKind::DatabaseStorageNotImplemented.into()),
-        _ => TomlActivityStorage::new(config.general().activity_log_file_path())?,
+    let storage: Box<dyn ActivityStorage> = match config
+        .general()
+        .activity_log_options()
+        .activity_log_storage()
+    {
+        ActivityLogStorageKind::File => Box::new(TomlActivityStorage::new(
+            config.general().activity_log_options().activity_log_path(),
+        )?),
+        ActivityLogStorageKind::Database => {
+            return Err(PaceErrorKind::DatabaseStorageNotImplemented.into())
+        }
+        #[cfg(test)]
+        ActivityLogStorageKind::InMemory => Box::new(in_memory::InMemoryActivityStorage::new()),
     };
 
-    Ok(Box::new(storage))
+    Ok(storage)
 }
 
 /// A type of storage that can be synced to a persistent medium.
@@ -107,7 +117,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// The activity that was read from the storage backend. If no activity is found, it should return `Ok(None)`.
-    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Activity>;
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity>;
 
     /// List activities from the storage backend.
     ///
@@ -143,7 +153,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity was created successfully it should return the ID of the created activity.
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityId>;
+    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityGuid>;
 
     /// Update an existing activity in the storage backend.
     ///
@@ -168,7 +178,11 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity was updated successfully it should return the activity before it was updated.
-    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<Activity>;
+    fn update_activity(
+        &self,
+        activity_id: ActivityGuid,
+        activity: Activity,
+    ) -> PaceResult<Activity>;
 
     /// Delete an activity from the storage backend.
     ///
@@ -183,7 +197,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity was deleted successfully it should return the activity that was deleted.
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Activity>;
+    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity>;
 }
 
 /// Managing Activity State
@@ -206,7 +220,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     /// # Returns
     ///
     /// If the activity was started successfully it should return the ID of the started activity.
-    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityId> {
+    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
         self.create_activity(activity)
     }
 
@@ -226,9 +240,9 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     /// If the activity was ended successfully it should return the ID of the ended activity.
     fn end_single_activity(
         &self,
-        activity_id: ActivityId,
+        activity_id: ActivityGuid,
         end_time: Option<NaiveDateTime>,
-    ) -> PaceResult<ActivityId>;
+    ) -> PaceResult<ActivityGuid>;
 
     /// End all unfinished activities in the storage backend.
     ///
@@ -343,7 +357,19 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// A collection of the activities that were loaded from the storage backend by their ID in a `BTreeMap`.
     /// If no activities are found, it should return `Ok(None)`.
-    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityId, Activity>>;
+    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>>;
+
+    /// Get the latest active activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// The latest active activity.
+    /// If no activity is found, it should return `Ok(None)`.
+    fn latest_active_activity(&self) -> PaceOptResult<Activity>;
 }
 
 /// Tagging Activities
@@ -366,7 +392,7 @@ pub trait ActivityTagging {
     /// # Returns
     ///
     /// If the tag was added successfully it should return `Ok(())`.
-    fn add_tag_to_activity(&self, activity_id: ActivityId, tag: &str) -> PaceResult<()>;
+    fn add_tag_to_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceResult<()>;
 
     /// Remove a tag from an activity.
     ///
@@ -382,7 +408,7 @@ pub trait ActivityTagging {
     /// # Returns
     ///
     /// If the tag was removed successfully it should return `Ok(())`.
-    fn remove_tag_from_activity(&self, activity_id: ActivityId, tag: &str) -> PaceResult<()>;
+    fn remove_tag_from_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceResult<()>;
 }
 
 /// Archiving Activities
@@ -406,7 +432,7 @@ pub trait ActivityArchiving {
     /// # Returns
     ///
     /// If the activity was archived successfully it should return `Ok(())`.
-    fn archive_activity(&self, activity_id: ActivityId) -> PaceResult<()>;
+    fn archive_activity(&self, activity_id: ActivityGuid) -> PaceResult<()>;
 
     /// Unarchive an activity.
     ///
@@ -421,7 +447,7 @@ pub trait ActivityArchiving {
     /// # Returns
     ///
     /// If the activity was unarchived successfully it should return `Ok(())`.
-    fn unarchive_activity(&self, activity_id: ActivityId) -> PaceResult<()>;
+    fn unarchive_activity(&self, activity_id: ActivityGuid) -> PaceResult<()>;
 }
 
 /// Generate Statistics for Activities

@@ -1,12 +1,16 @@
 use std::sync::{Arc, Mutex};
 
-use chrono::{Local, NaiveDateTime};
+use chrono::{Local, NaiveDateTime, SubsecRound};
+use rayon::prelude::{
+    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
+};
 
 use crate::{
     domain::{
-        activity::{Activity, ActivityId},
+        activity::{Activity, ActivityEndOptions, ActivityGuid},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
+        time::calculate_duration,
     },
     error::{ActivityLogErrorKind, PaceOptResult, PaceResult},
     storage::{
@@ -26,9 +30,7 @@ pub struct InMemoryActivityStorage {
 
 impl From<ActivityLog> for InMemoryActivityStorage {
     fn from(activities: ActivityLog) -> Self {
-        Self {
-            activities: Arc::new(Mutex::new(activities)),
-        }
+        Self::new_with_activity_log(activities)
     }
 }
 
@@ -89,22 +91,24 @@ impl SyncStorage for InMemoryActivityStorage {
 }
 
 impl ActivityReadOps for InMemoryActivityStorage {
-    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
         let Ok(activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
         let activity = activities
             .activities()
-            .iter()
-            .find(|activity| {
+            .par_iter()
+            .find_first(|activity| {
                 activity
-                    .id()
+                    .guid()
                     .as_ref()
                     .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
             .cloned()
             .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
+
+        drop(activities);
 
         Ok(activity)
     }
@@ -130,47 +134,52 @@ impl ActivityReadOps for InMemoryActivityStorage {
             return Ok(None);
         }
 
+        drop(activities);
+
         match filter {
-            ActivityFilter::All => Ok(Some(FilteredActivities::All(activities.clone()))),
-            ActivityFilter::Active => Ok(Some(FilteredActivities::Active(activities.clone()))),
-            ActivityFilter::Archived => Ok(Some(FilteredActivities::Archived(activities.clone()))),
-            ActivityFilter::Ended => Ok(Some(FilteredActivities::Ended(activities.clone()))),
+            ActivityFilter::All => Ok(Some(FilteredActivities::All(filtered.clone()))),
+            ActivityFilter::Active => Ok(Some(FilteredActivities::Active(filtered.clone()))),
+            ActivityFilter::Archived => Ok(Some(FilteredActivities::Archived(filtered.clone()))),
+            ActivityFilter::Ended => Ok(Some(FilteredActivities::Ended(filtered.clone()))),
         }
     }
 }
 
 impl ActivityWriteOps for InMemoryActivityStorage {
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityId> {
+    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
-        let Some(activity_id) = activity.id() else {
+        let Some(activity_id) = activity.guid() else {
             return Err(ActivityLogErrorKind::ActivityIdNotSet.into());
         };
 
         // Search for the activity in the list of activities to see if the ID is already in use.
-        if activities
-            .activities()
-            .iter()
-            .any(|activity| activity.id().as_ref().map_or(false, |id| id == activity_id))
-        {
+        if activities.activities().par_iter().any(|activity| {
+            activity
+                .guid()
+                .as_ref()
+                .map_or(false, |id| id == activity_id)
+        }) {
             return Err(ActivityLogErrorKind::ActivityIdAlreadyInUse(*activity_id).into());
         }
 
         activities.activities_mut().push_front(activity.clone());
+
+        drop(activities);
 
         Ok(*activity_id)
     }
 
     fn update_activity(
         &self,
-        activity_id: ActivityId,
+        activity_id: ActivityGuid,
         mut activity: Activity,
     ) -> PaceResult<Activity> {
         // First things, first. Replace new activity's id with the original ID we are looking for.
         // To make sure we are not accidentally changing the ID.
-        let _ = activity.id_mut().replace(activity_id);
+        let _ = activity.guid_mut().replace(activity_id);
 
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
@@ -178,10 +187,10 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 
         let og_activity = activities
             .activities_mut()
-            .iter_mut()
-            .find(|activity| {
+            .par_iter_mut()
+            .find_first(|activity| {
                 activity
-                    .id()
+                    .guid()
                     .as_ref()
                     .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
@@ -191,20 +200,22 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 
         *og_activity = activity;
 
+        drop(activities);
+
         Ok(original_activity)
     }
 
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
+    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
         let activity_index = activities
             .activities_mut()
-            .iter()
-            .position(|activity| {
+            .par_iter()
+            .position_first(|activity| {
                 activity
-                    .id()
+                    .guid()
                     .as_ref()
                     .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
@@ -215,6 +226,8 @@ impl ActivityWriteOps for InMemoryActivityStorage {
             .remove(activity_index)
             .ok_or(ActivityLogErrorKind::ActivityCantBeRemoved(activity_index))?;
 
+        drop(activities);
+
         Ok(activity)
     }
 }
@@ -222,9 +235,9 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 impl ActivityStateManagement for InMemoryActivityStorage {
     fn end_single_activity(
         &self,
-        activity_id: ActivityId,
+        activity_id: ActivityGuid,
         end_time: Option<NaiveDateTime>,
-    ) -> PaceResult<ActivityId> {
+    ) -> PaceResult<ActivityGuid> {
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
@@ -233,19 +246,22 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let activity = activities
             .activities_mut()
-            .iter_mut()
-            .find(|activity| {
+            .par_iter_mut()
+            .find_first(|activity| {
                 activity
-                    .id()
+                    .guid()
                     .as_ref()
                     .map_or(false, |orig_activity_id| *orig_activity_id == activity_id)
             })
             .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
 
-        let duration = activity.calculate_duration(end_time)?;
+        let duration = calculate_duration(activity.begin(), end_time)?;
 
-        _ = activity.end_mut().replace(end_time);
-        _ = activity.duration_mut().replace(duration.into());
+        let end_opts = ActivityEndOptions::new(end_time, duration);
+
+        activity.end_activity(end_opts);
+
+        drop(activities);
 
         Ok(activity_id)
     }
@@ -258,22 +274,20 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
-        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local());
+        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local().round_subsecs(0));
 
         let Some(last_unfinished_activity) = activities
             .activities_mut()
-            .iter_mut()
-            .find(|activity| activity.is_active())
+            .par_iter_mut()
+            .find_first(|activity| activity.is_active())
         else {
             return Ok(None);
         };
 
-        let duration = last_unfinished_activity.calculate_duration(end_time)?;
+        let duration = calculate_duration(last_unfinished_activity.begin(), end_time)?;
 
-        _ = last_unfinished_activity.end_mut().replace(end_time);
-        _ = last_unfinished_activity
-            .duration_mut()
-            .replace(duration.into());
+        let end_opts = ActivityEndOptions::new(end_time, duration);
+        last_unfinished_activity.end_activity(end_opts);
 
         Ok(Some(last_unfinished_activity.clone()))
     }
@@ -284,7 +298,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     ) -> PaceOptResult<Vec<Activity>> {
         let mut ended_activities = vec![];
 
-        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local());
+        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local().round_subsecs(0));
 
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
@@ -295,10 +309,10 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             .iter_mut()
             .filter(|activity| activity.is_active())
             .for_each(|activity| {
-                match activity.calculate_duration(end_time) {
+                match calculate_duration(activity.begin(), end_time) {
                     Ok(duration) => {
-                        _ = activity.end_mut().replace(end_time);
-                        _ = activity.duration_mut().replace(duration.into());
+                        let end_opts = ActivityEndOptions::new(end_time, duration);
+                        activity.end_activity(end_opts);
 
                         ended_activities.push(activity.clone());
                     }
@@ -311,6 +325,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
                     }
                 };
             });
+
+        drop(activities);
 
         if ended_activities.is_empty() {
             return Ok(None);
@@ -338,7 +354,27 @@ impl ActivityQuerying for InMemoryActivityStorage {
 
     fn list_activities_by_id(
         &self,
-    ) -> PaceOptResult<std::collections::BTreeMap<ActivityId, Activity>> {
+    ) -> PaceOptResult<std::collections::BTreeMap<ActivityGuid, Activity>> {
         todo!("Implement list_activities_by_id for InMemoryActivityStorage")
+    }
+
+    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
+        let Ok(activities) = self.activities.lock() else {
+            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+        };
+
+        let activity = activities
+            .activities()
+            .par_iter()
+            .find_first(|activity| {
+                activity.is_active()
+                    && !activity.kind().is_intermission()
+                    && !activity.kind().is_pomodoro_intermission()
+            })
+            .cloned();
+
+        drop(activities);
+
+        Ok(activity)
     }
 }

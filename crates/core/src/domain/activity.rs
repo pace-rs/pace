@@ -5,21 +5,20 @@ use core::fmt::Formatter;
 use getset::{Getters, MutGetters, Setters};
 use merge::Merge;
 use serde_derive::{Deserialize, Serialize};
-use std::{fmt::Display, time::Duration};
+use std::fmt::Display;
 use typed_builder::TypedBuilder;
-use uuid::Uuid;
+use ulid::Ulid;
 
 use crate::{
-    domain::{
-        intermission::IntermissionPeriod,
-        time::{duration_to_str, BeginDateTime, PaceDuration},
-    },
-    error::PaceResult,
+    calculate_duration,
+    domain::time::{duration_to_str, BeginDateTime, PaceDuration},
+    PaceResult,
 };
 
 /// The kind of activity a user can track
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, Copy)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "kebab-case")]
+// #[serde(untagged)]
 pub enum ActivityKind {
     /// A generic activity
     #[default]
@@ -36,6 +35,48 @@ pub enum ActivityKind {
 
     /// A pomodoro break
     PomodoroIntermission,
+}
+
+impl ActivityKind {
+    /// Returns `true` if the activity kind is [`Activity`].
+    ///
+    /// [`Activity`]: ActivityKind::Activity
+    #[must_use]
+    pub fn is_activity(&self) -> bool {
+        matches!(self, Self::Activity)
+    }
+
+    /// Returns `true` if the activity kind is [`Task`].
+    ///
+    /// [`Task`]: ActivityKind::Task
+    #[must_use]
+    pub fn is_task(&self) -> bool {
+        matches!(self, Self::Task)
+    }
+
+    /// Returns `true` if the activity kind is [`Intermission`].
+    ///
+    /// [`Intermission`]: ActivityKind::Intermission
+    #[must_use]
+    pub fn is_intermission(&self) -> bool {
+        matches!(self, Self::Intermission)
+    }
+
+    /// Returns `true` if the activity kind is [`PomodoroWork`].
+    ///
+    /// [`PomodoroWork`]: ActivityKind::PomodoroWork
+    #[must_use]
+    pub fn is_pomodoro_work(&self) -> bool {
+        matches!(self, Self::PomodoroWork)
+    }
+
+    /// Returns `true` if the activity kind is [`PomodoroIntermission`].
+    ///
+    /// [`PomodoroIntermission`]: ActivityKind::PomodoroIntermission
+    #[must_use]
+    pub fn is_pomodoro_intermission(&self) -> bool {
+        matches!(self, Self::PomodoroIntermission)
+    }
 }
 
 /// The cycle of pomodoro activity a user can track
@@ -60,27 +101,26 @@ enum PomodoroCycle {
 #[derive(Merge)]
 pub struct Activity {
     /// The activity's unique identifier
-    #[builder(default = Some(ActivityId::default()), setter(strip_option))]
+    #[builder(default = Some(ActivityGuid::default()), setter(strip_option))]
     #[getset(get_copy, get_mut = "pub")]
-    id: Option<ActivityId>,
+    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    guid: Option<ActivityGuid>,
 
     /// The category of the activity
     // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
     // TODO: Reconsider when we implement the project management part
     // category: Category,
     #[builder(default)]
+    #[getset(get = "pub", get_mut = "pub")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     category: Option<String>,
 
     /// The description of the activity
     // This needs to be an Optional, because we use the whole activity struct
     // as well for intermissions, which don't have a description
     #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
-
-    /// The end date and time of the activity
-    #[builder(default, setter(strip_option))]
-    #[getset(get = "pub", get_mut = "pub")]
-    end: Option<NaiveDateTime>,
 
     /// The start date and time of the activity
     #[getset(get = "pub")]
@@ -88,15 +128,20 @@ pub struct Activity {
     #[merge(skip)]
     begin: BeginDateTime,
 
-    /// The duration of the activity
-    #[builder(default, setter(strip_option))]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     #[getset(get = "pub", get_mut = "pub")]
-    duration: Option<PaceDuration>,
+    activity_end_options: Option<ActivityEndOptions>,
 
     /// The kind of activity
     #[builder(default)]
     #[merge(skip)]
     kind: ActivityKind,
+
+    /// Optional attributes for the activity kind
+    #[builder(default, setter(strip_option))]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    activity_kind_options: Option<ActivityKindOptions>,
 
     // TODO: How to better support subcategories
     // subcategory: Option<Category>,
@@ -110,43 +155,79 @@ pub struct Activity {
     // Pomodoro-specific attributes
     /// The pomodoro cycle of the activity
     #[builder(default, setter(strip_option))]
-    pomodoro_cycle: Option<PomodoroCycle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pomodoro_cycle_options: Option<PomodoroCycle>,
+}
 
-    // Intermission-specific attributes
-    /// The intermission periods of the activity
-    #[builder(default, setter(strip_option))]
-    intermission_periods: Option<Vec<IntermissionPeriod>>,
+#[derive(
+    Debug, Serialize, Deserialize, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq,
+)]
+#[getset(get = "pub")]
+pub struct ActivityEndOptions {
+    /// The end date and time of the activity
+    #[builder(default)]
+    #[getset(get = "pub")]
+    end: NaiveDateTime,
+
+    /// The duration of the activity
+    #[builder(default)]
+    #[getset(get = "pub")]
+    duration: PaceDuration,
+}
+
+impl ActivityEndOptions {
+    pub fn new(end: NaiveDateTime, duration: PaceDuration) -> Self {
+        Self { end, duration }
+    }
+}
+
+#[derive(
+    Debug, Serialize, Deserialize, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq,
+)]
+#[getset(get = "pub")]
+#[derive(Merge)]
+#[serde(rename_all = "kebab-case")]
+pub struct ActivityKindOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parent_id: Option<ActivityGuid>,
+}
+
+impl ActivityKindOptions {
+    pub fn new(parent_id: impl Into<Option<ActivityGuid>>) -> Self {
+        Self {
+            parent_id: parent_id.into(),
+        }
+    }
 }
 
 impl Default for Activity {
     fn default() -> Self {
         Self {
-            id: Some(ActivityId::default()),
+            guid: Some(ActivityGuid::default()),
             category: Some("Uncategorized".to_string()),
             description: Some("This is an example activity".to_string()),
-            end: None,
             begin: BeginDateTime::default(),
-            duration: None,
             kind: ActivityKind::Activity,
-            pomodoro_cycle: None,
-            intermission_periods: None,
+            pomodoro_cycle_options: None,
+            activity_kind_options: None,
+            activity_end_options: None,
         }
     }
 }
 
 /// The unique identifier of an activity
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
-pub struct ActivityId(Uuid);
+pub struct ActivityGuid(Ulid);
 
-impl Display for ActivityId {
+impl Display for ActivityGuid {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl Default for ActivityId {
+impl Default for ActivityGuid {
     fn default() -> Self {
-        Self(Uuid::now_v7())
+        Self(Ulid::new())
     }
 }
 
@@ -168,68 +249,151 @@ impl Display for Activity {
     }
 }
 
-impl rusqlite::types::FromSql for ActivityId {
+#[cfg(feature = "sqlite")]
+impl rusqlite::types::FromSql for ActivityGuid {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let bytes = <[u8; 16]>::column_result(value)?;
-        Ok(Self(uuid::Uuid::from_u128(u128::from_be_bytes(bytes))))
+        Ok(Self(Ulid::from(u128::from_be_bytes(bytes))))
     }
 }
 
-impl rusqlite::types::ToSql for ActivityId {
+#[cfg(feature = "sqlite")]
+impl rusqlite::types::ToSql for ActivityGuid {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-        self.0.as_ref().to_sql()
+        Ok(rusqlite::types::ToSqlOutput::from(self.0.to_string()))
     }
 }
 
 impl Activity {
     /// If the activity is active, so if it is currently being tracked
     #[must_use]
-    pub const fn is_active(&self) -> bool {
-        self.end.is_none()
+    pub fn is_active(&self) -> bool {
+        self.activity_end_options().is_none()
     }
 
     /// If the activity has ended
     #[must_use]
-    pub const fn has_ended(&self) -> bool {
-        self.end.is_some()
+    pub fn has_ended(&self) -> bool {
+        self.activity_end_options().is_some()
     }
 
-    /// Calculate the duration of the activity
+    /// End the activity
     ///
     /// # Arguments
     ///
     /// * `end` - The end date and time of the activity
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the duration can't be calculated or is negative
-    ///
-    /// # Returns
-    ///
-    /// Returns the duration of the activity
-    pub fn calculate_duration(&self, end: NaiveDateTime) -> PaceResult<Duration> {
-        let duration = end
-            .signed_duration_since(self.begin.naive_date_time())
-            .to_std()?;
-
-        Ok(duration)
+    /// * `duration` - The [`PaceDuration`] of the activity
+    pub fn end_activity(&mut self, end_opts: ActivityEndOptions) {
+        self.activity_end_options = Some(end_opts);
     }
 
-    // pub fn start_intermission(&mut self, date: NaiveDate, time: NaiveTime) {
-    //     let new_intermission = IntermissionPeriod::new(date, time);
-    //     if let Some(ref mut periods) = self.intermission_periods {
-    //         periods.push(new_intermission);
-    //     } else {
-    //         self.intermission_periods = Some(vec![new_intermission]);
-    //     }
-    // }
+    pub fn end_activity_with_duration_calc(
+        &mut self,
+        begin: BeginDateTime,
+        end: NaiveDateTime,
+    ) -> PaceResult<()> {
+        let end_opts = ActivityEndOptions::new(end, calculate_duration(&begin, end)?);
+        self.end_activity(end_opts);
+        Ok(())
+    }
+}
 
-    // pub fn end_intermission(&mut self, date: NaiveDate, time: NaiveTime) {
-    //     if let Some(intermission_periods) = &mut self.intermission_periods {
-    //         if let Some(last_period) = intermission_periods.last_mut() {
-    //             // Assuming intermissions can't overlap, the last one is the one to end
-    //             last_period.end(date, time);
-    //         }
-    //     }
-    // }
+#[cfg(test)]
+mod tests {
+
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_parse_single_toml_activity_passes() {
+        let toml = r#"
+            id = "01F9Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3"
+            category = "Work"
+            description = "This is an example activity"
+            end = "2021-08-01T12:00:00"
+            begin = "2021-08-01T10:00:00"
+            duration = 5
+            kind = "activity"
+        "#;
+
+        let activity: Activity = toml::from_str(toml).unwrap();
+
+        assert_eq!(
+            activity.guid.unwrap().to_string(),
+            "01F9Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3"
+        );
+
+        assert_eq!(activity.category.as_ref().unwrap(), "Work");
+
+        assert_eq!(
+            activity.description.as_ref().unwrap(),
+            "This is an example activity"
+        );
+
+        let ActivityEndOptions { end, duration } = activity.activity_end_options().clone().unwrap();
+
+        assert_eq!(
+            end,
+            NaiveDateTime::parse_from_str("2021-08-01T12:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
+        );
+
+        assert_eq!(
+            activity.begin,
+            BeginDateTime::from(
+                NaiveDateTime::parse_from_str("2021-08-01T10:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
+            )
+        );
+
+        assert_eq!(duration, PaceDuration::from_str("5").unwrap());
+
+        assert_eq!(activity.kind, ActivityKind::Activity);
+    }
+
+    #[test]
+    fn test_parse_single_toml_intermission_passes() {
+        let toml = r#"
+            id = "01F9Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3"
+            end = "2021-08-01T12:00:00"
+            begin = "2021-08-01T10:00:00"
+            duration = 50
+            kind = "intermission"
+            parent-id = "01F9Z4Z3Z3Z3Z4Z3Z3Z3Z3Z3Z4" 
+        "#;
+
+        let activity: Activity = toml::from_str(toml).unwrap();
+
+        assert_eq!(
+            activity.guid.unwrap().to_string(),
+            "01F9Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3"
+        );
+
+        let ActivityEndOptions { end, duration } = activity.activity_end_options().clone().unwrap();
+
+        assert_eq!(
+            end,
+            NaiveDateTime::parse_from_str("2021-08-01T12:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
+        );
+
+        assert_eq!(duration, PaceDuration::from_str("50").unwrap());
+
+        assert_eq!(
+            activity.begin,
+            BeginDateTime::from(
+                NaiveDateTime::parse_from_str("2021-08-01T10:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
+            )
+        );
+
+        assert_eq!(activity.kind, ActivityKind::Intermission);
+
+        assert_eq!(
+            activity
+                .activity_kind_options
+                .unwrap()
+                .parent_id
+                .unwrap()
+                .to_string(),
+            "01F9Z4Z3Z3Z3Z4Z3Z3Z3Z3Z3Z4"
+        );
+    }
 }

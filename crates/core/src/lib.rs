@@ -1,3 +1,5 @@
+//! # Pace Core
+
 pub(crate) mod config;
 pub(crate) mod domain;
 pub(crate) mod error;
@@ -17,17 +19,20 @@ pub use crate::{
         ReviewConfig,
     },
     domain::{
-        activity::{Activity, ActivityId, ActivityKind},
+        activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityKind, ActivityKindOptions},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
-        time::{extract_time_or_now, parse_time_from_user_input},
+        time::{
+            calculate_duration, duration_to_str, extract_time_or_now, parse_time_from_user_input,
+            BeginDateTime, PaceDuration,
+        },
     },
-    error::{PaceError, PaceOptResult, PaceResult, TestResult},
+    error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult},
     service::activity_store::ActivityStore,
     storage::{
         file::TomlActivityStorage, get_storage_from_config, in_memory::InMemoryActivityStorage,
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    util::overwrite,
+    util::overwrite_left_with_right,
 };

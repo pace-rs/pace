@@ -9,7 +9,7 @@ use chrono::{NaiveDate, NaiveDateTime};
 
 use crate::{
     domain::{
-        activity::{Activity, ActivityId},
+        activity::{Activity, ActivityGuid},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
     },
@@ -120,7 +120,7 @@ impl ActivityStorage for TomlActivityStorage {
 }
 
 impl ActivityReadOps for TomlActivityStorage {
-    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
         self.cache.read_activity(activity_id)
     }
 
@@ -143,9 +143,9 @@ impl ActivityStateManagement for TomlActivityStorage {
 
     fn end_single_activity(
         &self,
-        activity_id: ActivityId,
+        activity_id: ActivityGuid,
         end_time: Option<NaiveDateTime>,
-    ) -> PaceResult<ActivityId> {
+    ) -> PaceResult<ActivityGuid> {
         self.cache.end_single_activity(activity_id, end_time)
     }
 
@@ -158,29 +158,38 @@ impl ActivityStateManagement for TomlActivityStorage {
 }
 
 impl ActivityWriteOps for TomlActivityStorage {
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityId> {
+    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
         self.cache.create_activity(activity)
     }
 
-    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<Activity> {
+    fn update_activity(
+        &self,
+        activity_id: ActivityGuid,
+        activity: Activity,
+    ) -> PaceResult<Activity> {
         self.cache.update_activity(activity_id, activity)
     }
 
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
+    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
         self.cache.delete_activity(activity_id)
     }
 }
 
 impl ActivityQuerying for TomlActivityStorage {
-    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityId, Activity>> {
-        todo!("Implement `activities_by_id` for `TomlActivityStorage`")
+    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
+        self.cache.list_activities_by_id()
     }
 
     fn find_activities_in_date_range(
         &self,
-        _start_date: NaiveDate,
-        _end_date: NaiveDate,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
     ) -> PaceResult<ActivityLog> {
-        todo!("Implement `find_activities_in_date_range` for `TomlActivityStorage`")
+        self.cache
+            .find_activities_in_date_range(start_date, end_date)
+    }
+
+    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
+        self.cache.latest_active_activity()
     }
 }

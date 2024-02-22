@@ -1,9 +1,12 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+    time::Duration,
+};
 
+use crate::error::{ActivityLogErrorKind, PaceErrorKind, PaceOptResult, PaceResult};
 use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
 use serde_derive::{Deserialize, Serialize};
-
-use crate::error::{PaceErrorKind, PaceOptResult, PaceResult};
 
 pub enum TimeFrame {
     Custom {
@@ -110,8 +113,19 @@ pub fn parse_time_from_user_input(time: &Option<String>) -> PaceOptResult<NaiveD
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct PaceDuration(u64);
 
-impl From<std::time::Duration> for PaceDuration {
-    fn from(duration: std::time::Duration) -> Self {
+impl FromStr for PaceDuration {
+    type Err = ActivityLogErrorKind;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse::<u64>() {
+            Ok(duration) => Ok(Self(duration)),
+            _ => Err(ActivityLogErrorKind::ParsingDurationFailed(s.to_string())),
+        }
+    }
+}
+
+impl From<Duration> for PaceDuration {
+    fn from(duration: Duration) -> Self {
         Self(duration.as_secs())
     }
 }
@@ -132,6 +146,10 @@ impl From<chrono::Duration> for PaceDuration {
 pub struct BeginDateTime(NaiveDateTime);
 
 impl BeginDateTime {
+    pub fn new(time: NaiveDateTime) -> Self {
+        Self(time)
+    }
+
     /// Convert to a naive date time
     pub fn naive_date_time(&self) -> NaiveDateTime {
         self.0
@@ -158,5 +176,166 @@ impl Default for BeginDateTime {
 impl From<NaiveDateTime> for BeginDateTime {
     fn from(time: NaiveDateTime) -> Self {
         Self(time)
+    }
+}
+
+impl From<Option<NaiveDateTime>> for BeginDateTime {
+    fn from(time: Option<NaiveDateTime>) -> Self {
+        match time {
+            Some(time) => Self(time),
+            None => Self::default(),
+        }
+    }
+}
+
+/// Calculate the duration of the activity
+///
+/// # Arguments
+///
+/// * `end` - The end date and time of the activity
+///
+/// # Errors
+///
+/// Returns an error if the duration can't be calculated or is negative
+///
+/// # Returns
+///
+/// Returns the duration of the activity
+pub fn calculate_duration(begin: &BeginDateTime, end: NaiveDateTime) -> PaceResult<PaceDuration> {
+    let duration = end
+        .signed_duration_since(begin.naive_date_time())
+        .to_std()?;
+
+    Ok(duration.into())
+}
+
+#[cfg(test)]
+mod tests {
+
+    use chrono::NaiveDate;
+
+    use super::*;
+
+    #[test]
+    fn test_duration_to_str_passes() {
+        let initial_time = Local::now();
+        let result = duration_to_str(initial_time);
+        assert_eq!(result, "just now");
+    }
+
+    #[test]
+    fn test_extract_time_or_now_passes() {
+        let time = Some("12:00".to_string());
+        let result = extract_time_or_now(&time).expect("Time extraction failed");
+        assert_eq!(
+            result,
+            NaiveDateTime::new(
+                Local::now().date_naive(),
+                NaiveTime::from_hms_opt(12, 0, 0).expect("Invalid date"),
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_time_from_user_input_passes() {
+        let time = Some("12:00".to_string());
+        let result = parse_time_from_user_input(&time).expect("Time parsing failed");
+        assert_eq!(
+            result,
+            Some(NaiveDateTime::new(
+                Local::now().date_naive(),
+                NaiveTime::from_hms_opt(12, 0, 0).expect("Invalid date"),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_calculate_duration_passes() {
+        let begin = BeginDateTime::new(NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        ));
+        let end = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 1).expect("Invalid date"),
+        );
+
+        let duration = calculate_duration(&begin, end).expect("Duration calculation failed");
+        assert_eq!(duration, Duration::from_secs(1).into());
+    }
+
+    #[test]
+    fn test_calculate_duration_fails() {
+        let begin = BeginDateTime::new(NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 1).expect("Invalid date"),
+        ));
+        let end = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        );
+
+        let duration = calculate_duration(&begin, end);
+        assert!(duration.is_err());
+    }
+
+    #[test]
+    fn test_pace_duration_from_duration_passes() {
+        let duration = Duration::from_secs(1);
+        let result = PaceDuration::from(duration);
+        assert_eq!(result, PaceDuration(1));
+    }
+
+    #[test]
+    fn test_pace_duration_from_chrono_duration_passes() {
+        let duration = chrono::Duration::seconds(1);
+        let result = PaceDuration::from(duration);
+        assert_eq!(result, PaceDuration(1));
+    }
+
+    #[test]
+    fn test_begin_date_time_new_passes() {
+        let time = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        );
+        let result = BeginDateTime::new(time);
+        assert_eq!(result, BeginDateTime(time));
+    }
+
+    #[test]
+    fn test_begin_date_time_naive_date_time_passes() {
+        let time = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        );
+        let begin_date_time = BeginDateTime::new(time);
+        let result = begin_date_time.naive_date_time();
+        assert_eq!(result, time);
+    }
+
+    #[test]
+    fn test_begin_date_time_default_passes() {
+        let result = BeginDateTime::default();
+        assert_eq!(
+            result,
+            BeginDateTime(Local::now().naive_local().round_subsecs(0))
+        );
+    }
+
+    #[test]
+    fn test_begin_date_time_from_naive_date_time_passes() {
+        let time = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        );
+        let result = BeginDateTime::from(time);
+        assert_eq!(result, BeginDateTime(time));
+    }
+
+    #[test]
+    fn test_pace_duration_default_passes() {
+        let result = PaceDuration::default();
+        assert_eq!(result, PaceDuration(0));
     }
 }

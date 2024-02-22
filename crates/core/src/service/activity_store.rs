@@ -1,11 +1,12 @@
 use std::collections::{BTreeMap, HashSet, VecDeque};
 
-use chrono::NaiveDateTime;
+use chrono::{prelude::NaiveDate, NaiveDateTime};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     domain::{
-        activity::{Activity, ActivityId},
+        activity::{Activity, ActivityGuid},
+        activity_log::ActivityLog,
         filter::FilteredActivities,
     },
     error::{PaceOptResult, PaceResult},
@@ -27,9 +28,9 @@ pub struct ActivityStore {
 /// TODO: Optimization for later to make lookup faster
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct ActivityStoreCache {
-    activity_ids: HashSet<ActivityId>,
-    activities_by_id: BTreeMap<ActivityId, Activity>,
-    last_entries: VecDeque<ActivityId>,
+    activity_ids: HashSet<ActivityGuid>,
+    activities_by_id: BTreeMap<ActivityGuid, Activity>,
+    last_entries: VecDeque<ActivityGuid>,
 }
 
 impl ActivityStore {
@@ -56,7 +57,7 @@ impl SyncStorage for ActivityStore {
 }
 
 impl ActivityReadOps for ActivityStore {
-    fn read_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
         self.storage.read_activity(activity_id)
     }
 
@@ -69,29 +70,33 @@ impl ActivityReadOps for ActivityStore {
 }
 
 impl ActivityWriteOps for ActivityStore {
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityId> {
+    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
         self.storage.create_activity(activity)
     }
 
-    fn update_activity(&self, activity_id: ActivityId, activity: Activity) -> PaceResult<Activity> {
+    fn update_activity(
+        &self,
+        activity_id: ActivityGuid,
+        activity: Activity,
+    ) -> PaceResult<Activity> {
         self.storage.update_activity(activity_id, activity)
     }
 
-    fn delete_activity(&self, activity_id: ActivityId) -> PaceResult<Activity> {
+    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
         self.storage.delete_activity(activity_id)
     }
 }
 
 impl ActivityStateManagement for ActivityStore {
-    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityId> {
+    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
         self.storage.begin_activity(activity)
     }
 
     fn end_single_activity(
         &self,
-        activity_id: ActivityId,
+        activity_id: ActivityGuid,
         end_time: Option<NaiveDateTime>,
-    ) -> PaceResult<ActivityId> {
+    ) -> PaceResult<ActivityGuid> {
         self.storage.end_single_activity(activity_id, end_time)
     }
 
@@ -117,13 +122,18 @@ impl ActivityStateManagement for ActivityStore {
 impl ActivityQuerying for ActivityStore {
     fn find_activities_in_date_range(
         &self,
-        _start_date: chrono::prelude::NaiveDate,
-        _end_date: chrono::prelude::NaiveDate,
-    ) -> PaceResult<crate::domain::activity_log::ActivityLog> {
-        todo!("Implement find_activities_in_date_range for ActivityStore")
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> PaceResult<ActivityLog> {
+        self.storage
+            .find_activities_in_date_range(start_date, end_date)
     }
 
-    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityId, Activity>> {
-        todo!("Implement list_activities_by_id for ActivityStore")
+    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
+        self.storage.list_activities_by_id()
+    }
+
+    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
+        self.storage.latest_active_activity()
     }
 }

@@ -7,17 +7,17 @@ use crate::domain::activity::Activity;
 /// The activity log entity
 ///
 /// The activity log entity is used to store and manage activities
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, MutGetters)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters, MutGetters, Default)]
 pub struct ActivityLog {
     #[getset(get = "pub", get_mut = "pub")]
     activities: VecDeque<Activity>,
 }
 
-impl Default for ActivityLog {
-    fn default() -> Self {
-        Self {
-            activities: VecDeque::from(vec![Activity::default()]),
-        }
+impl std::ops::Deref for ActivityLog {
+    type Target = VecDeque<Activity>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.activities
     }
 }
 

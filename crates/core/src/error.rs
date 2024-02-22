@@ -4,7 +4,7 @@ use displaydoc::Display;
 use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
-use crate::domain::activity::ActivityId;
+use crate::domain::activity::ActivityGuid;
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
@@ -60,6 +60,7 @@ pub enum PaceErrorKind {
     /// Activity log error: {0}
     #[error(transparent)]
     ActivityLog(#[from] ActivityLogErrorKind),
+    #[cfg(feature = "sqlite")]
     /// SQLite error: {0}
     #[error(transparent)]
     SQLite(#[from] rusqlite::Error),
@@ -83,6 +84,8 @@ pub enum PaceErrorKind {
     DatabaseStorageNotImplemented,
     /// Failed to parse time '{0}' from user input, please use the format HH:MM
     ParsingTimeFromUserInputFailed(String),
+    /// There is no path available to store the activity log
+    NoPathAvailable,
 }
 
 /// [`ActivityLogErrorKind`] describes the errors that can happen while dealing with the activity log.
@@ -92,7 +95,7 @@ pub enum ActivityLogErrorKind {
     /// No activities found in the activity log
     NoActivitiesFound,
     /// Activity with ID {0} not found
-    FailedToReadActivity(ActivityId),
+    FailedToReadActivity(ActivityGuid),
     /// Negative duration for activity
     NegativeDuration,
     /// There are no activities to hold
@@ -108,13 +111,15 @@ pub enum ActivityLogErrorKind {
     /// Cache not available
     CacheNotAvailable,
     /// Activity with id '{0}' not found
-    ActivityNotFound(ActivityId),
+    ActivityNotFound(ActivityGuid),
     /// Activity with id '{0}' can't be removed from the activity log
     ActivityCantBeRemoved(usize),
     /// This activity has no id
     ActivityIdNotSet,
     /// Activity with id '{0}' already in use, can't create a new activity with the same id
-    ActivityIdAlreadyInUse(ActivityId),
+    ActivityIdAlreadyInUse(ActivityGuid),
+    /// Failed to parse duration '{0}' from activity log, please use only numbers >= 0
+    ParsingDurationFailed(String),
 }
 
 trait PaceErrorMarker: Error {}
@@ -122,6 +127,7 @@ trait PaceErrorMarker: Error {}
 impl PaceErrorMarker for std::io::Error {}
 impl PaceErrorMarker for toml::de::Error {}
 impl PaceErrorMarker for toml::ser::Error {}
+#[cfg(feature = "sqlite")]
 impl PaceErrorMarker for rusqlite::Error {}
 impl PaceErrorMarker for chrono::ParseError {}
 impl PaceErrorMarker for chrono::OutOfRangeError {}

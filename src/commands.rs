@@ -10,18 +10,18 @@
 //! See the `impl Configurable` below for how to specify the path to the
 //! application's configuration file.
 
-mod begin;
-mod end;
-mod export;
-// TODO: mod import;
-mod craft;
-mod hold;
-mod now;
-mod pomo;
-mod resume;
-mod review;
-mod set;
-mod tasks;
+pub mod begin;
+pub mod end;
+pub mod export;
+// TODO: pub mod import;
+pub mod craft;
+pub mod hold;
+pub mod now;
+pub mod pomo;
+pub mod resume;
+pub mod review;
+pub mod set;
+pub mod tasks;
 
 use abscissa_core::{config::Override, Command, Configurable, FrameworkError, Runnable};
 use clap::builder::{styling::AnsiColor, Styles};
@@ -116,8 +116,10 @@ impl Override<PaceConfig> for EntryPoint {
         // Override the activity log file if it's set
         if let Some(activity_log_file) = &self.activity_log_file {
             if activity_log_file.exists() {
-                *config.general_mut().activity_log_file_path_mut() =
-                    activity_log_file.to_string_lossy().to_string();
+                *config
+                    .general_mut()
+                    .activity_log_options_mut()
+                    .activity_log_path_mut() = activity_log_file.to_path_buf();
             }
         };
 

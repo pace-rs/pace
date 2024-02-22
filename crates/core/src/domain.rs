@@ -30,12 +30,6 @@ struct Session {
     end_time: Option<u64>, // Unix timestamp
 }
 
-struct TimeEntry {
-    task_id: usize,
-    start_time: u64,       // Unix timestamp
-    end_time: Option<u64>, // Unix timestamp
-}
-
 struct Context {
     id: usize,
     name: String,
