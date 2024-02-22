@@ -1,6 +1,6 @@
 // Test the ActivityStore implementation with a InMemoryStorage backend.
 
-use chrono::Local;
+use chrono::{Local, NaiveDateTime};
 use pace_core::{
     Activity, ActivityFilter, ActivityGuid, ActivityLog, ActivityReadOps, ActivityStore,
     ActivityWriteOps, BeginDateTime, InMemoryActivityStorage, TestResult,
@@ -17,7 +17,10 @@ fn activity_log_empty() -> ActivityLog {
 
 #[fixture]
 fn activity_log_with_variety_content() -> (Vec<Activity>, ActivityLog) {
-    let begin_time = BeginDateTime::default();
+    let begin_time = BeginDateTime::new(NaiveDateTime::new(
+        NaiveDateTime::from_timestamp_opt(0, 0).unwrap().date(),
+        NaiveDateTime::from_timestamp_opt(0, 0).unwrap().time(),
+    ));
 
     let mut ended_activity = Activity::builder()
         .description("Test Description".to_string())

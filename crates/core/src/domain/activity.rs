@@ -144,7 +144,9 @@ impl ActivityEndOptions {
 )]
 #[getset(get = "pub")]
 #[derive(Merge)]
+#[serde(rename_all = "kebab-case")]
 pub struct ActivityKindOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
     parent_id: Option<ActivityGuid>,
 }
 
@@ -324,7 +326,7 @@ mod tests {
             begin = "2021-08-01T10:00:00"
             duration = 50
             kind = "intermission"
-            parent_id = "01F9Z4Z3Z3Z3Z4Z3Z3Z3Z3Z3Z4" 
+            parent-id = "01F9Z4Z3Z3Z3Z4Z3Z3Z3Z3Z3Z4" 
         "#;
 
         let activity: Activity = toml::from_str(toml).unwrap();
