@@ -1,9 +1,10 @@
 use std::{
     fmt::{Display, Formatter},
+    str::FromStr,
     time::Duration,
 };
 
-use crate::error::{PaceErrorKind, PaceOptResult, PaceResult};
+use crate::error::{ActivityLogErrorKind, PaceErrorKind, PaceOptResult, PaceResult};
 use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
 use serde_derive::{Deserialize, Serialize};
 
@@ -112,6 +113,17 @@ pub fn parse_time_from_user_input(time: &Option<String>) -> PaceOptResult<NaiveD
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct PaceDuration(u64);
 
+impl FromStr for PaceDuration {
+    type Err = ActivityLogErrorKind;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse::<u64>() {
+            Ok(duration) => Ok(Self(duration)),
+            _ => Err(ActivityLogErrorKind::ParsingDurationFailed(s.to_string())),
+        }
+    }
+}
+
 impl From<Duration> for PaceDuration {
     fn from(duration: Duration) -> Self {
         Self(duration.as_secs())
@@ -180,12 +192,12 @@ impl From<NaiveDateTime> for BeginDateTime {
 /// # Returns
 ///
 /// Returns the duration of the activity
-pub fn calculate_duration(begin: &BeginDateTime, end: NaiveDateTime) -> PaceResult<Duration> {
+pub fn calculate_duration(begin: &BeginDateTime, end: NaiveDateTime) -> PaceResult<PaceDuration> {
     let duration = end
         .signed_duration_since(begin.naive_date_time())
         .to_std()?;
 
-    Ok(duration)
+    Ok(duration.into())
 }
 
 #[cfg(test)]
@@ -240,7 +252,7 @@ mod tests {
         );
 
         let duration = calculate_duration(&begin, end).expect("Duration calculation failed");
-        assert_eq!(duration, Duration::from_secs(1));
+        assert_eq!(duration, Duration::from_secs(1).into());
     }
 
     #[test]

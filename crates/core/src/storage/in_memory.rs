@@ -1,13 +1,13 @@
 use std::sync::{Arc, Mutex};
 
-use chrono::{Local, NaiveDateTime};
+use chrono::{Local, NaiveDateTime, SubsecRound};
 use rayon::prelude::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 
 use crate::{
     domain::{
-        activity::{Activity, ActivityGuid},
+        activity::{Activity, ActivityEndOptions, ActivityGuid},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
         time::calculate_duration,
@@ -259,8 +259,9 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let duration = calculate_duration(activity.begin(), end_time)?;
 
-        _ = activity.end_mut().replace(end_time);
-        _ = activity.duration_mut().replace(duration.into());
+        let end_opts = ActivityEndOptions::new(end_time, duration);
+
+        activity.end_activity(end_opts);
 
         drop(activities);
 
@@ -275,7 +276,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
         };
 
-        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local());
+        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local().round_subsecs(0));
 
         let Some(last_unfinished_activity) = activities
             .activities_mut()
@@ -287,10 +288,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let duration = calculate_duration(last_unfinished_activity.begin(), end_time)?;
 
-        _ = last_unfinished_activity.end_mut().replace(end_time);
-        _ = last_unfinished_activity
-            .duration_mut()
-            .replace(duration.into());
+        let end_opts = ActivityEndOptions::new(end_time, duration);
+        last_unfinished_activity.end_activity(end_opts);
 
         Ok(Some(last_unfinished_activity.clone()))
     }
@@ -301,7 +300,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     ) -> PaceOptResult<Vec<Activity>> {
         let mut ended_activities = vec![];
 
-        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local());
+        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local().round_subsecs(0));
 
         let Ok(mut activities) = self.activities.lock() else {
             return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
@@ -314,8 +313,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             .for_each(|activity| {
                 match calculate_duration(activity.begin(), end_time) {
                     Ok(duration) => {
-                        _ = activity.end_mut().replace(end_time);
-                        _ = activity.duration_mut().replace(duration.into());
+                        let end_opts = ActivityEndOptions::new(end_time, duration);
+                        activity.end_activity(end_opts);
 
                         ended_activities.push(activity.clone());
                     }

@@ -116,6 +116,8 @@ pub enum ActivityLogErrorKind {
     ActivityIdNotSet,
     /// Activity with id '{0}' already in use, can't create a new activity with the same id
     ActivityIdAlreadyInUse(ActivityGuid),
+    /// Failed to parse duration '{0}' from activity log, please use only numbers >= 0
+    ParsingDurationFailed(String),
 }
 
 trait PaceErrorMarker: Error {}

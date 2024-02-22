@@ -19,7 +19,7 @@ pub use crate::{
         ReviewConfig,
     },
     domain::{
-        activity::{Activity, ActivityGuid, ActivityKind},
+        activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityKind, ActivityKindOptions},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
         time::{
