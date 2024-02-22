@@ -8,6 +8,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.7.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.7.0...pace-rs-v0.7.1) - 2024-02-22
+
+### Fixed
+- *(deps)* update serde monorepo to 1.0.197 ([#40](https://github.com/pace-rs/pace/pull/40))
+- *(clippy)* apply clippy lints for main
+
+### Other
+- update command overview to reflect better the implementation status of several commands
+- cleanup crates
+- Improve testability and overall usability ([#37](https://github.com/pace-rs/pace/pull/37))
+- *(deps)* update rust crate assert_cmd to 2.0.14 ([#39](https://github.com/pace-rs/pace/pull/39))
+- update changelog
+- add pace-server library
+- harmonize github workflows
+- update asset auto size
+- update asset auto size
+- rework key for commands and enhanced plausibility
+- *(deps)* remove unnecessary async dep bloat (tokio, condvar, futures)
+
 ## [0.7.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.6.3...pace-rs-v0.7.0) - 2024-02-17
 
 ### Added

@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/pace-rs/pace/compare/pace_core-v0.8.0...pace_core-v0.9.0) - 2024-02-22
+
+### Fixed
+- *(deps)* update serde monorepo to 1.0.197 ([#40](https://github.com/pace-rs/pace/pull/40))
+- *(clippy)* apply clippy lints for main
+
+### Other
+- cleanup crates
+- Improve testability and overall usability ([#37](https://github.com/pace-rs/pace/pull/37))
+- add pace-server library
+- update asset auto size
+- update asset auto size
+- *(deps)* remove unnecessary async dep bloat (tokio, condvar, futures)
+
 ## [0.8.0](https://github.com/pace-rs/pace/compare/pace_core-v0.7.0...pace_core-v0.8.0) - 2024-02-17
 
 ### Added
