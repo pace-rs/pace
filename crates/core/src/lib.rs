@@ -1,3 +1,5 @@
+//! # Pace Core
+
 pub(crate) mod config;
 pub(crate) mod domain;
 pub(crate) mod error;

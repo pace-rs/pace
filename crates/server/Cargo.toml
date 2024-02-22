@@ -19,3 +19,6 @@ include = [
 ]
 
 [dependencies]
+
+[lints]
+workspace = true

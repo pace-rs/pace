@@ -51,7 +51,7 @@ dialoguer = { version = "0.11.0", features = ["history", "fuzzy-select"] }
 directories = "5.0.1"
 eyre = { workspace = true }
 human-panic = "1.2.3"
-insta = { version = "1.34.0", features = ["toml"] }
+insta = { version = "1.35.1", features = ["toml"] }
 pace_cli = { workspace = true }
 pace_core = { workspace = true }
 serde = "1"
@@ -148,15 +148,15 @@ assets = [
   { source = "target/release/pace", dest = "/usr/bin/pace", mode = "0755", config = false, doc = false }, # user = "root", group = "root" },
 ]
 
-[lints.rust]
+[workspace.lints.rust]
 unsafe_code = "forbid"
-missing_docs = "warn"
+# missing_docs = "warn"
 rust_2018_idioms = "warn"
 trivial_casts = "warn"
 unused_lifetimes = "warn"
 unused_qualifications = "warn"
 bad_style = "warn"
-dead_code = "warn"
+dead_code = "allow" # TODO: "warn"
 improper_ctypes = "warn"
 # missing_copy_implementations = "warn"
 # missing_debug_implementations = "warn"
@@ -176,7 +176,7 @@ unused_comparisons = "warn"
 unused_parens = "warn"
 while_true = "warn"
 
-[lints.clippy]
+[workspace.lints.clippy]
 # pedantic = "warn"
 # nursery = "warn"
 enum_glob_use = "warn"
