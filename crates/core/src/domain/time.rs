@@ -1,9 +1,11 @@
-use std::fmt::{Display, Formatter};
-
-use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
-use serde_derive::{Deserialize, Serialize};
+use std::{
+    fmt::{Display, Formatter},
+    time::Duration,
+};
 
 use crate::error::{PaceErrorKind, PaceOptResult, PaceResult};
+use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
+use serde_derive::{Deserialize, Serialize};
 
 pub enum TimeFrame {
     Custom {
@@ -110,8 +112,8 @@ pub fn parse_time_from_user_input(time: &Option<String>) -> PaceOptResult<NaiveD
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct PaceDuration(u64);
 
-impl From<std::time::Duration> for PaceDuration {
-    fn from(duration: std::time::Duration) -> Self {
+impl From<Duration> for PaceDuration {
+    fn from(duration: Duration) -> Self {
         Self(duration.as_secs())
     }
 }
@@ -162,5 +164,64 @@ impl Default for BeginDateTime {
 impl From<NaiveDateTime> for BeginDateTime {
     fn from(time: NaiveDateTime) -> Self {
         Self(time)
+    }
+}
+
+/// Calculate the duration of the activity
+///
+/// # Arguments
+///
+/// * `end` - The end date and time of the activity
+///
+/// # Errors
+///
+/// Returns an error if the duration can't be calculated or is negative
+///
+/// # Returns
+///
+/// Returns the duration of the activity
+pub fn calculate_duration(begin: &BeginDateTime, end: NaiveDateTime) -> PaceResult<Duration> {
+    let duration = end
+        .signed_duration_since(begin.naive_date_time())
+        .to_std()?;
+
+    Ok(duration)
+}
+
+#[cfg(test)]
+mod tests {
+
+    use chrono::NaiveDate;
+
+    use super::*;
+
+    #[test]
+    fn test_calculate_duration_passes() {
+        let begin = BeginDateTime::new(NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        ));
+        let end = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 1).expect("Invalid date"),
+        );
+
+        let duration = calculate_duration(&begin, end).expect("Duration calculation failed");
+        assert_eq!(duration, Duration::from_secs(1));
+    }
+
+    #[test]
+    fn test_calculate_duration_fails() {
+        let begin = BeginDateTime::new(NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 1).expect("Invalid date"),
+        ));
+        let end = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
+            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+        );
+
+        let duration = calculate_duration(&begin, end);
+        assert!(duration.is_err());
     }
 }

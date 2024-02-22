@@ -10,6 +10,7 @@ use crate::{
         activity::{Activity, ActivityGuid},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
+        time::calculate_duration,
     },
     error::{ActivityLogErrorKind, PaceOptResult, PaceResult},
     storage::{
@@ -256,7 +257,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             })
             .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?;
 
-        let duration = activity.calculate_duration(end_time)?;
+        let duration = calculate_duration(activity.begin(), end_time)?;
 
         _ = activity.end_mut().replace(end_time);
         _ = activity.duration_mut().replace(duration.into());
@@ -284,7 +285,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             return Ok(None);
         };
 
-        let duration = last_unfinished_activity.calculate_duration(end_time)?;
+        let duration = calculate_duration(last_unfinished_activity.begin(), end_time)?;
 
         _ = last_unfinished_activity.end_mut().replace(end_time);
         _ = last_unfinished_activity
@@ -311,7 +312,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             .iter_mut()
             .filter(|activity| activity.is_active())
             .for_each(|activity| {
-                match activity.calculate_duration(end_time) {
+                match calculate_duration(activity.begin(), end_time) {
                     Ok(duration) => {
                         _ = activity.end_mut().replace(end_time);
                         _ = activity.duration_mut().replace(duration.into());

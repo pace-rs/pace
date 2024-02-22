@@ -5,16 +5,13 @@ use core::fmt::Formatter;
 use getset::{Getters, MutGetters, Setters};
 use merge::Merge;
 use serde_derive::{Deserialize, Serialize};
-use std::{fmt::Display, time::Duration};
+use std::fmt::Display;
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
-use crate::{
-    domain::{
-        intermission::IntermissionPeriod,
-        time::{duration_to_str, BeginDateTime, PaceDuration},
-    },
-    error::PaceResult,
+use crate::domain::{
+    intermission::IntermissionPeriod,
+    time::{duration_to_str, BeginDateTime, PaceDuration},
 };
 
 /// The kind of activity a user can track
@@ -199,27 +196,6 @@ impl Activity {
     #[must_use]
     pub const fn has_ended(&self) -> bool {
         self.end.is_some()
-    }
-
-    /// Calculate the duration of the activity
-    ///
-    /// # Arguments
-    ///
-    /// * `end` - The end date and time of the activity
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the duration can't be calculated or is negative
-    ///
-    /// # Returns
-    ///
-    /// Returns the duration of the activity
-    pub fn calculate_duration(&self, end: NaiveDateTime) -> PaceResult<Duration> {
-        let duration = end
-            .signed_duration_since(self.begin.naive_date_time())
-            .to_std()?;
-
-        Ok(duration)
     }
 
     // pub fn start_intermission(&mut self, date: NaiveDate, time: NaiveTime) {

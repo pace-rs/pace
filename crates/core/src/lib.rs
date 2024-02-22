@@ -23,8 +23,8 @@ pub use crate::{
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
         time::{
-            duration_to_str, extract_time_or_now, parse_time_from_user_input, BeginDateTime,
-            PaceDuration,
+            calculate_duration, duration_to_str, extract_time_or_now, parse_time_from_user_input,
+            BeginDateTime, PaceDuration,
         },
     },
     error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult},

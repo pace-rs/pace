@@ -24,8 +24,6 @@ include = [
 # testing = ["dep:arbitrary"]
 
 [dependencies]
-# We'd rather have this only for testing but we do integration tests, and this wouldn't be build then
-arbitrary = { version = "1", features = ["derive"] }
 chrono = { version = "0.4.34", features = ["serde"] }
 directories = "5.0.1"
 displaydoc = "0.2.4"
