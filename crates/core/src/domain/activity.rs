@@ -261,10 +261,14 @@ impl Display for Activity {
             }
         };
 
+        let nop_desc = "No description".to_string();
+        let nop_cat = "Uncategorized".to_string();
+
         write!(
             f,
-            "Activity: \"{}\" started {}",
-            self.description.as_deref().unwrap_or("No description"),
+            "Activity: \"{}\" ({}) started {}",
+            self.description().as_ref().unwrap_or(&nop_desc),
+            self.category().as_ref().unwrap_or(&nop_cat),
             rel_time,
         )
     }

@@ -424,6 +424,36 @@ pub trait ActivityQuerying: ActivityReadOps {
             .list_activities(ActivityFilter::ActiveIntermission)?
             .map(FilteredActivities::into_log))
     }
+
+    /// List the most recent activities from the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `count` - The number of activities to list.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activities cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the most recent activities.
+    /// If no activities are found, it should return `Ok(None)`.
+    fn list_most_recent_activities(&self, count: usize) -> PaceOptResult<ActivityLog> {
+        let filtered = self
+            .list_activities(ActivityFilter::All)?
+            .map(FilteredActivities::into_log);
+
+        let Some(filtered) = filtered else {
+            return Ok(None);
+        };
+
+        if filtered.len() > count {
+            Ok(Some((*filtered).clone().into_iter().take(count).collect()))
+        } else {
+            Ok(Some(filtered))
+        }
+    }
 }
 
 /// Tagging Activities
