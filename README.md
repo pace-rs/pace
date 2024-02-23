@@ -55,7 +55,7 @@ for more information on how to get started.
 cargo binstall pace-rs
 ```
 
-TODO! #### Windows
+#### Windows
 
 ##### [Scoop](https://scoop.sh/)
 
@@ -68,6 +68,18 @@ scoop install pace
 scoop bucket add pace https://github.com/pace-rs/pace/
 scoop install pace
 ```
+
+#### MacOS
+
+##### [Homebrew](https://brew.sh/)
+
+We are currently working on getting pace into the official Homebrew repository.
+
+<!--
+#### npm
+
+TODO!: Check if needed and how easy it is supported with cargo-dist
+-->
 
 Check out the [releases](https://github.com/pace-rs/pace/releases).
 
