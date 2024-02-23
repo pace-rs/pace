@@ -12,16 +12,16 @@
 
 pub mod begin;
 pub mod end;
-pub mod export;
+// pub mod export;
 // TODO: pub mod import;
 pub mod craft;
 pub mod hold;
 pub mod now;
-pub mod pomo;
+// pub mod pomo;
 pub mod resume;
 pub mod review;
-pub mod set;
-pub mod tasks;
+// pub mod set;
+// pub mod tasks;
 
 use abscissa_core::{config::Override, Command, Configurable, FrameworkError, Runnable};
 use clap::builder::{styling::AnsiColor, Styles};
@@ -34,41 +34,35 @@ use pace_core::{get_config_paths, PaceConfig};
 /// Subcommands need to be listed in an enum.
 #[derive(clap::Parser, Command, Debug, Runnable)]
 pub enum PaceCmd {
-    /// Starts tracking time for the specified task. You can
-    /// optionally specify a category or project to help organize
-    /// your tasks.
+    /// Starts tracking time for the specified activity.
     Begin(begin::BeginCmd),
 
-    /// Stops time tracking for the specified task, marking it as completed or finished for the day.
+    /// Stops time tracking for the most recent or all activities.
     End(end::EndCmd),
 
-    /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
-    Export(export::ExportCmd),
-
+    // /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
+    // Export(export::ExportCmd),
     /// Crafts a pace configuration, a new project or shell completions
     Craft(craft::CraftCmd),
 
-    /// Pauses the time tracking for the specified task. This is
-    /// useful for taking breaks without ending the task.
+    /// Pauses the time tracking for the specified activity.
     Hold(hold::HoldCmd),
 
-    /// Displays the currently running task, showing you at a glance what you're currently tracking.
+    /// Shows you at a glance what you're currently tracking.
     Now(now::NowCmd),
 
-    /// Starts a Pomodoro session for the specified task, integrating the Pomodoro technique directly with your tasks.
-    Pomo(pomo::PomoCmd),
-
-    /// Resumes time tracking for a previously paused task, allowing you to continue where you left off.
+    // /// Starts a Pomodoro session for the specified task, integrating the Pomodoro technique directly with your tasks.
+    // Pomo(pomo::PomoCmd),
+    /// Resumes a previously paused activity, allowing you to continue where you left off.
     Resume(resume::ResumeCmd),
 
-    /// Get insights on your activities and tasks. You can specify the time frame for daily, weekly, or monthly insights.
+    /// Get insights on your activities. You can specify various time frames or custom date ranges.
     Review(review::ReviewCmd),
+    // /// Sets various application configurations, including Pomodoro lengths and preferred review formats.
+    // Set(set::SetCmd),
 
-    /// Sets various application configurations, including Pomodoro lengths and preferred review formats.
-    Set(set::SetCmd),
-
-    /// Lists all tasks with optional filters. Use this to view active, completed, or today's tasks.
-    Tasks(tasks::TasksCmd),
+    // /// Lists all tasks with optional filters. Use this to view active, completed, or today's tasks.
+    // Tasks(tasks::TasksCmd),
 }
 
 /// Define CLI colour styles for the application
@@ -82,7 +76,7 @@ const fn cli_colour_styles() -> Styles {
 
 /// Entry point for the application. It needs to be a struct to allow using subcommands!
 #[derive(clap::Parser, Command, Debug)]
-#[command(author, about, styles=cli_colour_styles(), version)]
+#[command(name="pace", author, about, styles=cli_colour_styles(), version)]
 pub struct EntryPoint {
     #[command(subcommand)]
     cmd: PaceCmd,
