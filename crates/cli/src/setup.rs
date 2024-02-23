@@ -90,14 +90,14 @@ pub(crate) fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> 
     let env_var_knowledge = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you know how to set environment variables?")
         .default(true)
-        .interact_opt()?;
+        .interact()?;
 
     println!();
 
     'env: loop {
         term.clear_screen()?;
 
-        if env_var_knowledge == Some(true) {
+        if env_var_knowledge {
             break 'env;
         }
 
@@ -116,9 +116,9 @@ pub(crate) fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> 
         let ready_to_continue = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt("Are you ready to continue?")
             .default(false)
-            .interact_opt()?;
+            .interact()?;
 
-        if ready_to_continue == Some(true) {
+        if ready_to_continue {
             break 'env;
         }
     }
@@ -257,9 +257,9 @@ to elevate your productivity with pace.";
     let confirmation = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you want to continue?")
         .default(true)
-        .interact_opt()?;
+        .interact()?;
 
-    if confirmation == Some(false) {
+    if confirmation {
         eyre::bail!("Exiting setup assistant.");
     }
 
@@ -284,9 +284,9 @@ pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
     let confirmation = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(prompt)
         .default(true)
-        .interact_opt()?;
+        .interact()?;
 
-    if confirmation == Some(false) {
+    if confirmation {
         eyre::bail!("Exiting setup assistant. No changes were made.");
     } else {
         Ok(())
