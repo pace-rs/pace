@@ -34,16 +34,11 @@ use pace_core::{get_config_paths, PaceConfig};
 /// Subcommands need to be listed in an enum.
 #[derive(clap::Parser, Command, Debug, Runnable)]
 pub enum PaceCmd {
-    /// Starts tracking time for the specified activity.
-    Begin(begin::BeginCmd),
-
-    /// Stops time tracking for the most recent or all activities.
-    End(end::EndCmd),
-
-    // /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
-    // Export(export::ExportCmd),
     /// Crafts a pace configuration, a new project or shell completions
     Craft(craft::CraftCmd),
+
+    /// Starts tracking time for the specified activity.
+    Begin(begin::BeginCmd),
 
     /// Pauses the time tracking for the specified activity.
     Hold(hold::HoldCmd),
@@ -51,13 +46,19 @@ pub enum PaceCmd {
     /// Shows you at a glance what you're currently tracking.
     Now(now::NowCmd),
 
-    // /// Starts a Pomodoro session for the specified task, integrating the Pomodoro technique directly with your tasks.
-    // Pomo(pomo::PomoCmd),
     /// Resumes a previously paused activity, allowing you to continue where you left off.
     Resume(resume::ResumeCmd),
 
+    /// Stops time tracking for the most recent or all activities.
+    End(end::EndCmd),
+
     /// Get insights on your activities. You can specify various time frames or custom date ranges.
     Review(review::ReviewCmd),
+    // /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
+    // Export(export::ExportCmd),
+
+    // /// Starts a Pomodoro session for the specified task, integrating the Pomodoro technique directly with your tasks.
+    // Pomo(pomo::PomoCmd),
     // /// Sets various application configurations, including Pomodoro lengths and preferred review formats.
     // Set(set::SetCmd),
 
