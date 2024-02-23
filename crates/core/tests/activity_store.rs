@@ -402,3 +402,18 @@ fn test_activity_store_end_intermission_passes(
 
     Ok(())
 }
+
+#[rstest]
+fn test_activity_store_end_intermission_with_empty_log_passes(
+    activity_log_empty: ActivityLog,
+) -> TestResult<()> {
+    let store = ActivityStore::new(Box::new(InMemoryActivityStorage::new_with_activity_log(
+        activity_log_empty,
+    )));
+
+    let result = store.end_all_active_intermissions(None)?;
+
+    assert!(result.is_none());
+
+    Ok(())
+}

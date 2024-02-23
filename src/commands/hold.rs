@@ -38,13 +38,12 @@ impl HoldCmd {
 
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
-        let Some(activity) = activity_store.hold_last_unfinished_activity(time)? else {
-            eyre::bail!("No unfinished activities to hold.");
+        if let Some(activity) = activity_store.hold_last_unfinished_activity(time)? {
+            activity_store.sync()?;
+            println!("Held {activity}");
+        } else {
+            println!("No unfinished activities to hold.");
         };
-
-        activity_store.sync()?;
-
-        println!("Held {activity}");
 
         Ok(())
     }
