@@ -6,7 +6,7 @@ use clap::Parser;
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 use eyre::Result;
 
-use pace_core::{get_storage_from_config, ActivityQuerying, ActivityStore, SyncStorage};
+use pace_core::{get_storage_from_config, ActivityQuerying, ActivityStore};
 
 use crate::prelude::PACE_APP;
 
