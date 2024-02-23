@@ -6,6 +6,7 @@ use std::{
 
 use dialoguer::{
     console::{style, Term},
+    theme::ColorfulTheme,
     Confirm,
 };
 use eyre::Result;
@@ -86,7 +87,7 @@ impl Display for FinalSetupPaths {
 ///
 /// Returns `Ok(())` if the prompt succeeds
 pub(crate) fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
-    let env_var_knowledge = Confirm::new()
+    let env_var_knowledge = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you know how to set environment variables?")
         .default(true)
         .interact_opt()?;
@@ -112,7 +113,7 @@ pub(crate) fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> 
                     .blue()
             );
 
-        let ready_to_continue = Confirm::new()
+        let ready_to_continue = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt("Are you ready to continue?")
             .default(false)
             .interact_opt()?;
@@ -253,7 +254,7 @@ to elevate your productivity with pace.";
 
     println!("{intro_text}\n");
 
-    let confirmation = Confirm::new()
+    let confirmation = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you want to continue?")
         .default(true)
         .interact_opt()?;
@@ -280,7 +281,7 @@ to elevate your productivity with pace.";
 ///
 /// Returns `Ok(())` if the user confirms their choices
 pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
-    let confirmation = Confirm::new()
+    let confirmation = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(prompt)
         .default(true)
         .interact_opt()?;
