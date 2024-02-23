@@ -5,7 +5,7 @@ use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 use clap::Parser;
 use eyre::Result;
 
-use pace_core::{get_storage_from_config, ActivityStore, SyncStorage};
+// use pace_core::{get_storage_from_config, ActivityStore, SyncStorage};
 
 use crate::prelude::PACE_APP;
 
