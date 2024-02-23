@@ -195,3 +195,13 @@ match_same_arms = "warn"
 semicolon_if_nothing_returned = "warn"
 trivially_copy_pass_by_ref = "warn"
 module_name_repetitions = "allow"
+
+# cargo-binstall support
+# https://github.com/cargo-bins/cargo-binstall/blob/HEAD/SUPPORT.md
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/{ bin }-v{ version }/{ bin }-v{ version }-{ target }{ archive-suffix }"
+bin-dir = "{ bin }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "txz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
