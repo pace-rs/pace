@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use chrono::{NaiveDate, NaiveDateTime};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     config::{ActivityLogStorageKind, PaceConfig},
@@ -206,7 +207,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
 /// This is useful for keeping track of the current state of activities and making sure they are properly managed.
 ///
 /// For example, you might want to start a new activity, end an activity that is currently running, or hold an activity temporarily.
-pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
+pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + ActivityQuerying {
     /// Start an activity in the storage backend.
     ///
     /// # Arguments
@@ -262,6 +263,24 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
         end_time: Option<NaiveDateTime>,
     ) -> PaceOptResult<Vec<Activity>>;
 
+    /// End all active intermissions in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `time` - The time (HH:MM) to end the intermissions at. If `None`, the current time is used.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the intermissions cannot be ended.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the intermissions that were ended. Returns Ok(None) if no intermissions were ended.
+    fn end_all_active_intermissions(
+        &self,
+        end_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<Vec<Activity>>;
+
     /// End the last unfinished activity in the storage backend.
     ///
     /// # Arguments
@@ -284,7 +303,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     ///
     /// # Arguments
     ///
-    /// * `time` - The time (HH:MM) to hold the activity at. If `None`, the current time is used.
+    /// * `hold_time` - The time (HH:MM) to hold the activity at. If `None`, the current time is used.
     ///
     /// # Errors
     ///
@@ -294,9 +313,13 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps {
     ///
     /// The activity that was held if there was an unfinished activity to hold.
     /// If there are no activities to hold, it should return `Ok(None)`.
+    ///
+    /// # Note
+    ///
+    /// This function should not be used to hold an activity that is already held. It should only be used to hold the last unfinished activity.
     fn hold_last_unfinished_activity(
         &self,
-        end_time: Option<NaiveDateTime>,
+        hold_time: Option<NaiveDateTime>,
     ) -> PaceOptResult<Activity>;
 }
 
@@ -323,6 +346,33 @@ pub trait ActivityQuerying: ActivityReadOps {
         Ok(self
             .list_activities(ActivityFilter::Active)?
             .map(FilteredActivities::into_log))
+    }
+
+    /// Get the latest active activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// The latest active activity.
+    /// If no activity is found, it should return `Ok(None)`.
+    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
+        let Some(current) = self.list_current_activities()? else {
+            // There are no active activities at all
+            return Ok(None);
+        };
+
+        let activity = current
+            .activities()
+            .par_iter()
+            .find_first(|activity| activity.is_active() && !activity.is_active_intermission())
+            .cloned();
+
+        drop(current);
+
+        Ok(activity)
     }
 
     /// Find activities within a specific date range.
@@ -359,17 +409,21 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>>;
 
-    /// Get the latest active activity.
+    /// List all active intermissions from the storage backend.
     ///
     /// # Errors
     ///
-    /// This function should return an error if the activity cannot be loaded.
+    /// This function should return an error if the activities cannot be loaded.
     ///
     /// # Returns
     ///
-    /// The latest active activity.
-    /// If no activity is found, it should return `Ok(None)`.
-    fn latest_active_activity(&self) -> PaceOptResult<Activity>;
+    /// A collection of the activities that are currently active intermissions.
+    /// If no activities are found, it should return `Ok(None)`.
+    fn list_active_intermissions(&self) -> PaceOptResult<ActivityLog> {
+        Ok(self
+            .list_activities(ActivityFilter::ActiveIntermission)?
+            .map(FilteredActivities::into_log))
+    }
 }
 
 /// Tagging Activities

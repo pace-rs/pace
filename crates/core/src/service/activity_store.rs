@@ -37,10 +37,16 @@ impl ActivityStore {
     /// Create a new `ActivityStore`
     #[must_use]
     pub fn new(storage: Box<dyn ActivityStorage>) -> Self {
-        Self {
+        let store = Self {
             cache: ActivityStoreCache::default(),
             storage,
-        }
+        };
+
+        store
+            .setup_storage()
+            .expect("Should not fail to setup storage.");
+
+        store
     }
 }
 
@@ -113,9 +119,16 @@ impl ActivityStateManagement for ActivityStore {
 
     fn hold_last_unfinished_activity(
         &self,
-        end_time: Option<NaiveDateTime>,
+        hold_time: Option<NaiveDateTime>,
     ) -> PaceOptResult<Activity> {
-        self.storage.hold_last_unfinished_activity(end_time)
+        self.storage.hold_last_unfinished_activity(hold_time)
+    }
+
+    fn end_all_active_intermissions(
+        &self,
+        end_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<Vec<Activity>> {
+        self.storage.end_all_active_intermissions(end_time)
     }
 }
 
@@ -131,9 +144,5 @@ impl ActivityQuerying for ActivityStore {
 
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
         self.storage.list_activities_by_id()
-    }
-
-    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
-        self.storage.latest_active_activity()
     }
 }

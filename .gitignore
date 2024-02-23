@@ -2,3 +2,5 @@
 **/*.rs.bk
 *.profraw
 coverage/lcov.info
+
+.vscode

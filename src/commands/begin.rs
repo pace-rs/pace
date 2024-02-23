@@ -8,7 +8,7 @@ use crate::prelude::PACE_APP;
 
 use pace_core::{
     extract_time_or_now, get_storage_from_config, Activity, ActivityKind, ActivityStateManagement,
-    ActivityStorage, ActivityStore, PaceConfig, SyncStorage,
+    ActivityStore, PaceConfig, SyncStorage,
 };
 
 /// `begin` subcommand
@@ -83,14 +83,13 @@ impl BeginCmd {
 
         let activity = Activity::builder()
             .description(description.clone())
-            .begin(date_time.into())
+            .begin(date_time)
             .kind(ActivityKind::default())
             .category(category.clone())
             .build();
 
         let activity_store = ActivityStore::new(get_storage_from_config(config)?);
 
-        activity_store.setup_storage()?;
         let activity_id = activity_store.begin_activity(activity.clone())?;
 
         if let Some(og_activity_id) = activity.guid() {

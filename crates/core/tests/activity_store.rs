@@ -2,8 +2,9 @@
 
 use chrono::{Local, NaiveDateTime};
 use pace_core::{
-    Activity, ActivityFilter, ActivityGuid, ActivityLog, ActivityReadOps, ActivityStore,
-    ActivityWriteOps, BeginDateTime, InMemoryActivityStorage, PaceResult, TestResult,
+    Activity, ActivityFilter, ActivityGuid, ActivityLog, ActivityReadOps, ActivityStateManagement,
+    ActivityStore, ActivityWriteOps, BeginDateTime, InMemoryActivityStorage, PaceResult,
+    TestResult,
 };
 use rstest::{fixture, rstest};
 use similar_asserts::assert_eq;
@@ -57,6 +58,20 @@ fn activity_log_with_content() -> (Vec<Activity>, ActivityLog) {
 }
 
 #[fixture]
+fn activity_log_for_intermissions() -> (Vec<Activity>, ActivityLog) {
+    let time_30_min_ago = Local::now().naive_local() - chrono::Duration::minutes(30);
+    let begin_time = BeginDateTime::new(time_30_min_ago);
+
+    let activities = vec![Activity::builder()
+        .begin(begin_time)
+        .description("Test Description".to_string())
+        .category("Test::Intermission".to_string())
+        .build()];
+
+    (activities.clone(), ActivityLog::from_iter(activities))
+}
+
+#[fixture]
 fn activity_store_with_item(
     activity_log_empty: ActivityLog,
 ) -> TestResult<(ActivityGuid, Activity, ActivityStore)> {
@@ -66,7 +81,7 @@ fn activity_store_with_item(
 
     let activity = Activity::builder()
         .description("Test Description".to_string())
-        .category(Some("Test::Category".to_string()))
+        .category("Test::Category".to_string())
         .build();
 
     let activity_id = store.create_activity(activity.clone())?;
@@ -82,7 +97,7 @@ fn test_activity_store_create_activity_passes(activity_log_empty: ActivityLog) -
 
     let activity = Activity::builder()
         .description("Test Description".to_string())
-        .category(Some("Test::Category".to_string()))
+        .category("Test::Category".to_string())
         .build();
 
     let og_activity = activity.clone();
@@ -113,7 +128,7 @@ fn test_activity_store_create_activity_fails(
     let activity = Activity::builder()
         .guid(id)
         .description("Test Description".to_string())
-        .category(Some("Test::Category".to_string()))
+        .category("Test::Category".to_string())
         .build();
 
     assert!(store.create_activity(activity).is_err());
@@ -231,7 +246,7 @@ fn test_activity_store_update_activity_passes(
 
     let mut new_activity = Activity::builder()
         .description(updated_test_desc.to_string())
-        .category(Some(updated_test_cat))
+        .category(updated_test_cat)
         .build();
 
     let old_activity = store.update_activity(og_activity_id, new_activity.clone())?;
@@ -287,7 +302,7 @@ fn test_activity_store_update_activity_fails(
 
     let new_activity = Activity::builder()
         .description("test".to_string())
-        .category(Some("test".to_string()))
+        .category("test".to_string())
         .build();
 
     let activity_id = ActivityGuid::default();
@@ -296,30 +311,94 @@ fn test_activity_store_update_activity_fails(
 }
 
 #[rstest]
-fn test_activity_store_begin_intermission_passes() -> PaceResult<()> {
-    let toml_string = r#"
-[[activities]]
-id = "01HQ8B27751H7QPBD2V7CZD1B7"
-description = "Intermission Test"
-begin = "2024-02-22T13:01:25"
-kind = "intermission"
-parent-id = "01HQ8B1WS5X0GZ660738FNED91"
+fn test_activity_store_begin_intermission_passes(
+    activity_log_for_intermissions: (Vec<Activity>, ActivityLog),
+) -> PaceResult<()> {
+    let (og_activities, activity_log) = activity_log_for_intermissions;
 
-[[activities]]
-id = "01HQ8B1WS5X0GZ660738FNED91"
-category = "MyCategory::SubCategory"
-description = "Intermission Test"
-begin = "2024-02-22T13:01:14"
-kind = "activity"
-"#;
-
-    let activity_log = toml::from_str::<ActivityLog>(toml_string)?;
-
-    let _store = ActivityStore::new(Box::new(InMemoryActivityStorage::new_with_activity_log(
+    let store = ActivityStore::new(Box::new(InMemoryActivityStorage::new_with_activity_log(
         activity_log,
     )));
 
-    // TODO!: Implement intermission handling.
+    let _held_activity = store.hold_last_unfinished_activity(None)?;
+
+    let activities = store
+        .list_activities(ActivityFilter::All)?
+        .expect("Should have activities.")
+        .into_log();
+
+    assert_eq!(activities.activities().len(), 2);
+
+    let intermission = activities
+        .activities()
+        .iter()
+        .find(|a| a.is_active_intermission())
+        .expect("Should have intermission.");
+
+    assert_eq!(
+        intermission.category(),
+        &Some("Test::Intermission".to_string())
+    );
+
+    assert_eq!(
+        intermission.description(),
+        &Some("Test Description".to_string())
+    );
+
+    assert_eq!(intermission.is_active_intermission(), true);
+
+    assert!(intermission.activity_end_options().is_none());
+
+    assert_eq!(
+        intermission.parent_id().unwrap(),
+        og_activities.first().unwrap().guid().unwrap()
+    );
+
+    // dbg!(&intermission);
+    // dbg!(&activities);
+
+    Ok(())
+}
+
+#[rstest]
+fn test_activity_store_end_intermission_passes(
+    activity_log_for_intermissions: (Vec<Activity>, ActivityLog),
+) -> PaceResult<()> {
+    let (_og_activities, activity_log) = activity_log_for_intermissions;
+
+    let store = ActivityStore::new(Box::new(InMemoryActivityStorage::new_with_activity_log(
+        activity_log,
+    )));
+
+    let _held_activity = store.hold_last_unfinished_activity(None)?;
+
+    let activities = store
+        .list_activities(ActivityFilter::All)?
+        .expect("Should have activities.")
+        .into_log();
+
+    assert_eq!(activities.activities().len(), 2);
+
+    let ended_intermissions = store.end_all_active_intermissions(None)?.unwrap();
+
+    let activities = store
+        .list_activities(ActivityFilter::All)?
+        .expect("Should have activities.")
+        .into_log();
+
+    // No new intermissions should be created
+    assert_eq!(activities.activities().len(), 2);
+
+    dbg!(&ended_intermissions);
+
+    // There should be one ended intermission
+    assert_eq!(ended_intermissions.len(), 1);
+
+    assert!(ended_intermissions
+        .first()
+        .unwrap()
+        .activity_end_options()
+        .is_some());
 
     Ok(())
 }
