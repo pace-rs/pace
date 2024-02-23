@@ -47,21 +47,27 @@ for more information on how to get started.
 
 ## Installation
 
-<!-- TODO! ### From binaries
+### From binaries
 
 #### [cargo-binstall](https://crates.io/crates/cargo-binstall)
 
 ```bash
 cargo binstall pace-rs
-``` -->
+```
 
-<!-- TODO! #### Windows
+TODO! #### Windows
 
 ##### [Scoop](https://scoop.sh/)
 
-```bash
+<!-- TODO!: When official
+ ```bash
 scoop install pace
 ``` -->
+
+```bash
+scoop bucket add pace https://github.com/pace-rs/pace/
+scoop install pace
+```
 
 Check out the [releases](https://github.com/pace-rs/pace/releases).
 
