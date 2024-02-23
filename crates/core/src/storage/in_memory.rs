@@ -347,7 +347,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let time = hold_time.unwrap_or_else(|| Local::now().naive_local().round_subsecs(0));
 
         // Get id from last activity that is not ended
-        let Some(active_activity) = self.latest_active_activity()? else {
+        let Some(active_activity) = self.most_recent_active_activity()? else {
             // There are no active activities
             return Ok(None);
         };

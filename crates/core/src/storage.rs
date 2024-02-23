@@ -358,7 +358,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// The latest active activity.
     /// If no activity is found, it should return `Ok(None)`.
-    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
+    fn most_recent_active_activity(&self) -> PaceOptResult<Activity> {
         let Some(current) = self.list_current_activities()? else {
             // There are no active activities at all
             return Ok(None);
