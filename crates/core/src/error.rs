@@ -120,6 +120,8 @@ pub enum ActivityLogErrorKind {
     ActivityIdAlreadyInUse(ActivityGuid),
     /// Failed to parse duration '{0}' from activity log, please use only numbers >= 0
     ParsingDurationFailed(String),
+    /// Activity in the ActivityLog has a different id than the one provided
+    ActivityIdMismatch(ActivityGuid, ActivityGuid),
 }
 
 trait PaceErrorMarker: Error {}

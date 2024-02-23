@@ -10,6 +10,9 @@ pub enum ActivityFilter {
     /// Active, currently running activities
     Active,
 
+    /// Active, currently running intermissions
+    ActiveIntermission,
+
     /// Archived activities
     Archived,
 
@@ -26,6 +29,9 @@ pub enum FilteredActivities {
     /// Active, currently running activities
     Active(ActivityLog),
 
+    /// Active, currently running activities
+    ActiveIntermission(ActivityLog),
+
     /// Archived activities
     Archived(ActivityLog),
 
@@ -41,7 +47,8 @@ impl FilteredActivities {
             Self::All(activities)
             | Self::Active(activities)
             | Self::Archived(activities)
-            | Self::Ended(activities) => activities,
+            | Self::Ended(activities)
+            | Self::ActiveIntermission(activities) => activities,
         }
     }
 }

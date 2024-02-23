@@ -7,8 +7,8 @@ use eyre::Result;
 use crate::prelude::PACE_APP;
 
 use pace_core::{
-    get_storage_from_config, parse_time_from_user_input, ActivityStateManagement, ActivityStorage,
-    ActivityStore, SyncStorage,
+    get_storage_from_config, parse_time_from_user_input, ActivityStateManagement, ActivityStore,
+    SyncStorage,
 };
 /// `end` subcommand
 #[derive(Command, Debug, Parser)]
@@ -32,6 +32,8 @@ impl Runnable for EndCmd {
     }
 }
 
+// TODO!: End command needs to end all activities that are currently running
+// including intermissions etc.
 impl EndCmd {
     fn inner_run(&self) -> Result<()> {
         let Self {
@@ -41,8 +43,6 @@ impl EndCmd {
         let time = parse_time_from_user_input(time)?;
 
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
-
-        activity_store.setup_storage()?;
 
         if *only_last {
             if let Some(last_activity) = activity_store.end_last_unfinished_activity(time)? {

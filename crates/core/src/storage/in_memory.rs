@@ -17,6 +17,7 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
+    ActivityKind, ActivityKindOptions,
 };
 
 /// Type for shared `ActivityLog`
@@ -123,6 +124,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
             .iter()
             .filter(|activity| match filter {
                 ActivityFilter::Active => activity.is_active(),
+                ActivityFilter::ActiveIntermission => activity.is_active_intermission(),
                 ActivityFilter::Ended => activity.has_ended(),
                 ActivityFilter::All => true,
                 ActivityFilter::Archived => false, // TODO: Implement archived filter
@@ -139,6 +141,9 @@ impl ActivityReadOps for InMemoryActivityStorage {
         match filter {
             ActivityFilter::All => Ok(Some(FilteredActivities::All(filtered.clone()))),
             ActivityFilter::Active => Ok(Some(FilteredActivities::Active(filtered.clone()))),
+            ActivityFilter::ActiveIntermission => Ok(Some(FilteredActivities::ActiveIntermission(
+                filtered.clone(),
+            ))),
             ActivityFilter::Archived => Ok(Some(FilteredActivities::Archived(filtered.clone()))),
             ActivityFilter::Ended => Ok(Some(FilteredActivities::Ended(filtered.clone()))),
         }
@@ -337,9 +342,120 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
     fn hold_last_unfinished_activity(
         &self,
-        _end_time: Option<NaiveDateTime>,
+        hold_time: Option<NaiveDateTime>,
     ) -> PaceOptResult<Activity> {
-        todo!("Implement hold_last_unfinished_activity for InMemoryActivityStorage")
+        let time = hold_time.unwrap_or_else(|| Local::now().naive_local().round_subsecs(0));
+
+        // Get id from last activity that is not ended
+        let Some(active_activity) = self.most_recent_active_activity()? else {
+            // There are no active activities
+            return Ok(None);
+        };
+
+        // Check if the latest active activity is already having an intermission
+        // TODO: Refactor, that should be way easier to do
+        if let Some(intermissions) = self.list_active_intermissions()? {
+            if intermissions.iter().any(|intermission| {
+                intermission
+                    .activity_kind_options()
+                    .as_ref()
+                    .map(|kind| {
+                        let Some(parent_id) = kind.parent_id() else {
+                            return false;
+                        };
+
+                        let Some(activity_id) = active_activity.guid() else {
+                            return false;
+                        };
+
+                        parent_id == activity_id
+                    })
+                    .unwrap_or(false)
+            }) {
+                // There is already an intermission for an active activity
+                return Ok(None);
+            }
+        };
+
+        let Some(parent_id) = active_activity.guid() else {
+            return Err(ActivityLogErrorKind::ActivityIdNotSet.into());
+        };
+
+        let activity_kind_opts = ActivityKindOptions::new(*parent_id);
+
+        let intermission = Activity::builder()
+            .begin(time)
+            .kind(ActivityKind::Intermission)
+            .description(
+                active_activity
+                    .description()
+                    .clone()
+                    .unwrap_or_else(|| format!("Holding {active_activity}")),
+            )
+            .category(active_activity.category().clone())
+            .activity_kind_options(activity_kind_opts)
+            .build();
+
+        let id = self.create_activity(intermission.clone())?;
+
+        if id
+            != intermission
+                .guid()
+                .ok_or_else(|| ActivityLogErrorKind::ActivityIdNotSet)?
+        {
+            return Err(ActivityLogErrorKind::ActivityIdMismatch(
+                id,
+                intermission
+                    .guid()
+                    .expect("ID for activity should be existing at this point."),
+            )
+            .into());
+        }
+
+        Ok(Some(active_activity))
+    }
+
+    fn end_all_active_intermissions(
+        &self,
+        end_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<Vec<Activity>> {
+        let mut ended_intermissions = vec![];
+
+        let end_time = end_time.unwrap_or_else(|| Local::now().naive_local().round_subsecs(0));
+
+        let Ok(mut activities) = self.activities.lock() else {
+            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+        };
+
+        activities
+            .activities_mut()
+            .iter_mut()
+            .filter(|activity| activity.is_active_intermission())
+            .for_each(|activity| {
+                match calculate_duration(activity.begin(), end_time) {
+                    Ok(duration) => {
+                        let end_opts = ActivityEndOptions::new(end_time, duration);
+                        activity.end_activity(end_opts);
+
+                        ended_intermissions.push(activity.clone());
+                    }
+                    Err(_) => {
+                        log::warn!(
+                            "Activity {} ends before it began. That's impossible. Skipping \
+                                 activity.",
+                            activity
+                        );
+                    }
+                };
+            });
+
+        drop(activities);
+
+        if ended_intermissions.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some(ended_intermissions))
     }
 }
 
@@ -356,25 +472,5 @@ impl ActivityQuerying for InMemoryActivityStorage {
         &self,
     ) -> PaceOptResult<std::collections::BTreeMap<ActivityGuid, Activity>> {
         todo!("Implement list_activities_by_id for InMemoryActivityStorage")
-    }
-
-    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
-        let Ok(activities) = self.activities.lock() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
-        };
-
-        let activity = activities
-            .activities()
-            .par_iter()
-            .find_first(|activity| {
-                activity.is_active()
-                    && !activity.kind().is_intermission()
-                    && !activity.kind().is_pomodoro_intermission()
-            })
-            .cloned();
-
-        drop(activities);
-
-        Ok(activity)
     }
 }

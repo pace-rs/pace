@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use dialoguer::Select;
+use dialoguer::{theme::ColorfulTheme, Select};
 use eyre::Result;
 use tracing::debug;
 
@@ -22,7 +22,7 @@ use crate::setup::FinalSetupPaths;
 pub(crate) fn prompt_activity_log_path(activity_log_paths: &[String]) -> Result<FinalSetupPaths> {
     let activity_log_path_select_text = r"Please select the location for your activity log";
 
-    let selection = Select::new()
+    let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt(activity_log_path_select_text)
         .clear(true)
         .items(activity_log_paths)
@@ -69,7 +69,7 @@ pub(crate) fn prompt_config_file_path(
 ) -> Result<FinalSetupPaths> {
     let config_path_select_text = r"Please select the location for your configuration";
 
-    let selection = Select::new()
+    let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt(config_path_select_text)
         .clear(true)
         .items(config_paths)

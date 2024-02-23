@@ -101,35 +101,38 @@ enum PomodoroCycle {
 #[derive(Merge)]
 pub struct Activity {
     /// The activity's unique identifier
-    #[builder(default = Some(ActivityGuid::default()), setter(strip_option))]
+    #[builder(default = Some(ActivityGuid::default()), setter(strip_option, into))]
     #[getset(get_copy, get_mut = "pub")]
     #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    #[merge(skip)]
     guid: Option<ActivityGuid>,
 
     /// The category of the activity
     // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
     // TODO: Reconsider when we implement the project management part
     // category: Category,
-    #[builder(default)]
+    #[builder(default, setter(into))]
     #[getset(get = "pub", get_mut = "pub")]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
     category: Option<String>,
 
     /// The description of the activity
     // This needs to be an Optional, because we use the whole activity struct
     // as well for intermissions, which don't have a description
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(strip_option, into))]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
     description: Option<String>,
 
     /// The start date and time of the activity
+    #[builder(default, setter(into))]
     #[getset(get = "pub")]
-    #[builder(default)]
     #[merge(skip)]
     begin: BeginDateTime,
 
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     #[builder(default)]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", get_mut = "pub")]
     activity_end_options: Option<ActivityEndOptions>,
 
@@ -182,20 +185,38 @@ impl ActivityEndOptions {
 }
 
 #[derive(
-    Debug, Serialize, Deserialize, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq,
+    Debug,
+    Serialize,
+    Deserialize,
+    TypedBuilder,
+    Getters,
+    Setters,
+    MutGetters,
+    Clone,
+    Eq,
+    PartialEq,
+    Default,
 )]
 #[getset(get = "pub")]
 #[derive(Merge)]
 #[serde(rename_all = "kebab-case")]
 pub struct ActivityKindOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(skip)]
     parent_id: Option<ActivityGuid>,
+
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[builder(default = false)]
+    #[getset(get = "pub", get_mut = "pub")]
+    #[merge(strategy = merge::bool::overwrite_false)]
+    is_archived: bool,
 }
 
 impl ActivityKindOptions {
     pub fn new(parent_id: impl Into<Option<ActivityGuid>>) -> Self {
         Self {
             parent_id: parent_id.into(),
+            is_archived: false,
         }
     }
 }
@@ -240,10 +261,14 @@ impl Display for Activity {
             }
         };
 
+        let nop_desc = "No description".to_string();
+        let nop_cat = "Uncategorized".to_string();
+
         write!(
             f,
-            "Activity: \"{}\" started {}",
-            self.description.as_deref().unwrap_or("No description"),
+            "Activity: \"{}\" ({}) started {}",
+            self.description().as_ref().unwrap_or(&nop_desc),
+            self.category().as_ref().unwrap_or(&nop_cat),
             rel_time,
         )
     }
@@ -266,15 +291,26 @@ impl rusqlite::types::ToSql for ActivityGuid {
 
 impl Activity {
     /// If the activity is active, so if it is currently being tracked
+    /// Intermissions are not considered active activities, please use
+    /// [`is_active_intermission`] for that
     #[must_use]
     pub fn is_active(&self) -> bool {
         self.activity_end_options().is_none()
+            && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
+    }
+
+    /// If the activity is an active intermission
+    #[must_use]
+    pub fn is_active_intermission(&self) -> bool {
+        self.activity_end_options().is_none()
+            && (self.kind.is_intermission() || self.kind.is_pomodoro_intermission())
     }
 
     /// If the activity has ended
     #[must_use]
     pub fn has_ended(&self) -> bool {
         self.activity_end_options().is_some()
+            && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
     }
 
     /// End the activity
@@ -287,6 +323,20 @@ impl Activity {
         self.activity_end_options = Some(end_opts);
     }
 
+    /// End the activity with a given end date and time
+    ///
+    /// # Arguments
+    ///
+    /// * `begin` - The begin date and time of the activity (for calculating the duration)
+    /// * `end` - The end date and time of the activity
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the duration cannot be calculated
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the activity is ended successfully
     pub fn end_activity_with_duration_calc(
         &mut self,
         begin: BeginDateTime,
@@ -295,6 +345,19 @@ impl Activity {
         let end_opts = ActivityEndOptions::new(end, calculate_duration(&begin, end)?);
         self.end_activity(end_opts);
         Ok(())
+    }
+
+    /// Get `parent_id` if activity is intermission
+    ///
+    /// # Returns
+    ///
+    /// * `Some(ActivityGuid)` - The `parent_id` of the activity
+    /// * `None` - If the activity is not an intermission
+    #[must_use]
+    pub fn parent_id(&self) -> Option<ActivityGuid> {
+        self.activity_kind_options
+            .as_ref()
+            .and_then(|opts| opts.parent_id)
     }
 }
 

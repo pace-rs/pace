@@ -151,9 +151,16 @@ impl ActivityStateManagement for TomlActivityStorage {
 
     fn hold_last_unfinished_activity(
         &self,
-        end_time: Option<NaiveDateTime>,
+        hold_time: Option<NaiveDateTime>,
     ) -> PaceOptResult<Activity> {
-        self.cache.hold_last_unfinished_activity(end_time)
+        self.cache.hold_last_unfinished_activity(hold_time)
+    }
+
+    fn end_all_active_intermissions(
+        &self,
+        end_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<Vec<Activity>> {
+        self.cache.end_all_active_intermissions(end_time)
     }
 }
 
@@ -187,9 +194,5 @@ impl ActivityQuerying for TomlActivityStorage {
     ) -> PaceResult<ActivityLog> {
         self.cache
             .find_activities_in_date_range(start_date, end_date)
-    }
-
-    fn latest_active_activity(&self) -> PaceOptResult<Activity> {
-        self.cache.latest_active_activity()
     }
 }
