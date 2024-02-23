@@ -381,6 +381,11 @@ fn test_activity_store_end_intermission_passes(
 
     let ended_intermissions = store.end_all_active_intermissions(None)?.unwrap();
 
+    // There should be one ended intermission
+    assert_eq!(ended_intermissions.len(), 1);
+
+    let intermission = ended_intermissions.first().unwrap();
+
     let activities = store
         .list_activities(ActivityFilter::All)?
         .expect("Should have activities.")
@@ -389,16 +394,11 @@ fn test_activity_store_end_intermission_passes(
     // No new intermissions should be created
     assert_eq!(activities.activities().len(), 2);
 
-    dbg!(&ended_intermissions);
+    assert!(intermission.activity_end_options().is_some());
 
-    // There should be one ended intermission
-    assert_eq!(ended_intermissions.len(), 1);
+    assert_eq!(intermission.is_active_intermission(), false);
 
-    assert!(ended_intermissions
-        .first()
-        .unwrap()
-        .activity_end_options()
-        .is_some());
+    dbg!(&activities.activities());
 
     Ok(())
 }
