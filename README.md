@@ -81,6 +81,8 @@ We are currently working on getting pace into the official Homebrew repository.
 TODO!: Check if needed and how easy it is supported with cargo-dist
 -->
 
+#### From GitHub
+
 Check out the [releases](https://github.com/pace-rs/pace/releases).
 
 ### From source
