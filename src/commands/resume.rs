@@ -45,6 +45,7 @@ impl ResumeCmd {
         let ResumeCmd { list } = self;
 
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
+
         if *list {
             // List activities to resume with fuzzy search and select
             // TODO: add symbols for intermissions, ended or archived activities
@@ -57,6 +58,8 @@ impl ResumeCmd {
             ))? {
                 let items: Vec<String> = activity_log
                     .iter()
+                    // TODO: With pomodoro, we might want to filter for activities that are not intermissions
+                    .filter(|activity| activity.kind().is_activity())
                     .map(|activity| activity.to_string())
                     .collect();
 
