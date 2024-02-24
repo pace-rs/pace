@@ -77,6 +77,16 @@ impl ActivityKind {
     pub fn is_pomodoro_intermission(&self) -> bool {
         matches!(self, Self::PomodoroIntermission)
     }
+
+    pub fn to_symbol(&self) -> &'static str {
+        match self {
+            Self::Activity => "📆",
+            Self::Task => "📋",
+            Self::Intermission => "⏸️",
+            Self::PomodoroWork => "🍅⏲️",
+            Self::PomodoroIntermission => "🍅⏸️",
+        }
+    }
 }
 
 /// The cycle of pomodoro activity a user can track
@@ -266,7 +276,8 @@ impl Display for Activity {
 
         write!(
             f,
-            "Activity: \"{}\" ({}) started {}",
+            "{}  Activity: \"{}\" ({}) started {}",
+            self.kind.to_symbol(),
             self.description().as_ref().unwrap_or(&nop_desc),
             self.category().as_ref().unwrap_or(&nop_cat),
             rel_time,
