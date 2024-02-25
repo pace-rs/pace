@@ -124,6 +124,10 @@ pub enum ActivityLogErrorKind {
     ActivityIdMismatch(ActivityGuid, ActivityGuid),
     /// Activity already has an intermission: {0}
     ActivityAlreadyHasIntermission(Box<Activity>),
+    /// There have been some activities that have not been ended
+    ActivityNotEnded,
+    /// No active activity found
+    NoActiveActivityFound,
 }
 
 trait PaceErrorMarker: Error {}

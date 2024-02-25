@@ -15,6 +15,28 @@ use crate::{
     PaceResult,
 };
 
+#[derive(Debug, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default)]
+#[getset(get = "pub", get_mut = "pub")]
+pub struct ActivityItem {
+    guid: ActivityGuid,
+    activity: Activity,
+}
+
+impl From<Activity> for ActivityItem {
+    fn from(activity: Activity) -> Self {
+        Self {
+            guid: ActivityGuid::default(),
+            activity,
+        }
+    }
+}
+
+impl From<(ActivityGuid, Activity)> for ActivityItem {
+    fn from((guid, activity): (ActivityGuid, Activity)) -> Self {
+        Self { guid, activity }
+    }
+}
+
 /// The kind of activity a user can track
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, Copy)]
 #[serde(rename_all = "kebab-case")]
@@ -120,13 +142,6 @@ enum PomodoroCycle {
 #[getset(get = "pub")]
 #[derive(Merge)]
 pub struct Activity {
-    /// The activity's unique identifier
-    #[builder(default = Some(ActivityGuid::default()), setter(strip_option, into))]
-    #[getset(get_copy, get_mut = "pub")]
-    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
-    #[merge(skip)]
-    guid: Option<ActivityGuid>,
-
     /// The category of the activity
     // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
     // TODO: Reconsider when we implement the project management part
@@ -241,7 +256,7 @@ pub struct ActivityKindOptions {
 }
 
 impl ActivityKindOptions {
-    pub fn with_parent_id(parent_id: impl Into<Option<ActivityGuid>>) -> Self {
+    pub fn with_parent_id(parent_id: ActivityGuid) -> Self {
         Self {
             parent_id: parent_id.into(),
             ..Self::default()
@@ -385,6 +400,7 @@ impl Activity {
     /// * `duration` - The [`PaceDuration`] of the activity
     pub fn end_activity(&mut self, end_opts: ActivityEndOptions) {
         self.activity_end_options = Some(end_opts);
+        self.make_inactive();
     }
 
     /// End the activity with a given end date and time
@@ -437,7 +453,6 @@ mod tests {
     #[test]
     fn test_parse_single_toml_activity_passes() {
         let toml = r#"
-            id = "01F9Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3"
             category = "Work"
             description = "This is an example activity"
             end = "2021-08-01T12:00:00"
@@ -447,11 +462,6 @@ mod tests {
         "#;
 
         let activity: Activity = toml::from_str(toml).unwrap();
-
-        assert_eq!(
-            activity.guid.unwrap().to_string(),
-            "01F9Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3"
-        );
 
         assert_eq!(activity.category.as_ref().unwrap(), "Work");
 
@@ -484,7 +494,6 @@ mod tests {
     #[test]
     fn test_parse_single_toml_intermission_passes() {
         let toml = r#"
-            id = "01F9Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3"
             end = "2021-08-01T12:00:00"
             begin = "2021-08-01T10:00:00"
             duration = 50
@@ -493,11 +502,6 @@ mod tests {
         "#;
 
         let activity: Activity = toml::from_str(toml).unwrap();
-
-        assert_eq!(
-            activity.guid.unwrap().to_string(),
-            "01F9Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3"
-        );
 
         let ActivityEndOptions { end, duration } = activity.activity_end_options().clone().unwrap();
 

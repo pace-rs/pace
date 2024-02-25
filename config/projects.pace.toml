@@ -6,54 +6,39 @@
 # TODO: IDs are optional and can be generated with the `pace id`(??? is that sensible, or something else?) command.
 # TODO: Add a `pace projects init` command to generate a new project configuration file.
 
-[project]
-id = "01HPY7F03JBVKSWDNTM2RSBXSJ"
+[01HPY7F03JBVKSWDNTM2RSBXSJ]
 name = "Pace Project"
 description = "An example project managed with Pace."
-root_tasks_file = "tasks.toml" # Path to the root tasks file
+tasks-file = "./tasks.pace.toml" # Path to the root tasks file
 filters = ["*pace*"] # Optional: Define default filters for your project
 
 [defaults]
 # Optional: Define a default category for your project
-category = { id = "01HPY7F03K4AZMA0DVW3A1M0TG", name = "Uncategorized", description = "Uncategorized Content" }
-
-[[categories]]
-# Optional: Define categories for your project
-id = "01HPY7F03K3JCWK5ZJJ02TT12G"
-name = "Development"
-description = "Development related tasks"
-# Optional: Define subcategories for your category
-# TODO: Add support for subcategories
-subcategories = [
+categories = [
+  { id = "01HPY7F03K4AZMA0DVW3A1M0TG", name = "Uncategorized", description = "Uncategorized Content" },
   { id = "01HPY7F03K1H1A8A7S0K1ZCFX3", name = "Frontend", description = "Frontend Development" },
   { id = "01HPY7F03KSF8TXQQWZDF63DFD", name = "Backend", description = "Backend Development" },
   { id = "01HPY7F03KK3FGAJTHP2MBZA37", name = "Fullstack", description = "Fullstack Development" },
 ]
 
-[[categories]]
-# Optional: Define categories for your project
-id = "01HPY7F03KS1YHKT86BXSMMEMX"
-name = "Design"
-description = "Design related tasks"
-
-[[subprojects]]
+[01HPY7F03K6TT2KKFEYVJT79ZB]
 # Optional: Define subprojects or directories with their own tasks
-id = "01HPY7F03K6TT2KKFEYVJT79ZB"
 name = "Pace Subproject A"
 description = ""
-tasks_file = "subproject-a/tasks.toml"
+tasks-file = "subproject-a/tasks.toml"
 # Optional: Define default filters for your project
 filters = [
   "*pace*, *subproject-a",
 ]
+parent-id = "01HPY7F03JBVKSWDNTM2RSBXSJ"
 
-[[subprojects]]
+[01HPY7F03KF7VE3K9E51P0H1TB]
 # Optional: Define subprojects or directories with their own tasks
-id = "01HPY7F03KF7VE3K9E51P0H1TB"
 name = "Pace Subproject B"
 description = ""
-tasks_file = "subproject-b/tasks.toml"
+tasks-file = "subproject-b/tasks.toml"
 # Optional: Define default filters for your project
 filters = [
   "*pace*, *subproject-b",
 ]
+parent-id = "01HPY7F03JBVKSWDNTM2RSBXSJ"

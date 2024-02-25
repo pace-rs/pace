@@ -1,11 +1,14 @@
-use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::{
+    collections::{BTreeMap, HashSet, VecDeque},
+    sync::Arc,
+};
 
 use chrono::{prelude::NaiveDate, NaiveDateTime};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     domain::{
-        activity::{Activity, ActivityGuid},
+        activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
         filter::FilteredActivities,
     },
@@ -23,7 +26,7 @@ pub struct ActivityStore {
     cache: ActivityStoreCache,
 
     /// The storage backend
-    storage: Box<dyn ActivityStorage>,
+    storage: Arc<dyn ActivityStorage>,
 }
 
 /// TODO: Optimization for later to make lookup faster
@@ -37,7 +40,7 @@ struct ActivityStoreCache {
 impl ActivityStore {
     /// Create a new `ActivityStore`
     #[must_use]
-    pub fn new(storage: Box<dyn ActivityStorage>) -> Self {
+    pub fn new(storage: Arc<dyn ActivityStorage>) -> Self {
         let store = Self {
             cache: ActivityStoreCache::default(),
             storage,
@@ -64,7 +67,7 @@ impl SyncStorage for ActivityStore {
 }
 
 impl ActivityReadOps for ActivityStore {
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
         self.storage.read_activity(activity_id)
     }
 
@@ -77,7 +80,7 @@ impl ActivityReadOps for ActivityStore {
 }
 
 impl ActivityWriteOps for ActivityStore {
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
+    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
         self.storage.create_activity(activity)
     }
 
@@ -85,17 +88,17 @@ impl ActivityWriteOps for ActivityStore {
         &self,
         activity_id: ActivityGuid,
         activity: Activity,
-    ) -> PaceResult<Activity> {
+    ) -> PaceResult<ActivityItem> {
         self.storage.update_activity(activity_id, activity)
     }
 
-    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
+    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
         self.storage.delete_activity(activity_id)
     }
 }
 
 impl ActivityStateManagement for ActivityStore {
-    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
+    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
         self.storage.begin_activity(activity)
     }
 
@@ -103,23 +106,29 @@ impl ActivityStateManagement for ActivityStore {
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
-    ) -> PaceResult<ActivityGuid> {
+    ) -> PaceResult<ActivityItem> {
         self.storage.end_single_activity(activity_id, end_opts)
     }
 
-    fn end_all_unfinished_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<Activity>> {
+    fn end_all_unfinished_activities(
+        &self,
+        end_opts: EndOptions,
+    ) -> PaceOptResult<Vec<ActivityItem>> {
         self.storage.end_all_unfinished_activities(end_opts)
     }
 
-    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<Activity> {
+    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
         self.storage.end_last_unfinished_activity(end_opts)
     }
 
-    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<Activity> {
+    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<ActivityItem> {
         self.storage.hold_last_unfinished_activity(hold_opts)
     }
 
-    fn end_all_active_intermissions(&self, end_opts: EndOptions) -> PaceOptResult<Vec<Activity>> {
+    fn end_all_active_intermissions(
+        &self,
+        end_opts: EndOptions,
+    ) -> PaceOptResult<Vec<ActivityGuid>> {
         self.storage.end_all_active_intermissions(end_opts)
     }
 
@@ -127,7 +136,7 @@ impl ActivityStateManagement for ActivityStore {
         &self,
         activity_id: Option<ActivityGuid>,
         resume_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Activity> {
+    ) -> PaceOptResult<ActivityItem> {
         self.storage.resume_activity(activity_id, resume_time)
     }
 }

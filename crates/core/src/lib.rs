@@ -21,7 +21,10 @@ pub use crate::{
         ReviewConfig,
     },
     domain::{
-        activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityKind, ActivityKindOptions},
+        activity::{
+            Activity, ActivityEndOptions, ActivityGuid, ActivityItem, ActivityKind,
+            ActivityKindOptions,
+        },
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
         intermission::IntermissionAction,

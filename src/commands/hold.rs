@@ -66,7 +66,7 @@ impl HoldCmd {
 
         if let Some(activity) = activity_store.hold_last_unfinished_activity(hold_opts)? {
             activity_store.sync()?;
-            println!("Held {activity}");
+            println!("Held {}", activity.activity());
         } else {
             println!("No unfinished activities to hold.");
         };

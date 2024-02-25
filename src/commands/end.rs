@@ -48,13 +48,13 @@ impl EndCmd {
 
         if *only_last {
             if let Some(last_activity) = activity_store.end_last_unfinished_activity(end_opts)? {
-                println!("Ended {last_activity}");
+                println!("Ended {}", last_activity.activity());
             }
         } else if let Some(unfinished_activities) =
             activity_store.end_all_unfinished_activities(end_opts)?
         {
             for activity in &unfinished_activities {
-                println!("Ended {activity}");
+                println!("Ended {}", activity.activity());
             }
         } else {
             println!("No unfinished activities to end.");

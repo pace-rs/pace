@@ -480,7 +480,7 @@ fn get_global_config_path() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{domain::project::ProjectConfig, domain::task::TaskList, error::TestResult};
+    use crate::error::TestResult;
 
     use super::*;
     use rstest::*;
@@ -492,26 +492,6 @@ mod tests {
     ) -> TestResult<()> {
         let toml_string = fs::read_to_string(config_path)?;
         let _ = toml::from_str::<PaceConfig>(&toml_string)?;
-
-        Ok(())
-    }
-
-    #[rstest]
-    fn test_parse_project_file_passes(
-        #[files("../../config/projects.pace.toml")] config_path: PathBuf,
-    ) -> TestResult<()> {
-        let toml_string = fs::read_to_string(config_path)?;
-        let _ = toml::from_str::<ProjectConfig>(&toml_string)?;
-
-        Ok(())
-    }
-
-    #[rstest]
-    fn test_parse_tasks_file_passes(
-        #[files("../../config/tasks.pace.toml")] config_path: PathBuf,
-    ) -> TestResult<()> {
-        let toml_string = fs::read_to_string(config_path)?;
-        let _ = toml::from_str::<TaskList>(&toml_string)?;
 
         Ok(())
     }

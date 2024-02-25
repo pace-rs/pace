@@ -1,4 +1,4 @@
-use crate::domain::activity_log::ActivityLog;
+use crate::ActivityGuid;
 use strum::EnumIter;
 
 /// Filter for activities
@@ -28,28 +28,28 @@ pub enum ActivityFilter {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FilteredActivities {
     /// Everything, activities, intermissions, archived, and ended
-    Everything(ActivityLog),
+    Everything(Vec<ActivityGuid>),
 
     /// Only activities, no intermissions
-    OnlyActivities(ActivityLog),
+    OnlyActivities(Vec<ActivityGuid>),
 
     /// Active, currently running activities
-    Active(ActivityLog),
+    Active(Vec<ActivityGuid>),
 
     /// Active, currently running activities
-    ActiveIntermission(ActivityLog),
+    ActiveIntermission(Vec<ActivityGuid>),
 
     /// Archived activities
-    Archived(ActivityLog),
+    Archived(Vec<ActivityGuid>),
 
     /// Activities that have ended
-    Ended(ActivityLog),
+    Ended(Vec<ActivityGuid>),
 }
 
 impl FilteredActivities {
-    /// Convert the filtered activities into an activity log
+    /// Convert the filtered activities into a vector of activity GUIDs
     #[must_use]
-    pub fn into_log(self) -> ActivityLog {
+    pub fn into_vec(self) -> Vec<ActivityGuid> {
         match self {
             Self::Everything(activities)
             | Self::OnlyActivities(activities)
