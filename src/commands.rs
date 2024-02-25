@@ -40,7 +40,7 @@ pub enum PaceCmd {
     /// Starts tracking time for the specified activity.
     Begin(begin::BeginCmd),
 
-    /// Pauses the time tracking for the specified activity.
+    /// Pauses the time tracking for the most recently active activity.
     Hold(hold::HoldCmd),
 
     /// Shows you at a glance what you're currently tracking.

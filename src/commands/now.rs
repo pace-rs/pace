@@ -6,7 +6,10 @@ use eyre::Result;
 
 use crate::prelude::PACE_APP;
 
-use pace_core::{get_storage_from_config, ActivityQuerying, ActivityStorage, ActivityStore};
+use pace_core::{
+    get_storage_from_config, ActivityItem, ActivityQuerying, ActivityReadOps, ActivityStorage,
+    ActivityStore,
+};
 
 /// `now` subcommand
 #[derive(Command, Debug, Parser)]
@@ -31,10 +34,14 @@ impl NowCmd {
 
         match activity_store.list_current_activities()? {
             Some(activities) => {
-                activities
-                    .activities()
+                let activity_items = activities
                     .iter()
-                    .for_each(|activity| println!("{activity}"));
+                    .flat_map(|activity_id| activity_store.read_activity(*activity_id))
+                    .collect::<Vec<ActivityItem>>();
+
+                activity_items.iter().for_each(|activity| {
+                    println!("{}", activity.activity());
+                });
             }
             None => {
                 println!("No activities are currently running.");

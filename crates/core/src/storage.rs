@@ -1,12 +1,11 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use chrono::{NaiveDate, NaiveDateTime};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     config::{ActivityLogStorageKind, PaceConfig},
     domain::{
-        activity::{Activity, ActivityGuid},
+        activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
         review::ActivityStats,
@@ -14,6 +13,7 @@ use crate::{
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::file::TomlActivityStorage,
+    EndOptions, HoldOptions,
 };
 
 /// A type of storage that can be synced to a persistent medium - a file
@@ -38,20 +38,20 @@ pub mod in_memory;
 /// # Returns
 ///
 /// The storage backend.
-pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Box<dyn ActivityStorage>> {
-    let storage: Box<dyn ActivityStorage> = match config
+pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<dyn ActivityStorage>> {
+    let storage: Arc<dyn ActivityStorage> = match config
         .general()
         .activity_log_options()
         .activity_log_storage()
     {
-        ActivityLogStorageKind::File => Box::new(TomlActivityStorage::new(
+        ActivityLogStorageKind::File => Arc::new(TomlActivityStorage::new(
             config.general().activity_log_options().activity_log_path(),
         )?),
         ActivityLogStorageKind::Database => {
             return Err(PaceErrorKind::DatabaseStorageNotImplemented.into())
         }
         #[cfg(test)]
-        ActivityLogStorageKind::InMemory => Box::new(in_memory::InMemoryActivityStorage::new()),
+        ActivityLogStorageKind::InMemory => Arc::new(in_memory::InMemoryActivityStorage::new()),
     };
 
     Ok(storage)
@@ -118,7 +118,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// The activity that was read from the storage backend. If no activity is found, it should return `Ok(None)`.
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity>;
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem>;
 
     /// List activities from the storage backend.
     ///
@@ -154,7 +154,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity was created successfully it should return the ID of the created activity.
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityGuid>;
+    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem>;
 
     /// Update an existing activity in the storage backend.
     ///
@@ -178,12 +178,13 @@ pub trait ActivityWriteOps: ActivityReadOps {
     ///
     /// # Returns
     ///
-    /// If the activity was updated successfully it should return the activity before it was updated.
+    /// If the activity was updated successfully it should return the original activity before it was updated.
     fn update_activity(
         &self,
+        // TODO!: Refactor to UpdateOptions and ActivityItem
         activity_id: ActivityGuid,
-        activity: Activity,
-    ) -> PaceResult<Activity>;
+        updated_activity: Activity,
+    ) -> PaceResult<ActivityItem>;
 
     /// Delete an activity from the storage backend.
     ///
@@ -198,7 +199,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity was deleted successfully it should return the activity that was deleted.
-    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity>;
+    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem>;
 }
 
 /// Managing Activity State
@@ -221,7 +222,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// If the activity was started successfully it should return the ID of the started activity.
-    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
+    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
         self.create_activity(activity)
     }
 
@@ -230,7 +231,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Arguments
     ///
     /// * `activity_id` - The ID of the activity to end.
-    /// * `end_time` - The time (HH:MM) to end the activity at. If `None`, the current time is used.
+    /// * `end_opts` - The options to end the activity.
     ///
     /// # Errors
     ///
@@ -242,14 +243,14 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn end_single_activity(
         &self,
         activity_id: ActivityGuid,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceResult<ActivityGuid>;
+        end_opts: EndOptions,
+    ) -> PaceResult<ActivityItem>;
 
     /// End all unfinished activities in the storage backend.
     ///
     /// # Arguments
     ///
-    /// * `time` - The time (HH:MM) to end the activities at. If `None`, the current time is used.
+    /// * `end_opts` - The options to end the activities.
     ///
     /// # Errors
     ///
@@ -260,14 +261,14 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// A collection of the activities that were ended. Returns Ok(None) if no activities were ended.
     fn end_all_unfinished_activities(
         &self,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Vec<Activity>>;
+        end_opts: EndOptions,
+    ) -> PaceOptResult<Vec<ActivityItem>>;
 
     /// End all active intermissions in the storage backend.
     ///
     /// # Arguments
     ///
-    /// * `time` - The time (HH:MM) to end the intermissions at. If `None`, the current time is used.
+    /// * `end_opts` - The options to end the intermissions.
     ///
     /// # Errors
     ///
@@ -278,14 +279,14 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// A collection of the intermissions that were ended. Returns Ok(None) if no intermissions were ended.
     fn end_all_active_intermissions(
         &self,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Vec<Activity>>;
+        end_opts: EndOptions,
+    ) -> PaceOptResult<Vec<ActivityGuid>>;
 
     /// End the last unfinished activity in the storage backend.
     ///
     /// # Arguments
     ///
-    /// * `time` - The time (HH:MM) to end the activity at. If `None`, the current time is used.
+    /// * `end_opts` - The options to end the activity.
     ///
     /// # Errors
     ///
@@ -294,16 +295,13 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// The activity that was ended. Returns Ok(None) if no activity was ended.
-    fn end_last_unfinished_activity(
-        &self,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Activity>;
+    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem>;
 
     /// Hold an activity in the storage backend.
     ///
     /// # Arguments
     ///
-    /// * `hold_time` - The time (HH:MM) to hold the activity at. If `None`, the current time is used.
+    /// * `hold_opts` - The options to hold the activity.
     ///
     /// # Errors
     ///
@@ -317,10 +315,27 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Note
     ///
     /// This function should not be used to hold an activity that is already held. It should only be used to hold the last unfinished activity.
-    fn hold_last_unfinished_activity(
+    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<ActivityItem>;
+
+    /// Resume an activity in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to resume. If `None`, the last unfinished activity is resumed.
+    /// * `resume_time` - The time (HH:MM) to resume the activity at. If `None`, the current time is used.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be resumed.
+    ///
+    /// # Returns
+    ///
+    /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
+    fn resume_activity(
         &self,
-        hold_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Activity>;
+        activity_id: Option<ActivityGuid>,
+        resume_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<ActivityItem>;
 }
 
 /// Querying Activities
@@ -342,37 +357,10 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// # Returns
     ///
     /// A collection of the activities that are currently active.
-    fn list_current_activities(&self) -> PaceOptResult<ActivityLog> {
+    fn list_current_activities(&self) -> PaceOptResult<Vec<ActivityGuid>> {
         Ok(self
             .list_activities(ActivityFilter::Active)?
-            .map(FilteredActivities::into_log))
-    }
-
-    /// Get the latest active activity.
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the activity cannot be loaded.
-    ///
-    /// # Returns
-    ///
-    /// The latest active activity.
-    /// If no activity is found, it should return `Ok(None)`.
-    fn most_recent_active_activity(&self) -> PaceOptResult<Activity> {
-        let Some(current) = self.list_current_activities()? else {
-            // There are no active activities at all
-            return Ok(None);
-        };
-
-        let activity = current
-            .activities()
-            .par_iter()
-            .find_first(|activity| activity.is_active() && !activity.is_active_intermission())
-            .cloned();
-
-        drop(current);
-
-        Ok(activity)
+            .map(FilteredActivities::into_vec))
     }
 
     /// Find activities within a specific date range.
@@ -419,10 +407,10 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// A collection of the activities that are currently active intermissions.
     /// If no activities are found, it should return `Ok(None)`.
-    fn list_active_intermissions(&self) -> PaceOptResult<ActivityLog> {
+    fn list_active_intermissions(&self) -> PaceOptResult<Vec<ActivityGuid>> {
         Ok(self
             .list_activities(ActivityFilter::ActiveIntermission)?
-            .map(FilteredActivities::into_log))
+            .map(FilteredActivities::into_vec))
     }
 
     /// List the most recent activities from the storage backend.
@@ -439,20 +427,115 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// A collection of the most recent activities.
     /// If no activities are found, it should return `Ok(None)`.
-    fn list_most_recent_activities(&self, count: usize) -> PaceOptResult<ActivityLog> {
+    fn list_most_recent_activities(&self, count: usize) -> PaceOptResult<Vec<ActivityGuid>> {
         let filtered = self
-            .list_activities(ActivityFilter::All)?
-            .map(FilteredActivities::into_log);
+            .list_activities(ActivityFilter::Everything)?
+            .map(FilteredActivities::into_vec);
 
-        let Some(filtered) = filtered else {
+        let Some(mut filtered) = filtered else {
             return Ok(None);
         };
 
+        // TODO!: Actually check if we are sorted right way
+        filtered.sort();
+
         if filtered.len() > count {
-            Ok(Some((*filtered).clone().into_iter().take(count).collect()))
+            Ok(Some((*filtered).iter().take(count).cloned().collect()))
         } else {
             Ok(Some(filtered))
         }
+    }
+
+    /// Check if an activity is currently active.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to check.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be checked.
+    ///
+    /// # Returns
+    ///
+    /// If the activity is active, it should return `Ok(true)`. If it is not active, it should return `Ok(false)`.
+    fn is_activity_active(&self, activity_id: ActivityGuid) -> PaceResult<bool> {
+        let activity = self.read_activity(activity_id)?;
+
+        Ok(activity.activity().is_active())
+    }
+
+    /// Check if an activity currently has one or more active intermissions.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to check.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be checked.
+    ///
+    /// # Returns
+    ///
+    /// If the activity has active intermissions, it should return `Ok(Option<VecDeque<ActivityGuid>>)` with the IDs of the active intermissions.
+    /// If it has no active intermissions, it should return `Ok(None)`.
+    fn list_active_intermissions_for_activity_id(
+        &self,
+        activity_id: ActivityGuid,
+    ) -> PaceOptResult<Vec<ActivityGuid>> {
+        let guids = self.list_active_intermissions()?.map(|log| {
+            log.iter()
+                .filter_map(|active_intermission_id| {
+                    if self
+                        .read_activity(*active_intermission_id)
+                        .ok()?
+                        .activity()
+                        .parent_id()
+                        == Some(activity_id)
+                    {
+                        Some(*active_intermission_id)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<ActivityGuid>>()
+        });
+
+        Ok(guids)
+    }
+
+    /// Get the latest active activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// The latest active activity.
+    /// If no activity is found, it should return `Ok(None)`.
+    fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
+        let Some(mut current) = self.list_current_activities()? else {
+            // There are no active activities at all
+            return Ok(None);
+        };
+
+        // ULIDs are lexicographically sortable, so we can just sort them
+        // TODO!: Check if it's right like this
+        current.sort();
+
+        current
+            .into_iter()
+            .find(|activity_id| {
+                self.read_activity(*activity_id)
+                    .map(|activity| {
+                        activity.activity().is_active()
+                            && !activity.activity().is_active_intermission()
+                    })
+                    .unwrap_or(false)
+            })
+            .map(|activity_id| self.read_activity(activity_id))
+            .transpose()
     }
 }
 

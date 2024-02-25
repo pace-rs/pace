@@ -6,7 +6,7 @@ use clap::Parser;
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 use eyre::Result;
 
-use pace_core::{get_storage_from_config, ActivityQuerying, ActivityStore};
+use pace_core::{get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStore};
 
 use crate::prelude::PACE_APP;
 
@@ -45,32 +45,39 @@ impl ResumeCmd {
         let ResumeCmd { list } = self;
 
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
+
         if *list {
             // List activities to resume with fuzzy search and select
             // TODO: add symbols for intermissions, ended or archived activities
-            if let Some(activity_log) = activity_store.list_most_recent_activities(usize::from(
+            if let Some(activity_ids) = activity_store.list_most_recent_activities(usize::from(
                 PACE_APP
                     .config()
                     .general()
                     .most_recent_count()
                     .unwrap_or_else(|| 9u8),
             ))? {
-                let items: Vec<String> = activity_log
+                let activity_items = activity_ids
                     .iter()
-                    .map(|activity| activity.to_string())
-                    .collect();
+                    // TODO: With pomodoro, we might want to filter for activities that are not intermissions
+                    .flat_map(|activity_id| activity_store.read_activity(*activity_id))
+                    .collect::<Vec<_>>();
+
+                let string_repr = activity_items
+                    .iter()
+                    .map(|activity| activity.activity().to_string())
+                    .collect::<Vec<_>>();
 
                 let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
                     .with_prompt("Which activity do you want to continue?")
-                    .items(&items)
+                    .items(&string_repr)
                     .interact()
                     .unwrap();
 
-                let activity = activity_log.get(selection).unwrap();
+                let activity = activity_items.get(selection).map(|f| f.activity());
 
                 // TODO: check what other things are needed to resume this activity
                 // TODO: Anything to sync to storage?
-                println!("Resumed {activity}");
+                println!("Resumed {activity:?}");
             } else {
                 println!("No recent activities to continue.");
             };
@@ -78,7 +85,7 @@ impl ResumeCmd {
             if let Some(activity_log) = active_intermissions {
                 // TODO: check for open intermissions
                 // TODO: if there is no open intermission, resume the last unfinished activity
-                if activity_log.len() == 0 {
+                if activity_log.is_empty() {
                     // TODO: Resume last unfinished activity that has no active/open intermissions (Default without options)
                     println!("Resume last unfinished activity");
                 } else {

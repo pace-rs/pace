@@ -9,7 +9,7 @@ use chrono::{NaiveDate, NaiveDateTime};
 
 use crate::{
     domain::{
-        activity::{Activity, ActivityGuid},
+        activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
     },
@@ -18,6 +18,7 @@ use crate::{
         in_memory::InMemoryActivityStorage, ActivityQuerying, ActivityReadOps,
         ActivityStateManagement, ActivityStorage, ActivityWriteOps, SyncStorage,
     },
+    EndOptions, HoldOptions,
 };
 
 /// In-memory backed TOML activity storage
@@ -120,7 +121,7 @@ impl ActivityStorage for TomlActivityStorage {
 }
 
 impl ActivityReadOps for TomlActivityStorage {
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
         self.cache.read_activity(activity_id)
     }
 
@@ -132,40 +133,45 @@ impl ActivityReadOps for TomlActivityStorage {
 impl ActivityStateManagement for TomlActivityStorage {
     fn end_all_unfinished_activities(
         &self,
-        time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Vec<Activity>> {
-        self.cache.end_all_unfinished_activities(time)
+        end_opts: EndOptions,
+    ) -> PaceOptResult<Vec<ActivityItem>> {
+        self.cache.end_all_unfinished_activities(end_opts)
     }
 
-    fn end_last_unfinished_activity(&self, time: Option<NaiveDateTime>) -> PaceOptResult<Activity> {
-        self.cache.end_last_unfinished_activity(time)
+    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
+        self.cache.end_last_unfinished_activity(end_opts)
     }
 
     fn end_single_activity(
         &self,
         activity_id: ActivityGuid,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceResult<ActivityGuid> {
-        self.cache.end_single_activity(activity_id, end_time)
+        end_opts: EndOptions,
+    ) -> PaceResult<ActivityItem> {
+        self.cache.end_single_activity(activity_id, end_opts)
     }
 
-    fn hold_last_unfinished_activity(
-        &self,
-        hold_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Activity> {
-        self.cache.hold_last_unfinished_activity(hold_time)
+    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<ActivityItem> {
+        self.cache.hold_last_unfinished_activity(hold_opts)
     }
 
     fn end_all_active_intermissions(
         &self,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Vec<Activity>> {
-        self.cache.end_all_active_intermissions(end_time)
+        end_opts: EndOptions,
+    ) -> PaceOptResult<Vec<ActivityGuid>> {
+        self.cache.end_all_active_intermissions(end_opts)
+    }
+
+    fn resume_activity(
+        &self,
+        activity_id: Option<ActivityGuid>,
+        resume_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<ActivityItem> {
+        self.cache.resume_activity(activity_id, resume_time)
     }
 }
 
 impl ActivityWriteOps for TomlActivityStorage {
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityGuid> {
+    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
         self.cache.create_activity(activity)
     }
 
@@ -173,11 +179,11 @@ impl ActivityWriteOps for TomlActivityStorage {
         &self,
         activity_id: ActivityGuid,
         activity: Activity,
-    ) -> PaceResult<Activity> {
+    ) -> PaceResult<ActivityItem> {
         self.cache.update_activity(activity_id, activity)
     }
 
-    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<Activity> {
+    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
         self.cache.delete_activity(activity_id)
     }
 }
@@ -194,5 +200,9 @@ impl ActivityQuerying for TomlActivityStorage {
     ) -> PaceResult<ActivityLog> {
         self.cache
             .find_activities_in_date_range(start_date, end_date)
+    }
+
+    fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
+        self.cache.most_recent_active_activity()
     }
 }

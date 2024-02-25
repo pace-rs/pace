@@ -141,11 +141,11 @@ impl From<chrono::Duration> for PaceDuration {
     }
 }
 
-/// Wrapper for the start time of an activity to implement default
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq)]
-pub struct BeginDateTime(NaiveDateTime);
+/// Wrapper for the start and end time of an activity to implement default
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq)]
+pub struct PaceDateTime(NaiveDateTime);
 
-impl BeginDateTime {
+impl PaceDateTime {
     pub fn new(time: NaiveDateTime) -> Self {
         Self(time)
     }
@@ -158,28 +158,33 @@ impl BeginDateTime {
     pub fn and_local_timezone<Tz: TimeZone>(&self, tz: Tz) -> chrono::LocalResult<DateTime<Tz>> {
         self.0.and_local_timezone(tz)
     }
+
+    /// Alias for `Local::now()` and used by `Self::default()`
+    pub fn now() -> Self {
+        Self(Local::now().naive_local().round_subsecs(0))
+    }
 }
 
-impl Display for BeginDateTime {
+impl Display for PaceDateTime {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         <NaiveDateTime as Display>::fmt(&self.0, f)
     }
 }
 
 // Default BeginTime to now
-impl Default for BeginDateTime {
+impl Default for PaceDateTime {
     fn default() -> Self {
-        Self(Local::now().naive_local().round_subsecs(0))
+        Self::now()
     }
 }
 
-impl From<NaiveDateTime> for BeginDateTime {
+impl From<NaiveDateTime> for PaceDateTime {
     fn from(time: NaiveDateTime) -> Self {
         Self(time)
     }
 }
 
-impl From<Option<NaiveDateTime>> for BeginDateTime {
+impl From<Option<NaiveDateTime>> for PaceDateTime {
     fn from(time: Option<NaiveDateTime>) -> Self {
         match time {
             Some(time) => Self(time),
@@ -201,8 +206,9 @@ impl From<Option<NaiveDateTime>> for BeginDateTime {
 /// # Returns
 ///
 /// Returns the duration of the activity
-pub fn calculate_duration(begin: &BeginDateTime, end: NaiveDateTime) -> PaceResult<PaceDuration> {
+pub fn calculate_duration(begin: &PaceDateTime, end: PaceDateTime) -> PaceResult<PaceDuration> {
     let duration = end
+        .0
         .signed_duration_since(begin.naive_date_time())
         .to_std()?;
 
@@ -251,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_calculate_duration_passes() {
-        let begin = BeginDateTime::new(NaiveDateTime::new(
+        let begin = PaceDateTime::new(NaiveDateTime::new(
             NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
             NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
         ));
@@ -260,13 +266,13 @@ mod tests {
             NaiveTime::from_hms_opt(0, 0, 1).expect("Invalid date"),
         );
 
-        let duration = calculate_duration(&begin, end).expect("Duration calculation failed");
+        let duration = calculate_duration(&begin, end.into()).expect("Duration calculation failed");
         assert_eq!(duration, Duration::from_secs(1).into());
     }
 
     #[test]
     fn test_calculate_duration_fails() {
-        let begin = BeginDateTime::new(NaiveDateTime::new(
+        let begin = PaceDateTime::new(NaiveDateTime::new(
             NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
             NaiveTime::from_hms_opt(0, 0, 1).expect("Invalid date"),
         ));
@@ -275,7 +281,7 @@ mod tests {
             NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
         );
 
-        let duration = calculate_duration(&begin, end);
+        let duration = calculate_duration(&begin, end.into());
         assert!(duration.is_err());
     }
 
@@ -299,8 +305,8 @@ mod tests {
             NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
             NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
         );
-        let result = BeginDateTime::new(time);
-        assert_eq!(result, BeginDateTime(time));
+        let result = PaceDateTime::new(time);
+        assert_eq!(result, PaceDateTime(time));
     }
 
     #[test]
@@ -309,17 +315,17 @@ mod tests {
             NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
             NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
         );
-        let begin_date_time = BeginDateTime::new(time);
+        let begin_date_time = PaceDateTime::new(time);
         let result = begin_date_time.naive_date_time();
         assert_eq!(result, time);
     }
 
     #[test]
     fn test_begin_date_time_default_passes() {
-        let result = BeginDateTime::default();
+        let result = PaceDateTime::default();
         assert_eq!(
             result,
-            BeginDateTime(Local::now().naive_local().round_subsecs(0))
+            PaceDateTime(Local::now().naive_local().round_subsecs(0))
         );
     }
 
@@ -329,8 +335,8 @@ mod tests {
             NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
             NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
         );
-        let result = BeginDateTime::from(time);
-        assert_eq!(result, BeginDateTime(time));
+        let result = PaceDateTime::from(time);
+        assert_eq!(result, PaceDateTime(time));
     }
 
     #[test]

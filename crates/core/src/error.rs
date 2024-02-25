@@ -4,7 +4,7 @@ use displaydoc::Display;
 use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
-use crate::domain::activity::ActivityGuid;
+use crate::{domain::activity::ActivityGuid, Activity};
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
@@ -102,8 +102,8 @@ pub enum ActivityLogErrorKind {
     NoActivityToHold,
     /// Failed to unwrap Arc
     ArcUnwrapFailed,
-    /// Mutex lock failed, it has been poisoned
-    MutexHasBeenPoisoned,
+    /// RwLock locking failed, it has been poisoned
+    RwLockHasBeenPoisoned,
     /// There are no unfinished activities to end
     NoUnfinishedActivities,
     /// There is no cache to sync
@@ -120,8 +120,14 @@ pub enum ActivityLogErrorKind {
     ActivityIdAlreadyInUse(ActivityGuid),
     /// Failed to parse duration '{0}' from activity log, please use only numbers >= 0
     ParsingDurationFailed(String),
-    /// Activity in the ActivityLog has a different id than the one provided
+    /// Activity in the ActivityLog has a different id than the one provided: {0} != {1}
     ActivityIdMismatch(ActivityGuid, ActivityGuid),
+    /// Activity already has an intermission: {0}
+    ActivityAlreadyHasIntermission(Box<Activity>),
+    /// There have been some activities that have not been ended
+    ActivityNotEnded,
+    /// No active activity found
+    NoActiveActivityFound,
 }
 
 trait PaceErrorMarker: Error {}

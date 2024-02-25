@@ -90,16 +90,12 @@ impl BeginCmd {
 
         let activity_store = ActivityStore::new(get_storage_from_config(config)?);
 
-        let activity_id = activity_store.begin_activity(activity.clone())?;
+        let activity_item = activity_store.begin_activity(activity.clone())?;
 
-        if let Some(og_activity_id) = activity.guid() {
-            if activity_id == *og_activity_id {
-                activity_store.sync()?;
-                println!("{activity}");
-                return Ok(());
-            }
-        }
+        activity_store.sync()?;
 
-        eyre::bail!("Failed to start {activity}");
+        println!("{}", activity_item.activity());
+
+        Ok(())
     }
 }
