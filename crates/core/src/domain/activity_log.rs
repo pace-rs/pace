@@ -7,7 +7,7 @@ use crate::domain::activity::Activity;
 /// The activity log entity
 ///
 /// The activity log entity is used to store and manage activities
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, MutGetters, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters, MutGetters, Default, PartialEq, Eq)]
 pub struct ActivityLog {
     #[getset(get = "pub", get_mut = "pub")]
     activities: VecDeque<Activity>,

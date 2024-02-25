@@ -8,7 +8,7 @@ use crate::prelude::PACE_APP;
 
 use pace_core::{
     get_storage_from_config, parse_time_from_user_input, ActivityStateManagement, ActivityStore,
-    SyncStorage,
+    EndOptions, SyncStorage,
 };
 /// `end` subcommand
 #[derive(Command, Debug, Parser)]
@@ -44,12 +44,14 @@ impl EndCmd {
 
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
+        let end_opts = EndOptions::builder().end_time(time).build();
+
         if *only_last {
-            if let Some(last_activity) = activity_store.end_last_unfinished_activity(time)? {
+            if let Some(last_activity) = activity_store.end_last_unfinished_activity(end_opts)? {
                 println!("Ended {last_activity}");
             }
         } else if let Some(unfinished_activities) =
-            activity_store.end_all_unfinished_activities(time)?
+            activity_store.end_all_unfinished_activities(end_opts)?
         {
             for activity in &unfinished_activities {
                 println!("Ended {activity}");

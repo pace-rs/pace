@@ -14,6 +14,7 @@ use crate::{
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::file::TomlActivityStorage,
+    EndOptions, HoldOptions,
 };
 
 /// A type of storage that can be synced to a persistent medium - a file
@@ -182,7 +183,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     fn update_activity(
         &self,
         activity_id: ActivityGuid,
-        activity: Activity,
+        updated_activity: Activity,
     ) -> PaceResult<Activity>;
 
     /// Delete an activity from the storage backend.
@@ -230,7 +231,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Arguments
     ///
     /// * `activity_id` - The ID of the activity to end.
-    /// * `end_time` - The time (HH:MM) to end the activity at. If `None`, the current time is used.
+    /// * `end_opts` - The options to end the activity.
     ///
     /// # Errors
     ///
@@ -242,14 +243,14 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn end_single_activity(
         &self,
         activity_id: ActivityGuid,
-        end_time: Option<NaiveDateTime>,
+        end_opts: EndOptions,
     ) -> PaceResult<ActivityGuid>;
 
     /// End all unfinished activities in the storage backend.
     ///
     /// # Arguments
     ///
-    /// * `time` - The time (HH:MM) to end the activities at. If `None`, the current time is used.
+    /// * `end_opts` - The options to end the activities.
     ///
     /// # Errors
     ///
@@ -258,16 +259,13 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// A collection of the activities that were ended. Returns Ok(None) if no activities were ended.
-    fn end_all_unfinished_activities(
-        &self,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Vec<Activity>>;
+    fn end_all_unfinished_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<Activity>>;
 
     /// End all active intermissions in the storage backend.
     ///
     /// # Arguments
     ///
-    /// * `time` - The time (HH:MM) to end the intermissions at. If `None`, the current time is used.
+    /// * `end_opts` - The options to end the intermissions.
     ///
     /// # Errors
     ///
@@ -276,16 +274,13 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// A collection of the intermissions that were ended. Returns Ok(None) if no intermissions were ended.
-    fn end_all_active_intermissions(
-        &self,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Vec<Activity>>;
+    fn end_all_active_intermissions(&self, end_opts: EndOptions) -> PaceOptResult<Vec<Activity>>;
 
     /// End the last unfinished activity in the storage backend.
     ///
     /// # Arguments
     ///
-    /// * `time` - The time (HH:MM) to end the activity at. If `None`, the current time is used.
+    /// * `end_opts` - The options to end the activity.
     ///
     /// # Errors
     ///
@@ -294,16 +289,13 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// The activity that was ended. Returns Ok(None) if no activity was ended.
-    fn end_last_unfinished_activity(
-        &self,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Activity>;
+    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<Activity>;
 
     /// Hold an activity in the storage backend.
     ///
     /// # Arguments
     ///
-    /// * `hold_time` - The time (HH:MM) to hold the activity at. If `None`, the current time is used.
+    /// * `hold_opts` - The options to hold the activity.
     ///
     /// # Errors
     ///
@@ -317,9 +309,26 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Note
     ///
     /// This function should not be used to hold an activity that is already held. It should only be used to hold the last unfinished activity.
-    fn hold_last_unfinished_activity(
+    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<Activity>;
+
+    /// Resume an activity in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to resume. If `None`, the last unfinished activity is resumed.
+    /// * `resume_time` - The time (HH:MM) to resume the activity at. If `None`, the current time is used.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be resumed.
+    ///
+    /// # Returns
+    ///
+    /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
+    fn resume_activity(
         &self,
-        hold_time: Option<NaiveDateTime>,
+        activity_id: Option<ActivityGuid>,
+        resume_time: Option<NaiveDateTime>,
     ) -> PaceOptResult<Activity>;
 }
 
@@ -441,7 +450,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn list_most_recent_activities(&self, count: usize) -> PaceOptResult<ActivityLog> {
         let filtered = self
-            .list_activities(ActivityFilter::All)?
+            .list_activities(ActivityFilter::Everything)?
             .map(FilteredActivities::into_log);
 
         let Some(filtered) = filtered else {
@@ -453,6 +462,62 @@ pub trait ActivityQuerying: ActivityReadOps {
         } else {
             Ok(Some(filtered))
         }
+    }
+
+    /// Check if an activity is currently active.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to check.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be checked.
+    ///
+    /// # Returns
+    ///
+    /// If the activity is active, it should return `Ok(true)`. If it is not active, it should return `Ok(false)`.
+    fn is_activity_active(&self, activity_id: ActivityGuid) -> PaceResult<bool> {
+        let activity = self.read_activity(activity_id)?;
+
+        Ok(activity.is_active())
+    }
+
+    /// Check if an activity currently has one or more active intermissions.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to check.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be checked.
+    ///
+    /// # Returns
+    ///
+    /// If the activity has active intermissions, it should return `Ok(Option<VecDeque<ActivityGuid>>)` with the IDs of the active intermissions.
+    /// If it has no active intermissions, it should return `Ok(None)`.
+    fn list_active_intermissions_for_activity_id(
+        &self,
+        activity_id: ActivityGuid,
+    ) -> PaceOptResult<Vec<ActivityGuid>> {
+        let result = self.list_active_intermissions()?.map(|log| {
+            log.activities()
+                .par_iter()
+                .filter_map(|activity| {
+                    if activity.is_active_intermission()
+                        && (activity.parent_id() == Some(activity_id))
+                    {
+                        activity.guid().as_ref()
+                    } else {
+                        None
+                    }
+                })
+                .cloned()
+                .collect::<Vec<ActivityGuid>>()
+        });
+
+        Ok(result)
     }
 }
 

@@ -1,6 +1,6 @@
 //! Activity entity and business logic
 
-use chrono::{Local, NaiveDateTime};
+use chrono::Local;
 use core::fmt::Formatter;
 use getset::{Getters, MutGetters, Setters};
 use merge::Merge;
@@ -11,7 +11,7 @@ use ulid::Ulid;
 
 use crate::{
     calculate_duration,
-    domain::time::{duration_to_str, BeginDateTime, PaceDuration},
+    domain::time::{duration_to_str, PaceDateTime, PaceDuration},
     PaceResult,
 };
 
@@ -105,7 +105,17 @@ enum PomodoroCycle {
 ///
 /// The activity entity is used to store and manage an activity
 #[derive(
-    Debug, Serialize, Deserialize, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq,
+    Debug,
+    Serialize,
+    Deserialize,
+    TypedBuilder,
+    Getters,
+    Setters,
+    MutGetters,
+    Clone,
+    Eq,
+    PartialEq,
+    Default,
 )]
 #[getset(get = "pub")]
 #[derive(Merge)]
@@ -138,12 +148,14 @@ pub struct Activity {
     /// The start date and time of the activity
     #[builder(default, setter(into))]
     #[getset(get = "pub")]
+    // TODO: Should the begin time be updatable?
     #[merge(skip)]
-    begin: BeginDateTime,
+    begin: PaceDateTime,
 
     #[builder(default)]
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", get_mut = "pub")]
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
     activity_end_options: Option<ActivityEndOptions>,
 
     /// The kind of activity
@@ -154,6 +166,7 @@ pub struct Activity {
     /// Optional attributes for the activity kind
     #[builder(default, setter(strip_option))]
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
     activity_kind_options: Option<ActivityKindOptions>,
 
     // TODO: How to better support subcategories
@@ -169,7 +182,13 @@ pub struct Activity {
     /// The pomodoro cycle of the activity
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
     pomodoro_cycle_options: Option<PomodoroCycle>,
+
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[builder(default = true)]
+    #[merge(strategy = merge::bool::overwrite_false)]
+    active: bool,
 }
 
 #[derive(
@@ -180,7 +199,7 @@ pub struct ActivityEndOptions {
     /// The end date and time of the activity
     #[builder(default)]
     #[getset(get = "pub")]
-    end: NaiveDateTime,
+    end: PaceDateTime,
 
     /// The duration of the activity
     #[builder(default)]
@@ -189,7 +208,7 @@ pub struct ActivityEndOptions {
 }
 
 impl ActivityEndOptions {
-    pub fn new(end: NaiveDateTime, duration: PaceDuration) -> Self {
+    pub fn new(end: PaceDateTime, duration: PaceDuration) -> Self {
         Self { end, duration }
     }
 }
@@ -207,7 +226,7 @@ impl ActivityEndOptions {
     PartialEq,
     Default,
 )]
-#[getset(get = "pub")]
+#[getset(get = "pub", set = "pub", get_mut = "pub")]
 #[derive(Merge)]
 #[serde(rename_all = "kebab-case")]
 pub struct ActivityKindOptions {
@@ -217,32 +236,24 @@ pub struct ActivityKindOptions {
 
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     #[builder(default = false)]
-    #[getset(get = "pub", get_mut = "pub")]
     #[merge(strategy = merge::bool::overwrite_false)]
-    is_archived: bool,
+    archived: bool,
 }
 
 impl ActivityKindOptions {
-    pub fn new(parent_id: impl Into<Option<ActivityGuid>>) -> Self {
+    pub fn with_parent_id(parent_id: impl Into<Option<ActivityGuid>>) -> Self {
         Self {
             parent_id: parent_id.into(),
-            is_archived: false,
+            ..Self::default()
         }
     }
-}
 
-impl Default for Activity {
-    fn default() -> Self {
-        Self {
-            guid: Some(ActivityGuid::default()),
-            category: Some("Uncategorized".to_string()),
-            description: Some("This is an example activity".to_string()),
-            begin: BeginDateTime::default(),
-            kind: ActivityKind::Activity,
-            pomodoro_cycle_options: None,
-            activity_kind_options: None,
-            activity_end_options: None,
-        }
+    pub fn is_archived(&self) -> bool {
+        *self.archived()
+    }
+
+    pub fn archive(&mut self) {
+        self.archived = true;
     }
 }
 
@@ -308,6 +319,37 @@ impl Activity {
     pub fn is_active(&self) -> bool {
         self.activity_end_options().is_none()
             && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
+            && *self.active()
+    }
+
+    /// Make the activity active
+    pub fn make_active(&mut self) {
+        self.active = true;
+    }
+
+    /// Make the activity inactive
+    pub fn make_inactive(&mut self) {
+        self.active = false;
+    }
+
+    /// Archive the activity
+    /// This is only possible if the activity is not active and has ended
+    pub fn archive(&mut self) {
+        if !self.is_active() && self.has_ended() {
+            self.activity_kind_options
+                .get_or_insert_with(ActivityKindOptions::default)
+                .archive();
+        }
+    }
+
+    /// Unarchive the activity
+    /// This is only possible if the activity is archived
+    pub fn unarchive(&mut self) {
+        if self.is_archived() {
+            self.activity_kind_options
+                .get_or_insert_with(ActivityKindOptions::default)
+                .archived = false;
+        }
     }
 
     /// If the activity is an active intermission
@@ -315,13 +357,24 @@ impl Activity {
     pub fn is_active_intermission(&self) -> bool {
         self.activity_end_options().is_none()
             && (self.kind.is_intermission() || self.kind.is_pomodoro_intermission())
+            && *self.active()
     }
 
-    /// If the activity has ended
+    /// If the activity is archived
+    #[must_use]
+    pub fn is_archived(&self) -> bool {
+        self.activity_kind_options
+            .as_ref()
+            .map(|opts| opts.is_archived())
+            .unwrap_or(false)
+    }
+
+    /// If the activity has ended and is not archived
     #[must_use]
     pub fn has_ended(&self) -> bool {
         self.activity_end_options().is_some()
             && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
+            && !self.is_archived()
     }
 
     /// End the activity
@@ -350,8 +403,8 @@ impl Activity {
     /// Returns `Ok(())` if the activity is ended successfully
     pub fn end_activity_with_duration_calc(
         &mut self,
-        begin: BeginDateTime,
-        end: NaiveDateTime,
+        begin: PaceDateTime,
+        end: PaceDateTime,
     ) -> PaceResult<()> {
         let end_opts = ActivityEndOptions::new(end, calculate_duration(&begin, end)?);
         self.end_activity(end_opts);
@@ -376,6 +429,8 @@ impl Activity {
 mod tests {
 
     use std::str::FromStr;
+
+    use chrono::NaiveDateTime;
 
     use super::*;
 
@@ -409,12 +464,14 @@ mod tests {
 
         assert_eq!(
             end,
-            NaiveDateTime::parse_from_str("2021-08-01T12:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
+            PaceDateTime::from(
+                NaiveDateTime::parse_from_str("2021-08-01T12:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
+            )
         );
 
         assert_eq!(
             activity.begin,
-            BeginDateTime::from(
+            PaceDateTime::from(
                 NaiveDateTime::parse_from_str("2021-08-01T10:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
             )
         );
@@ -446,14 +503,16 @@ mod tests {
 
         assert_eq!(
             end,
-            NaiveDateTime::parse_from_str("2021-08-01T12:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
+            PaceDateTime::from(
+                NaiveDateTime::parse_from_str("2021-08-01T12:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
+            )
         );
 
         assert_eq!(duration, PaceDuration::from_str("50").unwrap());
 
         assert_eq!(
             activity.begin,
-            BeginDateTime::from(
+            PaceDateTime::from(
                 NaiveDateTime::parse_from_str("2021-08-01T10:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
             )
         );

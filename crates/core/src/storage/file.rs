@@ -18,6 +18,7 @@ use crate::{
         in_memory::InMemoryActivityStorage, ActivityQuerying, ActivityReadOps,
         ActivityStateManagement, ActivityStorage, ActivityWriteOps, SyncStorage,
     },
+    EndOptions, HoldOptions,
 };
 
 /// In-memory backed TOML activity storage
@@ -130,37 +131,36 @@ impl ActivityReadOps for TomlActivityStorage {
 }
 
 impl ActivityStateManagement for TomlActivityStorage {
-    fn end_all_unfinished_activities(
-        &self,
-        time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Vec<Activity>> {
-        self.cache.end_all_unfinished_activities(time)
+    fn end_all_unfinished_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<Activity>> {
+        self.cache.end_all_unfinished_activities(end_opts)
     }
 
-    fn end_last_unfinished_activity(&self, time: Option<NaiveDateTime>) -> PaceOptResult<Activity> {
-        self.cache.end_last_unfinished_activity(time)
+    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<Activity> {
+        self.cache.end_last_unfinished_activity(end_opts)
     }
 
     fn end_single_activity(
         &self,
         activity_id: ActivityGuid,
-        end_time: Option<NaiveDateTime>,
+        end_opts: EndOptions,
     ) -> PaceResult<ActivityGuid> {
-        self.cache.end_single_activity(activity_id, end_time)
+        self.cache.end_single_activity(activity_id, end_opts)
     }
 
-    fn hold_last_unfinished_activity(
+    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<Activity> {
+        self.cache.hold_last_unfinished_activity(hold_opts)
+    }
+
+    fn end_all_active_intermissions(&self, end_opts: EndOptions) -> PaceOptResult<Vec<Activity>> {
+        self.cache.end_all_active_intermissions(end_opts)
+    }
+
+    fn resume_activity(
         &self,
-        hold_time: Option<NaiveDateTime>,
+        activity_id: Option<ActivityGuid>,
+        resume_time: Option<NaiveDateTime>,
     ) -> PaceOptResult<Activity> {
-        self.cache.hold_last_unfinished_activity(hold_time)
-    }
-
-    fn end_all_active_intermissions(
-        &self,
-        end_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<Vec<Activity>> {
-        self.cache.end_all_active_intermissions(end_time)
+        self.cache.resume_activity(activity_id, resume_time)
     }
 }
 

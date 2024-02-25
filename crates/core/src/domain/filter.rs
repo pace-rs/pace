@@ -1,11 +1,15 @@
 use crate::domain::activity_log::ActivityLog;
+use strum::EnumIter;
 
 /// Filter for activities
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumIter)]
 pub enum ActivityFilter {
-    /// All activities
+    /// Everything, activities, intermissions, archived, and ended
     #[default]
-    All,
+    Everything,
+
+    /// Only activities, no intermissions
+    OnlyActivities,
 
     /// Active, currently running activities
     Active,
@@ -21,10 +25,13 @@ pub enum ActivityFilter {
 }
 
 /// Filtered activities
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FilteredActivities {
-    /// All activities
-    All(ActivityLog),
+    /// Everything, activities, intermissions, archived, and ended
+    Everything(ActivityLog),
+
+    /// Only activities, no intermissions
+    OnlyActivities(ActivityLog),
 
     /// Active, currently running activities
     Active(ActivityLog),
@@ -44,7 +51,8 @@ impl FilteredActivities {
     #[must_use]
     pub fn into_log(self) -> ActivityLog {
         match self {
-            Self::All(activities)
+            Self::Everything(activities)
+            | Self::OnlyActivities(activities)
             | Self::Active(activities)
             | Self::Archived(activities)
             | Self::Ended(activities)
