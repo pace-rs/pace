@@ -68,7 +68,7 @@ impl InMemoryActivityStorage {
     /// Returns an error if the mutex has been poisoned
     pub fn get_activity_log(&self) -> PaceResult<ActivityLog> {
         let Ok(activity_log) = self.log.read() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         Ok(activity_log.clone())
@@ -96,7 +96,7 @@ impl SyncStorage for InMemoryActivityStorage {
 impl ActivityReadOps for InMemoryActivityStorage {
     fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
         let Ok(activities) = self.log.read() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let activity = activities
@@ -111,7 +111,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
 
     fn list_activities(&self, filter: ActivityFilter) -> PaceOptResult<FilteredActivities> {
         let Ok(activity_log) = self.log.read() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let filtered = activity_log
@@ -152,7 +152,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
 impl ActivityWriteOps for InMemoryActivityStorage {
     fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
         let Ok(activities) = self.log.read() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let activity_item = ActivityItem::from(activity.clone());
@@ -171,7 +171,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         drop(activities);
 
         let Ok(mut activities) = self.log.write() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         // We don't check for None here, because we know that the ID was not existing in the list of
@@ -191,7 +191,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         updated_activity: Activity,
     ) -> PaceResult<ActivityItem> {
         let Ok(activities) = self.log.read() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let original_activity = activities
@@ -202,7 +202,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         drop(activities);
 
         let Ok(mut activities) = self.log.write() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let _ = activities.entry(activity_id).and_modify(|activity| {
@@ -216,7 +216,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 
     fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
         let Ok(mut activities) = self.log.write() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let activity = activities
@@ -236,7 +236,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         end_opts: EndOptions,
     ) -> PaceResult<ActivityItem> {
         let Ok(mut activities) = self.log.write() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let _ = activities.entry(activity_id).and_modify(|activity| {
@@ -275,7 +275,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         end_opts: EndOptions,
     ) -> PaceOptResult<Vec<ActivityItem>> {
         let Ok(mut activities) = self.log.write() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let active_activities = activities
@@ -417,7 +417,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
 
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
         let Ok(activities) = self.log.read() else {
-            return Err(ActivityLogErrorKind::MutexHasBeenPoisoned.into());
+            return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let activities_by_id = activities.activities().clone();

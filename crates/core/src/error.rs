@@ -102,8 +102,8 @@ pub enum ActivityLogErrorKind {
     NoActivityToHold,
     /// Failed to unwrap Arc
     ArcUnwrapFailed,
-    /// Mutex lock failed, it has been poisoned
-    MutexHasBeenPoisoned,
+    /// RwLock locking failed, it has been poisoned
+    RwLockHasBeenPoisoned,
     /// There are no unfinished activities to end
     NoUnfinishedActivities,
     /// There is no cache to sync
