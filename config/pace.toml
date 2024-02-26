@@ -2,7 +2,7 @@
 # Define where to store the activity log: options include "file", "database", etc.
 activity_log_storage = "file"
 # Path to the activity log file, used if log_storage is set to "file"
-activity_log_path = "C:\\Users\\dailyuse\\backup\\PARA\\Personal\\2 Areas\\Developer\\Maintenance\\pace\\pace-rs\\pace\\data\\activity_2024-02.toml"
+activity_log_path = "/path/to/your/activity.pace.toml"
 # Specify the default format for new activity logs: "toml" or "yaml"
 activity_log_format = "toml"
 # Category separator used in the cli
