@@ -481,7 +481,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn list_most_recent_activities(&self, count: usize) -> PaceOptResult<Vec<ActivityGuid>> {
         let filtered = self
-            .list_activities(ActivityFilter::Everything)?
+            .list_activities(ActivityFilter::OnlyActivities)?
             .map(FilteredActivities::into_vec);
 
         let Some(mut filtered) = filtered else {

@@ -6,7 +6,10 @@ use clap::Parser;
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 use eyre::Result;
 
-use pace_core::{get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStore};
+use pace_core::{
+    get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
+    ActivityStore, ResumeOptions, SyncStorage,
+};
 
 use crate::prelude::PACE_APP;
 
@@ -48,7 +51,6 @@ impl ResumeCmd {
 
         if *list {
             // List activities to resume with fuzzy search and select
-            // TODO: add symbols for intermissions, ended or archived activities
             if let Some(activity_ids) = activity_store.list_most_recent_activities(usize::from(
                 PACE_APP
                     .config()
@@ -73,33 +75,26 @@ impl ResumeCmd {
                     .interact()
                     .unwrap();
 
-                let activity = activity_items.get(selection).map(|f| f.activity());
+                if let Some(activity) = activity_items.get(selection) {
+                    let activity = activity_store
+                        .resume_activity(*activity.guid(), ResumeOptions::default())?;
 
-                // TODO: check what other things are needed to resume this activity
-                // TODO: Anything to sync to storage?
-                println!("Resumed {activity:?}");
+                    println!("Resumed {}", activity.activity());
+                } else {
+                    println!("No activity selected to resume.");
+                }
             } else {
                 println!("No recent activities to continue.");
             };
-        } else if let Ok(active_intermissions) = activity_store.list_active_intermissions() {
-            if let Some(activity_log) = active_intermissions {
-                // TODO: check for open intermissions
-                // TODO: if there is no open intermission, resume the last unfinished activity
-                if activity_log.is_empty() {
-                    // TODO: Resume last unfinished activity that has no active/open intermissions (Default without options)
-                    println!("Resume last unfinished activity");
-                } else {
-                    // TODO: Resume from an active intermission into an unfinished activity => end all intermissions, use the most_recent intermissions parent_id
-                    // TODO: Sync the updated intermission to storage
-                }
-            } else {
-                println!("No active intermissions to continue.");
-            };
-            // TODO: if there is an open intermission, get the parent activity, end the intermission and resume the parent activity
+        } else if let Ok(Some(resumed_activity)) =
+            activity_store.resume_most_recent_activity(ResumeOptions::default())
+        {
+            println!("Resumed {}", resumed_activity.activity());
         } else {
             println!("No activities to resume.");
         }
 
+        activity_store.sync()?;
         Ok(())
     }
 }
