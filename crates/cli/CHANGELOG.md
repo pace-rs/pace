@@ -8,6 +8,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.1...pace_cli-v0.2.2) - 2024-02-26
+
+### Added
+- add more resume related functionality ([#44](https://github.com/pace-rs/pace/pull/44))
+- *(intermission)* implement `pace hold` and a bit of `pace resume` functionality, to be able to pause tasks ([#41](https://github.com/pace-rs/pace/pull/41))
+
 ## [0.2.1](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.0...pace_cli-v0.2.1) - 2024-02-22
 
 ### Other
