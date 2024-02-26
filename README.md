@@ -151,19 +151,19 @@ implemented yet (e.g. using activities instead of tasks).
   what you're currently tracking.
 - **Usage:** `pace now`
 
-🪧 **`pace hold`**
+🔍 **`pace hold`**
 
 - **Description:** Pauses the time tracking for the specified task. This is
   useful for taking breaks without ending the task.
 - **Usage:** `pace hold` or `pace hold "Design Work"`
 
-⏲️ **`pace resume`**
+🔍 **`pace resume`**
 
 - **Description:** Resumes time tracking for a previously paused task, allowing
   you to continue where you left off.
 - **Usage:** `pace resume "Design Work"`
 
-📜 **`pace review`**
+⏲️ **`pace review`**
 
 - **Description:** Gain insight in your activities and tasks. You can specify
   the time frame for daily, weekly, or monthly insights.
