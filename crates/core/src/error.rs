@@ -1,6 +1,7 @@
 //! Error types and Result module.
 
 use displaydoc::Display;
+use miette::Diagnostic;
 use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
@@ -16,8 +17,9 @@ pub type PaceResult<T> = Result<T, PaceError>;
 pub type PaceOptResult<T> = PaceResult<Option<T>>;
 
 // [`Error`] is public, but opaque and easy to keep compatible.
-#[derive(Error, Debug)]
 /// Errors that can result from pace.
+#[derive(Error, Debug, Diagnostic)]
+#[diagnostic(url(docsrs))]
 pub struct PaceError(#[from] PaceErrorKind);
 
 impl std::fmt::Display for PaceError {
