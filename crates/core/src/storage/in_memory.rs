@@ -3,11 +3,11 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use chrono::NaiveDateTime;
 use merge::Merge;
-use rayon::prelude::{IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
+    commands::resume::ResumeOptions,
     domain::{
         activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
@@ -19,7 +19,7 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    ActivityKind, ActivityKindOptions, EndOptions, HoldOptions,
+    ActivityKind, ActivityKindOptions, EndOptions, HoldOptions, PaceDateTime,
 };
 
 /// Type for shared `ActivityLog`
@@ -274,12 +274,12 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         &self,
         end_opts: EndOptions,
     ) -> PaceOptResult<Vec<ActivityItem>> {
-        let Ok(mut activities) = self.log.write() else {
+        let Ok(activities) = self.log.read() else {
             return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let active_activities = activities
-            .par_iter_mut()
+            .par_iter()
             .filter_map(|(activity_id, activity)| {
                 if activity.is_active() {
                     Some(*activity_id)
@@ -351,11 +351,11 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
     fn resume_activity(
         &self,
-        _activity_id: Option<ActivityGuid>,
-        _resume_time: Option<NaiveDateTime>,
+        _activity_id: ActivityGuid,
+        _resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem> {
         // What do we need to do here?
-        // - Find the activity by id, if it's not given, find the last active activity
+        // - Find the activity by id, if it's not given, (TODO: different implementation: find the last active activity)
         // - If there are active intermissions for any activity, end the intermissions
         //   and resume the activity with the same id as the most recent intermission's parent_id
         // - If there are no active intermissions, but there are active activities, return the last active activity
@@ -433,8 +433,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 impl ActivityQuerying for InMemoryActivityStorage {
     fn find_activities_in_date_range(
         &self,
-        _start_date: chrono::prelude::NaiveDate,
-        _end_date: chrono::prelude::NaiveDate,
+        _start: PaceDateTime,
+        _end: PaceDateTime,
     ) -> PaceResult<ActivityLog> {
         todo!("Implement find_activities_in_date_range for InMemoryActivityStorage")
     }

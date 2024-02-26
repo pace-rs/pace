@@ -5,9 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use chrono::{NaiveDate, NaiveDateTime};
-
 use crate::{
+    commands::resume::ResumeOptions,
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
@@ -18,7 +17,7 @@ use crate::{
         in_memory::InMemoryActivityStorage, ActivityQuerying, ActivityReadOps,
         ActivityStateManagement, ActivityStorage, ActivityWriteOps, SyncStorage,
     },
-    EndOptions, HoldOptions,
+    EndOptions, HoldOptions, PaceDateTime,
 };
 
 /// In-memory backed TOML activity storage
@@ -166,10 +165,10 @@ impl ActivityStateManagement for TomlActivityStorage {
 
     fn resume_activity(
         &self,
-        activity_id: Option<ActivityGuid>,
-        resume_time: Option<NaiveDateTime>,
+        activity_id: ActivityGuid,
+        resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem> {
-        self.cache.resume_activity(activity_id, resume_time)
+        self.cache.resume_activity(activity_id, resume_opts)
     }
 
     fn hold_activity(
@@ -206,11 +205,10 @@ impl ActivityQuerying for TomlActivityStorage {
 
     fn find_activities_in_date_range(
         &self,
-        start_date: NaiveDate,
-        end_date: NaiveDate,
+        start: PaceDateTime,
+        end: PaceDateTime,
     ) -> PaceResult<ActivityLog> {
-        self.cache
-            .find_activities_in_date_range(start_date, end_date)
+        self.cache.find_activities_in_date_range(start, end)
     }
 
     fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {

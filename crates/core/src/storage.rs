@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use chrono::{NaiveDate, NaiveDateTime};
-
 use crate::{
+    commands::resume::ResumeOptions,
     config::{ActivityLogStorageKind, PaceConfig},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
@@ -13,7 +12,7 @@ use crate::{
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::file::TomlActivityStorage,
-    EndOptions, HoldOptions,
+    EndOptions, HoldOptions, PaceDateTime,
 };
 
 /// A type of storage that can be synced to a persistent medium - a file
@@ -263,8 +262,8 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
     fn resume_activity(
         &self,
-        activity_id: Option<ActivityGuid>,
-        resume_time: Option<NaiveDateTime>,
+        activity_id: ActivityGuid,
+        resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem>;
 
     /// End an activity in the storage backend.
@@ -405,8 +404,8 @@ pub trait ActivityQuerying: ActivityReadOps {
     // TODO: Implement this as default
     fn find_activities_in_date_range(
         &self,
-        start_date: NaiveDate,
-        end_date: NaiveDate,
+        start: PaceDateTime,
+        end: PaceDateTime,
     ) -> PaceResult<ActivityLog>;
 
     /// Get all activities by their ID.
@@ -689,7 +688,7 @@ pub trait ActivityReview {
     /// A collection of the activities that fall within the specified date range.
     fn review_activities_in_date_range(
         &self,
-        start_date: NaiveDate,
-        end_date: NaiveDate,
+        start: PaceDateTime,
+        end: PaceDateTime,
     ) -> PaceResult<ActivityLog>;
 }

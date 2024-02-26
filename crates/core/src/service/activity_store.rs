@@ -3,10 +3,10 @@ use std::{
     sync::Arc,
 };
 
-use chrono::{prelude::NaiveDate, NaiveDateTime};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
+    commands::resume::ResumeOptions,
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
@@ -17,7 +17,7 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    EndOptions, HoldOptions,
+    EndOptions, HoldOptions, PaceDateTime,
 };
 
 /// The activity store entity
@@ -137,10 +137,10 @@ impl ActivityStateManagement for ActivityStore {
 
     fn resume_activity(
         &self,
-        activity_id: Option<ActivityGuid>,
-        resume_time: Option<NaiveDateTime>,
+        activity_id: ActivityGuid,
+        resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem> {
-        self.storage.resume_activity(activity_id, resume_time)
+        self.storage.resume_activity(activity_id, resume_opts)
     }
 
     fn hold_activity(
@@ -155,11 +155,10 @@ impl ActivityStateManagement for ActivityStore {
 impl ActivityQuerying for ActivityStore {
     fn find_activities_in_date_range(
         &self,
-        start_date: NaiveDate,
-        end_date: NaiveDate,
+        start: PaceDateTime,
+        end: PaceDateTime,
     ) -> PaceResult<ActivityLog> {
-        self.storage
-            .find_activities_in_date_range(start_date, end_date)
+        self.storage.find_activities_in_date_range(start, end)
     }
 
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
