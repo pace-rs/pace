@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.7.1...pace-rs-v0.8.0) - 2024-02-26
+
+### Added
+- add more resume related functionality ([#44](https://github.com/pace-rs/pace/pull/44))
+- [**breaking**] preparation for resuming activities from intermissions and other use cases ([#43](https://github.com/pace-rs/pace/pull/43))
+- *(intermission)* implement `pace hold` and a bit of `pace resume` functionality, to be able to pause tasks ([#41](https://github.com/pace-rs/pace/pull/41))
+
+### Other
+- replace std lib rwlock with parking_lot rwlock
+- update cargo-dist and add homebrew support
+- add github release to installation instructions
+- add some more installation instructions and todos
+- add other installation methods to readme
+- *(packaging)* add scoop manifest
+- *(packaging)* add cargo-binstall support
+
 ## [0.7.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.7.0...pace-rs-v0.7.1) - 2024-02-22
 
 ### Fixed

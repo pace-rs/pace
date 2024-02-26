@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/pace-rs/pace/compare/pace_core-v0.9.0...pace_core-v0.10.0) - 2024-02-26
+
+### Added
+- add more resume related functionality ([#44](https://github.com/pace-rs/pace/pull/44))
+- [**breaking**] preparation for resuming activities from intermissions and other use cases ([#43](https://github.com/pace-rs/pace/pull/43))
+- *(intermission)* implement `pace hold` and a bit of `pace resume` functionality, to be able to pause tasks ([#41](https://github.com/pace-rs/pace/pull/41))
+
+### Other
+- replace std lib rwlock with parking_lot rwlock
+
 ## [0.9.0](https://github.com/pace-rs/pace/compare/pace_core-v0.8.0...pace_core-v0.9.0) - 2024-02-22
 
 ### Fixed
