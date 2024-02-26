@@ -104,8 +104,6 @@ pub enum ActivityLogErrorKind {
     NoActivityToHold,
     /// Failed to unwrap Arc
     ArcUnwrapFailed,
-    /// RwLock locking failed, it has been poisoned
-    RwLockHasBeenPoisoned,
     /// There are no unfinished activities to end
     NoUnfinishedActivities,
     /// There is no cache to sync
