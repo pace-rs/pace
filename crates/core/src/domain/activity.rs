@@ -25,6 +25,27 @@ pub struct ActivityItem {
     activity: Activity,
 }
 
+impl ActivityItem {
+    /// Create a new `ActivityItem`
+    ///
+    /// # Arguments
+    ///
+    /// * `guid` - The unique identifier of the activity
+    /// * `activity` - The activity
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `ActivityItem`
+    pub fn new(guid: ActivityGuid, activity: Activity) -> Self {
+        Self { guid, activity }
+    }
+
+    /// Consumes the `ActivityItem` and returns the inner `ActivityGuid` and `Activity`
+    pub fn into_parts(self) -> (ActivityGuid, Activity) {
+        (self.guid, self.activity)
+    }
+}
+
 impl From<Activity> for ActivityItem {
     fn from(activity: Activity) -> Self {
         Self {

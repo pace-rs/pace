@@ -1138,4 +1138,204 @@ mod tests {
             "End time was not set."
         );
     }
+
+    #[test]
+    fn test_important_pace_flow_for_activities_passes() {
+        let storage = InMemoryActivityStorage::new();
+        let _now = PaceDateTime::now();
+
+        let first_og_activity = Activity::builder().description("Test activity").build();
+
+        let first_begin_activity = storage.begin_activity(first_og_activity.clone()).unwrap();
+
+        let first_stored_activity = storage.read_activity(*first_begin_activity.guid()).unwrap();
+
+        assert_eq!(
+            first_og_activity.begin(),
+            first_stored_activity.activity().begin(),
+            "Stored activity has not the same begin time as the original activity."
+        );
+
+        assert_eq!(
+            first_og_activity.description().as_deref(),
+            first_stored_activity.activity().description().as_deref(),
+            "Stored activity has not the same description as the original activity."
+        );
+
+        assert_eq!(
+            first_og_activity.kind(),
+            first_stored_activity.activity().kind(),
+            "Stored activity has not the same kind as the original activity."
+        );
+
+        assert_ne!(
+            first_og_activity.status(),
+            first_stored_activity.activity().status(),
+            "Stored activity has the same status as the original activity. Which can't be, because it should be active."
+        );
+
+        assert!(
+            first_stored_activity.activity().status().is_active(),
+            "Stored activity is not active."
+        );
+
+        assert!(
+            first_og_activity.status().is_inactive(),
+            "Original activity is not inactive."
+        );
+
+        // Now we create another activity, which should end the first one automatically
+
+        let second_og_activity = Activity::builder().description("Our new activity").build();
+
+        let second_begin_activity = storage.begin_activity(second_og_activity.clone()).unwrap();
+
+        let second_stored_activity = storage
+            .read_activity(*second_begin_activity.guid())
+            .unwrap();
+
+        let first_stored_activity = storage.read_activity(*first_begin_activity.guid()).unwrap();
+
+        assert!(
+            first_stored_activity.activity().status().is_ended(),
+            "First activity is not ended."
+        );
+
+        assert_eq!(
+            second_og_activity.begin(),
+            second_stored_activity.activity().begin(),
+            "Stored activity has not the same begin time as the original activity."
+        );
+
+        assert_eq!(
+            second_og_activity.description().as_deref(),
+            second_stored_activity.activity().description().as_deref(),
+            "Stored activity has not the same description as the original activity."
+        );
+
+        assert_eq!(
+            second_og_activity.kind(),
+            second_stored_activity.activity().kind(),
+            "Stored activity has not the same kind as the original activity."
+        );
+
+        assert_ne!(
+            second_og_activity.status(),
+            second_stored_activity.activity().status(),
+            "Stored activity has the same status as the original activity. Which can't be, because it should be active."
+        );
+
+        assert!(
+            second_stored_activity.activity().status().is_active(),
+            "Stored activity is not active."
+        );
+
+        assert!(
+            second_og_activity.status().is_inactive(),
+            "Original activity is not inactive."
+        );
+
+        // Now we create an intermission for the second activity
+
+        let _ = storage
+            .hold_most_recent_active_activity(HoldOptions::default())
+            .unwrap()
+            .unwrap();
+
+        let second_stored_activity = storage
+            .read_activity(*second_begin_activity.guid())
+            .unwrap();
+
+        assert!(
+            second_stored_activity.activity().status().is_held(),
+            "Second activity is not held."
+        );
+
+        // This is more complicated, but maybe also on purpose, as directly dealing with the intermission
+        // is not the most common use case and should be discouraged as messing with it could lead to
+        // inconsistencies in the data.
+        let second_activity_intermission_id = storage
+            .list_active_intermissions_for_activity_id(*second_begin_activity.guid())
+            .unwrap()
+            .unwrap();
+        let second_activity_intermission_id = second_activity_intermission_id.first().unwrap();
+
+        let second_stored_intermission = storage
+            .read_activity(*second_activity_intermission_id)
+            .unwrap();
+
+        dbg!(&second_stored_intermission);
+
+        assert_eq!(
+            second_stored_intermission
+                .activity()
+                .activity_kind_options()
+                .as_ref()
+                .unwrap()
+                .parent_id()
+                .unwrap(),
+            *second_begin_activity.guid(),
+            "Parent IDs of intermission and parent activity do not match."
+        );
+
+        // Now we want to continue the activity, which should end the intermission automatically
+        // and set the activity from held to active again
+
+        let resumed_activity = storage
+            .resume_most_recent_activity(ResumeOptions::default())
+            .unwrap()
+            .unwrap();
+
+        let resumed_stored_activity = storage.read_activity(*resumed_activity.guid()).unwrap();
+
+        let second_stored_intermission = storage
+            .read_activity(*second_activity_intermission_id)
+            .unwrap();
+
+        assert!(
+            resumed_stored_activity.activity().status().is_active(),
+            "Resumed activity is not active."
+        );
+
+        assert!(
+            second_stored_intermission.activity().status().is_ended(),
+            "Intermission has not ended."
+        );
+
+        assert!(
+            second_stored_intermission.activity().has_ended(),
+            "Intermission has not ended."
+        );
+
+        assert!(
+            resumed_stored_activity.activity().status().is_active(),
+            "Resumed activity is not active."
+        );
+
+        assert_eq!(
+            resumed_stored_activity.guid(),
+            second_stored_activity.guid(),
+            "Resumed activity is not the same as the second stored activity."
+        );
+
+        assert_eq!(
+            resumed_stored_activity.activity().begin(),
+            second_stored_activity.activity().begin(),
+            "Resumed activity has not the same begin time as the second stored activity."
+        );
+
+        assert_eq!(
+            resumed_stored_activity.activity().description().as_deref(),
+            second_stored_activity.activity().description().as_deref(),
+            "Resumed activity has not the same description as the second stored activity."
+        );
+
+        assert_eq!(
+            resumed_stored_activity.activity().kind(),
+            second_stored_activity.activity().kind(),
+            "Resumed activity has not the same kind as the second stored activity."
+        );
+
+        assert!(!resumed_stored_activity.activity().has_ended());
+    }
 }
