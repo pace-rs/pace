@@ -5,8 +5,6 @@ activity_log_storage = "file"
 activity_log_path = "C:\\Users\\dailyuse\\backup\\PARA\\Personal\\2 Areas\\Developer\\Maintenance\\pace\\pace-rs\\pace\\data\\activity_2024-02.toml"
 # Specify the default format for new activity logs: "toml" or "yaml"
 activity_log_format = "toml"
-# Autogenerate identifiers for tasks, projects and activities that have been manually created
-autogenerate_ids = true
 # Category separator used in the cli
 category_separator = "::"
 # Default priority for new tasks
