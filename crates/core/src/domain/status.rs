@@ -2,7 +2,7 @@ use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
-pub enum ItemStatus {
+pub enum TaskStatus {
     Completed,
     #[serde(rename = "wip")]
     WorkInProgress,
@@ -14,4 +14,66 @@ pub enum ItemStatus {
     #[default]
     Todo,
     Waiting,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "kebab-case")]
+pub enum ActivityStatus {
+    Active,
+    Archived,
+    Ended,
+    #[default]
+    Inactive,
+    Held,
+    Unarchived,
+}
+
+impl ActivityStatus {
+    /// Returns `true` if the activity status is [`Active`].
+    ///
+    /// [`Active`]: ActivityStatus::Active
+    #[must_use]
+    pub fn is_active(self) -> bool {
+        matches!(self, Self::Active)
+    }
+
+    /// Returns `true` if the activity status is [`Archived`].
+    ///
+    /// [`Archived`]: ActivityStatus::Archived
+    #[must_use]
+    pub fn is_archived(self) -> bool {
+        matches!(self, Self::Archived)
+    }
+
+    /// Returns `true` if the activity status is [`Ended`].
+    ///
+    /// [`Ended`]: ActivityStatus::Ended
+    #[must_use]
+    pub fn is_ended(self) -> bool {
+        matches!(self, Self::Ended)
+    }
+
+    /// Returns `true` if the activity status is [`Inactive`].
+    ///
+    /// [`Inactive`]: ActivityStatus::Inactive
+    #[must_use]
+    pub fn is_inactive(self) -> bool {
+        matches!(self, Self::Inactive)
+    }
+
+    /// Returns `true` if the activity status is [`Held`].
+    ///
+    /// [`Held`]: ActivityStatus::Held
+    #[must_use]
+    pub fn is_held(self) -> bool {
+        matches!(self, Self::Held)
+    }
+
+    /// Returns `true` if the activity status is [`Unarchived`].
+    ///
+    /// [`Unarchived`]: ActivityStatus::Unarchived
+    #[must_use]
+    pub fn is_unarchived(&self) -> bool {
+        matches!(self, Self::Unarchived)
+    }
 }

@@ -11,7 +11,7 @@ use dialoguer::{
 };
 use eyre::Result;
 use getset::{Getters, MutGetters};
-use tracing::debug;
+use tracing::{debug, info};
 use typed_builder::TypedBuilder;
 
 use pace_core::{get_activity_log_paths, get_config_paths, toml, ActivityLog, PaceConfig};
@@ -118,7 +118,7 @@ pub(crate) fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> 
             .default(false)
             .interact()?;
 
-        if ready_to_continue {
+        if !ready_to_continue {
             break 'env;
         }
     }
@@ -151,6 +151,14 @@ pub(crate) fn write_config(
     create_dir_all(config_root)?;
 
     if config_root.exists() {
+        // Create a backup before writing the new configuration
+        if config_path.exists() {
+            info!("A configuration already exists, creating a backup next to the existing one.");
+            let backup_path = config_path.with_extension("toml.bak");
+
+            _ = std::fs::copy(config_path, backup_path)?;
+        }
+
         // Write the pace.toml file
         std::fs::write(config_path, config_content.as_bytes())?;
 
@@ -181,6 +189,14 @@ pub(crate) fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
     create_dir_all(&final_paths.activity_log_root)?;
 
     if final_paths.activity_log_root.exists() {
+        // Create a backup before writing the new activity log
+        if final_paths.activity_log_path.exists() {
+            info!("An activity log already exists, creating a backup next to the existing one.");
+            let backup_path = &final_paths.activity_log_path.with_extension("toml.bak");
+
+            _ = std::fs::copy(&final_paths.activity_log_path, backup_path)?;
+        }
+
         // Write the activity log file
         std::fs::write(
             &final_paths.activity_log_path,
@@ -259,7 +275,7 @@ to elevate your productivity with pace.";
         .default(true)
         .interact()?;
 
-    if confirmation {
+    if !confirmation {
         eyre::bail!("Exiting setup assistant.");
     }
 
@@ -286,11 +302,11 @@ pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
         .default(true)
         .interact()?;
 
-    if confirmation {
+    if !confirmation {
         eyre::bail!("Exiting setup assistant. No changes were made.");
-    } else {
-        Ok(())
     }
+
+    Ok(())
 }
 
 /// The `craft setup` commands interior for the pace application

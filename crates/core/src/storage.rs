@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use chrono::{NaiveDate, NaiveDateTime};
-
 use crate::{
+    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     config::{ActivityLogStorageKind, PaceConfig},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
@@ -13,7 +12,7 @@ use crate::{
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::file::TomlActivityStorage,
-    EndOptions, HoldOptions,
+    EndOptions, HoldOptions, PaceDateTime,
 };
 
 /// A type of storage that can be synced to a persistent medium - a file
@@ -181,9 +180,9 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// If the activity was updated successfully it should return the original activity before it was updated.
     fn update_activity(
         &self,
-        // TODO!: Refactor to UpdateOptions and ActivityItem
         activity_id: ActivityGuid,
         updated_activity: Activity,
+        update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem>;
 
     /// Delete an activity from the storage backend.
@@ -199,7 +198,11 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity was deleted successfully it should return the activity that was deleted.
-    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem>;
+    fn delete_activity(
+        &self,
+        activity_id: ActivityGuid,
+        delete_opts: DeleteOptions,
+    ) -> PaceResult<ActivityItem>;
 }
 
 /// Managing Activity State
@@ -209,7 +212,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
 ///
 /// For example, you might want to start a new activity, end an activity that is currently running, or hold an activity temporarily.
 pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + ActivityQuerying {
-    /// Start an activity in the storage backend.
+    /// Begin an activity in the storage backend. This makes the activity active.
     ///
     /// # Arguments
     ///
@@ -222,9 +225,75 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// If the activity was started successfully it should return the ID of the started activity.
-    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
+    fn begin_activity(&self, mut activity: Activity) -> PaceResult<ActivityItem> {
+        // End all unfinished activities before starting a new one,
+        // we don't want to have multiple activities running at the same time
+        let _ = self.end_all_unfinished_activities(EndOptions::default())?;
+
+        // Make the current activity active
+        activity.make_active();
+
+        // Create the activity in the storage backend
         self.create_activity(activity)
     }
+
+    /// Hold an activity in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to hold.
+    /// * `hold_opts` - The options to hold the activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be held.
+    ///
+    /// # Returns
+    ///
+    /// If the activity was held successfully it should return the `ActivityItem` of the held activity.
+    fn hold_activity(
+        &self,
+        activity_id: ActivityGuid,
+        hold_opts: HoldOptions,
+    ) -> PaceResult<ActivityItem>;
+
+    /// Resume an activity in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to resume. If `None`, the last unfinished activity is resumed.
+    /// * `resume_time` - The time (HH:MM) to resume the activity at. If `None`, the current time is used.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be resumed.
+    ///
+    /// # Returns
+    ///
+    /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
+    fn resume_activity(
+        &self,
+        activity_id: ActivityGuid,
+        resume_opts: ResumeOptions,
+    ) -> PaceResult<ActivityItem>;
+
+    /// Resume the most recent activity in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `resume_opts` - The options to resume the activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be resumed.
+    ///
+    /// # Returns
+    ///
+    /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
+    fn resume_most_recent_activity(
+        &self,
+        resume_opts: ResumeOptions,
+    ) -> PaceOptResult<ActivityItem>;
 
     /// End an activity in the storage backend.
     ///
@@ -240,7 +309,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// If the activity was ended successfully it should return the ID of the ended activity.
-    fn end_single_activity(
+    fn end_activity(
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
@@ -297,7 +366,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// The activity that was ended. Returns Ok(None) if no activity was ended.
     fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem>;
 
-    /// Hold an activity in the storage backend.
+    /// Hold the most recent activity that is active in the storage backend.
     ///
     /// # Arguments
     ///
@@ -315,26 +384,9 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Note
     ///
     /// This function should not be used to hold an activity that is already held. It should only be used to hold the last unfinished activity.
-    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<ActivityItem>;
-
-    /// Resume an activity in the storage backend.
-    ///
-    /// # Arguments
-    ///
-    /// * `activity_id` - The ID of the activity to resume. If `None`, the last unfinished activity is resumed.
-    /// * `resume_time` - The time (HH:MM) to resume the activity at. If `None`, the current time is used.
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the activity cannot be resumed.
-    ///
-    /// # Returns
-    ///
-    /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
-    fn resume_activity(
+    fn hold_most_recent_active_activity(
         &self,
-        activity_id: Option<ActivityGuid>,
-        resume_time: Option<NaiveDateTime>,
+        hold_opts: HoldOptions,
     ) -> PaceOptResult<ActivityItem>;
 }
 
@@ -347,7 +399,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
 /// For example, you might want to list all activities that are currently active,
 /// find all activities within a specific date range, or get a specific activity by its ID.
 pub trait ActivityQuerying: ActivityReadOps {
-    /// List all currently active activities from the storage backend.
+    /// List all current activities from the storage backend matching an `ActivityFilter`.
     ///
     /// # Errors
     ///
@@ -356,10 +408,10 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// # Returns
     ///
-    /// A collection of the activities that are currently active.
-    fn list_current_activities(&self) -> PaceOptResult<Vec<ActivityGuid>> {
+    /// A collection of the activities that are matching the `ActivityFilter`.
+    fn list_current_activities(&self, filter: ActivityFilter) -> PaceOptResult<Vec<ActivityGuid>> {
         Ok(self
-            .list_activities(ActivityFilter::Active)?
+            .list_activities(filter)?
             .map(FilteredActivities::into_vec))
     }
 
@@ -381,8 +433,8 @@ pub trait ActivityQuerying: ActivityReadOps {
     // TODO: Implement this as default
     fn find_activities_in_date_range(
         &self,
-        start_date: NaiveDate,
-        end_date: NaiveDate,
+        start: PaceDateTime,
+        end: PaceDateTime,
     ) -> PaceResult<ActivityLog>;
 
     /// Get all activities by their ID.
@@ -429,7 +481,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn list_most_recent_activities(&self, count: usize) -> PaceOptResult<Vec<ActivityGuid>> {
         let filtered = self
-            .list_activities(ActivityFilter::Everything)?
+            .list_activities(ActivityFilter::OnlyActivities)?
             .map(FilteredActivities::into_vec);
 
         let Some(mut filtered) = filtered else {
@@ -515,13 +567,13 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// The latest active activity.
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
-        let Some(mut current) = self.list_current_activities()? else {
+        let Some(mut current) = self.list_current_activities(ActivityFilter::Active)? else {
             // There are no active activities at all
             return Ok(None);
         };
 
         // ULIDs are lexicographically sortable, so we can just sort them
-        // TODO!: Check if it's right like this
+        // TODO!: Check if it's right like this or we need to reverse
         current.sort();
 
         current
@@ -530,6 +582,42 @@ pub trait ActivityQuerying: ActivityReadOps {
                 self.read_activity(*activity_id)
                     .map(|activity| {
                         activity.activity().is_active()
+                            && activity.activity().kind().is_activity()
+                            && !activity.activity().is_active_intermission()
+                    })
+                    .unwrap_or(false)
+            })
+            .map(|activity_id| self.read_activity(activity_id))
+            .transpose()
+    }
+
+    /// Get the latest held activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// The latest held activity.
+    /// If no activity is found, it should return `Ok(None)`.
+    fn most_recent_held_activity(&self) -> PaceOptResult<ActivityItem> {
+        let Some(mut current) = self.list_current_activities(ActivityFilter::Held)? else {
+            // There are no active activities at all
+            return Ok(None);
+        };
+
+        // ULIDs are lexicographically sortable, so we can just sort them
+        // TODO!: Check if it's right like this or we need to reverse
+        current.sort();
+
+        current
+            .into_iter()
+            .find(|activity_id| {
+                self.read_activity(*activity_id)
+                    .map(|activity| {
+                        activity.activity().is_held()
+                            && activity.activity().kind().is_activity()
                             && !activity.activity().is_active_intermission()
                     })
                     .unwrap_or(false)
@@ -665,7 +753,7 @@ pub trait ActivityReview {
     /// A collection of the activities that fall within the specified date range.
     fn review_activities_in_date_range(
         &self,
-        start_date: NaiveDate,
-        end_date: NaiveDate,
+        start: PaceDateTime,
+        end: PaceDateTime,
     ) -> PaceResult<ActivityLog>;
 }

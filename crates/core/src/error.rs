@@ -1,6 +1,7 @@
 //! Error types and Result module.
 
 use displaydoc::Display;
+use miette::Diagnostic;
 use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
@@ -16,8 +17,9 @@ pub type PaceResult<T> = Result<T, PaceError>;
 pub type PaceOptResult<T> = PaceResult<Option<T>>;
 
 // [`Error`] is public, but opaque and easy to keep compatible.
-#[derive(Error, Debug)]
 /// Errors that can result from pace.
+#[derive(Error, Debug, Diagnostic)]
+#[diagnostic(url(docsrs))]
 pub struct PaceError(#[from] PaceErrorKind);
 
 impl std::fmt::Display for PaceError {
@@ -126,8 +128,16 @@ pub enum ActivityLogErrorKind {
     ActivityAlreadyHasIntermission(Box<Activity>),
     /// There have been some activities that have not been ended
     ActivityNotEnded,
-    /// No active activity found
-    NoActiveActivityFound,
+    /// No active activity found with id '{0}'
+    NoActiveActivityFound(ActivityGuid),
+    /// Activity with id '{0}' already ended
+    ActivityAlreadyEnded(ActivityGuid),
+    /// Activity with id '{0}' already has been archived
+    ActivityAlreadyArchived(ActivityGuid),
+    /// Active activity with id '{0}' found, although we wanted a held activity
+    ActiveActivityFound(ActivityGuid),
+    /// Activity with id '{0}' is not held, but we wanted to resume it
+    NoHeldActivityFound(ActivityGuid),
 }
 
 trait PaceErrorMarker: Error {}

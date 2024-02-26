@@ -13,7 +13,9 @@ pub use toml;
 
 // Public API
 pub use crate::{
-    commands::{hold::HoldOptions, EndOptions},
+    commands::{
+        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, UpdateOptions,
+    },
     config::{
         find_root_config_file_path, find_root_project_file, get_activity_log_paths,
         get_config_paths, get_home_activity_log_path, get_home_config_path, AutoArchivalConfig,
@@ -28,6 +30,7 @@ pub use crate::{
         activity_log::ActivityLog,
         filter::{ActivityFilter, FilteredActivities},
         intermission::IntermissionAction,
+        status::ActivityStatus,
         time::{
             calculate_duration, duration_to_str, extract_time_or_now, parse_time_from_user_input,
             PaceDateTime, PaceDuration,

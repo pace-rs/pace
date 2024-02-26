@@ -3,11 +3,11 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use chrono::NaiveDateTime;
 use merge::Merge;
-use rayon::prelude::{IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
+    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     domain::{
         activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
@@ -19,7 +19,7 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    ActivityKind, ActivityKindOptions, EndOptions, HoldOptions,
+    ActivityKind, ActivityKindOptions, ActivityStatus, EndOptions, HoldOptions, PaceDateTime,
 };
 
 /// Type for shared `ActivityLog`
@@ -123,6 +123,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
                 ActivityFilter::ActiveIntermission => activity.is_active_intermission(),
                 ActivityFilter::Ended => activity.has_ended(),
                 ActivityFilter::Archived => activity.is_archived(),
+                ActivityFilter::Held => activity.is_held(),
             })
             .map(|(activity_id, _)| activity_id)
             .cloned()
@@ -145,6 +146,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
             }
             ActivityFilter::Archived => Ok(Some(FilteredActivities::Archived(filtered))),
             ActivityFilter::Ended => Ok(Some(FilteredActivities::Ended(filtered))),
+            ActivityFilter::Held => Ok(Some(FilteredActivities::Held(filtered))),
         }
     }
 }
@@ -189,6 +191,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         &self,
         activity_id: ActivityGuid,
         updated_activity: Activity,
+        _update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem> {
         let Ok(activities) = self.log.read() else {
             return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
@@ -214,7 +217,11 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         Ok((activity_id, original_activity).into())
     }
 
-    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
+    fn delete_activity(
+        &self,
+        activity_id: ActivityGuid,
+        _delete_opts: DeleteOptions,
+    ) -> PaceResult<ActivityItem> {
         let Ok(mut activities) = self.log.write() else {
             return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
@@ -230,7 +237,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 }
 
 impl ActivityStateManagement for InMemoryActivityStorage {
-    fn end_single_activity(
+    fn end_activity(
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
@@ -265,7 +272,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             return Ok(None);
         };
 
-        let activity = self.end_single_activity(*most_recent.guid(), end_opts)?;
+        let activity = self.end_activity(*most_recent.guid(), end_opts)?;
 
         Ok(Some(activity))
     }
@@ -274,12 +281,12 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         &self,
         end_opts: EndOptions,
     ) -> PaceOptResult<Vec<ActivityItem>> {
-        let Ok(mut activities) = self.log.write() else {
+        let Ok(activities) = self.log.read() else {
             return Err(ActivityLogErrorKind::RwLockHasBeenPoisoned.into());
         };
 
         let active_activities = activities
-            .par_iter_mut()
+            .par_iter()
             .filter_map(|(activity_id, activity)| {
                 if activity.is_active() {
                     Some(*activity_id)
@@ -299,7 +306,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let ended_activities = active_activities
             .par_iter()
             .map(|activity_id| -> PaceResult<ActivityItem> {
-                self.end_single_activity(*activity_id, end_opts.clone())
+                self.end_activity(*activity_id, end_opts.clone())
             })
             .collect::<PaceResult<Vec<ActivityItem>>>()?;
 
@@ -311,20 +318,108 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         Ok(Some(ended_activities))
     }
 
-    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<ActivityItem> {
+    fn hold_most_recent_active_activity(
+        &self,
+        hold_opts: HoldOptions,
+    ) -> PaceOptResult<ActivityItem> {
         // Get id from last activity that is not ended
         let Some(active_activity) = self.most_recent_active_activity()? else {
             // There are no active activities
             return Ok(None);
         };
 
-        // TODO!: What if there are any other intermissions ongoing for other activities?
-        // TODO!: Should we end them as well? Or should we just end the intermission for the active activity?
+        Some(self.hold_activity(*active_activity.guid(), hold_opts)).transpose()
+    }
+
+    fn end_all_active_intermissions(
+        &self,
+        end_opts: EndOptions,
+    ) -> PaceOptResult<Vec<ActivityGuid>> {
+        let Some(active_intermissions) = self.list_active_intermissions()? else {
+            // There are no active intermissions
+            return Ok(None);
+        };
+
+        let ended_intermissions = active_intermissions
+            .par_iter()
+            .map(|activity_id| -> PaceResult<ActivityGuid> {
+                let _ = self.end_activity(*activity_id, end_opts.clone())?;
+                Ok(*activity_id)
+            })
+            .collect::<PaceResult<Vec<ActivityGuid>>>()?;
+
+        if ended_intermissions.len() != active_intermissions.len() {
+            // This is weird, we should return an error about it
+            return Err(ActivityLogErrorKind::ActivityNotEnded.into());
+        }
+
+        Ok(Some(ended_intermissions))
+    }
+
+    fn resume_activity(
+        &self,
+        activity_id: ActivityGuid,
+        resume_opts: ResumeOptions,
+    ) -> PaceResult<ActivityItem> {
+        let resumable_activity = self.read_activity(activity_id)?;
+
+        // If the activity is not active, return early with an error
+        if !resumable_activity.activity().is_held() {
+            return Err(ActivityLogErrorKind::NoHeldActivityFound(activity_id).into());
+        } else if resumable_activity.activity().is_active() {
+            return Err(ActivityLogErrorKind::ActiveActivityFound(activity_id).into());
+        } else if resumable_activity.activity().has_ended() {
+            return Err(ActivityLogErrorKind::ActivityAlreadyEnded(activity_id).into());
+        } else if resumable_activity.activity().is_archived() {
+            return Err(ActivityLogErrorKind::ActivityAlreadyArchived(activity_id).into());
+        };
+
+        // If there are active intermissions for any activity, end the intermissions
+        // because the user wants to resume from an intermission and time is limited,
+        // so you can't have multiple intermissions at once, only one at a time.
+        let _ = self.end_all_active_intermissions(resume_opts.into())?;
+
+        // Update the activity to be active again
+        let mut editable_activity = resumable_activity.clone();
+
+        let updated_activity = editable_activity
+            .activity_mut()
+            .set_status(ActivityStatus::Active)
+            .clone();
+
+        let _ = self.update_activity(
+            *resumable_activity.guid(),
+            updated_activity.clone(),
+            UpdateOptions::default(),
+        )?;
+
+        Ok(resumable_activity)
+    }
+
+    fn hold_activity(
+        &self,
+        activity_id: ActivityGuid,
+        hold_opts: HoldOptions,
+    ) -> PaceResult<ActivityItem> {
+        // Get ActivityItem for activity that
+        let active_activity = self.read_activity(activity_id)?;
+
+        // make sure, the activity is not already ended or archived
+        if !active_activity.activity().is_active() {
+            return Err(ActivityLogErrorKind::NoActiveActivityFound(activity_id).into());
+        } else if active_activity.activity().has_ended() {
+            return Err(ActivityLogErrorKind::ActivityAlreadyEnded(activity_id).into());
+        } else if active_activity.activity().is_archived() {
+            return Err(ActivityLogErrorKind::ActivityAlreadyArchived(activity_id).into());
+        };
 
         // Check if the latest active activity is already having an intermission
         if let Some(intermissions) =
             self.list_active_intermissions_for_activity_id(*active_activity.guid())?
         {
+            // TODO!: What if there are any other intermissions ongoing for other activities?
+            // TODO!: Should we end them as well? Or should we just end the intermission for the active activity?
+
             // If there are active intermissions and we want to extend return early with the active activity
             //
             // Handles the case, if someone wants to create an intermission for an
@@ -332,12 +427,13 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             // create a new intermission. In this case we don't want to create
             // another intermission, but return with the active activity.
             if !intermissions.is_empty() && hold_opts.action().is_extend() {
-                return Ok(Some(active_activity));
+                return Ok(active_activity);
             }
         };
 
         // If there are active intermissions for any activity, end the intermissions
-        // because the user wants to create a new intermission
+        // because the user wants to create a new intermission and time is limited,
+        // so you can't have multiple intermissions at once, only one at a time.
         let _ = self.end_all_active_intermissions(hold_opts.clone().into())?;
 
         // Create a new intermission for the active activity
@@ -354,63 +450,55 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let intermission = Activity::builder()
             .begin(*hold_opts.begin_time())
             .kind(ActivityKind::Intermission)
+            .status(ActivityStatus::Active)
             .description(description)
             .category(active_activity.activity().category().clone())
             .activity_kind_options(activity_kind_opts)
             .build();
 
-        let _created_intermission_item = self.create_activity(intermission.clone())?;
+        let _created_intermission_item = self.begin_activity(intermission.clone())?;
 
-        Ok(Some(active_activity))
+        // Update the active activity to be held
+        let mut editable_activity = active_activity.clone();
+        let updated_activity = editable_activity
+            .activity_mut()
+            .set_status(ActivityStatus::Held)
+            .clone();
+
+        let _ = self.update_activity(
+            *active_activity.guid(),
+            updated_activity.clone(),
+            UpdateOptions::default(),
+        )?;
+
+        Ok((*active_activity.guid(), updated_activity).into())
     }
 
-    fn end_all_active_intermissions(
+    fn resume_most_recent_activity(
         &self,
-        end_opts: EndOptions,
-    ) -> PaceOptResult<Vec<ActivityGuid>> {
-        let Some(active_intermissions) = self.list_active_intermissions()? else {
-            // There are no active intermissions
+        resume_opts: ResumeOptions,
+    ) -> PaceOptResult<ActivityItem> {
+        // Get id from last activity that is not ended
+        let Some(active_activity) = self.most_recent_held_activity()? else {
+            // There are no active activities
             return Ok(None);
         };
 
-        let ended_intermissions = active_intermissions
-            .par_iter()
-            .map(|activity_id| -> PaceResult<ActivityGuid> {
-                let _ = self.end_single_activity(*activity_id, end_opts.clone())?;
-                Ok(*activity_id)
-            })
-            .collect::<PaceResult<Vec<ActivityGuid>>>()?;
-
-        if ended_intermissions.len() != active_intermissions.len() {
-            // This is weird, we should return an error about it
-            return Err(ActivityLogErrorKind::ActivityNotEnded.into());
-        }
-
-        Ok(Some(ended_intermissions))
-    }
-
-    fn resume_activity(
-        &self,
-        _activity_id: Option<ActivityGuid>,
-        _resume_time: Option<NaiveDateTime>,
-    ) -> PaceOptResult<ActivityItem> {
-        // What do we need to do here?
-        // - Find the activity by id, if it's not given, find the last active activity
+        // TODO!: Check how applicable that is!
         // - If there are active intermissions for any activity, end the intermissions
         //   and resume the activity with the same id as the most recent intermission's parent_id
         // - If there are no active intermissions, but there are active activities, return the last active activity
         // - If there are no active intermissions, resume the activity with the given id or the last active activity
-        // - If there are no active activities, return an error
 
-        todo!("Implement resume_activity for InMemoryActivityStorage")
+        Some(self.resume_activity(*active_activity.guid(), resume_opts)).transpose()
     }
 }
 
 impl ActivityQuerying for InMemoryActivityStorage {
     fn find_activities_in_date_range(
         &self,
-        _start_date: chrono::prelude::NaiveDate,
-        _end_date: chrono::prelude::NaiveDate,
+        _start: PaceDateTime,
+        _end: PaceDateTime,
     ) -> PaceResult<ActivityLog> {
         todo!("Implement find_activities_in_date_range for InMemoryActivityStorage")
     }
@@ -463,37 +551,6 @@ mod tests {
             "Activity log is not empty."
         );
     }
-
-    // FIXME: Cleanup, this should be impossible now that we use a BTreeMap
-    // #[test]
-    // fn test_create_same_activity_twice_fails() {
-    //     let storage = InMemoryActivityStorage::new();
-
-    //     let begin = Local::now().naive_local();
-    //     let kind = ActivityKind::Activity;
-    //     let description = "Test activity";
-
-    //     let activity = Activity::builder()
-    //         .begin(begin)
-    //         .kind(kind)
-    //         .description(description)
-    //         .build();
-
-    //     let item = storage.create_activity(activity.clone()).unwrap();
-
-    //     assert_eq!(
-    //         storage.get_activity_log().unwrap().activities().len(),
-    //         1,
-    //         "Activity was not created."
-    //     );
-
-    //     let create_same_activity_result = storage.create_activity(activity);
-
-    //     assert!(
-    //         create_same_activity_result.is_err(),
-    //         "Activity was created twice."
-    //     );
-    // }
 
     #[test]
     fn test_create_read_activity_passes() {
@@ -592,11 +649,16 @@ mod tests {
         let updated_activity = Activity::builder()
             .begin(begin + chrono::Duration::seconds(30))
             .kind(ActivityKind::PomodoroWork)
+            .status(ActivityStatus::Active)
             .description(new_description)
             .build();
 
         let old_activity = storage
-            .update_activity(*activity_item.guid(), updated_activity.clone())
+            .update_activity(
+                *activity_item.guid(),
+                updated_activity.clone(),
+                UpdateOptions::default(),
+            )
             .unwrap();
 
         assert_eq!(
@@ -632,7 +694,7 @@ mod tests {
         );
 
         assert!(
-            new_stored_activity.activity().active(),
+            new_stored_activity.activity().is_active(),
             "Activity should be active now, but was not updated."
         );
     }
@@ -646,7 +708,7 @@ mod tests {
         let kind = ActivityKind::Activity;
         let description = "Test activity";
 
-        let activity = Activity::builder()
+        let mut activity = Activity::builder()
             .begin(begin)
             .kind(kind)
             .description(description)
@@ -658,7 +720,7 @@ mod tests {
             "Activity log is not empty."
         );
 
-        let activity_item = storage.create_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
 
         assert_eq!(
             storage.get_activity_log().unwrap().activities().len(),
@@ -669,10 +731,19 @@ mod tests {
         // Read activity
         let stored_activity = storage.read_activity(*activity_item.guid()).unwrap();
 
+        // Make sure the activity is active now, as begin_activity should make it active automatically
+        activity.make_active();
+
         assert_eq!(
             activity,
             *stored_activity.activity(),
             "Stored activity is not the same as the original activity."
+        );
+
+        assert_eq!(
+            *stored_activity.activity().status(),
+            ActivityStatus::Active,
+            "Activity is not active."
         );
 
         // Update activity
@@ -681,11 +752,16 @@ mod tests {
         let updated_activity = Activity::builder()
             .begin(begin + chrono::Duration::seconds(30))
             .kind(ActivityKind::PomodoroWork)
+            .status(ActivityStatus::Inactive)
             .description(new_description)
             .build();
 
         let _ = storage
-            .update_activity(*activity_item.guid(), updated_activity.clone())
+            .update_activity(
+                *activity_item.guid(),
+                updated_activity.clone(),
+                UpdateOptions::default(),
+            )
             .unwrap();
 
         let new_stored_activity = storage.read_activity(*activity_item.guid()).unwrap();
@@ -709,12 +785,14 @@ mod tests {
         );
 
         assert!(
-            new_stored_activity.activity().active(),
+            new_stored_activity.activity().is_inactive(),
             "Activity should be active now, but was not updated."
         );
 
         // Delete activity
-        let deleted_activity = storage.delete_activity(*activity_item.guid()).unwrap();
+        let deleted_activity = storage
+            .delete_activity(*activity_item.guid(), DeleteOptions::default())
+            .unwrap();
 
         assert_eq!(
             storage.get_activity_log().unwrap().activities().len(),
@@ -752,12 +830,12 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.create_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
 
         let end_opts = EndOptions::builder().end_time(end_time).build();
 
         let ended_activity = storage
-            .end_single_activity(*activity_item.guid(), end_opts)
+            .end_activity(*activity_item.guid(), end_opts)
             .unwrap();
 
         assert_ne!(
@@ -800,7 +878,7 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.create_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
 
         let ended_activity = storage
             .end_last_unfinished_activity(EndOptions::builder().end_time(now).build())
@@ -831,7 +909,7 @@ mod tests {
     }
 
     #[test]
-    fn test_end_all_unfinished_activities_for_multiple_activities_passes() {
+    fn test_begin_and_auto_end_for_multiple_activities_passes() {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -844,7 +922,8 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.create_activity(activity.clone()).unwrap();
+        // Begin the first activity
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
 
         let begin_time = now - chrono::Duration::seconds(60);
         let kind = ActivityKind::Activity;
@@ -856,21 +935,8 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item2 = storage.create_activity(activity2.clone()).unwrap();
-
-        let ended_activities = storage
-            .end_all_unfinished_activities(EndOptions::builder().end_time(now).build())
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(ended_activities.len(), 2, "Not all activities were ended.");
-
-        assert!(
-            ended_activities
-                .iter()
-                .all(|activity| activity.activity().has_ended()),
-            "Not all activities have ended."
-        );
+        // Begin the second activity, the first one should be ended automatically now
+        let activity_item2 = storage.begin_activity(activity2.clone()).unwrap();
 
         let ended_activity = storage.read_activity(*activity_item.guid()).unwrap();
 
@@ -893,24 +959,18 @@ mod tests {
         let ended_activity2 = storage.read_activity(*activity_item2.guid()).unwrap();
 
         assert!(
-            ended_activity2.activity().has_ended(),
+            ended_activity2.activity().is_active(),
             "Activity has not ended, but should have."
         );
 
-        assert_eq!(
-            ended_activity2
-                .activity()
-                .activity_end_options()
-                .as_ref()
-                .unwrap()
-                .end(),
-            &PaceDateTime::new(now),
-            "End time was not set."
+        assert!(
+            ended_activity2.activity().activity_end_options().is_none(),
+            "End time should not be set."
         );
     }
 
     #[test]
-    fn test_hold_last_unfinished_activity_passes() {
+    fn test_hold_most_recent_active_activity_passes() {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -923,14 +983,14 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.create_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
 
         let hold_time = now + chrono::Duration::seconds(30);
 
         let hold_opts = HoldOptions::builder().begin_time(hold_time).build();
 
         let held_activity = storage
-            .hold_last_unfinished_activity(hold_opts)
+            .hold_most_recent_active_activity(hold_opts)
             .unwrap()
             .unwrap();
 
@@ -982,19 +1042,27 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.create_activity(activity.clone()).unwrap();
+        let active_activity_item = storage.begin_activity(activity.clone()).unwrap();
 
         let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(30))
             .build();
 
         let _held_item = storage
-            .hold_last_unfinished_activity(hold_opts)
+            .hold_most_recent_active_activity(hold_opts)
             .unwrap()
             .unwrap();
 
+        let held_activity = storage.read_activity(*active_activity_item.guid()).unwrap();
+
+        assert_eq!(
+            *held_activity.activity().status(),
+            ActivityStatus::Held,
+            "Activity was not held."
+        );
+
         let intermission_guids = storage
-            .list_active_intermissions_for_activity_id(*activity_item.guid())
+            .list_active_intermissions_for_activity_id(*active_activity_item.guid())
             .unwrap();
 
         assert_eq!(
@@ -1007,13 +1075,16 @@ mod tests {
             .begin_time(now + chrono::Duration::seconds(60))
             .build();
 
-        let _held_activity = storage
-            .hold_last_unfinished_activity(hold_opts)
-            .unwrap()
-            .unwrap();
+        assert!(
+            storage
+                .hold_most_recent_active_activity(hold_opts)
+                .unwrap()
+                .is_none(),
+            "Activity was held again."
+        );
 
         let intermission_guids = storage
-            .list_active_intermissions_for_activity_id(*activity_item.guid())
+            .list_active_intermissions_for_activity_id(*active_activity_item.guid())
             .unwrap()
             .unwrap();
 
@@ -1039,16 +1110,16 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.create_activity(activity.clone()).unwrap();
+        let active_activity_item = storage.begin_activity(activity.clone()).unwrap();
 
         let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(30))
             .build();
 
-        let _ = storage.hold_last_unfinished_activity(hold_opts).unwrap();
+        let _ = storage.hold_most_recent_active_activity(hold_opts).unwrap();
 
         let intermission_guids = storage
-            .list_active_intermissions_for_activity_id(*activity_item.guid())
+            .list_active_intermissions_for_activity_id(*active_activity_item.guid())
             .unwrap();
 
         assert_eq!(
@@ -1086,5 +1157,203 @@ mod tests {
             &PaceDateTime::new(end_time),
             "End time was not set."
         );
+    }
+
+    #[test]
+    fn test_important_pace_flow_for_activities_passes() {
+        let storage = InMemoryActivityStorage::new();
+        let _now = PaceDateTime::now();
+
+        let first_og_activity = Activity::builder().description("Test activity").build();
+
+        let first_begin_activity = storage.begin_activity(first_og_activity.clone()).unwrap();
+
+        let first_stored_activity = storage.read_activity(*first_begin_activity.guid()).unwrap();
+
+        assert_eq!(
+            first_og_activity.begin(),
+            first_stored_activity.activity().begin(),
+            "Stored activity has not the same begin time as the original activity."
+        );
+
+        assert_eq!(
+            first_og_activity.description().as_deref(),
+            first_stored_activity.activity().description().as_deref(),
+            "Stored activity has not the same description as the original activity."
+        );
+
+        assert_eq!(
+            first_og_activity.kind(),
+            first_stored_activity.activity().kind(),
+            "Stored activity has not the same kind as the original activity."
+        );
+
+        assert_ne!(
+            first_og_activity.status(),
+            first_stored_activity.activity().status(),
+            "Stored activity has the same status as the original activity. Which can't be, because it should be active."
+        );
+
+        assert!(
+            first_stored_activity.activity().status().is_active(),
+            "Stored activity is not active."
+        );
+
+        assert!(
+            first_og_activity.status().is_inactive(),
+            "Original activity is not inactive."
+        );
+
+        // Now we create another activity, which should end the first one automatically
+
+        let second_og_activity = Activity::builder().description("Our new activity").build();
+
+        let second_begin_activity = storage.begin_activity(second_og_activity.clone()).unwrap();
+
+        let second_stored_activity = storage
+            .read_activity(*second_begin_activity.guid())
+            .unwrap();
+
+        let first_stored_activity = storage.read_activity(*first_begin_activity.guid()).unwrap();
+
+        assert!(
+            first_stored_activity.activity().status().is_ended(),
+            "First activity is not ended."
+        );
+
+        assert_eq!(
+            second_og_activity.begin(),
+            second_stored_activity.activity().begin(),
+            "Stored activity has not the same begin time as the original activity."
+        );
+
+        assert_eq!(
+            second_og_activity.description().as_deref(),
+            second_stored_activity.activity().description().as_deref(),
+            "Stored activity has not the same description as the original activity."
+        );
+
+        assert_eq!(
+            second_og_activity.kind(),
+            second_stored_activity.activity().kind(),
+            "Stored activity has not the same kind as the original activity."
+        );
+
+        assert_ne!(
+            second_og_activity.status(),
+            second_stored_activity.activity().status(),
+            "Stored activity has the same status as the original activity. Which can't be, because it should be active."
+        );
+
+        assert!(
+            second_stored_activity.activity().status().is_active(),
+            "Stored activity is not active."
+        );
+
+        assert!(
+            second_og_activity.status().is_inactive(),
+            "Original activity is not inactive."
+        );
+
+        // Now we create an intermission for the second activity
+
+        let _ = storage
+            .hold_most_recent_active_activity(HoldOptions::default())
+            .unwrap()
+            .unwrap();
+
+        let second_stored_activity = storage
+            .read_activity(*second_begin_activity.guid())
+            .unwrap();
+
+        assert!(
+            second_stored_activity.activity().status().is_held(),
+            "Second activity is not held."
+        );
+
+        // This is more complicated, but maybe also on purpose, as directly dealing with the intermission
+        // is not the most common use case and should be discouraged as messing with it could lead to
+        // inconsistencies in the data.
+        let second_activity_intermission_id = storage
+            .list_active_intermissions_for_activity_id(*second_begin_activity.guid())
+            .unwrap()
+            .unwrap();
+        let second_activity_intermission_id = second_activity_intermission_id.first().unwrap();
+
+        let second_stored_intermission = storage
+            .read_activity(*second_activity_intermission_id)
+            .unwrap();
+
+        assert_eq!(
+            second_stored_intermission
+                .activity()
+                .activity_kind_options()
+                .as_ref()
+                .unwrap()
+                .parent_id()
+                .unwrap(),
+            *second_begin_activity.guid(),
+            "Parent IDs of intermission and parent activity do not match."
+        );
+
+        // Now we want to continue the activity, which should end the intermission automatically
+        // and set the activity from held to active again
+
+        let resumed_activity = storage
+            .resume_most_recent_activity(ResumeOptions::default())
+            .unwrap()
+            .unwrap();
+
+        let resumed_stored_activity = storage.read_activity(*resumed_activity.guid()).unwrap();
+
+        let second_stored_intermission = storage
+            .read_activity(*second_activity_intermission_id)
+            .unwrap();
+
+        assert!(
+            resumed_stored_activity.activity().status().is_active(),
+            "Resumed activity is not active."
+        );
+
+        assert!(
+            second_stored_intermission.activity().status().is_ended(),
+            "Intermission has not ended."
+        );
+
+        assert!(
+            second_stored_intermission.activity().has_ended(),
+            "Intermission has not ended."
+        );
+
+        assert!(
+            resumed_stored_activity.activity().status().is_active(),
+            "Resumed activity is not active."
+        );
+
+        assert_eq!(
+            resumed_stored_activity.guid(),
+            second_stored_activity.guid(),
+            "Resumed activity is not the same as the second stored activity."
+        );
+
+        assert_eq!(
+            resumed_stored_activity.activity().begin(),
+            second_stored_activity.activity().begin(),
+            "Resumed activity has not the same begin time as the second stored activity."
+        );
+
+        assert_eq!(
+            resumed_stored_activity.activity().description().as_deref(),
+            second_stored_activity.activity().description().as_deref(),
+            "Resumed activity has not the same description as the second stored activity."
+        );
+
+        assert_eq!(
+            resumed_stored_activity.activity().kind(),
+            second_stored_activity.activity().kind(),
+            "Resumed activity has not the same kind as the second stored activity."
+        );
+
+        assert!(!resumed_stored_activity.activity().has_ended());
     }
 }

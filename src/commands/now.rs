@@ -7,8 +7,8 @@ use eyre::Result;
 use crate::prelude::PACE_APP;
 
 use pace_core::{
-    get_storage_from_config, ActivityItem, ActivityQuerying, ActivityReadOps, ActivityStorage,
-    ActivityStore,
+    get_storage_from_config, ActivityFilter, ActivityItem, ActivityQuerying, ActivityReadOps,
+    ActivityStorage, ActivityStore,
 };
 
 /// `now` subcommand
@@ -32,7 +32,7 @@ impl NowCmd {
 
         activity_store.setup_storage()?;
 
-        match activity_store.list_current_activities()? {
+        match activity_store.list_current_activities(ActivityFilter::Active)? {
             Some(activities) => {
                 let activity_items = activities
                     .iter()

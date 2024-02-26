@@ -10,7 +10,7 @@ use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
-use crate::domain::{priority::ItemPriorityKind, status::ItemStatus};
+use crate::domain::{priority::ItemPriorityKind, status::TaskStatus};
 
 #[derive(Debug, TypedBuilder, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Task {
@@ -24,7 +24,7 @@ pub struct Task {
 
     priority: ItemPriorityKind,
 
-    status: ItemStatus,
+    status: TaskStatus,
 
     tags: Vec<String>,
 

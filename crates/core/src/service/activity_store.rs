@@ -3,10 +3,10 @@ use std::{
     sync::Arc,
 };
 
-use chrono::{prelude::NaiveDate, NaiveDateTime};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
+    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
@@ -17,7 +17,7 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    EndOptions, HoldOptions,
+    EndOptions, HoldOptions, PaceDateTime,
 };
 
 /// The activity store entity
@@ -87,13 +87,19 @@ impl ActivityWriteOps for ActivityStore {
     fn update_activity(
         &self,
         activity_id: ActivityGuid,
-        activity: Activity,
+        updated_activity: Activity,
+        update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem> {
-        self.storage.update_activity(activity_id, activity)
+        self.storage
+            .update_activity(activity_id, updated_activity, update_opts)
     }
 
-    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
-        self.storage.delete_activity(activity_id)
+    fn delete_activity(
+        &self,
+        activity_id: ActivityGuid,
+        delete_opts: DeleteOptions,
+    ) -> PaceResult<ActivityItem> {
+        self.storage.delete_activity(activity_id, delete_opts)
     }
 }
 
@@ -102,12 +108,12 @@ impl ActivityStateManagement for ActivityStore {
         self.storage.begin_activity(activity)
     }
 
-    fn end_single_activity(
+    fn end_activity(
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
     ) -> PaceResult<ActivityItem> {
-        self.storage.end_single_activity(activity_id, end_opts)
+        self.storage.end_activity(activity_id, end_opts)
     }
 
     fn end_all_unfinished_activities(
@@ -121,8 +127,11 @@ impl ActivityStateManagement for ActivityStore {
         self.storage.end_last_unfinished_activity(end_opts)
     }
 
-    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<ActivityItem> {
-        self.storage.hold_last_unfinished_activity(hold_opts)
+    fn hold_most_recent_active_activity(
+        &self,
+        hold_opts: HoldOptions,
+    ) -> PaceOptResult<ActivityItem> {
+        self.storage.hold_most_recent_active_activity(hold_opts)
     }
 
     fn end_all_active_intermissions(
@@ -134,21 +143,35 @@ impl ActivityStateManagement for ActivityStore {
 
     fn resume_activity(
         &self,
-        activity_id: Option<ActivityGuid>,
-        resume_time: Option<NaiveDateTime>,
+        activity_id: ActivityGuid,
+        resume_opts: ResumeOptions,
+    ) -> PaceResult<ActivityItem> {
+        self.storage.resume_activity(activity_id, resume_opts)
+    }
+
+    fn hold_activity(
+        &self,
+        activity_id: ActivityGuid,
+        hold_opts: HoldOptions,
+    ) -> PaceResult<ActivityItem> {
+        self.storage.hold_activity(activity_id, hold_opts)
+    }
+
+    fn resume_most_recent_activity(
+        &self,
+        resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem> {
-        self.storage.resume_activity(activity_id, resume_time)
+        self.storage.resume_most_recent_activity(resume_opts)
     }
 }
 
 impl ActivityQuerying for ActivityStore {
     fn find_activities_in_date_range(
         &self,
-        start_date: NaiveDate,
-        end_date: NaiveDate,
+        start: PaceDateTime,
+        end: PaceDateTime,
     ) -> PaceResult<ActivityLog> {
-        self.storage
-            .find_activities_in_date_range(start_date, end_date)
+        self.storage.find_activities_in_date_range(start, end)
     }
 
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
