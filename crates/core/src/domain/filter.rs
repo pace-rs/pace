@@ -22,6 +22,9 @@ pub enum ActivityFilter {
 
     /// Activities that have ended
     Ended,
+
+    /// Activities that are held
+    Held,
 }
 
 /// Filtered activities
@@ -44,6 +47,9 @@ pub enum FilteredActivities {
 
     /// Activities that have ended
     Ended(Vec<ActivityGuid>),
+
+    /// Activities that are held
+    Held(Vec<ActivityGuid>),
 }
 
 impl FilteredActivities {
@@ -56,7 +62,8 @@ impl FilteredActivities {
             | Self::Active(activities)
             | Self::Archived(activities)
             | Self::Ended(activities)
-            | Self::ActiveIntermission(activities) => activities,
+            | Self::ActiveIntermission(activities)
+            | Self::Held(activities) => activities,
         }
     }
 }

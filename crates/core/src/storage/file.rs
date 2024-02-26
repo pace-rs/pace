@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    commands::resume::ResumeOptions,
+    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
@@ -167,7 +167,7 @@ impl ActivityStateManagement for TomlActivityStorage {
         &self,
         activity_id: ActivityGuid,
         resume_opts: ResumeOptions,
-    ) -> PaceOptResult<ActivityItem> {
+    ) -> PaceResult<ActivityItem> {
         self.cache.resume_activity(activity_id, resume_opts)
     }
 
@@ -177,6 +177,13 @@ impl ActivityStateManagement for TomlActivityStorage {
         hold_opts: HoldOptions,
     ) -> PaceResult<ActivityItem> {
         self.cache.hold_activity(activity_id, hold_opts)
+    }
+
+    fn resume_most_recent_activity(
+        &self,
+        resume_opts: ResumeOptions,
+    ) -> PaceOptResult<ActivityItem> {
+        self.cache.resume_most_recent_activity(resume_opts)
     }
 }
 
@@ -188,13 +195,19 @@ impl ActivityWriteOps for TomlActivityStorage {
     fn update_activity(
         &self,
         activity_id: ActivityGuid,
-        activity: Activity,
+        updated_activity: Activity,
+        update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem> {
-        self.cache.update_activity(activity_id, activity)
+        self.cache
+            .update_activity(activity_id, updated_activity, update_opts)
     }
 
-    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
-        self.cache.delete_activity(activity_id)
+    fn delete_activity(
+        &self,
+        activity_id: ActivityGuid,
+        delete_opts: DeleteOptions,
+    ) -> PaceResult<ActivityItem> {
+        self.cache.delete_activity(activity_id, delete_opts)
     }
 }
 

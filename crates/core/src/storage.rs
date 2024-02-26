@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
-    commands::resume::ResumeOptions,
+    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     config::{ActivityLogStorageKind, PaceConfig},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
@@ -180,9 +180,9 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// If the activity was updated successfully it should return the original activity before it was updated.
     fn update_activity(
         &self,
-        // TODO!: Refactor to UpdateOptions and ActivityItem
         activity_id: ActivityGuid,
         updated_activity: Activity,
+        update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem>;
 
     /// Delete an activity from the storage backend.
@@ -198,7 +198,11 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity was deleted successfully it should return the activity that was deleted.
-    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem>;
+    fn delete_activity(
+        &self,
+        activity_id: ActivityGuid,
+        delete_opts: DeleteOptions,
+    ) -> PaceResult<ActivityItem>;
 }
 
 /// Managing Activity State
@@ -222,7 +226,14 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     ///
     /// If the activity was started successfully it should return the ID of the started activity.
     fn begin_activity(&self, mut activity: Activity) -> PaceResult<ActivityItem> {
+        // End all unfinished activities before starting a new one,
+        // we don't want to have multiple activities running at the same time
+        let _ = self.end_all_unfinished_activities(EndOptions::default())?;
+
+        // Make the current activity active
         activity.make_active();
+
+        // Create the activity in the storage backend
         self.create_activity(activity)
     }
 
@@ -263,6 +274,24 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn resume_activity(
         &self,
         activity_id: ActivityGuid,
+        resume_opts: ResumeOptions,
+    ) -> PaceResult<ActivityItem>;
+
+    /// Resume the most recent activity in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `resume_opts` - The options to resume the activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be resumed.
+    ///
+    /// # Returns
+    ///
+    /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
+    fn resume_most_recent_activity(
+        &self,
         resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem>;
 

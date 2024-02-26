@@ -11,12 +11,15 @@ use ulid::Ulid;
 
 use crate::{
     calculate_duration,
-    domain::time::{duration_to_str, PaceDateTime, PaceDuration},
+    domain::{
+        status::ActivityStatus,
+        time::{duration_to_str, PaceDateTime, PaceDuration},
+    },
     PaceResult,
 };
 
 #[derive(Debug, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default)]
-#[getset(get = "pub", get_mut = "pub")]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ActivityItem {
     guid: ActivityGuid,
     activity: Activity,
@@ -139,7 +142,7 @@ enum PomodoroCycle {
     PartialEq,
     Default,
 )]
-#[getset(get = "pub")]
+#[getset(get = "pub", set = "pub", get_mut = "pub")]
 #[derive(Merge)]
 pub struct Activity {
     /// The category of the activity
@@ -200,10 +203,10 @@ pub struct Activity {
     #[merge(strategy = crate::util::overwrite_left_with_right)]
     pomodoro_cycle_options: Option<PomodoroCycle>,
 
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    #[builder(default = true)]
-    #[merge(strategy = merge::bool::overwrite_false)]
-    active: bool,
+    #[serde(default)]
+    #[builder(default)]
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
+    status: ActivityStatus,
 }
 
 #[derive(
@@ -248,27 +251,13 @@ pub struct ActivityKindOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(skip)]
     parent_id: Option<ActivityGuid>,
-
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    #[builder(default = false)]
-    #[merge(strategy = merge::bool::overwrite_false)]
-    archived: bool,
 }
 
 impl ActivityKindOptions {
     pub fn with_parent_id(parent_id: ActivityGuid) -> Self {
         Self {
             parent_id: parent_id.into(),
-            ..Self::default()
         }
-    }
-
-    pub fn is_archived(&self) -> bool {
-        *self.archived()
-    }
-
-    pub fn archive(&mut self) {
-        self.archived = true;
     }
 }
 
@@ -327,6 +316,10 @@ impl rusqlite::types::ToSql for ActivityGuid {
 }
 
 impl Activity {
+    pub fn is_held(&self) -> bool {
+        self.status.is_held()
+    }
+
     /// If the activity is active, so if it is currently being tracked
     /// Intermissions are not considered active activities, please use
     /// [`is_active_intermission`] for that
@@ -334,26 +327,24 @@ impl Activity {
     pub fn is_active(&self) -> bool {
         self.activity_end_options().is_none()
             && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
-            && *self.active()
+            && self.status.is_active()
     }
 
     /// Make the activity active
     pub fn make_active(&mut self) {
-        self.active = true;
+        self.status = ActivityStatus::Active;
     }
 
     /// Make the activity inactive
     pub fn make_inactive(&mut self) {
-        self.active = false;
+        self.status = ActivityStatus::Inactive;
     }
 
     /// Archive the activity
     /// This is only possible if the activity is not active and has ended
     pub fn archive(&mut self) {
         if !self.is_active() && self.has_ended() {
-            self.activity_kind_options
-                .get_or_insert_with(ActivityKindOptions::default)
-                .archive();
+            self.status = ActivityStatus::Archived;
         }
     }
 
@@ -361,9 +352,7 @@ impl Activity {
     /// This is only possible if the activity is archived
     pub fn unarchive(&mut self) {
         if self.is_archived() {
-            self.activity_kind_options
-                .get_or_insert_with(ActivityKindOptions::default)
-                .archived = false;
+            self.status = ActivityStatus::Unarchived;
         }
     }
 
@@ -372,16 +361,19 @@ impl Activity {
     pub fn is_active_intermission(&self) -> bool {
         self.activity_end_options().is_none()
             && (self.kind.is_intermission() || self.kind.is_pomodoro_intermission())
-            && *self.active()
+            && self.status.is_active()
     }
 
     /// If the activity is archived
     #[must_use]
     pub fn is_archived(&self) -> bool {
-        self.activity_kind_options
-            .as_ref()
-            .map(|opts| opts.is_archived())
-            .unwrap_or(false)
+        self.status.is_archived()
+    }
+
+    /// If the activity is inactive
+    #[must_use]
+    pub fn is_inactive(&self) -> bool {
+        self.status.is_inactive()
     }
 
     /// If the activity has ended and is not archived
@@ -390,6 +382,7 @@ impl Activity {
         self.activity_end_options().is_some()
             && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
             && !self.is_archived()
+            && self.status.is_ended()
     }
 
     /// End the activity
@@ -400,7 +393,7 @@ impl Activity {
     /// * `duration` - The [`PaceDuration`] of the activity
     pub fn end_activity(&mut self, end_opts: ActivityEndOptions) {
         self.activity_end_options = Some(end_opts);
-        self.make_inactive();
+        self.status = ActivityStatus::Ended;
     }
 
     /// End the activity with a given end date and time
@@ -423,7 +416,9 @@ impl Activity {
         end: PaceDateTime,
     ) -> PaceResult<()> {
         let end_opts = ActivityEndOptions::new(end, calculate_duration(&begin, end)?);
+
         self.end_activity(end_opts);
+
         Ok(())
     }
 

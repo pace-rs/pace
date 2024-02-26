@@ -147,7 +147,7 @@ pub struct PaceDateTime(NaiveDateTime);
 
 impl PaceDateTime {
     pub fn new(time: NaiveDateTime) -> Self {
-        Self(time)
+        Self(time.round_subsecs(0))
     }
 
     /// Convert to a naive date time
@@ -180,14 +180,14 @@ impl Default for PaceDateTime {
 
 impl From<NaiveDateTime> for PaceDateTime {
     fn from(time: NaiveDateTime) -> Self {
-        Self(time)
+        Self(time.round_subsecs(0))
     }
 }
 
 impl From<Option<NaiveDateTime>> for PaceDateTime {
     fn from(time: Option<NaiveDateTime>) -> Self {
         match time {
-            Some(time) => Self(time),
+            Some(time) => Self(time.round_subsecs(0)),
             None => Self::default(),
         }
     }

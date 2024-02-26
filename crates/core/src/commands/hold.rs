@@ -6,6 +6,7 @@ use crate::{IntermissionAction, PaceDateTime};
 /// Options for holding an activity
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
 #[getset(get = "pub")]
+#[non_exhaustive]
 pub struct HoldOptions {
     /// The action to take on the intermission
     #[builder(default)]

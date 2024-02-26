@@ -6,7 +6,7 @@ use std::{
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
-    commands::resume::ResumeOptions,
+    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
@@ -87,13 +87,19 @@ impl ActivityWriteOps for ActivityStore {
     fn update_activity(
         &self,
         activity_id: ActivityGuid,
-        activity: Activity,
+        updated_activity: Activity,
+        update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem> {
-        self.storage.update_activity(activity_id, activity)
+        self.storage
+            .update_activity(activity_id, updated_activity, update_opts)
     }
 
-    fn delete_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
-        self.storage.delete_activity(activity_id)
+    fn delete_activity(
+        &self,
+        activity_id: ActivityGuid,
+        delete_opts: DeleteOptions,
+    ) -> PaceResult<ActivityItem> {
+        self.storage.delete_activity(activity_id, delete_opts)
     }
 }
 
@@ -139,7 +145,7 @@ impl ActivityStateManagement for ActivityStore {
         &self,
         activity_id: ActivityGuid,
         resume_opts: ResumeOptions,
-    ) -> PaceOptResult<ActivityItem> {
+    ) -> PaceResult<ActivityItem> {
         self.storage.resume_activity(activity_id, resume_opts)
     }
 
@@ -149,6 +155,13 @@ impl ActivityStateManagement for ActivityStore {
         hold_opts: HoldOptions,
     ) -> PaceResult<ActivityItem> {
         self.storage.hold_activity(activity_id, hold_opts)
+    }
+
+    fn resume_most_recent_activity(
+        &self,
+        resume_opts: ResumeOptions,
+    ) -> PaceOptResult<ActivityItem> {
+        self.storage.resume_most_recent_activity(resume_opts)
     }
 }
 
