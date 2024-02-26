@@ -364,8 +364,10 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let resumable_activity = self.read_activity(activity_id)?;
 
         // If the activity is not active, return early with an error
-        if !resumable_activity.activity().is_active() {
-            return Err(ActivityLogErrorKind::NoActiveActivityFound(activity_id).into());
+        if !resumable_activity.activity().is_held() {
+            return Err(ActivityLogErrorKind::NoHeldActivityFound(activity_id).into());
+        } else if resumable_activity.activity().is_active() {
+            return Err(ActivityLogErrorKind::ActiveActivityFound(activity_id).into());
         } else if resumable_activity.activity().has_ended() {
             return Err(ActivityLogErrorKind::ActivityAlreadyEnded(activity_id).into());
         } else if resumable_activity.activity().is_archived() {
@@ -375,11 +377,21 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         // If there are active intermissions for any activity, end the intermissions
         // because the user wants to resume from an intermission and time is limited,
         // so you can't have multiple intermissions at once, only one at a time.
-        // TODO: Can we encode this business logic better within the type system?
-
         let _ = self.end_all_active_intermissions(resume_opts.into())?;
 
-        // TODO: What else do we need to do, to resume an activity?
+        // Update the activity to be active again
+        let mut editable_activity = resumable_activity.clone();
+
+        let updated_activity = editable_activity
+            .activity_mut()
+            .set_status(ActivityStatus::Active)
+            .clone();
+
+        let _ = self.update_activity(
+            *resumable_activity.guid(),
+            updated_activity.clone(),
+            UpdateOptions::default(),
+        )?;
 
         Ok(resumable_activity)
     }
@@ -464,13 +476,21 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
     fn resume_most_recent_activity(
         &self,
-        _resume_opts: ResumeOptions,
+        resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem> {
-        // TODO! - If there are active intermissions for any activity, end the intermissions
-        // TODO!   and resume the activity with the same id as the most recent intermission's parent_id
+        // Get id from last activity that is not ended
+        let Some(active_activity) = self.most_recent_held_activity()? else {
+            // There are no active activities
+            return Ok(None);
+        };
+
+        // TODO!: Check how applicable that is!
+        // - If there are active intermissions for any activity, end the intermissions
+        //   and resume the activity with the same id as the most recent intermission's parent_id
         // - If there are no active intermissions, but there are active activities, return the last active activity
         // - If there are no active intermissions, resume the activity with the given id or the last active activity
-        todo!("Implement resume_most_recent_activity for InMemoryActivityStorage")
+
+        Some(self.resume_activity(*active_activity.guid(), resume_opts)).transpose()
     }
 }
 
@@ -1263,8 +1283,6 @@ mod tests {
         let second_stored_intermission = storage
             .read_activity(*second_activity_intermission_id)
             .unwrap();
-
-        dbg!(&second_stored_intermission);
 
         assert_eq!(
             second_stored_intermission

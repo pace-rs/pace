@@ -134,6 +134,10 @@ pub enum ActivityLogErrorKind {
     ActivityAlreadyEnded(ActivityGuid),
     /// Activity with id '{0}' already has been archived
     ActivityAlreadyArchived(ActivityGuid),
+    /// Active activity with id '{0}' found, although we wanted a held activity
+    ActiveActivityFound(ActivityGuid),
+    /// Activity with id '{0}' is not held, but we wanted to resume it
+    NoHeldActivityFound(ActivityGuid),
 }
 
 trait PaceErrorMarker: Error {}

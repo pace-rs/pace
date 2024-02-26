@@ -399,7 +399,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
 /// For example, you might want to list all activities that are currently active,
 /// find all activities within a specific date range, or get a specific activity by its ID.
 pub trait ActivityQuerying: ActivityReadOps {
-    /// List all currently active activities from the storage backend.
+    /// List all current activities from the storage backend matching an `ActivityFilter`.
     ///
     /// # Errors
     ///
@@ -408,10 +408,10 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// # Returns
     ///
-    /// A collection of the activities that are currently active.
-    fn list_current_activities(&self) -> PaceOptResult<Vec<ActivityGuid>> {
+    /// A collection of the activities that are matching the `ActivityFilter`.
+    fn list_current_activities(&self, filter: ActivityFilter) -> PaceOptResult<Vec<ActivityGuid>> {
         Ok(self
-            .list_activities(ActivityFilter::Active)?
+            .list_activities(filter)?
             .map(FilteredActivities::into_vec))
     }
 
@@ -567,13 +567,13 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// The latest active activity.
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
-        let Some(mut current) = self.list_current_activities()? else {
+        let Some(mut current) = self.list_current_activities(ActivityFilter::Active)? else {
             // There are no active activities at all
             return Ok(None);
         };
 
         // ULIDs are lexicographically sortable, so we can just sort them
-        // TODO!: Check if it's right like this
+        // TODO!: Check if it's right like this or we need to reverse
         current.sort();
 
         current
@@ -582,6 +582,42 @@ pub trait ActivityQuerying: ActivityReadOps {
                 self.read_activity(*activity_id)
                     .map(|activity| {
                         activity.activity().is_active()
+                            && activity.activity().kind().is_activity()
+                            && !activity.activity().is_active_intermission()
+                    })
+                    .unwrap_or(false)
+            })
+            .map(|activity_id| self.read_activity(activity_id))
+            .transpose()
+    }
+
+    /// Get the latest held activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// The latest held activity.
+    /// If no activity is found, it should return `Ok(None)`.
+    fn most_recent_held_activity(&self) -> PaceOptResult<ActivityItem> {
+        let Some(mut current) = self.list_current_activities(ActivityFilter::Held)? else {
+            // There are no active activities at all
+            return Ok(None);
+        };
+
+        // ULIDs are lexicographically sortable, so we can just sort them
+        // TODO!: Check if it's right like this or we need to reverse
+        current.sort();
+
+        current
+            .into_iter()
+            .find(|activity_id| {
+                self.read_activity(*activity_id)
+                    .map(|activity| {
+                        activity.activity().is_held()
+                            && activity.activity().kind().is_activity()
                             && !activity.activity().is_active_intermission()
                     })
                     .unwrap_or(false)
