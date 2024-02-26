@@ -424,7 +424,7 @@ fn test_activity_store_begin_intermission_passes(
 
     let og_activity_id = og_activity.guid();
 
-    let held_activity = store.hold_last_unfinished_activity(HoldOptions::default())?;
+    let held_activity = store.hold_most_recent_active_activity(HoldOptions::default())?;
 
     assert!(held_activity.is_some());
 
@@ -487,7 +487,7 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
 
     assert!(
         store
-            .hold_last_unfinished_activity(HoldOptions::default())?
+            .hold_most_recent_active_activity(HoldOptions::default())?
             .is_some_and(|a| a.activity().is_active()),
         "Should contain and active activity."
     );

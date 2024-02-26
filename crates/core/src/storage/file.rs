@@ -142,16 +142,19 @@ impl ActivityStateManagement for TomlActivityStorage {
         self.cache.end_last_unfinished_activity(end_opts)
     }
 
-    fn end_single_activity(
+    fn end_activity(
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
     ) -> PaceResult<ActivityItem> {
-        self.cache.end_single_activity(activity_id, end_opts)
+        self.cache.end_activity(activity_id, end_opts)
     }
 
-    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<ActivityItem> {
-        self.cache.hold_last_unfinished_activity(hold_opts)
+    fn hold_most_recent_active_activity(
+        &self,
+        hold_opts: HoldOptions,
+    ) -> PaceOptResult<ActivityItem> {
+        self.cache.hold_most_recent_active_activity(hold_opts)
     }
 
     fn end_all_active_intermissions(
@@ -167,6 +170,14 @@ impl ActivityStateManagement for TomlActivityStorage {
         resume_time: Option<NaiveDateTime>,
     ) -> PaceOptResult<ActivityItem> {
         self.cache.resume_activity(activity_id, resume_time)
+    }
+
+    fn hold_activity(
+        &self,
+        activity_id: ActivityGuid,
+        hold_opts: HoldOptions,
+    ) -> PaceResult<ActivityItem> {
+        self.cache.hold_activity(activity_id, hold_opts)
     }
 }
 

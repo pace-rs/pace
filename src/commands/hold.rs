@@ -64,7 +64,7 @@ impl HoldCmd {
 
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
-        if let Some(activity) = activity_store.hold_last_unfinished_activity(hold_opts)? {
+        if let Some(activity) = activity_store.hold_most_recent_active_activity(hold_opts)? {
             activity_store.sync()?;
             println!("Held {}", activity.activity());
         } else {

@@ -209,7 +209,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
 ///
 /// For example, you might want to start a new activity, end an activity that is currently running, or hold an activity temporarily.
 pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + ActivityQuerying {
-    /// Start an activity in the storage backend.
+    /// Begin an activity in the storage backend. This makes the activity active.
     ///
     /// # Arguments
     ///
@@ -222,9 +222,50 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// If the activity was started successfully it should return the ID of the started activity.
-    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
+    fn begin_activity(&self, mut activity: Activity) -> PaceResult<ActivityItem> {
+        activity.make_active();
         self.create_activity(activity)
     }
+
+    /// Hold an activity in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to hold.
+    /// * `hold_opts` - The options to hold the activity.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be held.
+    ///
+    /// # Returns
+    ///
+    /// If the activity was held successfully it should return the `ActivityItem` of the held activity.
+    fn hold_activity(
+        &self,
+        activity_id: ActivityGuid,
+        hold_opts: HoldOptions,
+    ) -> PaceResult<ActivityItem>;
+
+    /// Resume an activity in the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to resume. If `None`, the last unfinished activity is resumed.
+    /// * `resume_time` - The time (HH:MM) to resume the activity at. If `None`, the current time is used.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activity cannot be resumed.
+    ///
+    /// # Returns
+    ///
+    /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
+    fn resume_activity(
+        &self,
+        activity_id: Option<ActivityGuid>,
+        resume_time: Option<NaiveDateTime>,
+    ) -> PaceOptResult<ActivityItem>;
 
     /// End an activity in the storage backend.
     ///
@@ -240,7 +281,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// If the activity was ended successfully it should return the ID of the ended activity.
-    fn end_single_activity(
+    fn end_activity(
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
@@ -297,7 +338,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// The activity that was ended. Returns Ok(None) if no activity was ended.
     fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem>;
 
-    /// Hold an activity in the storage backend.
+    /// Hold the most recent activity that is active in the storage backend.
     ///
     /// # Arguments
     ///
@@ -315,26 +356,9 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Note
     ///
     /// This function should not be used to hold an activity that is already held. It should only be used to hold the last unfinished activity.
-    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<ActivityItem>;
-
-    /// Resume an activity in the storage backend.
-    ///
-    /// # Arguments
-    ///
-    /// * `activity_id` - The ID of the activity to resume. If `None`, the last unfinished activity is resumed.
-    /// * `resume_time` - The time (HH:MM) to resume the activity at. If `None`, the current time is used.
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the activity cannot be resumed.
-    ///
-    /// # Returns
-    ///
-    /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
-    fn resume_activity(
+    fn hold_most_recent_active_activity(
         &self,
-        activity_id: Option<ActivityGuid>,
-        resume_time: Option<NaiveDateTime>,
+        hold_opts: HoldOptions,
     ) -> PaceOptResult<ActivityItem>;
 }
 

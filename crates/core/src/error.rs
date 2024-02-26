@@ -128,8 +128,12 @@ pub enum ActivityLogErrorKind {
     ActivityAlreadyHasIntermission(Box<Activity>),
     /// There have been some activities that have not been ended
     ActivityNotEnded,
-    /// No active activity found
-    NoActiveActivityFound,
+    /// No active activity found with id '{0}'
+    NoActiveActivityFound(ActivityGuid),
+    /// Activity with id '{0}' already ended
+    ActivityAlreadyEnded(ActivityGuid),
+    /// Activity with id '{0}' already has been archived
+    ActivityAlreadyArchived(ActivityGuid),
 }
 
 trait PaceErrorMarker: Error {}

@@ -230,7 +230,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 }
 
 impl ActivityStateManagement for InMemoryActivityStorage {
-    fn end_single_activity(
+    fn end_activity(
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
@@ -265,7 +265,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             return Ok(None);
         };
 
-        let activity = self.end_single_activity(*most_recent.guid(), end_opts)?;
+        let activity = self.end_activity(*most_recent.guid(), end_opts)?;
 
         Ok(Some(activity))
     }
@@ -299,7 +299,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let ended_activities = active_activities
             .par_iter()
             .map(|activity_id| -> PaceResult<ActivityItem> {
-                self.end_single_activity(*activity_id, end_opts.clone())
+                self.end_activity(*activity_id, end_opts.clone())
             })
             .collect::<PaceResult<Vec<ActivityItem>>>()?;
 
@@ -311,57 +311,17 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         Ok(Some(ended_activities))
     }
 
-    fn hold_last_unfinished_activity(&self, hold_opts: HoldOptions) -> PaceOptResult<ActivityItem> {
+    fn hold_most_recent_active_activity(
+        &self,
+        hold_opts: HoldOptions,
+    ) -> PaceOptResult<ActivityItem> {
         // Get id from last activity that is not ended
         let Some(active_activity) = self.most_recent_active_activity()? else {
             // There are no active activities
             return Ok(None);
         };
 
-        // TODO!: What if there are any other intermissions ongoing for other activities?
-        // TODO!: Should we end them as well? Or should we just end the intermission for the active activity?
-
-        // Check if the latest active activity is already having an intermission
-        if let Some(intermissions) =
-            self.list_active_intermissions_for_activity_id(*active_activity.guid())?
-        {
-            // If there are active intermissions and we want to extend return early with the active activity
-            //
-            // Handles the case, if someone wants to create an intermission for an
-            // activity that already has an intermission, but hasn't set that we should
-            // create a new intermission. In this case we don't want to create
-            // another intermission, but return with the active activity.
-            if !intermissions.is_empty() && hold_opts.action().is_extend() {
-                return Ok(Some(active_activity));
-            }
-        };
-
-        // If there are active intermissions for any activity, end the intermissions
-        // because the user wants to create a new intermission
-        let _ = self.end_all_active_intermissions(hold_opts.clone().into())?;
-
-        // Create a new intermission for the active activity
-        let activity_kind_opts = ActivityKindOptions::with_parent_id(*active_activity.guid());
-
-        let description = hold_opts.reason().clone().unwrap_or_else(|| {
-            active_activity
-                .activity()
-                .description()
-                .clone()
-                .unwrap_or_else(|| format!("Holding {}", active_activity.activity()))
-        });
-
-        let intermission = Activity::builder()
-            .begin(*hold_opts.begin_time())
-            .kind(ActivityKind::Intermission)
-            .description(description)
-            .category(active_activity.activity().category().clone())
-            .activity_kind_options(activity_kind_opts)
-            .build();
-
-        let _created_intermission_item = self.create_activity(intermission.clone())?;
-
-        Ok(Some(active_activity))
+        Some(self.hold_activity(*active_activity.guid(), hold_opts)).transpose()
     }
 
     fn end_all_active_intermissions(
@@ -376,7 +336,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let ended_intermissions = active_intermissions
             .par_iter()
             .map(|activity_id| -> PaceResult<ActivityGuid> {
-                let _ = self.end_single_activity(*activity_id, end_opts.clone())?;
+                let _ = self.end_activity(*activity_id, end_opts.clone())?;
                 Ok(*activity_id)
             })
             .collect::<PaceResult<Vec<ActivityGuid>>>()?;
@@ -403,6 +363,70 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         // - If there are no active activities, return an error
 
         todo!("Implement resume_activity for InMemoryActivityStorage")
+    }
+
+    fn hold_activity(
+        &self,
+        activity_id: ActivityGuid,
+        hold_opts: HoldOptions,
+    ) -> PaceResult<ActivityItem> {
+        // Get ActivityItem for activity that
+        let active_activity = self.read_activity(activity_id)?;
+
+        // make sure, the activity is not already ended or archived
+        if !active_activity.activity().is_active() {
+            return Err(ActivityLogErrorKind::NoActiveActivityFound(activity_id).into());
+        } else if active_activity.activity().has_ended() {
+            return Err(ActivityLogErrorKind::ActivityAlreadyEnded(activity_id).into());
+        } else if active_activity.activity().is_archived() {
+            return Err(ActivityLogErrorKind::ActivityAlreadyArchived(activity_id).into());
+        };
+
+        // Check if the latest active activity is already having an intermission
+        if let Some(intermissions) =
+            self.list_active_intermissions_for_activity_id(*active_activity.guid())?
+        {
+            // TODO!: What if there are any other intermissions ongoing for other activities?
+            // TODO!: Should we end them as well? Or should we just end the intermission for the active activity?
+
+            // If there are active intermissions and we want to extend return early with the active activity
+            //
+            // Handles the case, if someone wants to create an intermission for an
+            // activity that already has an intermission, but hasn't set that we should
+            // create a new intermission. In this case we don't want to create
+            // another intermission, but return with the active activity.
+            if !intermissions.is_empty() && hold_opts.action().is_extend() {
+                return Ok(active_activity);
+            }
+        };
+
+        // If there are active intermissions for any activity, end the intermissions
+        // because the user wants to create a new intermission and time is limited,
+        // so you can't have multiple intermissions at once, only one at a time.
+        let _ = self.end_all_active_intermissions(hold_opts.clone().into())?;
+
+        // Create a new intermission for the active activity
+        let activity_kind_opts = ActivityKindOptions::with_parent_id(*active_activity.guid());
+
+        let description = hold_opts.reason().clone().unwrap_or_else(|| {
+            active_activity
+                .activity()
+                .description()
+                .clone()
+                .unwrap_or_else(|| format!("Holding {}", active_activity.activity()))
+        });
+
+        let intermission = Activity::builder()
+            .begin(*hold_opts.begin_time())
+            .kind(ActivityKind::Intermission)
+            .description(description)
+            .category(active_activity.activity().category().clone())
+            .activity_kind_options(activity_kind_opts)
+            .build();
+
+        let _created_intermission_item = self.create_activity(intermission.clone())?;
+
+        Ok(active_activity)
     }
 }
 
@@ -757,7 +781,7 @@ mod tests {
         let end_opts = EndOptions::builder().end_time(end_time).build();
 
         let ended_activity = storage
-            .end_single_activity(*activity_item.guid(), end_opts)
+            .end_activity(*activity_item.guid(), end_opts)
             .unwrap();
 
         assert_ne!(
@@ -910,7 +934,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hold_last_unfinished_activity_passes() {
+    fn test_hold_most_recent_active_activity_passes() {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -923,14 +947,14 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.create_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
 
         let hold_time = now + chrono::Duration::seconds(30);
 
         let hold_opts = HoldOptions::builder().begin_time(hold_time).build();
 
         let held_activity = storage
-            .hold_last_unfinished_activity(hold_opts)
+            .hold_most_recent_active_activity(hold_opts)
             .unwrap()
             .unwrap();
 
@@ -989,7 +1013,7 @@ mod tests {
             .build();
 
         let _held_item = storage
-            .hold_last_unfinished_activity(hold_opts)
+            .hold_most_recent_active_activity(hold_opts)
             .unwrap()
             .unwrap();
 
@@ -1008,7 +1032,7 @@ mod tests {
             .build();
 
         let _held_activity = storage
-            .hold_last_unfinished_activity(hold_opts)
+            .hold_most_recent_active_activity(hold_opts)
             .unwrap()
             .unwrap();
 
@@ -1045,7 +1069,7 @@ mod tests {
             .begin_time(now + chrono::Duration::seconds(30))
             .build();
 
-        let _ = storage.hold_last_unfinished_activity(hold_opts).unwrap();
+        let _ = storage.hold_most_recent_active_activity(hold_opts).unwrap();
 
         let intermission_guids = storage
             .list_active_intermissions_for_activity_id(*activity_item.guid())
