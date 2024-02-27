@@ -160,21 +160,6 @@ impl From<chrono::Duration> for PaceDuration {
     }
 }
 
-// pub enum TimeFrame {
-//     Custom {
-//         start: DateTime<Local>,
-//         end: DateTime<Local>,
-//     },
-//     Daily,
-//     DaysInThePast(u32),
-//     Monthly,
-//     MonthsInThePast(u32),
-//     Weekly,
-//     WeeksInThePast(u32),
-//     Yearly,
-//     YearsInThePast(u32),
-// }
-
 /// Wrapper for a date of an activity
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceDate(pub NaiveDate);
