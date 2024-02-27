@@ -8,6 +8,10 @@ pub(crate) mod service;
 pub(crate) mod storage;
 pub(crate) mod util;
 
+pub const PACE_CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const PACE_CONFIG_FILENAME: &str = "pace.toml";
+pub const PACE_ACTIVITY_LOG_FILENAME: &str = "activities.pace.toml";
+
 // Re-export commonly used external crates
 pub use toml;
 

@@ -14,7 +14,10 @@ use getset::{Getters, MutGetters};
 use tracing::{debug, info};
 use typed_builder::TypedBuilder;
 
-use pace_core::{get_activity_log_paths, get_config_paths, toml, ActivityLog, PaceConfig};
+use pace_core::{
+    get_activity_log_paths, get_config_paths, toml, ActivityLog, PaceConfig,
+    PACE_ACTIVITY_LOG_FILENAME, PACE_CONFIG_FILENAME,
+};
 
 use crate::prompt::{prompt_activity_log_path, prompt_config_file_path};
 
@@ -325,16 +328,12 @@ pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
 pub fn craft_setup(term: &Term) -> Result<()> {
     let mut config = PaceConfig::default();
 
-    let config_paths = get_config_paths("pace.toml")
+    let config_paths = get_config_paths(PACE_CONFIG_FILENAME)
         .into_iter()
         .map(|f| f.to_string_lossy().to_string())
         .collect::<Vec<String>>();
 
-    let current_month_year = chrono::Local::now().format("%Y-%m").to_string();
-
-    let activity_log_filename = format!("activity_{current_month_year}.pace.toml");
-
-    let activity_log_paths = get_activity_log_paths(&activity_log_filename)
+    let activity_log_paths = get_activity_log_paths(PACE_ACTIVITY_LOG_FILENAME)
         .into_iter()
         .map(|f| f.to_string_lossy().to_string())
         .collect::<Vec<String>>();

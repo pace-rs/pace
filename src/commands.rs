@@ -28,7 +28,7 @@ use clap::builder::{styling::AnsiColor, Styles};
 use human_panic::setup_panic;
 use std::path::PathBuf;
 
-use pace_core::{get_config_paths, PaceConfig};
+use pace_core::{get_config_paths, PaceConfig, PACE_CONFIG_FILENAME};
 
 /// Pace Subcommands
 /// Subcommands need to be listed in an enum.
@@ -126,7 +126,7 @@ impl Override<PaceConfig> for EntryPoint {
 impl Configurable<PaceConfig> for EntryPoint {
     /// Location of the configuration file
     fn config_path(&self) -> Option<PathBuf> {
-        let config_paths = get_config_paths("pace.toml")
+        let config_paths = get_config_paths(PACE_CONFIG_FILENAME)
             .into_iter()
             .filter(|f| f.exists())
             .collect::<Vec<_>>();
