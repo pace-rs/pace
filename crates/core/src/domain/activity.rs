@@ -62,7 +62,9 @@ impl From<(ActivityGuid, Activity)> for ActivityItem {
 }
 
 /// The kind of activity a user can track
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, Copy)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, Copy, PartialOrd, Ord,
+)]
 #[serde(rename_all = "kebab-case")]
 // #[serde(untagged)]
 pub enum ActivityKind {

@@ -43,3 +43,11 @@ pub struct UpdateOptions {}
 #[getset(get = "pub")]
 #[non_exhaustive]
 pub struct DeleteOptions {}
+
+#[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
+#[getset(get = "pub")]
+#[non_exhaustive]
+pub struct KeywordOptions {
+    #[builder(default, setter(into, strip_option))]
+    category: Option<String>,
+}

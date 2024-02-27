@@ -6,13 +6,14 @@ use crate::{
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
-        filter::{ActivityFilter, FilteredActivities},
+        filter::{ActivityStatusFilter, FilteredActivities},
         review::ActivityStats,
         time::TimeFrame,
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::file::TomlActivityStorage,
-    EndOptions, HoldOptions, PaceDateTime,
+    ActivityKind, ActivityStatus, EndOptions, HoldOptions, KeywordOptions, PaceDate, PaceDateTime,
+    PaceDurationRange, TimeRangeOptions,
 };
 
 /// A type of storage that can be synced to a persistent medium - a file
@@ -132,7 +133,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// A collection of the activities that were loaded from the storage backend. Returns Ok(None) if no activities are found.
-    fn list_activities(&self, filter: ActivityFilter) -> PaceOptResult<FilteredActivities>;
+    fn list_activities(&self, filter: ActivityStatusFilter) -> PaceOptResult<FilteredActivities>;
 }
 
 /// Basic CUD Operations for Activities in the storage backend.
@@ -399,6 +400,127 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
 /// For example, you might want to list all activities that are currently active,
 /// find all activities within a specific date range, or get a specific activity by its ID.
 pub trait ActivityQuerying: ActivityReadOps {
+    /// Group activities by predefined duration ranges (e.g., short, medium, long).
+    ///
+    /// This is useful for analyzing how time is spent on different activities.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activities cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the activities that are grouped by their duration range.
+    /// The key is the duration range, and the value is a list of activities that
+    /// fall within that range.
+    /// If no activities are found, it should return `Ok(None)`.
+    // TODO!: This method requires defining what constitutes short, medium, and long durations.
+    fn group_activities_by_duration_range(
+        &self,
+    ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>>;
+
+    /// Group activities by their start date. This can help in analyzing how
+    /// activities are distributed over time.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activities cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the activities that are grouped by their start date.
+    /// The key is the start date of the activity, and the value is a list of activities
+    /// that started on that date.
+    // TODO!: Do we actually also want to group by end date? If so, we might want to introduce a new type
+    // TODO!: for the groupings, so we can distinguish between start and end date groupings.
+    fn group_activities_by_start_date(
+        &self,
+    ) -> PaceOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>>;
+
+    /// Retrieve activities that have one or more intermissions, useful for identifying
+    /// potential inefficiencies or breaks.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activities cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the activities that have intermissions.
+    /// The key is the ID of the activity, and the value is a list of intermissions.
+    /// If no activities are found, it should return `Ok(None)`.
+    fn list_activities_with_intermissions(
+        &self,
+    ) -> PaceOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>>;
+
+    /// Group activities based on keywords, e.g., category, tags, etc.
+    ///
+    /// This is useful for analyzing time spent on different projects or areas of work.
+    ///
+    /// # Arguments
+    ///
+    /// * `keyword_opts` - The keyword options to filter the activities by.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activities cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the activities that are matching the `KeywordOptions`.
+    /// The key is the keyword, and the value is a list of matching activities.
+    /// If no activities are found, it should return `Ok(None)`.
+    fn group_activities_by_keywords(
+        &self,
+        keyword_opts: KeywordOptions,
+    ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>>;
+
+    /// Group activities based on their kind (e.g., Task, Intermission).
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activities cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the activities with their kind.
+    /// The key is the kind of the activity, and the value is a list of activities of that kind.
+    /// If no activities are found, it should return `Ok(None)`.
+    fn group_activities_by_kind(&self) -> PaceOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>>;
+
+    /// List activities by time range from the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `time_range_opts` - The range options to filter the activities by.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activities cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the activities that are matching the `RangeOptions`.
+    /// If no activities are found, it should return `Ok(None)`.
+    fn list_activities_by_time_range(
+        &self,
+        time_range_opts: TimeRangeOptions,
+    ) -> PaceOptResult<Vec<ActivityItem>>;
+
+    /// Group activities by their status from the storage backend.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the activities cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the activities by their status.
+    /// If no activities are found, it should return `Ok(None)`.
+    fn group_activities_by_status(
+        &self,
+    ) -> PaceOptResult<BTreeMap<ActivityStatus, Vec<ActivityItem>>>;
+
     /// List all current activities from the storage backend matching an `ActivityFilter`.
     ///
     /// # Errors
@@ -409,33 +531,14 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// # Returns
     ///
     /// A collection of the activities that are matching the `ActivityFilter`.
-    fn list_current_activities(&self, filter: ActivityFilter) -> PaceOptResult<Vec<ActivityGuid>> {
+    fn list_current_activities(
+        &self,
+        filter: ActivityStatusFilter,
+    ) -> PaceOptResult<Vec<ActivityGuid>> {
         Ok(self
             .list_activities(filter)?
             .map(FilteredActivities::into_vec))
     }
-
-    /// Find activities within a specific date range.
-    ///
-    /// # Arguments
-    ///
-    /// * `start_date` - The start date of the range.
-    /// * `end_date` - The end date of the range.
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the activities cannot be loaded.
-    ///
-    /// # Returns
-    ///
-    /// A collection of the activities that fall within the specified date range.
-    // TODO: should just use `list_activities` with a filter for `start_date <= date <= end_date`
-    // TODO: Implement this as default
-    fn find_activities_in_date_range(
-        &self,
-        start: PaceDateTime,
-        end: PaceDateTime,
-    ) -> PaceResult<ActivityLog>;
 
     /// Get all activities by their ID.
     ///
@@ -461,7 +564,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn list_active_intermissions(&self) -> PaceOptResult<Vec<ActivityGuid>> {
         Ok(self
-            .list_activities(ActivityFilter::ActiveIntermission)?
+            .list_activities(ActivityStatusFilter::ActiveIntermission)?
             .map(FilteredActivities::into_vec))
     }
 
@@ -481,7 +584,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn list_most_recent_activities(&self, count: usize) -> PaceOptResult<Vec<ActivityGuid>> {
         let filtered = self
-            .list_activities(ActivityFilter::OnlyActivities)?
+            .list_activities(ActivityStatusFilter::OnlyActivities)?
             .map(FilteredActivities::into_vec);
 
         let Some(mut filtered) = filtered else {
@@ -567,7 +670,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// The latest active activity.
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
-        let Some(mut current) = self.list_current_activities(ActivityFilter::Active)? else {
+        let Some(mut current) = self.list_current_activities(ActivityStatusFilter::Active)? else {
             // There are no active activities at all
             return Ok(None);
         };
@@ -602,7 +705,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// The latest held activity.
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_held_activity(&self) -> PaceOptResult<ActivityItem> {
-        let Some(mut current) = self.list_current_activities(ActivityFilter::Held)? else {
+        let Some(mut current) = self.list_current_activities(ActivityStatusFilter::Held)? else {
             // There are no active activities at all
             return Ok(None);
         };

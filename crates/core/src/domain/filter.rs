@@ -3,7 +3,7 @@ use strum::EnumIter;
 
 /// Filter for activities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumIter)]
-pub enum ActivityFilter {
+pub enum ActivityStatusFilter {
     /// Everything, activities, intermissions, archived, and ended
     #[default]
     Everything,
@@ -25,6 +25,9 @@ pub enum ActivityFilter {
 
     /// Activities that are held
     Held,
+
+    /// Intermission
+    Intermission,
 }
 
 /// Filtered activities
@@ -50,6 +53,9 @@ pub enum FilteredActivities {
 
     /// Activities that are held
     Held(Vec<ActivityGuid>),
+
+    /// Intermission
+    Intermission(Vec<ActivityGuid>),
 }
 
 impl FilteredActivities {
@@ -63,7 +69,8 @@ impl FilteredActivities {
             | Self::Archived(activities)
             | Self::Ended(activities)
             | Self::ActiveIntermission(activities)
-            | Self::Held(activities) => activities,
+            | Self::Held(activities)
+            | Self::Intermission(activities) => activities,
         }
     }
 }

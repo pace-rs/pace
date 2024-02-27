@@ -153,6 +153,12 @@ pub enum ActivityLogErrorKind {
     ActiveActivityFound(ActivityGuid),
     /// Activity with id '{0}' is not held, but we wanted to resume it
     NoHeldActivityFound(ActivityGuid),
+    /// No activity kind options found for activity with id '{0}'
+    ActivityKindOptionsNotFound(ActivityGuid),
+    /// ParentId not set for activity with id '{0}'
+    ParentIdNotSet(ActivityGuid),
+    /// Category not set for activity with id '{0}'
+    CategoryNotSet(ActivityGuid),
 }
 
 trait PaceErrorMarker: Error {}

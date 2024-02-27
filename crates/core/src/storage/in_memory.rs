@@ -10,7 +10,7 @@ use crate::{
     domain::{
         activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
-        filter::{ActivityFilter, FilteredActivities},
+        filter::{ActivityStatusFilter, FilteredActivities},
         time::calculate_duration,
     },
     error::{ActivityLogErrorKind, PaceOptResult, PaceResult},
@@ -18,7 +18,8 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    ActivityKind, ActivityKindOptions, ActivityStatus, EndOptions, HoldOptions, PaceDateTime,
+    ActivityKind, ActivityKindOptions, ActivityStatus, EndOptions, HoldOptions, KeywordOptions,
+    PaceDate, TimeRangeOptions,
 };
 
 /// Type for shared `ActivityLog`
@@ -104,19 +105,20 @@ impl ActivityReadOps for InMemoryActivityStorage {
         Ok((activity_id, activity).into())
     }
 
-    fn list_activities(&self, filter: ActivityFilter) -> PaceOptResult<FilteredActivities> {
+    fn list_activities(&self, filter: ActivityStatusFilter) -> PaceOptResult<FilteredActivities> {
         let activity_log = self.log.read();
 
         let filtered = activity_log
             .par_iter()
             .filter(|(_, activity)| match filter {
-                ActivityFilter::Everything => true,
-                ActivityFilter::OnlyActivities => activity.kind().is_activity(),
-                ActivityFilter::Active => activity.is_active(),
-                ActivityFilter::ActiveIntermission => activity.is_active_intermission(),
-                ActivityFilter::Ended => activity.has_ended(),
-                ActivityFilter::Archived => activity.is_archived(),
-                ActivityFilter::Held => activity.is_held(),
+                ActivityStatusFilter::Everything => true,
+                ActivityStatusFilter::OnlyActivities => activity.kind().is_activity(),
+                ActivityStatusFilter::Active => activity.is_active(),
+                ActivityStatusFilter::ActiveIntermission => activity.is_active_intermission(),
+                ActivityStatusFilter::Ended => activity.has_ended(),
+                ActivityStatusFilter::Archived => activity.is_archived(),
+                ActivityStatusFilter::Held => activity.is_held(),
+                ActivityStatusFilter::Intermission => activity.kind().is_intermission(),
             })
             .map(|(activity_id, _)| activity_id)
             .cloned()
@@ -129,17 +131,20 @@ impl ActivityReadOps for InMemoryActivityStorage {
         }
 
         match filter {
-            ActivityFilter::Everything => Ok(Some(FilteredActivities::Everything(filtered))),
-            ActivityFilter::OnlyActivities => {
+            ActivityStatusFilter::Everything => Ok(Some(FilteredActivities::Everything(filtered))),
+            ActivityStatusFilter::OnlyActivities => {
                 Ok(Some(FilteredActivities::OnlyActivities(filtered)))
             }
-            ActivityFilter::Active => Ok(Some(FilteredActivities::Active(filtered))),
-            ActivityFilter::ActiveIntermission => {
+            ActivityStatusFilter::Active => Ok(Some(FilteredActivities::Active(filtered))),
+            ActivityStatusFilter::ActiveIntermission => {
                 Ok(Some(FilteredActivities::ActiveIntermission(filtered)))
             }
-            ActivityFilter::Archived => Ok(Some(FilteredActivities::Archived(filtered))),
-            ActivityFilter::Ended => Ok(Some(FilteredActivities::Ended(filtered))),
-            ActivityFilter::Held => Ok(Some(FilteredActivities::Held(filtered))),
+            ActivityStatusFilter::Archived => Ok(Some(FilteredActivities::Archived(filtered))),
+            ActivityStatusFilter::Ended => Ok(Some(FilteredActivities::Ended(filtered))),
+            ActivityStatusFilter::Held => Ok(Some(FilteredActivities::Held(filtered))),
+            ActivityStatusFilter::Intermission => {
+                Ok(Some(FilteredActivities::Intermission(filtered)))
+            }
         }
     }
 }
@@ -471,14 +476,6 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 }
 
 impl ActivityQuerying for InMemoryActivityStorage {
-    fn find_activities_in_date_range(
-        &self,
-        _start: PaceDateTime,
-        _end: PaceDateTime,
-    ) -> PaceResult<ActivityLog> {
-        todo!("Implement find_activities_in_date_range for InMemoryActivityStorage")
-    }
-
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
         let activities = self.log.read();
 
@@ -492,6 +489,139 @@ impl ActivityQuerying for InMemoryActivityStorage {
 
         Ok(Some(activities_by_id))
     }
+
+    fn group_activities_by_duration_range(
+        &self,
+    ) -> PaceOptResult<BTreeMap<crate::PaceDurationRange, Vec<ActivityItem>>> {
+        todo!("Implement grouping activities by duration range")
+    }
+
+    fn group_activities_by_start_date(
+        &self,
+    ) -> PaceOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
+        let activities = self.log.read();
+
+        Some(activities.activities().iter().try_fold(
+            BTreeMap::new(),
+            |mut acc: BTreeMap<PaceDate, Vec<ActivityItem>>, (activity_id, activity)| {
+                let begin_date = activity.begin().date();
+
+                acc.entry(begin_date)
+                    .or_default()
+                    .push(ActivityItem::from((*activity_id, activity.clone())));
+
+                Ok(acc)
+            },
+        ))
+        .transpose()
+    }
+
+    fn list_activities_with_intermissions(
+        &self,
+    ) -> PaceOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
+        let Some(intermissions) = self
+            .list_activities(ActivityStatusFilter::Intermission)?
+            .map(FilteredActivities::into_vec)
+        else {
+            return Ok(None);
+        };
+
+        Some(intermissions.into_iter().try_fold(
+            BTreeMap::new(),
+            |mut acc: BTreeMap<ActivityGuid, Vec<ActivityItem>>, intermission_id| {
+                let intermission = self.read_activity(intermission_id)?;
+
+                let parent_id = intermission
+                    .activity()
+                    .activity_kind_options()
+                    .as_ref()
+                    .ok_or(ActivityLogErrorKind::ActivityKindOptionsNotFound(
+                        intermission_id,
+                    ))?
+                    .parent_id()
+                    .ok_or(ActivityLogErrorKind::ParentIdNotSet(intermission_id))?;
+
+                let parent_activity = self.read_activity(parent_id)?;
+
+                acc.entry(parent_id).or_default().push(parent_activity);
+
+                Ok(acc)
+            },
+        ))
+        .transpose()
+    }
+
+    fn group_activities_by_keywords(
+        &self,
+        keyword_opts: KeywordOptions,
+    ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>> {
+        let activities = self.log.read();
+
+        Some(activities.activities().iter().try_fold(
+            BTreeMap::new(),
+            |mut acc: BTreeMap<String, Vec<ActivityItem>>, (activity_id, activity)| {
+                if let Some(category) = keyword_opts.category() {
+                    let category = category.to_lowercase();
+
+                    if activity
+                        .category()
+                        .as_ref()
+                        .ok_or(ActivityLogErrorKind::CategoryNotSet(*activity_id))?
+                        .to_lowercase()
+                        .contains(category.as_str())
+                    {
+                        acc.entry(category)
+                            .or_default()
+                            .push(ActivityItem::from((*activity_id, activity.clone())));
+                    }
+                }
+
+                Ok(acc)
+            },
+        ))
+        .transpose()
+    }
+
+    fn group_activities_by_kind(&self) -> PaceOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
+        let activities = self.log.read();
+
+        Some(activities.activities().iter().try_fold(
+            BTreeMap::new(),
+            |mut acc: BTreeMap<ActivityKind, Vec<ActivityItem>>, (activity_id, activity)| {
+                acc.entry(*activity.kind())
+                    .or_default()
+                    .push(ActivityItem::from((*activity_id, activity.clone())));
+
+                Ok(acc)
+            },
+        ))
+        .transpose()
+    }
+
+    fn group_activities_by_status(
+        &self,
+    ) -> PaceOptResult<BTreeMap<ActivityStatus, Vec<ActivityItem>>> {
+        let activities = self.log.read();
+
+        Some(activities.activities().iter().try_fold(
+            BTreeMap::new(),
+            |mut acc: BTreeMap<ActivityStatus, Vec<ActivityItem>>, (activity_id, activity)| {
+                acc.entry(*activity.status())
+                    .or_default()
+                    .push(ActivityItem::from((*activity_id, activity.clone())));
+
+                Ok(acc)
+            },
+        ))
+        .transpose()
+    }
+
+    fn list_activities_by_time_range(
+        &self,
+        _time_range_opts: TimeRangeOptions,
+    ) -> PaceOptResult<Vec<ActivityItem>> {
+        todo!("Implement listing activities by time range")
+    }
 }
 
 #[cfg(test)]
@@ -499,7 +629,7 @@ mod tests {
 
     use chrono::Local;
 
-    use crate::PaceDateTime;
+    use crate::{PaceDate, PaceDateTime};
 
     use super::*;
 
@@ -574,7 +704,7 @@ mod tests {
         let _activity_item = storage.create_activity(activity.clone()).unwrap();
 
         let filtered_activities = storage
-            .list_activities(ActivityFilter::Everything)
+            .list_activities(ActivityStatusFilter::Everything)
             .unwrap()
             .unwrap()
             .into_vec();
@@ -1330,4 +1460,227 @@ mod tests {
 
         assert!(!resumed_stored_activity.activity().has_ended());
     }
+
+    #[test]
+    fn test_group_activities_by_keywords_passes() {
+        let storage = InMemoryActivityStorage::new();
+        let now = Local::now().naive_local();
+        let begin_time = now - chrono::Duration::seconds(30);
+        let kind = ActivityKind::Activity;
+        let description = "Test activity";
+
+        let activity = Activity::builder()
+            .begin(begin_time)
+            .kind(kind)
+            .description(description)
+            .category("Project::Test".to_string())
+            .build();
+
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+
+        let keyword_opts = KeywordOptions::builder().category("Test").build();
+
+        let grouped_activities = storage
+            .group_activities_by_keywords(keyword_opts)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            grouped_activities.len(),
+            1,
+            "Grouped activities do not match the amount of created activities."
+        );
+
+        let grouped_activity = grouped_activities
+            .values()
+            .next()
+            .unwrap()
+            .first()
+            .unwrap()
+            .clone();
+
+        assert_eq!(
+            *grouped_activity.guid(),
+            *activity_item.guid(),
+            "Grouped activity is not the same as the original activity."
+        );
+    }
+
+    #[test]
+    fn test_group_activities_by_kind_passes() {
+        let storage = InMemoryActivityStorage::new();
+        let now = Local::now().naive_local();
+        let begin_time = now - chrono::Duration::seconds(30);
+        let kind = ActivityKind::Activity;
+        let description = "Test activity";
+
+        let activity = Activity::builder()
+            .begin(begin_time)
+            .kind(kind)
+            .description(description)
+            .build();
+
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+
+        let grouped_activities = storage.group_activities_by_kind().unwrap().unwrap();
+
+        assert_eq!(
+            grouped_activities.len(),
+            1,
+            "Grouped activities do not match the amount of created activities."
+        );
+
+        let grouped_activity = grouped_activities
+            .values()
+            .next()
+            .unwrap()
+            .first()
+            .unwrap()
+            .clone();
+
+        assert_eq!(
+            *grouped_activity.guid(),
+            *activity_item.guid(),
+            "Grouped activity is not the same as the original activity."
+        );
+
+        assert_eq!(
+            *grouped_activity.activity().kind(),
+            kind,
+            "Grouped activity kind is not the same as the original activity kind."
+        );
+
+        assert_eq!(
+            *grouped_activity.activity().description(),
+            description,
+            "Grouped activity description is not the same as the original activity description."
+        );
+    }
+
+    #[test]
+    fn test_group_activities_by_status_passes() {
+        let storage = InMemoryActivityStorage::new();
+        let now = Local::now().naive_local();
+        let begin_time = now - chrono::Duration::seconds(30);
+        let kind = ActivityKind::Activity;
+        let description = "Test activity";
+
+        let activity = Activity::builder()
+            .begin(begin_time)
+            .kind(kind)
+            .description(description)
+            .build();
+
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+
+        let grouped_activities = storage.group_activities_by_status().unwrap().unwrap();
+
+        assert_eq!(
+            grouped_activities.len(),
+            1,
+            "Grouped activities do not match the amount of created activities."
+        );
+
+        let grouped_activity = grouped_activities
+            .values()
+            .next()
+            .unwrap()
+            .first()
+            .unwrap()
+            .clone();
+
+        assert_eq!(
+            *grouped_activity.guid(),
+            *activity_item.guid(),
+            "Grouped activity is not the same as the original activity."
+        );
+
+        assert_eq!(
+            *grouped_activity.activity().status(),
+            ActivityStatus::Active,
+            "Grouped activity status is not the same as the original activity status."
+        );
+
+        assert_eq!(
+            *grouped_activity.activity().kind(),
+            kind,
+            "Grouped activity kind is not the same as the original activity kind."
+        );
+
+        assert_eq!(
+            *grouped_activity.activity().description(),
+            description,
+            "Grouped activity description is not the same as the original activity description."
+        );
+    }
+
+    #[test]
+    fn test_group_activities_by_start_date_passes() {
+        let storage = InMemoryActivityStorage::new();
+        let now = Local::now().naive_local();
+        let begin_time = now - chrono::Duration::seconds(30);
+        let kind = ActivityKind::Activity;
+        let description = "Test activity";
+
+        let activity = Activity::builder()
+            .begin(begin_time)
+            .kind(kind)
+            .description(description)
+            .build();
+
+        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+
+        let grouped_activities = storage.group_activities_by_start_date().unwrap().unwrap();
+
+        assert_eq!(
+            grouped_activities.len(),
+            1,
+            "Grouped activities do not match the amount of created activities."
+        );
+
+        let grouped_activity = grouped_activities
+            .values()
+            .next()
+            .unwrap()
+            .first()
+            .unwrap()
+            .clone();
+
+        assert_eq!(
+            *grouped_activity.guid(),
+            *activity_item.guid(),
+            "Grouped activity is not the same as the original activity."
+        );
+
+        assert_eq!(
+            grouped_activity.activity().begin().date(),
+            PaceDate(now.date()),
+            "Grouped activity date is not the same as the original activity date."
+        );
+
+        assert_eq!(
+            *grouped_activity.activity().kind(),
+            kind,
+            "Grouped activity kind is not the same as the original activity kind."
+        );
+
+        assert_eq!(
+            *grouped_activity.activity().description(),
+            description,
+            "Grouped activity description is not the same as the original activity description."
+        );
+    }
+
+    // TODO!: Implement the following tests
+    // #[test]
+    // fn test_group_multiple_activities_by_status_passes() {
+    // }
+
+    // #[test]
+    // fn test_group_multiple_activities_by_kind_passes() {
+    // }
+
+    // #[test]
+    // fn test_group_multiple_activities_by_keywords_passes() {
+    // }
 }
