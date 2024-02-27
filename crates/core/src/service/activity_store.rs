@@ -9,15 +9,14 @@ use crate::{
     commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
-        activity_log::ActivityLog,
-        filter::FilteredActivities,
+        filter::{ActivityStatusFilter, FilteredActivities},
     },
     error::{PaceOptResult, PaceResult},
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    EndOptions, HoldOptions, PaceDateTime,
+    ActivityStatus, EndOptions, HoldOptions,
 };
 
 /// The activity store entity
@@ -71,10 +70,7 @@ impl ActivityReadOps for ActivityStore {
         self.storage.read_activity(activity_id)
     }
 
-    fn list_activities(
-        &self,
-        filter: crate::domain::filter::ActivityFilter,
-    ) -> PaceOptResult<FilteredActivities> {
+    fn list_activities(&self, filter: ActivityStatusFilter) -> PaceOptResult<FilteredActivities> {
         self.storage.list_activities(filter)
     }
 }
@@ -166,15 +162,51 @@ impl ActivityStateManagement for ActivityStore {
 }
 
 impl ActivityQuerying for ActivityStore {
-    fn find_activities_in_date_range(
-        &self,
-        start: PaceDateTime,
-        end: PaceDateTime,
-    ) -> PaceResult<ActivityLog> {
-        self.storage.find_activities_in_date_range(start, end)
-    }
-
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
         self.storage.list_activities_by_id()
+    }
+
+    fn group_activities_by_duration_range(
+        &self,
+    ) -> PaceOptResult<BTreeMap<crate::PaceDurationRange, Vec<ActivityItem>>> {
+        self.storage.group_activities_by_duration_range()
+    }
+
+    fn group_activities_by_start_date(
+        &self,
+    ) -> PaceOptResult<BTreeMap<crate::PaceDate, Vec<ActivityItem>>> {
+        self.storage.group_activities_by_start_date()
+    }
+
+    fn list_activities_with_intermissions(
+        &self,
+    ) -> PaceOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
+        self.storage.list_activities_with_intermissions()
+    }
+
+    fn group_activities_by_keywords(
+        &self,
+        keyword_opts: crate::KeywordOptions,
+    ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>> {
+        self.storage.group_activities_by_keywords(keyword_opts)
+    }
+
+    fn group_activities_by_kind(
+        &self,
+    ) -> PaceOptResult<BTreeMap<crate::ActivityKind, Vec<ActivityItem>>> {
+        self.storage.group_activities_by_kind()
+    }
+
+    fn list_activities_by_time_range(
+        &self,
+        time_range_opts: crate::TimeRangeOptions,
+    ) -> PaceOptResult<Vec<ActivityItem>> {
+        self.storage.list_activities_by_time_range(time_range_opts)
+    }
+
+    fn group_activities_by_status(
+        &self,
+    ) -> PaceOptResult<BTreeMap<ActivityStatus, Vec<ActivityItem>>> {
+        self.storage.group_activities_by_status()
     }
 }

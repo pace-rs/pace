@@ -5,8 +5,19 @@ use std::{
 };
 
 use crate::error::{ActivityLogErrorKind, PaceErrorKind, PaceOptResult, PaceResult};
-use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, SubsecRound, TimeZone};
+use chrono::{
+    DateTime, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone,
+};
+use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
+
+#[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
+#[getset(get = "pub")]
+pub struct TimeRangeOptions {
+    start: PaceDateTime,
+    end: PaceDateTime,
+}
 
 pub enum TimeFrame {
     Custom {
@@ -109,6 +120,14 @@ pub fn parse_time_from_user_input(time: &Option<String>) -> PaceOptResult<NaiveD
         .transpose()
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub enum PaceDurationRange {
+    Short,
+    #[default]
+    Medium,
+    Long,
+}
+
 /// The duration of an activity
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct PaceDuration(u64);
@@ -141,11 +160,30 @@ impl From<chrono::Duration> for PaceDuration {
     }
 }
 
+/// Wrapper for a date of an activity
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+pub struct PaceDate(pub NaiveDate);
+
+/// Wrapper for a time of an activity
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+pub struct PaceTime(pub NaiveTime);
+
 /// Wrapper for the start and end time of an activity to implement default
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq)]
 pub struct PaceDateTime(NaiveDateTime);
 
 impl PaceDateTime {
+    /// Get the date of the activity
+    pub fn date(&self) -> PaceDate {
+        PaceDate(self.0.date())
+    }
+
+    /// Get the time of the activity
+    pub fn time(&self) -> PaceTime {
+        PaceTime(self.0.time())
+    }
+
+    /// Create a new `PaceDateTime`
     pub fn new(time: NaiveDateTime) -> Self {
         Self(time.round_subsecs(0))
     }
@@ -155,7 +193,8 @@ impl PaceDateTime {
         self.0
     }
 
-    pub fn and_local_timezone<Tz: TimeZone>(&self, tz: Tz) -> chrono::LocalResult<DateTime<Tz>> {
+    /// Convert to a local date time
+    pub fn and_local_timezone<Tz: TimeZone>(&self, tz: Tz) -> LocalResult<DateTime<Tz>> {
         self.0.and_local_timezone(tz)
     }
 

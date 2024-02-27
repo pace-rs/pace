@@ -1,12 +1,17 @@
 //! This module contains the domain logic for tracking activities and their intermissions.
 
-use std::collections::BTreeMap;
-
-use crate::domain::activity::{Activity, ActivityGuid};
+use crate::ActivityStore;
 
 // This struct represents the overall structure for tracking activities and their intermissions.
-#[derive(Default, Debug, Clone)]
-struct ActivityTracker {
-    activities: BTreeMap<ActivityGuid, Activity>,
-    intermissions: BTreeMap<ActivityGuid, Vec<Activity>>,
+pub struct ActivityTracker {
+    store: ActivityStore,
+    // activities: BTreeMap<ActivityGuid, Activity>,
+    // intermissions: BTreeMap<ActivityGuid, Vec<Activity>>,
+}
+
+impl ActivityTracker {
+    /// Create a new activity tracker with the given activity store.
+    pub fn with_activity_store(store: ActivityStore) -> Self {
+        Self { store }
+    }
 }
