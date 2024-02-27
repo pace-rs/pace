@@ -25,6 +25,7 @@ kind = "activity"
 [01HPY70577MQYQXTR4YFJ6NB1Y]
 end = "2024-02-04T00:00:00"
 begin = "2024-02-03T23:30:00"
+description = "Initial design process and requirements analysis."
 duration = 1800
 kind = "intermission"
 parent-id = "01HPY70577HJBZ20NQR15AR9G0"

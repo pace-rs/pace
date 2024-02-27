@@ -6,4 +6,4 @@ pub(crate) mod prompt;
 pub(crate) mod setup;
 
 // Public API
-pub use crate::setup::craft_setup;
+pub use crate::{prompt::confirmation_or_break, setup::craft_setup};

@@ -37,6 +37,23 @@ impl PaceError {
     pub fn into_inner(self) -> PaceErrorKind {
         self.0
     }
+
+    /// Is this error related to a resumable activity so that we can prompt the user?
+    ///
+    /// This is useful for matching on the error kind.
+    #[must_use]
+    pub fn possible_new_activity_from_resume(&self) -> bool {
+        matches!(
+            self.0,
+            PaceErrorKind::ActivityLog(ActivityLogErrorKind::NoHeldActivityFound(_))
+        ) || matches!(
+            self.0,
+            PaceErrorKind::ActivityLog(ActivityLogErrorKind::ActivityAlreadyEnded(_))
+        ) || matches!(
+            self.0,
+            PaceErrorKind::ActivityLog(ActivityLogErrorKind::ActivityAlreadyArchived(_))
+        )
+    }
 }
 
 /// [`PaceErrorKind`] describes the errors that can happen while executing a high-level command.

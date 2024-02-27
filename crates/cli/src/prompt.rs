@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use eyre::Result;
 use tracing::debug;
 
@@ -96,4 +96,30 @@ pub(crate) fn prompt_config_file_path(
     _ = final_paths.config_root_mut().replace(parent.to_path_buf());
 
     Ok(final_paths)
+}
+
+/// Prompts the user to confirm their choices or break
+///
+/// # Arguments
+///
+/// * `prompt` - The prompt to display to the user
+///
+/// # Errors
+///
+/// Returns an error if the wants to break or if the prompt fails
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the user confirms their choices
+pub fn confirmation_or_break(prompt: &str) -> Result<()> {
+    let confirmation = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(prompt)
+        .default(false)
+        .interact()?;
+
+    if !confirmation {
+        eyre::bail!("Exiting. No changes were made.");
+    }
+
+    Ok(())
 }
