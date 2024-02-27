@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.2.4](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.3...pace_cli-v0.2.4) - 2024-02-27
+
+### Fixed
+- remove monthly and yearly bound on activity_log file name
+
 ## [0.2.3](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.2...pace_cli-v0.2.3) - 2024-02-27
 
 ### Added
