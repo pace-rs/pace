@@ -342,15 +342,15 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     ) -> PaceResult<ActivityItem> {
         let resumable_activity = self.read_activity(activity_id)?;
 
-        // If the activity is not active, return early with an error
-        if !resumable_activity.activity().is_held() {
-            return Err(ActivityLogErrorKind::NoHeldActivityFound(activity_id).into());
-        } else if resumable_activity.activity().is_active() {
+        // If the activity is active, return early with an error
+        if resumable_activity.activity().is_active() {
             return Err(ActivityLogErrorKind::ActiveActivityFound(activity_id).into());
         } else if resumable_activity.activity().has_ended() {
             return Err(ActivityLogErrorKind::ActivityAlreadyEnded(activity_id).into());
         } else if resumable_activity.activity().is_archived() {
             return Err(ActivityLogErrorKind::ActivityAlreadyArchived(activity_id).into());
+        } else if !resumable_activity.activity().is_held() {
+            return Err(ActivityLogErrorKind::NoHeldActivityFound(activity_id).into());
         };
 
         // If there are active intermissions for any activity, end the intermissions
@@ -418,13 +418,10 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         // Create a new intermission for the active activity
         let activity_kind_opts = ActivityKindOptions::with_parent_id(*active_activity.guid());
 
-        let description = hold_opts.reason().clone().unwrap_or_else(|| {
-            active_activity
-                .activity()
-                .description()
-                .clone()
-                .unwrap_or_else(|| format!("Holding {}", active_activity.activity()))
-        });
+        let description = hold_opts
+            .reason()
+            .clone()
+            .unwrap_or_else(|| active_activity.activity().description().clone());
 
         let intermission = Activity::builder()
             .begin(*hold_opts.begin_time())
@@ -432,7 +429,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             .status(ActivityStatus::Active)
             .description(description)
             .category(active_activity.activity().category().clone())
-            .activity_kind_options(activity_kind_opts)
+            .activity_kind_options(Some(activity_kind_opts))
             .build();
 
         let _created_intermission_item = self.begin_activity(intermission.clone())?;
@@ -653,8 +650,8 @@ mod tests {
         );
 
         assert_eq!(
-            new_stored_activity.activity().description().as_deref(),
-            Some(new_description),
+            new_stored_activity.activity().description(),
+            new_description,
             "Description was not updated."
         );
 
@@ -744,8 +741,8 @@ mod tests {
         let new_stored_activity = storage.read_activity(*activity_item.guid()).unwrap();
 
         assert_eq!(
-            new_stored_activity.activity().description().as_deref(),
-            Some(new_description),
+            new_stored_activity.activity().description(),
+            new_description,
             "Description was not updated."
         );
 
@@ -1154,8 +1151,8 @@ mod tests {
         );
 
         assert_eq!(
-            first_og_activity.description().as_deref(),
-            first_stored_activity.activity().description().as_deref(),
+            first_og_activity.description(),
+            first_stored_activity.activity().description(),
             "Stored activity has not the same description as the original activity."
         );
 
@@ -1205,8 +1202,8 @@ mod tests {
         );
 
         assert_eq!(
-            second_og_activity.description().as_deref(),
-            second_stored_activity.activity().description().as_deref(),
+            second_og_activity.description(),
+            second_stored_activity.activity().description(),
             "Stored activity has not the same description as the original activity."
         );
 
@@ -1320,8 +1317,8 @@ mod tests {
         );
 
         assert_eq!(
-            resumed_stored_activity.activity().description().as_deref(),
-            second_stored_activity.activity().description().as_deref(),
+            resumed_stored_activity.activity().description(),
+            second_stored_activity.activity().description(),
             "Resumed activity has not the same description as the second stored activity."
         );
 

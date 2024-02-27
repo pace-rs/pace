@@ -459,7 +459,7 @@ fn test_activity_store_begin_intermission_passes(
 
     assert_eq!(
         intermission.activity().description(),
-        &Some("Activity with Intermission".to_string())
+        "Activity with Intermission"
     );
 
     assert_eq!(
@@ -524,7 +524,7 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
 
     assert_eq!(
         intermission.activity().description(),
-        &Some("Activity with Intermission".to_string())
+        "Activity with Intermission"
     );
 
     assert_eq!(

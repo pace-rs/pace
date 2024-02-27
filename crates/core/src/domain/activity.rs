@@ -179,10 +179,9 @@ pub struct Activity {
     /// The description of the activity
     // This needs to be an Optional, because we use the whole activity struct
     // as well for intermissions, which don't have a description
-    #[builder(default, setter(strip_option, into))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into))]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    description: Option<String>,
+    description: String,
 
     /// The start date and time of the activity
     #[builder(default, setter(into))]
@@ -203,7 +202,7 @@ pub struct Activity {
     kind: ActivityKind,
 
     /// Optional attributes for the activity kind
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into))]
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
     activity_kind_options: Option<ActivityKindOptions>,
@@ -219,7 +218,7 @@ pub struct Activity {
 
     // Pomodoro-specific attributes
     /// The pomodoro cycle of the activity
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into))]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
     pomodoro_cycle_options: Option<PomodoroCycle>,
@@ -307,14 +306,13 @@ impl Display for Activity {
             }
         };
 
-        let nop_desc = "No description".to_string();
         let nop_cat = "Uncategorized".to_string();
 
         write!(
             f,
             "{}  Activity: \"{}\" ({}) started {}",
             self.kind.to_symbol(),
-            self.description().as_ref().unwrap_or(&nop_desc),
+            self.description(),
             self.category().as_ref().unwrap_or(&nop_cat),
             rel_time,
         )
@@ -337,6 +335,19 @@ impl rusqlite::types::ToSql for ActivityGuid {
 }
 
 impl Activity {
+    /// Create a new activity from this activity to resume
+    /// an already ended/archived/etc. activity
+    pub fn new_from_self(&self) -> Self {
+        Self::builder()
+            .description(self.description.clone())
+            .category(self.category.clone())
+            .kind(self.kind)
+            .activity_kind_options(self.activity_kind_options.clone())
+            .pomodoro_cycle_options(self.pomodoro_cycle_options)
+            .build()
+    }
+
+    /// If the activity is held
     pub fn is_held(&self) -> bool {
         self.status.is_held()
     }
@@ -481,10 +492,7 @@ mod tests {
 
         assert_eq!(activity.category.as_ref().unwrap(), "Work");
 
-        assert_eq!(
-            activity.description.as_ref().unwrap(),
-            "This is an example activity"
-        );
+        assert_eq!(activity.description, "This is an example activity");
 
         let ActivityEndOptions { end, duration } = activity.activity_end_options().clone().unwrap();
 
@@ -512,6 +520,7 @@ mod tests {
         let toml = r#"
             end = "2021-08-01T12:00:00"
             begin = "2021-08-01T10:00:00"
+            description = "This is an example activity"
             duration = 50
             kind = "intermission"
             parent-id = "01F9Z4Z3Z3Z3Z4Z3Z3Z3Z3Z3Z4" 
