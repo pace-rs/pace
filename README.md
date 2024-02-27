@@ -75,7 +75,7 @@ scoop install pace
 
 You can use our tap:
 
-```console
+```bash
 brew install pace-rs/homebrew-tap/pace-rs
 ```
 
