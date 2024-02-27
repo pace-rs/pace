@@ -76,20 +76,22 @@ impl ResumeCmd {
                     .interact()
                     .unwrap();
 
-                if let Some(activity) = activity_items.get(selection) {
-                    let result =
-                        activity_store.resume_activity(*activity.guid(), ResumeOptions::default());
+                if let Some(activity_item) = activity_items.get(selection) {
+                    let result = activity_store
+                        .resume_activity(*activity_item.guid(), ResumeOptions::default());
 
                     match result {
-                        Ok(_) => println!("Resumed {}", activity.activity()),
+                        Ok(_) => println!("Resumed {}", activity_item.activity()),
                         // Handle the case where we can't resume the activity and ask the user if they want to create a new activity
                         // with the same contents
-                        Err(err) if err.possible_new_activity_from_resume() => {
+                        Err(recoverable_err)
+                            if recoverable_err.possible_new_activity_from_resume() =>
+                        {
                             confirmation_or_break(
                                 "We can't resume this activity, but you can begin a new one with the same contents, do you want to create a new activity?",
                             )?;
 
-                            let new_activity = activity.activity().new_from_self();
+                            let new_activity = activity_item.activity().new_from_self();
 
                             let new_stored_activity =
                                 activity_store.begin_activity(new_activity)?;
