@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.2...pace_cli-v0.2.3) - 2024-02-27
+
+### Added
+- implement continuing already ended and not held activities ([#46](https://github.com/pace-rs/pace/pull/46))
+
 ## [0.2.2](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.1...pace_cli-v0.2.2) - 2024-02-26
 
 ### Added

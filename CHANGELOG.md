@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.8.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.8.0...pace-rs-v0.8.1) - 2024-02-27
+
+### Added
+- implement continuing already ended and not held activities ([#46](https://github.com/pace-rs/pace/pull/46))
+
+### Other
+- dprint fmt
+- update scoop manifest
+- update brew install instructions
+- *(deps)* update rust crate tempfile to 3.10.1 ([#45](https://github.com/pace-rs/pace/pull/45))
+
 ## [0.8.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.7.1...pace-rs-v0.8.0) - 2024-02-26
 
 ### Added
