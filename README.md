@@ -73,7 +73,11 @@ scoop install pace
 
 ##### [Homebrew](https://brew.sh/)
 
-We are currently working on getting pace into the official Homebrew repository.
+You can use our tap:
+
+```console
+brew install pace-rs/homebrew-tap/pace-rs
+```
 
 <!--
 #### npm
