@@ -42,7 +42,7 @@ pub use crate::{
         },
     },
     error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult},
-    service::activity_store::ActivityStore,
+    service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
     storage::{
         file::TomlActivityStorage, get_storage_from_config, in_memory::InMemoryActivityStorage,
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
