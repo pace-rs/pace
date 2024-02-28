@@ -4,6 +4,8 @@ use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
+pub type PaceCategory = Option<String>;
+
 /// The category entity
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, Clone)]
 pub struct Category {

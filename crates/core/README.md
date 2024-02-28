@@ -27,11 +27,19 @@ You can ask questions in the
 | Discord       | [![Discord](https://dcbadge.vercel.app/api/server/RKSWrAcYdG?style=flat-square)](https://discord.gg/RKSWrAcYdG) |
 | Discussions   | [GitHub Discussions](https://github.com/orgs/pace-rs/discussions)                                               |
 
-## Features
+## Crate features
 
-- **Time Tracking**: Track your time on the command line.
-- **Simple**: Easy to use and understand.
-- **Fast**: Written in Rust, `pace-core` is fast and efficient
+This crate exposes a few features for controlling dependency usage:
+
+- **clap** - Enables a dependency on the `clap` crate and enables parsing from
+  the commandline. *This feature is disabled by default*.
+
+- **cli** - Enables support for CLI features by enabling `merge` and `clap`
+  features. *This feature is disabled by default*.
+
+- **sqlite** - Enables a dependency on the `rusqlite` crate and enables
+  persistence to a SQLite database. *This feature is disabled by default as it's
+  not yet implemented*.
 
 ## Examples
 

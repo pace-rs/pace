@@ -21,11 +21,14 @@ include = [
 # TODO!: Use features for adding optional dependencies for testing and merging etc.
 [features]
 default = []
+cli = ["clap"]
 sqlite = ["dep:rusqlite"]
+clap = ["dep:clap"]
 # testing = ["dep:arbitrary"]
 
 [dependencies]
 chrono = { version = "0.4.34", features = ["serde"] }
+clap = { workspace = true, optional = true }
 directories = "5.0.1"
 displaydoc = "0.2.4"
 getset = "0.1.2"

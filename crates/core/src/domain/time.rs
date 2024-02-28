@@ -4,7 +4,10 @@ use std::{
     time::Duration,
 };
 
-use crate::error::{ActivityLogErrorKind, PaceErrorKind, PaceOptResult, PaceResult};
+use crate::{
+    domain::review::{DateFlags, TimeFlags},
+    error::{ActivityLogErrorKind, PaceErrorKind, PaceOptResult, PaceResult},
+};
 use chrono::{
     DateTime, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone,
 };
@@ -311,6 +314,52 @@ pub fn calculate_duration(begin: &PaceDateTime, end: PaceDateTime) -> PaceResult
         .to_std()?;
 
     Ok(duration.into())
+}
+
+/// Convert the time and date flags into a `PaceTimeFrame`
+///
+/// # Arguments
+///
+/// * `time_flags` - The time flags
+/// * `date_flags` - The date flags
+///
+/// # Returns
+///
+/// A `PaceTimeFrame` representing the time frame
+pub fn get_time_frame_from_flags(time_flags: &TimeFlags, date_flags: &DateFlags) -> PaceTimeFrame {
+    match (time_flags, date_flags) {
+        (val, _) if *val.today() => PaceTimeFrame::Today,
+        (val, _) if *val.yesterday() => PaceTimeFrame::Yesterday,
+        (val, _) if *val.current_week() => PaceTimeFrame::CurrentWeek,
+        (val, _) if *val.last_week() => PaceTimeFrame::LastWeek,
+        (val, _) if *val.current_month() => PaceTimeFrame::CurrentMonth,
+        (val, _) if *val.last_month() => PaceTimeFrame::LastMonth,
+        (_, val) if val.date().is_some() => {
+            PaceTimeFrame::SpecificDate(PaceDate::from(val.date().expect("Date should be present")))
+        }
+        (_, val) if val.from().is_some() && val.to().is_none() => PaceTimeFrame::DateRange(
+            (
+                PaceDate::from(val.from().expect("Date should be present.")),
+                PaceDate::default(),
+            )
+                .into(),
+        ),
+        (_, val) if val.to().is_some() && val.from().is_none() => PaceTimeFrame::DateRange(
+            (
+                PaceDate::with_start(),
+                PaceDate::from(val.to().expect("Date should be present.")),
+            )
+                .into(),
+        ),
+        (_, val) if val.to().is_some() && val.from().is_some() => PaceTimeFrame::DateRange(
+            (
+                PaceDate::from(val.from().expect("Date should be present.")),
+                PaceDate::from(val.to().expect("Date should be present.")),
+            )
+                .into(),
+        ),
+        _ => PaceTimeFrame::default(),
+    }
 }
 
 #[cfg(test)]
