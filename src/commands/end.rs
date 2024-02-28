@@ -15,6 +15,7 @@ use pace_core::{
 pub struct EndCmd {
     /// The time the activity has ended (defaults to the current time if not provided). Format: HH:MM
     #[clap(long, name = "Finishing Time", alias = "at")]
+    // FIXME: We should directly parse that into PaceTime or PaceDateTime
     end: Option<String>,
 
     /// End only the last unfinished activity

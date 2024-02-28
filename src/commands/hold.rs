@@ -6,7 +6,7 @@ use clap::Parser;
 use eyre::Result;
 use pace_core::{
     get_storage_from_config, parse_time_from_user_input, ActivityStateManagement, ActivityStore,
-    HoldOptions, IntermissionAction, SyncStorage,
+    HoldOptions, IntermissionAction, IntermissionReason, SyncStorage,
 };
 
 use crate::prelude::PACE_APP;
@@ -16,11 +16,12 @@ use crate::prelude::PACE_APP;
 pub struct HoldCmd {
     /// The time the activity has been holded (defaults to the current time if not provided). Format: HH:MM
     #[clap(long, name = "Pause Time", alias = "at")]
+    // FIXME: We should directly parse that into PaceTime or PaceDateTime
     pause_at: Option<String>,
 
     /// The reason for the intermission, if this is not set, the description of the activity to be held will be used
     #[clap(short, long, name = "Reason")]
-    reason: Option<String>,
+    reason: IntermissionReason,
 
     /// If there are existing intermissions, they will be finished and a new one is being created
     ///

@@ -10,7 +10,7 @@ use crate::prelude::PACE_APP;
 
 use pace_core::{
     extract_time_or_now, get_storage_from_config, Activity, ActivityKind, ActivityStateManagement,
-    ActivityStore, PaceConfig, SyncStorage,
+    ActivityStore, PaceCategory, SyncStorage,
 };
 
 /// `begin` subcommand
@@ -21,9 +21,10 @@ pub struct BeginCmd {
     /// You can use the separator you setup in the configuration file
     /// to specify a subcategory.
     #[clap(short, long, name = "Category")]
-    category: Option<String>,
+    category: PaceCategory,
 
     /// The time the activity has been started at. Format: HH:MM
+    // FIXME: We should directly parse that into PaceTime or PaceDateTime
     #[clap(long, name = "Starting Time", alias = "at")]
     start: Option<String>,
 
@@ -44,7 +45,7 @@ pub struct BeginCmd {
 impl Runnable for BeginCmd {
     /// Start the application.
     fn run(&self) {
-        if let Err(err) = self.inner_run(&PACE_APP.config()) {
+        if let Err(err) = self.inner_run() {
             status_err!("{}", err);
             PACE_APP.shutdown(Shutdown::Crash);
         };
@@ -53,7 +54,9 @@ impl Runnable for BeginCmd {
 
 impl BeginCmd {
     /// Inner run implementation for the begin command
-    pub fn inner_run(&self, config: &PaceConfig) -> Result<()> {
+    pub fn inner_run(&self) -> Result<()> {
+        let config = PACE_APP.config();
+
         let Self {
             category,
             start: time,
@@ -98,7 +101,7 @@ impl BeginCmd {
             .tags(tags.clone())
             .build();
 
-        let activity_store = ActivityStore::new(get_storage_from_config(config)?);
+        let activity_store = ActivityStore::new(get_storage_from_config(&config)?);
 
         let activity_item = activity_store.begin_activity(activity.clone())?;
 

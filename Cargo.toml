@@ -54,7 +54,7 @@ human-panic = "1.2.3"
 insta = { version = "1.35.1", features = ["toml"] }
 open = "5.0.2"
 pace_cli = { workspace = true }
-pace_core = { workspace = true }
+pace_core = { workspace = true, features = ["cli"] }
 serde = "1"
 serde_derive = "1"
 

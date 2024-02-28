@@ -1103,6 +1103,7 @@ name = "pace_core"
 version = "0.10.2"
 dependencies = [
  "chrono",
+ "clap",
  "directories",
  "displaydoc",
  "getset",
