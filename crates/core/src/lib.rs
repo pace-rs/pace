@@ -35,6 +35,7 @@ pub use crate::{
         activity_log::ActivityLog,
         filter::{ActivityStatusFilter, FilteredActivities},
         intermission::IntermissionAction,
+        review::ReviewFormatKind,
         status::ActivityStatus,
         time::{
             calculate_duration, duration_to_str, extract_time_or_now, parse_time_from_user_input,

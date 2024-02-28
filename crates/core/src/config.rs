@@ -9,7 +9,7 @@ use serde_derive::{Deserialize, Serialize};
 use directories::ProjectDirs;
 
 use crate::{
-    domain::priority::ItemPriorityKind,
+    domain::{priority::ItemPriorityKind, review::ReviewFormatKind},
     error::{PaceErrorKind, PaceResult},
 };
 
@@ -147,23 +147,6 @@ impl Default for GeneralConfig {
             most_recent_count: Some(9),
         }
     }
-}
-
-/// The kind of review format
-/// Default: `html`
-///
-/// Options: `html`, `markdown`, `plain-text`
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default)]
-#[serde(rename_all = "kebab-case")]
-#[non_exhaustive]
-pub enum ReviewFormatKind {
-    #[default]
-    Html,
-    Csv,
-    #[serde(rename = "md")]
-    Markdown,
-    #[serde(rename = "txt")]
-    PlainText,
 }
 
 /// The review configuration for the pace application
