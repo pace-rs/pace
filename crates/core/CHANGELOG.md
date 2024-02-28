@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.11.0](https://github.com/pace-rs/pace/compare/pace_core-v0.10.2...pace_core-v0.11.0) - 2024-02-28
+
+### Added
+- *(storage)* [**breaking**] Replace dynamic dispatch with enum dispatch ([#55](https://github.com/pace-rs/pace/pull/55))
+- *(cli)* [**breaking**] move clap types into pace_core and introduce clap features for that ([#54](https://github.com/pace-rs/pace/pull/54))
+- *(cli)* add cli options to review command ([#51](https://github.com/pace-rs/pace/pull/51))
+- *(review)* implement some review related activity queries and their tests ([#50](https://github.com/pace-rs/pace/pull/50))
+
+### Fixed
+- *(deps)* update rust crate rayon to 1.9.0 ([#52](https://github.com/pace-rs/pace/pull/52))
+
+### Other
+- add comment about breaking changes to libraries
+- add coc to readmes
+- *(setup)* rename craft command to setup ([#53](https://github.com/pace-rs/pace/pull/53))
+
 ## [0.10.2](https://github.com/pace-rs/pace/compare/pace_core-v0.10.1...pace_core-v0.10.2) - 2024-02-27
 
 ### Fixed

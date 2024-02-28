@@ -8,6 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.4...pace_cli-v0.3.0) - 2024-02-28
+
+### Other
+- add comment about breaking changes to libraries
+- add coc to readmes
+- *(setup)* rename craft command to setup ([#53](https://github.com/pace-rs/pace/pull/53))
+
 ## [0.2.4](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.3...pace_cli-v0.2.4) - 2024-02-27
 
 ### Fixed
