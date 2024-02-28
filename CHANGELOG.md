@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.9.0...pace-rs-v0.10.0) - 2024-02-28
+
+### Fixed
+- *(deps)* update rust crate log to 0.4.21 ([#57](https://github.com/pace-rs/pace/pull/57))
+
+### Other
+- *(commands)* [**breaking**] Move a lot of the commands into pace-core ([#56](https://github.com/pace-rs/pace/pull/56))
+
 ## [0.9.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.8.2...pace-rs-v0.9.0) - 2024-02-28
 
 ### Added
