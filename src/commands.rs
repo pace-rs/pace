@@ -34,25 +34,39 @@ use pace_core::{get_config_paths, PaceConfig, PACE_CONFIG_FILENAME};
 /// Subcommands need to be listed in an enum.
 #[derive(clap::Parser, Command, Debug, Runnable)]
 pub enum PaceCmd {
-    /// Crafts a pace configuration, a new project or shell completions
+    /// Crafts a pace configuration, a new project or shell completions.
+    /// [alias: c]
+    #[clap(alias = "c")]
     Craft(craft::CraftCmd),
 
     /// Starts tracking time for the specified activity.
+    /// [alias: b]
+    #[clap(alias = "b")]
     Begin(begin::BeginCmd),
 
     /// Pauses the time tracking for the most recently active activity.
+    /// [alias: h]
+    #[clap(alias = "h")]
     Hold(hold::HoldCmd),
 
     /// Shows you at a glance what you're currently tracking.
+    /// [alias: n]
+    #[clap(alias = "n")]
     Now(now::NowCmd),
 
     /// Resumes a previously paused activity, allowing you to continue where you left off.
+    /// [alias: r]
+    #[clap(alias = "r")]
     Resume(resume::ResumeCmd),
 
     /// Stops time tracking for the most recent or all activities.
+    /// [alias: e]
+    #[clap(alias = "e")]
     End(end::EndCmd),
 
     /// Get sophisticated insights on your activities.
+    /// [alias: rev]
+    #[clap(alias = "rev")]
     Review(review::ReviewCmd),
     // /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
     // Export(export::ExportCmd),
