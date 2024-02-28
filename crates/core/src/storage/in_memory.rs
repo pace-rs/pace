@@ -7,8 +7,8 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     commands::{
-        hold::HoldingOptions, resume::ResumingOptions, DeletingOptions, EndingOptions,
-        KeywordOptions, UpdatingOptions,
+        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
+        UpdateOptions,
     },
     domain::{
         activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityItem},
@@ -187,7 +187,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         &self,
         activity_id: ActivityGuid,
         updated_activity: Activity,
-        _update_opts: UpdatingOptions,
+        _update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem> {
         let activities = self.log.read();
 
@@ -212,7 +212,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
     fn delete_activity(
         &self,
         activity_id: ActivityGuid,
-        _delete_opts: DeletingOptions,
+        _delete_opts: DeleteOptions,
     ) -> PaceResult<ActivityItem> {
         let mut activities = self.log.write();
 
@@ -230,7 +230,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     fn end_activity(
         &self,
         activity_id: ActivityGuid,
-        end_opts: EndingOptions,
+        end_opts: EndOptions,
     ) -> PaceResult<ActivityItem> {
         let mut activities = self.log.write();
 
@@ -255,7 +255,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         self.read_activity(activity_id)
     }
 
-    fn end_last_unfinished_activity(&self, end_opts: EndingOptions) -> PaceOptResult<ActivityItem> {
+    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
         let Some(most_recent) = self.most_recent_active_activity()? else {
             return Ok(None);
         };
@@ -267,7 +267,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
     fn end_all_unfinished_activities(
         &self,
-        end_opts: EndingOptions,
+        end_opts: EndOptions,
     ) -> PaceOptResult<Vec<ActivityItem>> {
         let activities = self.log.read();
 
@@ -306,7 +306,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
     fn hold_most_recent_active_activity(
         &self,
-        hold_opts: HoldingOptions,
+        hold_opts: HoldOptions,
     ) -> PaceOptResult<ActivityItem> {
         // Get id from last activity that is not ended
         let Some(active_activity) = self.most_recent_active_activity()? else {
@@ -319,7 +319,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
     fn end_all_active_intermissions(
         &self,
-        end_opts: EndingOptions,
+        end_opts: EndOptions,
     ) -> PaceOptResult<Vec<ActivityGuid>> {
         let Some(active_intermissions) = self.list_active_intermissions()? else {
             // There are no active intermissions
@@ -345,7 +345,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     fn resume_activity(
         &self,
         activity_id: ActivityGuid,
-        resume_opts: ResumingOptions,
+        resume_opts: ResumeOptions,
     ) -> PaceResult<ActivityItem> {
         let resumable_activity = self.read_activity(activity_id)?;
 
@@ -376,7 +376,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let _ = self.update_activity(
             *resumable_activity.guid(),
             updated_activity.clone(),
-            UpdatingOptions::default(),
+            UpdateOptions::default(),
         )?;
 
         Ok(resumable_activity)
@@ -385,7 +385,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     fn hold_activity(
         &self,
         activity_id: ActivityGuid,
-        hold_opts: HoldingOptions,
+        hold_opts: HoldOptions,
     ) -> PaceResult<ActivityItem> {
         // Get ActivityItem for activity that
         let active_activity = self.read_activity(activity_id)?;
@@ -451,7 +451,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let _ = self.update_activity(
             *active_activity.guid(),
             updated_activity.clone(),
-            UpdatingOptions::default(),
+            UpdateOptions::default(),
         )?;
 
         Ok((*active_activity.guid(), updated_activity).into())
@@ -459,7 +459,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
     fn resume_most_recent_activity(
         &self,
-        resume_opts: ResumingOptions,
+        resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem> {
         // Get id from last activity that is not ended
         let Some(active_activity) = self.most_recent_held_activity()? else {
@@ -782,7 +782,7 @@ mod tests {
             .update_activity(
                 *activity_item.guid(),
                 updated_activity.clone(),
-                UpdatingOptions::default(),
+                UpdateOptions::default(),
             )
             .unwrap();
 
@@ -900,7 +900,7 @@ mod tests {
             .update_activity(
                 *activity_item.guid(),
                 updated_activity.clone(),
-                UpdatingOptions::default(),
+                UpdateOptions::default(),
             )
             .unwrap();
 
@@ -937,7 +937,7 @@ mod tests {
 
         // Delete activity
         let deleted_activity = storage
-            .delete_activity(*activity_item.guid(), DeletingOptions::default())
+            .delete_activity(*activity_item.guid(), DeleteOptions::default())
             .unwrap();
 
         assert_eq!(
@@ -982,7 +982,7 @@ mod tests {
 
         let activity_item = storage.begin_activity(activity.clone()).unwrap();
 
-        let end_opts = EndingOptions::builder().end_time(end_time).build();
+        let end_opts = EndOptions::builder().end_time(end_time).build();
 
         let ended_activity = storage
             .end_activity(*activity_item.guid(), end_opts)
@@ -1041,7 +1041,7 @@ mod tests {
         let activity_item = storage.begin_activity(activity.clone()).unwrap();
 
         let ended_activity = storage
-            .end_last_unfinished_activity(EndingOptions::builder().end_time(now).build())
+            .end_last_unfinished_activity(EndOptions::builder().end_time(now).build())
             .unwrap()
             .unwrap();
 
@@ -1162,7 +1162,7 @@ mod tests {
 
         let hold_time = now + chrono::Duration::seconds(30);
 
-        let hold_opts = HoldingOptions::builder().begin_time(hold_time).build();
+        let hold_opts = HoldOptions::builder().begin_time(hold_time).build();
 
         let held_activity = storage
             .hold_most_recent_active_activity(hold_opts)
@@ -1229,7 +1229,7 @@ mod tests {
 
         let active_activity_item = storage.begin_activity(activity.clone()).unwrap();
 
-        let hold_opts = HoldingOptions::builder()
+        let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(30))
             .build();
 
@@ -1256,7 +1256,7 @@ mod tests {
             "Intermission was not created."
         );
 
-        let hold_opts = HoldingOptions::builder()
+        let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(60))
             .build();
 
@@ -1310,7 +1310,7 @@ mod tests {
 
         let active_activity_item = storage.begin_activity(activity.clone()).unwrap();
 
-        let hold_opts = HoldingOptions::builder()
+        let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(30))
             .build();
 
@@ -1326,7 +1326,7 @@ mod tests {
             "Intermission was not created."
         );
 
-        let end_opts = EndingOptions::builder().end_time(end_time).build();
+        let end_opts = EndOptions::builder().end_time(end_time).build();
 
         let ended_intermissions = storage.end_all_active_intermissions(end_opts).unwrap();
 
@@ -1456,7 +1456,7 @@ mod tests {
         // Now we create an intermission for the second activity
 
         let _ = storage
-            .hold_most_recent_active_activity(HoldingOptions::default())
+            .hold_most_recent_active_activity(HoldOptions::default())
             .unwrap()
             .unwrap();
 
@@ -1498,7 +1498,7 @@ mod tests {
         // and set the activity from held to active again
 
         let resumed_activity = storage
-            .resume_most_recent_activity(ResumingOptions::default())
+            .resume_most_recent_activity(ResumeOptions::default())
             .unwrap()
             .unwrap();
 

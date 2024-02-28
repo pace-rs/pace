@@ -18,14 +18,14 @@ pub use toml;
 // Public API
 pub use crate::{
     commands::{
-        begin::BeginOptions,
-        docs::DocsOptions,
-        end::EndOptions,
-        hold::{HoldOptions, HoldingOptions},
-        now::NowOptions,
-        resume::{ResumeOptions, ResumingOptions},
-        review::{DateFlags, ExpensiveFlags, ReviewOptions, TimeFlags},
-        DeletingOptions, EndingOptions, KeywordOptions, UpdatingOptions,
+        begin::BeginCommandOptions,
+        docs::DocsCommandOptions,
+        end::EndCommandOptions,
+        hold::{HoldCommandOptions, HoldOptions},
+        now::NowCommandOptions,
+        resume::{ResumeCommandOptions, ResumeOptions},
+        review::{DateFlags, ExpensiveFlags, ReviewCommandOptions, TimeFlags},
+        DeleteOptions, EndOptions, KeywordOptions, UpdateOptions,
     },
     config::{
         find_root_config_file_path, find_root_project_file, get_activity_log_paths,

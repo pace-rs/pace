@@ -4,7 +4,7 @@ use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
 
 use crate::{
-    commands::{resume::ResumingOptions, DeletingOptions, UpdatingOptions},
+    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     config::{ActivityLogStorageKind, PaceConfig},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
@@ -13,7 +13,7 @@ use crate::{
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     service::activity_store::ActivityStore,
     storage::{file::TomlActivityStorage, in_memory::InMemoryActivityStorage},
-    ActivityKind, ActivityStatus, EndingOptions, HoldingOptions, KeywordOptions, PaceDate,
+    ActivityKind, ActivityStatus, EndOptions, HoldOptions, KeywordOptions, PaceDate,
     PaceDurationRange, TimeRangeOptions,
 };
 
@@ -196,7 +196,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
         &self,
         activity_id: ActivityGuid,
         updated_activity: Activity,
-        update_opts: UpdatingOptions,
+        update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem>;
 
     /// Delete an activity from the storage backend.
@@ -215,7 +215,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     fn delete_activity(
         &self,
         activity_id: ActivityGuid,
-        delete_opts: DeletingOptions,
+        delete_opts: DeleteOptions,
     ) -> PaceResult<ActivityItem>;
 }
 
@@ -243,7 +243,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn begin_activity(&self, mut activity: Activity) -> PaceResult<ActivityItem> {
         // End all unfinished activities before starting a new one,
         // we don't want to have multiple activities running at the same time
-        let _ = self.end_all_unfinished_activities(EndingOptions::default())?;
+        let _ = self.end_all_unfinished_activities(EndOptions::default())?;
 
         // Make the current activity active
         activity.make_active();
@@ -269,7 +269,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn hold_activity(
         &self,
         activity_id: ActivityGuid,
-        hold_opts: HoldingOptions,
+        hold_opts: HoldOptions,
     ) -> PaceResult<ActivityItem>;
 
     /// Resume an activity in the storage backend.
@@ -289,7 +289,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn resume_activity(
         &self,
         activity_id: ActivityGuid,
-        resume_opts: ResumingOptions,
+        resume_opts: ResumeOptions,
     ) -> PaceResult<ActivityItem>;
 
     /// Resume the most recent activity in the storage backend.
@@ -307,7 +307,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// The activity that was resumed. Returns Ok(None) if no activity was resumed.
     fn resume_most_recent_activity(
         &self,
-        resume_opts: ResumingOptions,
+        resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem>;
 
     /// End an activity in the storage backend.
@@ -327,7 +327,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn end_activity(
         &self,
         activity_id: ActivityGuid,
-        end_opts: EndingOptions,
+        end_opts: EndOptions,
     ) -> PaceResult<ActivityItem>;
 
     /// End all unfinished activities in the storage backend.
@@ -345,7 +345,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// A collection of the activities that were ended. Returns Ok(None) if no activities were ended.
     fn end_all_unfinished_activities(
         &self,
-        end_opts: EndingOptions,
+        end_opts: EndOptions,
     ) -> PaceOptResult<Vec<ActivityItem>>;
 
     /// End all active intermissions in the storage backend.
@@ -363,7 +363,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// A collection of the intermissions that were ended. Returns Ok(None) if no intermissions were ended.
     fn end_all_active_intermissions(
         &self,
-        end_opts: EndingOptions,
+        end_opts: EndOptions,
     ) -> PaceOptResult<Vec<ActivityGuid>>;
 
     /// End the last unfinished activity in the storage backend.
@@ -379,7 +379,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// The activity that was ended. Returns Ok(None) if no activity was ended.
-    fn end_last_unfinished_activity(&self, end_opts: EndingOptions) -> PaceOptResult<ActivityItem>;
+    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem>;
 
     /// Hold the most recent activity that is active in the storage backend.
     ///
@@ -401,7 +401,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// This function should not be used to hold an activity that is already held. It should only be used to hold the last unfinished activity.
     fn hold_most_recent_active_activity(
         &self,
-        hold_opts: HoldingOptions,
+        hold_opts: HoldOptions,
     ) -> PaceOptResult<ActivityItem>;
 }
 

@@ -5,7 +5,7 @@ use typed_builder::TypedBuilder;
 
 use crate::{
     get_storage_from_config, parse_time_from_user_input, ActivityStateManagement, ActivityStore,
-    EndingOptions, PaceConfig, PaceResult, SyncStorage,
+    EndOptions, PaceConfig, PaceResult, SyncStorage,
 };
 
 /// `end` subcommand
@@ -13,7 +13,7 @@ use crate::{
 #[getset(get = "pub")]
 #[non_exhaustive]
 #[cfg_attr(feature = "clap", derive(Parser))]
-pub struct EndOptions {
+pub struct EndCommandOptions {
     /// The time the activity has ended (defaults to the current time if not provided). Format: HH:MM
     #[cfg_attr(feature = "clap", clap(long, name = "Finishing Time", alias = "at"))]
     // FIXME: We should directly parse that into PaceTime or PaceDateTime
@@ -24,13 +24,13 @@ pub struct EndOptions {
     only_last: bool,
 }
 
-impl EndOptions {
+impl EndCommandOptions {
     pub fn handle_end(&self, config: &PaceConfig) -> PaceResult<()> {
         let time = parse_time_from_user_input(&self.end)?;
 
         let activity_store = ActivityStore::new(get_storage_from_config(config)?);
 
-        let end_opts = EndingOptions::builder().end_time(time).build();
+        let end_opts = EndOptions::builder().end_time(time).build();
 
         if self.only_last {
             if let Some(last_activity) = activity_store.end_last_unfinished_activity(end_opts)? {

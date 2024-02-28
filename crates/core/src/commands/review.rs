@@ -15,7 +15,7 @@ use crate::{
 #[derive(Debug, Getters)]
 #[getset(get = "pub")]
 #[cfg_attr(feature = "clap", derive(Parser))]
-pub struct ReviewOptions {
+pub struct ReviewCommandOptions {
     /// Filter by activity kind (e.g., activity, task)
     #[cfg_attr(
         feature = "clap",
@@ -67,7 +67,7 @@ pub struct ReviewOptions {
     expensive_flags: ExpensiveFlags,
 }
 
-impl ReviewOptions {
+impl ReviewCommandOptions {
     pub fn handle_review(&self, config: Arc<PaceConfig>) -> PaceResult<()> {
         let activity_store = ActivityStore::new(get_storage_from_config(&config)?);
 

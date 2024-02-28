@@ -6,7 +6,7 @@ use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 
 use clap::Parser;
 
-use pace_core::ReviewOptions;
+use pace_core::ReviewCommandOptions;
 
 use crate::prelude::PACE_APP;
 
@@ -14,7 +14,7 @@ use crate::prelude::PACE_APP;
 #[derive(Command, Debug, Parser)]
 pub struct ReviewCmd {
     #[clap(flatten)]
-    review_opts: ReviewOptions,
+    review_opts: ReviewCommandOptions,
 }
 
 impl Runnable for ReviewCmd {

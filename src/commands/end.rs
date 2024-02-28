@@ -5,13 +5,13 @@ use clap::Parser;
 
 use crate::prelude::PACE_APP;
 
-use pace_core::EndOptions;
+use pace_core::EndCommandOptions;
 
 /// `end` subcommand
 #[derive(Command, Debug, Parser)]
 pub struct EndCmd {
     #[clap(flatten)]
-    end_opts: EndOptions,
+    end_opts: EndCommandOptions,
 }
 
 impl Runnable for EndCmd {

@@ -9,28 +9,28 @@ pub mod review;
 use getset::Getters;
 use typed_builder::TypedBuilder;
 
-use crate::{commands::resume::ResumingOptions, HoldingOptions, PaceDateTime};
+use crate::{commands::resume::ResumeOptions, HoldOptions, PaceDateTime};
 
 /// Options for ending an activity
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
 #[getset(get = "pub")]
 #[non_exhaustive]
-pub struct EndingOptions {
+pub struct EndOptions {
     /// The end time
     #[builder(default, setter(into))]
     end_time: PaceDateTime,
 }
 
-impl From<HoldingOptions> for EndingOptions {
-    fn from(hold_opts: HoldingOptions) -> Self {
+impl From<HoldOptions> for EndOptions {
+    fn from(hold_opts: HoldOptions) -> Self {
         Self {
             end_time: *hold_opts.begin_time(),
         }
     }
 }
 
-impl From<ResumingOptions> for EndingOptions {
-    fn from(resume_opts: ResumingOptions) -> Self {
+impl From<ResumeOptions> for EndOptions {
+    fn from(resume_opts: ResumeOptions) -> Self {
         Self {
             end_time: resume_opts.resume_time().unwrap_or_else(PaceDateTime::now),
         }
@@ -41,13 +41,13 @@ impl From<ResumingOptions> for EndingOptions {
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
 #[getset(get = "pub")]
 #[non_exhaustive]
-pub struct UpdatingOptions {}
+pub struct UpdateOptions {}
 
 /// Options for deleting an activity
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
 #[getset(get = "pub")]
 #[non_exhaustive]
-pub struct DeletingOptions {}
+pub struct DeleteOptions {}
 
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
 #[getset(get = "pub")]

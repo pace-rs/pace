@@ -5,13 +5,13 @@ use clap::Parser;
 
 use crate::prelude::PACE_APP;
 
-use pace_core::NowOptions;
+use pace_core::NowCommandOptions;
 
 /// `now` subcommand
 #[derive(Command, Debug, Parser)]
 pub struct NowCmd {
     #[clap(flatten)]
-    now_opts: NowOptions,
+    now_opts: NowCommandOptions,
 }
 
 impl Runnable for NowCmd {

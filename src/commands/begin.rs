@@ -5,13 +5,13 @@ use clap::Parser;
 
 use crate::prelude::PACE_APP;
 
-use pace_core::BeginOptions;
+use pace_core::BeginCommandOptions;
 
 /// `begin` subcommand
 #[derive(Command, Debug, Parser)]
 pub struct BeginCmd {
     #[clap(flatten)]
-    begin_opts: BeginOptions,
+    begin_opts: BeginCommandOptions,
 }
 
 impl Runnable for BeginCmd {

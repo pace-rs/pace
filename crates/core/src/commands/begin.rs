@@ -11,7 +11,7 @@ use crate::{
 /// `begin` subcommand
 #[derive(Debug)]
 #[cfg_attr(feature = "clap", derive(Parser))]
-pub struct BeginOptions {
+pub struct BeginCommandOptions {
     /// The Category of the activity you want to start
     ///
     /// You can use the separator you setup in the configuration file
@@ -41,7 +41,7 @@ pub struct BeginOptions {
     _projects: Option<Vec<String>>,
 }
 
-impl BeginOptions {
+impl BeginCommandOptions {
     /// Inner run implementation for the begin command
     pub fn handle_begin(&self, config: &PaceConfig) -> PaceResult<()> {
         let Self {

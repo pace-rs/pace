@@ -9,7 +9,7 @@ use eyre::Result;
 use pace_cli::confirmation_or_break;
 use pace_core::{
     get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
-    ActivityStore, ResumeOptions, ResumingOptions, SyncStorage,
+    ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage,
 };
 
 use crate::prelude::PACE_APP;
@@ -18,7 +18,7 @@ use crate::prelude::PACE_APP;
 #[derive(Command, Debug, Parser)]
 pub struct ResumeCmd {
     #[clap(flatten)]
-    resume_opts: ResumeOptions,
+    resume_opts: ResumeCommandOptions,
 }
 
 impl Runnable for ResumeCmd {
@@ -77,7 +77,7 @@ impl ResumeCmd {
 
                 if let Some(activity_item) = activity_items.get(selection) {
                     let result = activity_store
-                        .resume_activity(*activity_item.guid(), ResumingOptions::default());
+                        .resume_activity(*activity_item.guid(), ResumeOptions::default());
 
                     match result {
                         Ok(_) => println!("Resumed {}", activity_item.activity()),
@@ -106,7 +106,7 @@ impl ResumeCmd {
                 println!("No recent activities to continue.");
             };
         } else if let Ok(Some(resumed_activity)) =
-            activity_store.resume_most_recent_activity(ResumingOptions::default())
+            activity_store.resume_most_recent_activity(ResumeOptions::default())
         {
             println!("Resumed {}", resumed_activity.activity());
         } else {

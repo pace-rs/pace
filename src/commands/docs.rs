@@ -2,7 +2,7 @@
 
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 use clap::Args;
-use pace_core::DocsOptions;
+use pace_core::DocsCommandOptions;
 
 use crate::application::PACE_APP;
 
@@ -11,7 +11,7 @@ use crate::application::PACE_APP;
 pub struct DocsCmd {
     /// Open the development documentation
     #[clap(flatten)]
-    docs_opts: DocsOptions,
+    docs_opts: DocsCommandOptions,
 }
 
 impl Runnable for DocsCmd {

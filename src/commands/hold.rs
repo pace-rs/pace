@@ -3,7 +3,7 @@
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 
 use clap::Parser;
-use pace_core::HoldOptions;
+use pace_core::HoldCommandOptions;
 
 use crate::prelude::PACE_APP;
 
@@ -11,7 +11,7 @@ use crate::prelude::PACE_APP;
 #[derive(Command, Debug, Parser)]
 pub struct HoldCmd {
     #[clap(flatten)]
-    hold_opts: HoldOptions,
+    hold_opts: HoldCommandOptions,
 }
 
 impl Runnable for HoldCmd {

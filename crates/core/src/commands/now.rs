@@ -9,9 +9,9 @@ use crate::{
 /// `now` subcommand
 #[derive(Debug)]
 #[cfg_attr(feature = "clap", derive(Parser))]
-pub struct NowOptions {}
+pub struct NowCommandOptions {}
 
-impl NowOptions {
+impl NowCommandOptions {
     pub fn handle_now(&self, config: &PaceConfig) -> PaceResult<()> {
         let activity_store = ActivityStore::new(get_storage_from_config(config)?);
 
