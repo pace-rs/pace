@@ -6,7 +6,7 @@ use typed_builder::TypedBuilder;
 
 use crate::{
     get_storage_from_config, parse_time_from_user_input, ActivityStateManagement, ActivityStore,
-    IntermissionAction, IntermissionReason, PaceConfig, PaceDateTime, PaceResult, SyncStorage,
+    IntermissionAction, PaceConfig, PaceDateTime, PaceResult, SyncStorage,
 };
 
 /// `hold` subcommand>
@@ -20,7 +20,7 @@ pub struct HoldCommandOptions {
 
     /// The reason for the intermission, if this is not set, the description of the activity to be held will be used
     #[cfg_attr(feature = "clap", clap(short, long, name = "Reason"))]
-    reason: IntermissionReason,
+    reason: Option<String>,
 
     /// If there are existing intermissions, they will be finished and a new one is being created
     ///

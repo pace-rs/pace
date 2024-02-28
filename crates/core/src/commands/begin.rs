@@ -5,7 +5,7 @@ use clap::Parser;
 
 use crate::{
     extract_time_or_now, get_storage_from_config, Activity, ActivityKind, ActivityStateManagement,
-    ActivityStore, PaceCategory, PaceConfig, PaceResult, SyncStorage,
+    ActivityStore, PaceConfig, PaceResult, SyncStorage,
 };
 
 /// `begin` subcommand
@@ -17,7 +17,7 @@ pub struct BeginCommandOptions {
     /// You can use the separator you setup in the configuration file
     /// to specify a subcategory.
     #[cfg_attr(feature = "clap", clap(short, long, name = "Category"))]
-    category: PaceCategory,
+    category: Option<String>,
 
     /// The time the activity has been started at. Format: HH:MM
     // FIXME: We should directly parse that into PaceTime or PaceDateTime

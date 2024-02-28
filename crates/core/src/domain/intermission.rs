@@ -2,8 +2,6 @@
 
 use serde_derive::{Deserialize, Serialize};
 
-pub type IntermissionReason = Option<String>;
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum IntermissionAction {

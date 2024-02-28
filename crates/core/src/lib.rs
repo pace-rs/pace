@@ -46,9 +46,8 @@ pub use crate::{
             ActivityKindOptions,
         },
         activity_log::ActivityLog,
-        category::PaceCategory,
         filter::{ActivityStatusFilter, FilteredActivities},
-        intermission::{IntermissionAction, IntermissionReason},
+        intermission::IntermissionAction,
         review::{ActivitySummary, Highlights, ReviewSummary},
         status::ActivityStatus,
         time::{
