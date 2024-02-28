@@ -11,6 +11,7 @@
 //! application's configuration file.
 
 pub mod begin;
+pub mod docs;
 pub mod end;
 // pub mod export;
 // TODO: pub mod import;
@@ -68,6 +69,11 @@ pub enum PaceCmd {
     /// [alias: s]
     #[clap(alias = "s")]
     Setup(setup::SetupCmd),
+
+    /// 📚 Open the online documentation for pace.
+    /// [alias: d]
+    #[clap(alias = "d")]
+    Docs(docs::DocsCmd),
     // /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
     // Export(export::ExportCmd),
 
