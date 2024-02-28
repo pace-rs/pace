@@ -52,7 +52,7 @@ pub enum PaceCmd {
     /// Stops time tracking for the most recent or all activities.
     End(end::EndCmd),
 
-    /// Get insights on your activities. You can specify various time frames or custom date ranges.
+    /// Get sophisticated insights on your activities.
     Review(review::ReviewCmd),
     // /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
     // Export(export::ExportCmd),

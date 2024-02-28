@@ -6,6 +6,7 @@ use getset::{Getters, MutGetters, Setters};
 use merge::Merge;
 use serde_derive::{Deserialize, Serialize};
 use std::fmt::Display;
+use strum_macros::EnumString;
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
@@ -63,7 +64,18 @@ impl From<(ActivityGuid, Activity)> for ActivityItem {
 
 /// The kind of activity a user can track
 #[derive(
-    Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, Copy, PartialOrd, Ord,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Copy,
+    PartialOrd,
+    Ord,
+    EnumString,
 )]
 #[serde(rename_all = "kebab-case")]
 // #[serde(untagged)]

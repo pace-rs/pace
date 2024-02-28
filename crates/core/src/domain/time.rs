@@ -164,9 +164,25 @@ impl From<chrono::Duration> for PaceDuration {
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceDate(pub NaiveDate);
 
+impl std::ops::Deref for PaceDate {
+    type Target = NaiveDate;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// Wrapper for a time of an activity
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceTime(pub NaiveTime);
+
+impl std::ops::Deref for PaceTime {
+    type Target = NaiveTime;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// Wrapper for the start and end time of an activity to implement default
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq)]
