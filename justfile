@@ -123,6 +123,20 @@ inv-ft *ARGS:
 pr:
 	just fmt lint test
 
+# prepare for making a PR (expensive)
+ex-pr:
+	just pr
+	just check-powerset pace_core
+	just test-powerset pace_core
+
 # Run the test suite with coverage for the given package
 coverage *ARGS: 
 	cargo tarpaulin --output-dir coverage/ -p {{ARGS}} -o Lcov
+
+# Run checks with feature powerset
+check-powerset *ARGS:
+	cargo hack check --feature-powerset -p {{ARGS}}
+
+# Run checks with feature powerset
+test-powerset *ARGS:
+	cargo hack test --feature-powerset -p {{ARGS}}
