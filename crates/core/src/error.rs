@@ -97,7 +97,7 @@ pub enum PaceErrorKind {
         /// The file name
         file_name: String,
     },
-    /// Configuration file not found, please run `pace craft setup` to initialize `pace`
+    /// Configuration file not found, please run `pace setup config` to initialize `pace`
     ParentDirNotFound(PathBuf),
     /// Database storage not implemented, yet!
     DatabaseStorageNotImplemented,

@@ -31,7 +31,7 @@ pub(crate) fn prompt_activity_log_path(activity_log_paths: &[String]) -> Result<
     let selected_activity_log_path = match selection {
         Some(index) => PathBuf::from(activity_log_paths[index].clone()),
         None => {
-            eyre::bail!("Exiting setup assistant.");
+            eyre::bail!("Setup exited without changes.");
         }
     };
 
@@ -40,7 +40,7 @@ pub(crate) fn prompt_activity_log_path(activity_log_paths: &[String]) -> Result<
         p
     } else {
         debug!("No parent directory for activity log file.");
-        eyre::bail!("Exiting setup assistant. No changes were made.");
+        eyre::bail!("Setup exited without changes. No changes were made.");
     };
 
     Ok(FinalSetupPaths::builder()
@@ -78,7 +78,7 @@ pub(crate) fn prompt_config_file_path(
     let selected_config_path = match selection {
         Some(index) => PathBuf::from(config_paths[index].clone()),
         None => {
-            eyre::bail!("Exiting setup assistant.");
+            eyre::bail!("Setup exited without changes.");
         }
     };
 
@@ -87,7 +87,7 @@ pub(crate) fn prompt_config_file_path(
         p
     } else {
         debug!("No parent directory for config file.");
-        eyre::bail!("Exiting setup assistant. No changes were made.");
+        eyre::bail!("Setup exited without changes. No changes were made.");
     };
 
     _ = final_paths

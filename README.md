@@ -128,14 +128,14 @@ cargo install pace-rs
 Currently they are stating the intended functionality and may not be fully
 implemented yet (e.g. using activities instead of tasks).
 
-🔍 **`pace craft`**
+🔍 **`pace setup`**
 
-- **Description:** Craft configuration files for pace, including the main
+- **Description:** Create configuration files for pace, including the main
   configuration file and any additional settings. This is useful for setting up
   pace for the first time or when you need to change your settings. You can also
   generate shell completions for your shell of choice. And generate a project
   configuration file.
-- **Usage:** `pace craft setup`
+- **Usage:** `pace setup config` or `pace setup completions`
 
 🔍 **`pace begin`**
 

@@ -98,7 +98,7 @@ pub struct GeneralConfig {
 pub struct ActivityLogOptions {
     /// The path to the activity log file
     /// Default is operating system dependent
-    /// Use `pace craft setup` to set this value initially
+    /// Use `pace setup config` to set this value initially
     #[getset(get = "pub", get_mut = "pub")]
     activity_log_path: PathBuf,
 

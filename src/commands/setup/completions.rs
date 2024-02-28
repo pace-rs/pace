@@ -17,9 +17,16 @@ pub struct CompletionsCmd {
 
 #[derive(Clone, Debug, clap::ValueEnum)]
 pub enum Variant {
+    /// Bash shell
     Bash,
+
+    /// Fish shell
     Fish,
+
+    /// Zsh shell
     Zsh,
+
+    /// PowerShell
     Powershell,
 }
 

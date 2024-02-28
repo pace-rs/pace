@@ -19,7 +19,9 @@ use crate::{
     PaceResult,
 };
 
-#[derive(Debug, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default)]
+#[derive(
+    Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
+)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ActivityItem {
     guid: ActivityGuid,

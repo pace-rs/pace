@@ -254,32 +254,25 @@ pub(crate) fn print_intro(term: &Term) -> Result<()> {
     println!("{assistant_headline}");
 
     let intro_text = r"
-Welcome to pace, your time tracking tool!
+Keep the pace on your command line. Time tracking and management.
 
-Whether you're diving in for the first time or keen on refining your setup,
-this assistant is here to seamlessly tailor your environment to your preferences.
+Use this assistant to setup your pace environment and preferences.
 
-Ready to shape your experience? Here’s how:
+- Use UP / Down arrows to choose options
+- or Enter for default choice when applicable
 
-- Glide through options with UP and DOWN arrows.
-- Hit ENTER to use the default choice (or use y/n) and stride to the next prompt.
-
-Worried about commitment? Don’t be. We’re only locking in your preferences at the
-journey’s end, giving you the freedom to experiment. And if you decide to bow out early,
-no sweat — Q, ESC, or Ctrl-C will let you exit gracefully without a trace of change.
-
-Let’s embark on this customization adventure together—press ENTER when you’re ready
-to elevate your productivity with pace.";
+Preferences will only be saved if you complete the setup.
+Use Q, ESC, or Ctrl-C to exit gracefully at any time.";
 
     println!("{intro_text}\n");
 
     let confirmation = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Do you want to continue?")
+        .with_prompt("Ready to start?")
         .default(true)
         .interact()?;
 
     if !confirmation {
-        eyre::bail!("Exiting setup assistant.");
+        eyre::bail!("Setup exited without changes.");
     }
 
     Ok(())
@@ -306,13 +299,13 @@ pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
         .interact()?;
 
     if !confirmation {
-        eyre::bail!("Exiting setup assistant. No changes were made.");
+        eyre::bail!("Setup exited without changes. No changes were made.");
     }
 
     Ok(())
 }
 
-/// The `craft setup` commands interior for the pace application
+/// The `setup` commands interior for the pace application
 ///
 /// # Arguments
 ///
@@ -325,7 +318,7 @@ pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
 /// # Returns
 ///
 /// Returns `Ok(())` if the setup assistant succeeds
-pub fn craft_setup(term: &Term) -> Result<()> {
+pub fn setup_config(term: &Term) -> Result<()> {
     let mut config = PaceConfig::default();
 
     let config_paths = get_config_paths(PACE_CONFIG_FILENAME)
@@ -357,11 +350,11 @@ pub fn craft_setup(term: &Term) -> Result<()> {
     write_activity_log(&final_paths)?;
 
     let Some(config_root) = final_paths.config_root() else {
-        eyre::bail!("No config root. Exiting setup assistant.");
+        eyre::bail!("No config root. Setup exited without changes.");
     };
 
     let Some(config_path) = final_paths.config_path() else {
-        eyre::bail!("No config path. Exiting setup assistant.");
+        eyre::bail!("No config path. Setup exited without changes.");
     };
 
     write_config(&config, config_root, config_path)?;

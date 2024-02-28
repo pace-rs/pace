@@ -8,7 +8,8 @@ use clap::Parser;
 use eyre::Result;
 
 use pace_core::{
-    get_storage_from_config, ActivityKind, ActivityStore, ActivityTracker, ReviewFormatKind,
+    get_storage_from_config, ActivityKind, ActivityStore, ActivityTracker, PaceDate, PaceTimeFrame,
+    ReviewFormatKind, ReviewRequest,
 };
 
 use crate::prelude::PACE_APP;
@@ -35,6 +36,10 @@ struct TimeFlags {
     /// Show the review for the current month
     #[clap(long, group = "time-flag")]
     current_month: bool,
+
+    /// Show the review for the previous month
+    #[clap(long, group = "time-flag")]
+    last_month: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -118,10 +123,91 @@ impl ReviewCmd {
     fn inner_run(&self) -> Result<()> {
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
-        let _activity_tracker = ActivityTracker::with_activity_store(activity_store);
+        let activity_tracker = ActivityTracker::with_activity_store(activity_store);
+
+        let ReviewCmd {
+            activity_kind,
+            category,
+            output_format,
+            export_file,
+            time_flags,
+            date_flags,
+            expensive_flags,
+        } = self;
+
+        let time_frame = get_time_frame(time_flags, date_flags);
+
+        let review_request = ReviewRequest::builder()
+            .format(output_format.unwrap_or_default())
+            .build();
 
         println!("{:#?}", self);
 
         Ok(())
+    }
+}
+
+/// Convert the time and date flags into a `PaceTimeFrame`
+///
+/// # Arguments
+///
+/// * `time_flags` - The time flags
+/// * `date_flags` - The date flags
+///
+/// # Returns
+///
+/// A `PaceTimeFrame` representing the time frame
+fn get_time_frame(time_flags: &TimeFlags, date_flags: &DateFlags) -> PaceTimeFrame {
+    match (time_flags, date_flags) {
+        (TimeFlags { today: true, .. }, _) => PaceTimeFrame::Today,
+        (
+            TimeFlags {
+                yesterday: true, ..
+            },
+            _,
+        ) => PaceTimeFrame::Yesterday,
+        (
+            TimeFlags {
+                current_week: true, ..
+            },
+            _,
+        ) => PaceTimeFrame::CurrentWeek,
+        (
+            TimeFlags {
+                last_week: true, ..
+            },
+            _,
+        ) => PaceTimeFrame::LastWeek,
+        (
+            TimeFlags {
+                current_month: true,
+                ..
+            },
+            _,
+        ) => PaceTimeFrame::CurrentMonth,
+        (
+            TimeFlags {
+                last_month: true, ..
+            },
+            _,
+        ) => PaceTimeFrame::LastMonth,
+        (
+            _,
+            DateFlags {
+                date: Some(date), ..
+            },
+        ) => PaceTimeFrame::SpecificDate(PaceDate::from(*date)),
+        (_, DateFlags { from, to, .. }) => match (from, to) {
+            (Some(from), Some(to)) => {
+                PaceTimeFrame::DateRange((PaceDate::from(*from), PaceDate::from(*to)).into())
+            }
+            (Some(from), None) => {
+                PaceTimeFrame::DateRange((PaceDate::from(*from), PaceDate::default()).into())
+            }
+            (None, Some(to)) => {
+                PaceTimeFrame::DateRange((PaceDate::with_start(), PaceDate::from(*to)).into())
+            }
+            _ => PaceTimeFrame::default(),
+        },
     }
 }

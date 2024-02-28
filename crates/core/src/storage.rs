@@ -5,14 +5,11 @@ use crate::{
     config::{ActivityLogStorageKind, PaceConfig},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
-        activity_log::ActivityLog,
         filter::{ActivityStatusFilter, FilteredActivities},
-        review::ActivityStats,
-        time::TimeFrame,
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::file::TomlActivityStorage,
-    ActivityKind, ActivityStatus, EndOptions, HoldOptions, KeywordOptions, PaceDate, PaceDateTime,
+    ActivityKind, ActivityStatus, EndOptions, HoldOptions, KeywordOptions, PaceDate,
     PaceDurationRange, TimeRangeOptions,
 };
 
@@ -730,133 +727,133 @@ pub trait ActivityQuerying: ActivityReadOps {
     }
 }
 
-/// Tagging Activities
-///
-/// Tagging activities is a way to categorize them. This is useful for grouping activities together that have something in common.
-/// For example, you might want to tag all activities that are related to a specific project, or all activities that are related to a specific client.
-/// Tags can be used to generate statistics or summaries of activities, or to filter activities by a specific tag.
-pub trait ActivityTagging {
-    /// Add a tag to an activity.
-    ///
-    /// # Arguments
-    ///
-    /// * `activity_id` - The ID of the activity to tag.
-    /// * `tag` - The tag to add.
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the tag cannot be added.
-    ///
-    /// # Returns
-    ///
-    /// If the tag was added successfully it should return `Ok(())`.
-    fn add_tag_to_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceResult<()>;
+// /// Tagging Activities
+// ///
+// /// Tagging activities is a way to categorize them. This is useful for grouping activities together that have something in common.
+// /// For example, you might want to tag all activities that are related to a specific project, or all activities that are related to a specific client.
+// /// Tags can be used to generate statistics or summaries of activities, or to filter activities by a specific tag.
+// pub trait ActivityTagging {
+//     /// Add a tag to an activity.
+//     ///
+//     /// # Arguments
+//     ///
+//     /// * `activity_id` - The ID of the activity to tag.
+//     /// * `tag` - The tag to add.
+//     ///
+//     /// # Errors
+//     ///
+//     /// This function should return an error if the tag cannot be added.
+//     ///
+//     /// # Returns
+//     ///
+//     /// If the tag was added successfully it should return `Ok(())`.
+//     fn add_tag_to_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceResult<()>;
 
-    /// Remove a tag from an activity.
-    ///
-    /// # Arguments
-    ///
-    /// * `activity_id` - The ID of the activity to untag.
-    /// * `tag` - The tag to remove.
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the tag cannot be removed.
-    ///
-    /// # Returns
-    ///
-    /// If the tag was removed successfully it should return `Ok(())`.
-    fn remove_tag_from_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceResult<()>;
-}
+//     /// Remove a tag from an activity.
+//     ///
+//     /// # Arguments
+//     ///
+//     /// * `activity_id` - The ID of the activity to untag.
+//     /// * `tag` - The tag to remove.
+//     ///
+//     /// # Errors
+//     ///
+//     /// This function should return an error if the tag cannot be removed.
+//     ///
+//     /// # Returns
+//     ///
+//     /// If the tag was removed successfully it should return `Ok(())`.
+//     fn remove_tag_from_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceResult<()>;
+// }
 
-/// Archiving Activities
-///
-/// Archiving activities is a way to remove them from the main list of activities, but still keep them around for reference.
-/// This is useful for activities that are no longer relevant, but you still want to keep them around for historical purposes.
-///
-/// For example, you might want to archive all activities from a previous year to keep the main list of activities clean and relevant.
-/// Archiving is different from deleting an activity, as it doesn't remove the activity from the system, it just moves it to a different list.
-pub trait ActivityArchiving {
-    /// Archive an activity.
-    ///
-    /// # Arguments
-    ///
-    /// * `activity_id` - The ID of the activity to archive.
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the activity cannot be archived.
-    ///
-    /// # Returns
-    ///
-    /// If the activity was archived successfully it should return `Ok(())`.
-    fn archive_activity(&self, activity_id: ActivityGuid) -> PaceResult<()>;
+// /// Archiving Activities
+// ///
+// /// Archiving activities is a way to remove them from the main list of activities, but still keep them around for reference.
+// /// This is useful for activities that are no longer relevant, but you still want to keep them around for historical purposes.
+// ///
+// /// For example, you might want to archive all activities from a previous year to keep the main list of activities clean and relevant.
+// /// Archiving is different from deleting an activity, as it doesn't remove the activity from the system, it just moves it to a different list.
+// pub trait ActivityArchiving {
+//     /// Archive an activity.
+//     ///
+//     /// # Arguments
+//     ///
+//     /// * `activity_id` - The ID of the activity to archive.
+//     ///
+//     /// # Errors
+//     ///
+//     /// This function should return an error if the activity cannot be archived.
+//     ///
+//     /// # Returns
+//     ///
+//     /// If the activity was archived successfully it should return `Ok(())`.
+//     fn archive_activity(&self, activity_id: ActivityGuid) -> PaceResult<()>;
 
-    /// Unarchive an activity.
-    ///
-    /// # Arguments
-    ///
-    /// * `activity_id` - The ID of the activity to unarchive.
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the activity cannot be unarchived.
-    ///
-    /// # Returns
-    ///
-    /// If the activity was unarchived successfully it should return `Ok(())`.
-    fn unarchive_activity(&self, activity_id: ActivityGuid) -> PaceResult<()>;
-}
+//     /// Unarchive an activity.
+//     ///
+//     /// # Arguments
+//     ///
+//     /// * `activity_id` - The ID of the activity to unarchive.
+//     ///
+//     /// # Errors
+//     ///
+//     /// This function should return an error if the activity cannot be unarchived.
+//     ///
+//     /// # Returns
+//     ///
+//     /// If the activity was unarchived successfully it should return `Ok(())`.
+//     fn unarchive_activity(&self, activity_id: ActivityGuid) -> PaceResult<()>;
+// }
 
-/// Generate Statistics for Activities
-///
-/// Generating statistics for activities is a way to summarize them and get insights into your activities.
-/// This is useful for understanding how you spend your time and how productive you are.
-///
-/// For example, you might want to generate statistics for all activities within a specific time frame, such as daily, weekly, or monthly.
-/// Statistics can include things like the total time spent on activities, the average time spent on activities, the most active days, etc.
-pub trait ActivityStatistics {
-    /// Generate statistics or summary of activities.
-    ///
-    /// # Arguments
-    ///
-    /// * `time_frame` - The time frame to generate statistics for (e.g., daily, weekly, monthly).
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the statistics cannot be generated.
-    ///
-    /// # Returns
-    ///
-    /// A summary or statistics of activities within the specified time frame.
-    fn generate_activity_statistics(&self, time_frame: TimeFrame) -> PaceResult<ActivityStats>;
-}
+// /// Generate Statistics for Activities
+// ///
+// /// Generating statistics for activities is a way to summarize them and get insights into your activities.
+// /// This is useful for understanding how you spend your time and how productive you are.
+// ///
+// /// For example, you might want to generate statistics for all activities within a specific time frame, such as daily, weekly, or monthly.
+// /// Statistics can include things like the total time spent on activities, the average time spent on activities, the most active days, etc.
+// pub trait ActivityStatistics {
+//     /// Generate statistics or summary of activities.
+//     ///
+//     /// # Arguments
+//     ///
+//     /// * `time_frame` - The time frame to generate statistics for (e.g., daily, weekly, monthly).
+//     ///
+//     /// # Errors
+//     ///
+//     /// This function should return an error if the statistics cannot be generated.
+//     ///
+//     /// # Returns
+//     ///
+//     /// A summary or statistics of activities within the specified time frame.
+//     fn generate_activity_statistics(&self, time_frame: TimeFrame) -> PaceResult<ReviewSummary>;
+// }
 
-/// Reviewing Activities
-///
-/// Reviewing activities is a way to look back at your activities and get insights into how you've been spending your time.
-/// This is useful for understanding how productive you are, identifying patterns in your activities, and finding areas for improvement.
-///
-/// For example, you might want to review all activities within a specific time frame, such as daily, weekly, or monthly.
-/// Reviews can include things like the total time spent on activities, the average time spent on activities, the most active days, etc.
-pub trait ActivityReview {
-    /// Review activities within a specific date range.
-    ///
-    /// # Arguments
-    ///
-    /// * `start_date` - The start date of the range.
-    /// * `end_date` - The end date of the range.
-    ///
-    /// # Errors
-    ///
-    /// This function should return an error if the activities cannot be loaded.
-    ///
-    /// # Returns
-    ///
-    /// A collection of the activities that fall within the specified date range.
-    fn review_activities_in_date_range(
-        &self,
-        start: PaceDateTime,
-        end: PaceDateTime,
-    ) -> PaceResult<ActivityLog>;
-}
+// /// Reviewing Activities
+// ///
+// /// Reviewing activities is a way to look back at your activities and get insights into how you've been spending your time.
+// /// This is useful for understanding how productive you are, identifying patterns in your activities, and finding areas for improvement.
+// ///
+// /// For example, you might want to review all activities within a specific time frame, such as daily, weekly, or monthly.
+// /// Reviews can include things like the total time spent on activities, the average time spent on activities, the most active days, etc.
+// pub trait ActivityReview {
+//     /// Review activities within a specific date range.
+//     ///
+//     /// # Arguments
+//     ///
+//     /// * `start_date` - The start date of the range.
+//     /// * `end_date` - The end date of the range.
+//     ///
+//     /// # Errors
+//     ///
+//     /// This function should return an error if the activities cannot be loaded.
+//     ///
+//     /// # Returns
+//     ///
+//     /// A collection of the activities that fall within the specified date range.
+//     fn review_activities_in_date_range(
+//         &self,
+//         start: PaceDateTime,
+//         end: PaceDateTime,
+//     ) -> PaceResult<ActivityLog>;
+// }

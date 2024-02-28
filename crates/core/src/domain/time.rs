@@ -12,26 +12,45 @@ use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
-#[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
+#[derive(
+    Debug, Clone, PartialEq, Serialize, Deserialize, TypedBuilder, Eq, Hash, Default, Getters,
+)]
 #[getset(get = "pub")]
 pub struct TimeRangeOptions {
     start: PaceDateTime,
     end: PaceDateTime,
 }
 
-pub enum TimeFrame {
-    Custom {
-        start: DateTime<Local>,
-        end: DateTime<Local>,
-    },
-    Daily,
-    DaysInThePast(u32),
-    Monthly,
-    MonthsInThePast(u32),
-    Weekly,
-    WeeksInThePast(u32),
-    Yearly,
-    YearsInThePast(u32),
+impl From<(PaceDate, PaceDate)> for TimeRangeOptions {
+    fn from((start, end): (PaceDate, PaceDate)) -> Self {
+        Self::builder().start(start.into()).end(end.into()).build()
+    }
+}
+
+impl From<PaceDate> for PaceDateTime {
+    fn from(date: PaceDate) -> Self {
+        // if the date is invalid because of the time, use the default time
+        Self::new(
+            date.0
+                .and_hms_opt(0, 0, 0)
+                .expect("Should be a valid date."),
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum PaceTimeFrame {
+    CurrentMonth,
+    CurrentWeek,
+    CurrentYear,
+    DateRange(TimeRangeOptions),
+    SpecificDate(PaceDate),
+    LastMonth,
+    LastWeek,
+    LastYear,
+    #[default]
+    Today,
+    Yesterday,
 }
 
 /// Converts timespec to nice readable relative time string
@@ -164,6 +183,24 @@ impl From<chrono::Duration> for PaceDuration {
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceDate(pub NaiveDate);
 
+impl PaceDate {
+    pub fn with_start() -> Self {
+        Self(NaiveDate::default())
+    }
+}
+
+impl Default for PaceDate {
+    fn default() -> Self {
+        Self(Local::now().naive_local().date())
+    }
+}
+
+impl From<NaiveDate> for PaceDate {
+    fn from(date: NaiveDate) -> Self {
+        Self(date)
+    }
+}
+
 impl std::ops::Deref for PaceDate {
     type Target = NaiveDate;
 
@@ -175,6 +212,12 @@ impl std::ops::Deref for PaceDate {
 /// Wrapper for a time of an activity
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceTime(pub NaiveTime);
+
+impl From<NaiveTime> for PaceTime {
+    fn from(time: NaiveTime) -> Self {
+        Self(time)
+    }
+}
 
 impl std::ops::Deref for PaceTime {
     type Target = NaiveTime;
