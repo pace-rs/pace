@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/pace-rs/pace/compare/pace_cli-v0.3.0...pace_cli-v0.4.0) - 2024-02-28
+
+### Other
+- *(commands)* [**breaking**] Move a lot of the commands into pace-core ([#56](https://github.com/pace-rs/pace/pull/56))
+
 ## [0.3.0](https://github.com/pace-rs/pace/compare/pace_cli-v0.2.4...pace_cli-v0.3.0) - 2024-02-28
 
 ### Other
