@@ -101,11 +101,11 @@ pub struct EntryPoint {
     pub verbose: bool,
 
     /// Use the specified config file
-    #[arg(short, long, env = "PACE_CONFIG_FILE")]
+    #[arg(long, env = "PACE_CONFIG_FILE")]
     pub config: Option<PathBuf>,
 
     /// Use the specified activity log file
-    #[arg(short, long, env = "PACE_ACTIVITY_LOG_FILE")]
+    #[arg(long, env = "PACE_ACTIVITY_LOG_FILE")]
     pub activity_log_file: Option<PathBuf>,
 
     /// Pace Home Directory
