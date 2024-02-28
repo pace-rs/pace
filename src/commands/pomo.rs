@@ -22,6 +22,10 @@ pub struct PomoCmd {
 
     // "free" arguments don't need a macro
     // free_args: Vec<String>,
+
+    // /// Allow human-readable durations
+    // #[arg(long)]
+    // break: Option<humantime::Duration>,
 }
 
 impl Runnable for PomoCmd {

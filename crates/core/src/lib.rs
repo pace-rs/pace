@@ -35,11 +35,15 @@ pub use crate::{
         activity_log::ActivityLog,
         filter::{ActivityStatusFilter, FilteredActivities},
         intermission::IntermissionAction,
-        review::ReviewFormatKind,
+        review::{
+            ActivitySummary, ExpensiveFlags, Highlights, ReviewFormatKind, ReviewRequest,
+            ReviewSummary, SummaryCriteria,
+        },
         status::ActivityStatus,
         time::{
             calculate_duration, duration_to_str, extract_time_or_now, parse_time_from_user_input,
-            PaceDate, PaceDateTime, PaceDuration, PaceDurationRange, PaceTime, TimeRangeOptions,
+            PaceDate, PaceDateTime, PaceDuration, PaceDurationRange, PaceTime, PaceTimeFrame,
+            TimeRangeOptions,
         },
     },
     error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult},

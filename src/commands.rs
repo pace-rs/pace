@@ -11,12 +11,13 @@
 //! application's configuration file.
 
 pub mod begin;
+pub mod docs;
 pub mod end;
 // pub mod export;
 // TODO: pub mod import;
-pub mod craft;
 pub mod hold;
 pub mod now;
+pub mod setup;
 // pub mod pomo;
 pub mod resume;
 pub mod review;
@@ -34,40 +35,45 @@ use pace_core::{get_config_paths, PaceConfig, PACE_CONFIG_FILENAME};
 /// Subcommands need to be listed in an enum.
 #[derive(clap::Parser, Command, Debug, Runnable)]
 pub enum PaceCmd {
-    /// Crafts a pace configuration, a new project or shell completions.
-    /// [alias: c]
-    #[clap(alias = "c")]
-    Craft(craft::CraftCmd),
-
-    /// Starts tracking time for the specified activity.
+    /// ▶️  Starts tracking time for an activity.
     /// [alias: b]
     #[clap(alias = "b")]
     Begin(begin::BeginCmd),
 
-    /// Pauses the time tracking for the most recently active activity.
-    /// [alias: h]
-    #[clap(alias = "h")]
-    Hold(hold::HoldCmd),
-
-    /// Shows you at a glance what you're currently tracking.
-    /// [alias: n]
-    #[clap(alias = "n")]
-    Now(now::NowCmd),
-
-    /// Resumes a previously paused activity, allowing you to continue where you left off.
-    /// [alias: r]
-    #[clap(alias = "r")]
-    Resume(resume::ResumeCmd),
-
-    /// Stops time tracking for the most recent or all activities.
+    /// ⏹️  Stops time tracking for the most recent or all activities.
     /// [alias: e]
     #[clap(alias = "e")]
     End(end::EndCmd),
 
-    /// Get sophisticated insights on your activities.
+    /// ⏸️  Pauses the time tracking for the most recent active activity.
+    /// [alias: h]
+    #[clap(alias = "h")]
+    Hold(hold::HoldCmd),
+
+    /// ⏲️  Shows you at a glance what you're currently tracking.
+    /// [alias: n]
+    #[clap(alias = "n")]
+    Now(now::NowCmd),
+
+    /// ⏯️  Resumes a previously paused activity, allowing you to continue where you left off.
+    /// [alias: r]
+    #[clap(alias = "r")]
+    Resume(resume::ResumeCmd),
+
+    /// 🔍 Get sophisticated insights on your activities.
     /// [alias: rev]
     #[clap(alias = "rev")]
     Review(review::ReviewCmd),
+
+    /// 🛠️  Set up a pace configuration, a new project, or generate shell completions.
+    /// [alias: s]
+    #[clap(alias = "s")]
+    Setup(setup::SetupCmd),
+
+    /// 📚 Open the online documentation for pace.
+    /// [alias: d]
+    #[clap(alias = "d")]
+    Docs(docs::DocsCmd),
     // /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
     // Export(export::ExportCmd),
 
@@ -91,7 +97,7 @@ const fn cli_colour_styles() -> Styles {
 
 /// Entry point for the application. It needs to be a struct to allow using subcommands!
 #[derive(clap::Parser, Command, Debug)]
-#[command(name="pace", author, about, styles=cli_colour_styles(), version)]
+#[command(name="pace", author, about, styles=cli_colour_styles(), version, arg_required_else_help = true)]
 pub struct EntryPoint {
     #[command(subcommand)]
     cmd: PaceCmd,
@@ -101,15 +107,15 @@ pub struct EntryPoint {
     pub verbose: bool,
 
     /// Use the specified config file
-    #[arg(long, env = "PACE_CONFIG_FILE")]
+    #[arg(long, env = "PACE_CONFIG_FILE", value_hint = clap::ValueHint::FilePath)]
     pub config: Option<PathBuf>,
 
     /// Use the specified activity log file
-    #[arg(long, env = "PACE_ACTIVITY_LOG_FILE")]
+    #[arg(long, env = "PACE_ACTIVITY_LOG_FILE", value_hint = clap::ValueHint::FilePath)]
     pub activity_log_file: Option<PathBuf>,
 
     /// Pace Home Directory
-    #[arg(long, env = "PACE_HOME")]
+    #[arg(long, env = "PACE_HOME", value_hint = clap::ValueHint::DirPath)]
     pub home: Option<PathBuf>,
 }
 

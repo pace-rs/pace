@@ -11,25 +11,35 @@ use clap_complete::{generate, shells, Generator};
 /// `completions` subcommand
 #[derive(clap::Parser, Command, Debug)]
 pub struct CompletionsCmd {
-    #[clap(value_enum)]
-    sh: Variant,
+    /// The shell to generate completions for
+    #[clap(value_enum, name = "Shell Variant")]
+    sh: ShellVariant,
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]
-pub enum Variant {
+pub enum ShellVariant {
+    /// Bash shell
     Bash,
+
+    /// Fish shell
     Fish,
-    Zsh,
+
+    /// PowerShell
     Powershell,
+
+    /// Zsh shell
+    Zsh,
 }
 
 impl Runnable for CompletionsCmd {
     fn run(&self) {
         match self.sh {
-            Variant::Bash => generate_completion(shells::Bash, &mut std::io::stdout()),
-            Variant::Fish => generate_completion(shells::Fish, &mut std::io::stdout()),
-            Variant::Zsh => generate_completion(shells::Zsh, &mut std::io::stdout()),
-            Variant::Powershell => generate_completion(shells::PowerShell, &mut std::io::stdout()),
+            ShellVariant::Bash => generate_completion(shells::Bash, &mut std::io::stdout()),
+            ShellVariant::Fish => generate_completion(shells::Fish, &mut std::io::stdout()),
+            ShellVariant::Zsh => generate_completion(shells::Zsh, &mut std::io::stdout()),
+            ShellVariant::Powershell => {
+                generate_completion(shells::PowerShell, &mut std::io::stdout())
+            }
         }
     }
 }

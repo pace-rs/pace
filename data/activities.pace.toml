@@ -8,6 +8,7 @@ kind = "activity"
 category = "MyCategory::SubCategory"
 description = "This is my task description"
 begin = "2024-02-10T01:58:51"
+tags = ["tag1", "tag2"]
 kind = "activity"
 
 [01HPY7057730PYEPN7R3Q9TWC7]

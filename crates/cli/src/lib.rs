@@ -2,8 +2,11 @@
 
 /// Contains the main logic for prompting the user for input
 pub(crate) mod prompt;
-/// Contains the main logic for the `craft setup` command
+/// Contains the main logic for the `setup` command
 pub(crate) mod setup;
 
 // Public API
-pub use crate::{prompt::confirmation_or_break, setup::craft_setup};
+pub use crate::{
+    prompt::confirmation_or_break,
+    setup::{setup_config, PathOptions},
+};
