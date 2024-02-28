@@ -6,7 +6,10 @@ use merge::Merge;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
-    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
+    commands::{
+        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
+        UpdateOptions,
+    },
     domain::{
         activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
@@ -18,8 +21,7 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    ActivityKind, ActivityKindOptions, ActivityStatus, EndOptions, HoldOptions, KeywordOptions,
-    PaceDate, TimeRangeOptions,
+    ActivityKind, ActivityKindOptions, ActivityStatus, PaceDate, TimeRangeOptions,
 };
 
 /// Type for shared `ActivityLog`

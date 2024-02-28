@@ -13,7 +13,6 @@ use ulid::Ulid;
 use crate::{
     calculate_duration,
     domain::{
-        category::PaceCategory,
         status::ActivityStatus,
         time::{duration_to_str, PaceDateTime, PaceDuration},
     },
@@ -193,7 +192,7 @@ pub struct Activity {
     #[getset(get = "pub", get_mut = "pub")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    category: PaceCategory,
+    category: Option<String>,
 
     /// The description of the activity
     // This needs to be an Optional, because we use the whole activity struct

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use dialoguer::{theme::ColorfulTheme, Confirm, Select};
+use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Select};
 use eyre::Result;
 use tracing::debug;
 
@@ -122,4 +122,24 @@ pub fn confirmation_or_break(prompt: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Prompts the user to select an activity to resume
+///
+/// # Arguments
+///
+/// * `string_repr` - The list of activities represented as a String to resume
+///
+/// # Errors
+///
+/// Returns an error if the prompt fails
+///
+/// # Returns
+///
+/// Returns the index of the selected activity
+pub fn prompt_resume_activity(string_repr: Vec<String>) -> Result<usize, dialoguer::Error> {
+    FuzzySelect::with_theme(&ColorfulTheme::default())
+        .with_prompt("Which activity do you want to continue?")
+        .items(&string_repr)
+        .interact()
 }

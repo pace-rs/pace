@@ -7,6 +7,6 @@ pub(crate) mod setup;
 
 // Public API
 pub use crate::{
-    prompt::confirmation_or_break,
+    prompt::{confirmation_or_break, prompt_resume_activity},
     setup::{setup_config, PathOptions},
 };

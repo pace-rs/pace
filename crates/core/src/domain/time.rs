@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    domain::review::{DateFlags, TimeFlags},
+    commands::review::{DateFlags, TimeFlags},
     error::{ActivityLogErrorKind, PaceErrorKind, PaceOptResult, PaceResult},
 };
 use chrono::{

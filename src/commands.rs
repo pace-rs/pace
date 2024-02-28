@@ -29,7 +29,7 @@ use clap::builder::{styling::AnsiColor, Styles};
 use human_panic::setup_panic;
 use std::path::PathBuf;
 
-use pace_core::{get_config_paths, PaceConfig, PACE_CONFIG_FILENAME};
+use pace_core::{constants::PACE_CONFIG_FILENAME, get_config_paths, PaceConfig};
 
 /// Pace Subcommands
 /// Subcommands need to be listed in an enum.
