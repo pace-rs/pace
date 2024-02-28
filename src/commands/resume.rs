@@ -89,7 +89,7 @@ impl ResumeCmd {
                 // with the same contents
                 Err(recoverable_err) if recoverable_err.possible_new_activity_from_resume() => {
                     confirmation_or_break(
-                            "We can't resume this activity, but you can begin a new one with the same contents, do you want to create a new activity?",
+                            "We can't resume this activity, do you want to begin one with the same contents?",
                         )?;
 
                     let new_activity = activity_item.activity().new_from_self();
@@ -109,6 +109,7 @@ impl ResumeCmd {
         }
 
         activity_store.sync()?;
+
         Ok(())
     }
 }
