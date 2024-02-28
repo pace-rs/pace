@@ -9,7 +9,7 @@ use eyre::Result;
 use pace_cli::confirmation_or_break;
 use pace_core::{
     get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
-    ActivityStore, ResumeOptions, SyncStorage,
+    ActivityStore, ResumeOptions, ResumingOptions, SyncStorage,
 };
 
 use crate::prelude::PACE_APP;
@@ -17,9 +17,8 @@ use crate::prelude::PACE_APP;
 /// `resume` subcommand
 #[derive(Command, Debug, Parser)]
 pub struct ResumeCmd {
-    /// Show a list of all recent activities to continue
-    #[clap(short, long)]
-    list: bool,
+    #[clap(flatten)]
+    resume_opts: ResumeOptions,
 }
 
 impl Runnable for ResumeCmd {
@@ -43,14 +42,14 @@ impl Runnable for ResumeCmd {
 
 // [ ] Resume from an active intermission, but there are no unfinished activities available (someone forgot something?) => end the intermission, check parent_id resume that??? or what we do?
 
+// TODO!: Move the inner_run implementation to the pace-core crate
+// TODO: Factor out cli related stuff to pace-cli
 impl ResumeCmd {
     /// Inner run implementation for the resume command
     pub fn inner_run(&self) -> Result<()> {
-        let ResumeCmd { list } = self;
-
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
-        if *list {
+        if *self.resume_opts.list() {
             // List activities to resume with fuzzy search and select
             if let Some(activity_ids) = activity_store.list_most_recent_activities(usize::from(
                 PACE_APP
@@ -78,7 +77,7 @@ impl ResumeCmd {
 
                 if let Some(activity_item) = activity_items.get(selection) {
                     let result = activity_store
-                        .resume_activity(*activity_item.guid(), ResumeOptions::default());
+                        .resume_activity(*activity_item.guid(), ResumingOptions::default());
 
                     match result {
                         Ok(_) => println!("Resumed {}", activity_item.activity()),
@@ -107,7 +106,7 @@ impl ResumeCmd {
                 println!("No recent activities to continue.");
             };
         } else if let Ok(Some(resumed_activity)) =
-            activity_store.resume_most_recent_activity(ResumeOptions::default())
+            activity_store.resume_most_recent_activity(ResumingOptions::default())
         {
             println!("Resumed {}", resumed_activity.activity());
         } else {

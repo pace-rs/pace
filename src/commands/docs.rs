@@ -2,6 +2,7 @@
 
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 use clap::Args;
+use pace_core::DocsOptions;
 
 use crate::application::PACE_APP;
 
@@ -9,29 +10,18 @@ use crate::application::PACE_APP;
 #[derive(Command, Debug, Args, Clone)]
 pub struct DocsCmd {
     /// Open the development documentation
-    #[clap(short, long)]
-    dev: bool,
+    #[clap(flatten)]
+    docs_opts: DocsOptions,
 }
 
 impl Runnable for DocsCmd {
     fn run(&self) {
-        let DocsCmd { dev } = self;
-
-        match dev {
-            true => match open::that("https://pace.cli.rs/dev-docs") {
-                Ok(_) => {}
-                Err(err) => {
-                    status_err!("{}", err);
-                    PACE_APP.shutdown(Shutdown::Crash);
-                }
-            },
-            false => match open::that("https://pace.cli.rs/docs") {
-                Ok(_) => {}
-                Err(err) => {
-                    status_err!("{}", err);
-                    PACE_APP.shutdown(Shutdown::Crash);
-                }
-            },
-        }
+        match self.docs_opts.handle_docs() {
+            Ok(_) => {}
+            Err(err) => {
+                status_err!("{}", err);
+                PACE_APP.shutdown(Shutdown::Crash);
+            }
+        };
     }
 }

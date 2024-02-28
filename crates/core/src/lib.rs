@@ -18,8 +18,14 @@ pub use toml;
 // Public API
 pub use crate::{
     commands::{
-        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
-        UpdateOptions,
+        begin::BeginOptions,
+        docs::DocsOptions,
+        end::EndOptions,
+        hold::{HoldOptions, HoldingOptions},
+        now::NowOptions,
+        resume::{ResumeOptions, ResumingOptions},
+        review::{DateFlags, ExpensiveFlags, ReviewOptions, TimeFlags},
+        DeletingOptions, EndingOptions, KeywordOptions, UpdatingOptions,
     },
     config::{
         find_root_config_file_path, find_root_project_file, get_activity_log_paths,
@@ -36,10 +42,7 @@ pub use crate::{
         category::PaceCategory,
         filter::{ActivityStatusFilter, FilteredActivities},
         intermission::{IntermissionAction, IntermissionReason},
-        review::{
-            ActivitySummary, DateFlags, ExpensiveFlags, Highlights, ReviewOptions, ReviewRequest,
-            ReviewSummary, SummaryCriteria, TimeFlags,
-        },
+        review::{ActivitySummary, Highlights, ReviewSummary},
         status::ActivityStatus,
         time::{
             calculate_duration, duration_to_str, extract_time_or_now, get_time_frame_from_flags,

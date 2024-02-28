@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
+    commands::{resume::ResumingOptions, DeletingOptions, UpdatingOptions},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
@@ -17,7 +17,7 @@ use crate::{
         in_memory::InMemoryActivityStorage, ActivityQuerying, ActivityReadOps,
         ActivityStateManagement, ActivityStorage, ActivityWriteOps, SyncStorage,
     },
-    ActivityStatus, EndOptions, HoldOptions,
+    ActivityStatus, EndingOptions, HoldingOptions,
 };
 
 /// In-memory backed TOML activity storage
@@ -132,33 +132,33 @@ impl ActivityReadOps for TomlActivityStorage {
 impl ActivityStateManagement for TomlActivityStorage {
     fn end_all_unfinished_activities(
         &self,
-        end_opts: EndOptions,
+        end_opts: EndingOptions,
     ) -> PaceOptResult<Vec<ActivityItem>> {
         self.cache.end_all_unfinished_activities(end_opts)
     }
 
-    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
+    fn end_last_unfinished_activity(&self, end_opts: EndingOptions) -> PaceOptResult<ActivityItem> {
         self.cache.end_last_unfinished_activity(end_opts)
     }
 
     fn end_activity(
         &self,
         activity_id: ActivityGuid,
-        end_opts: EndOptions,
+        end_opts: EndingOptions,
     ) -> PaceResult<ActivityItem> {
         self.cache.end_activity(activity_id, end_opts)
     }
 
     fn hold_most_recent_active_activity(
         &self,
-        hold_opts: HoldOptions,
+        hold_opts: HoldingOptions,
     ) -> PaceOptResult<ActivityItem> {
         self.cache.hold_most_recent_active_activity(hold_opts)
     }
 
     fn end_all_active_intermissions(
         &self,
-        end_opts: EndOptions,
+        end_opts: EndingOptions,
     ) -> PaceOptResult<Vec<ActivityGuid>> {
         self.cache.end_all_active_intermissions(end_opts)
     }
@@ -166,7 +166,7 @@ impl ActivityStateManagement for TomlActivityStorage {
     fn resume_activity(
         &self,
         activity_id: ActivityGuid,
-        resume_opts: ResumeOptions,
+        resume_opts: ResumingOptions,
     ) -> PaceResult<ActivityItem> {
         self.cache.resume_activity(activity_id, resume_opts)
     }
@@ -174,14 +174,14 @@ impl ActivityStateManagement for TomlActivityStorage {
     fn hold_activity(
         &self,
         activity_id: ActivityGuid,
-        hold_opts: HoldOptions,
+        hold_opts: HoldingOptions,
     ) -> PaceResult<ActivityItem> {
         self.cache.hold_activity(activity_id, hold_opts)
     }
 
     fn resume_most_recent_activity(
         &self,
-        resume_opts: ResumeOptions,
+        resume_opts: ResumingOptions,
     ) -> PaceOptResult<ActivityItem> {
         self.cache.resume_most_recent_activity(resume_opts)
     }
@@ -196,7 +196,7 @@ impl ActivityWriteOps for TomlActivityStorage {
         &self,
         activity_id: ActivityGuid,
         updated_activity: Activity,
-        update_opts: UpdateOptions,
+        update_opts: UpdatingOptions,
     ) -> PaceResult<ActivityItem> {
         self.cache
             .update_activity(activity_id, updated_activity, update_opts)
@@ -205,7 +205,7 @@ impl ActivityWriteOps for TomlActivityStorage {
     fn delete_activity(
         &self,
         activity_id: ActivityGuid,
-        delete_opts: DeleteOptions,
+        delete_opts: DeletingOptions,
     ) -> PaceResult<ActivityItem> {
         self.cache.delete_activity(activity_id, delete_opts)
     }

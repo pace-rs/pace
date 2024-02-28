@@ -6,7 +6,7 @@ use std::{
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
-    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
+    commands::{resume::ResumingOptions, DeletingOptions, UpdatingOptions},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         filter::{ActivityStatusFilter, FilteredActivities},
@@ -16,7 +16,7 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, StorageKind, SyncStorage,
     },
-    ActivityStatus, EndOptions, HoldOptions,
+    ActivityStatus, EndingOptions, HoldingOptions,
 };
 
 /// The activity store entity
@@ -84,7 +84,7 @@ impl ActivityWriteOps for ActivityStore {
         &self,
         activity_id: ActivityGuid,
         updated_activity: Activity,
-        update_opts: UpdateOptions,
+        update_opts: UpdatingOptions,
     ) -> PaceResult<ActivityItem> {
         self.storage
             .update_activity(activity_id, updated_activity, update_opts)
@@ -93,7 +93,7 @@ impl ActivityWriteOps for ActivityStore {
     fn delete_activity(
         &self,
         activity_id: ActivityGuid,
-        delete_opts: DeleteOptions,
+        delete_opts: DeletingOptions,
     ) -> PaceResult<ActivityItem> {
         self.storage.delete_activity(activity_id, delete_opts)
     }
@@ -107,32 +107,32 @@ impl ActivityStateManagement for ActivityStore {
     fn end_activity(
         &self,
         activity_id: ActivityGuid,
-        end_opts: EndOptions,
+        end_opts: EndingOptions,
     ) -> PaceResult<ActivityItem> {
         self.storage.end_activity(activity_id, end_opts)
     }
 
     fn end_all_unfinished_activities(
         &self,
-        end_opts: EndOptions,
+        end_opts: EndingOptions,
     ) -> PaceOptResult<Vec<ActivityItem>> {
         self.storage.end_all_unfinished_activities(end_opts)
     }
 
-    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
+    fn end_last_unfinished_activity(&self, end_opts: EndingOptions) -> PaceOptResult<ActivityItem> {
         self.storage.end_last_unfinished_activity(end_opts)
     }
 
     fn hold_most_recent_active_activity(
         &self,
-        hold_opts: HoldOptions,
+        hold_opts: HoldingOptions,
     ) -> PaceOptResult<ActivityItem> {
         self.storage.hold_most_recent_active_activity(hold_opts)
     }
 
     fn end_all_active_intermissions(
         &self,
-        end_opts: EndOptions,
+        end_opts: EndingOptions,
     ) -> PaceOptResult<Vec<ActivityGuid>> {
         self.storage.end_all_active_intermissions(end_opts)
     }
@@ -140,7 +140,7 @@ impl ActivityStateManagement for ActivityStore {
     fn resume_activity(
         &self,
         activity_id: ActivityGuid,
-        resume_opts: ResumeOptions,
+        resume_opts: ResumingOptions,
     ) -> PaceResult<ActivityItem> {
         self.storage.resume_activity(activity_id, resume_opts)
     }
@@ -148,14 +148,14 @@ impl ActivityStateManagement for ActivityStore {
     fn hold_activity(
         &self,
         activity_id: ActivityGuid,
-        hold_opts: HoldOptions,
+        hold_opts: HoldingOptions,
     ) -> PaceResult<ActivityItem> {
         self.storage.hold_activity(activity_id, hold_opts)
     }
 
     fn resume_most_recent_activity(
         &self,
-        resume_opts: ResumeOptions,
+        resume_opts: ResumingOptions,
     ) -> PaceOptResult<ActivityItem> {
         self.storage.resume_most_recent_activity(resume_opts)
     }

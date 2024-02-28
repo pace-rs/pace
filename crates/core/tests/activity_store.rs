@@ -7,8 +7,8 @@ use chrono::{Local, NaiveDateTime};
 use pace_core::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
     ActivityReadOps, ActivityStateManagement, ActivityStatus, ActivityStatusFilter, ActivityStore,
-    ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions, InMemoryActivityStorage,
-    PaceDateTime, PaceResult, ResumeOptions, TestResult, UpdateOptions,
+    ActivityWriteOps, DeletingOptions, EndingOptions, HoldingOptions, InMemoryActivityStorage,
+    PaceDateTime, PaceResult, ResumingOptions, TestResult, UpdatingOptions,
 };
 use rstest::{fixture, rstest};
 use similar_asserts::assert_eq;
@@ -389,7 +389,7 @@ fn test_activity_store_update_activity_passes(activity_store: TestData) -> TestR
     let old_activity = store.update_activity(
         og_activity_id,
         new_activity.clone(),
-        UpdateOptions::default(),
+        UpdatingOptions::default(),
     )?;
 
     assert_eq!(old_activity, og_activity, "Should have the same activity.");
@@ -436,7 +436,7 @@ fn test_activity_store_delete_activity_passes(activity_store: TestData) -> TestR
     let og_activity = activities[0].clone();
     let og_activity_id = *og_activity.guid();
 
-    let deleted_activity = store.delete_activity(og_activity_id, DeleteOptions::default())?;
+    let deleted_activity = store.delete_activity(og_activity_id, DeletingOptions::default())?;
 
     assert!(
         store.read_activity(og_activity_id).is_err(),
@@ -462,7 +462,7 @@ fn test_activity_store_delete_activity_fails(activity_store: TestData) {
 
     assert!(
         store
-            .delete_activity(activity_id, DeleteOptions::default())
+            .delete_activity(activity_id, DeletingOptions::default())
             .is_err(),
         "Can't delete activity with non-existing ID."
     );
@@ -484,7 +484,7 @@ fn test_activity_store_update_activity_fails(activity_store: TestData) {
 
     assert!(
         store
-            .update_activity(activity_id, new_activity, UpdateOptions::default())
+            .update_activity(activity_id, new_activity, UpdatingOptions::default())
             .is_err(),
         "Can't update activity with non-existing ID."
     );
@@ -503,7 +503,7 @@ fn test_activity_store_begin_intermission_passes(
 
     let og_activity_id = og_activity.guid();
 
-    let held_activity = store.hold_most_recent_active_activity(HoldOptions::default())?;
+    let held_activity = store.hold_most_recent_active_activity(HoldingOptions::default())?;
 
     assert!(held_activity.is_some(), "Should return an active activity.");
 
@@ -576,7 +576,7 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
 
     assert!(
         store
-            .hold_most_recent_active_activity(HoldOptions::default())?
+            .hold_most_recent_active_activity(HoldingOptions::default())?
             .is_none(),
         "Should not contain an active activity."
     );
@@ -631,7 +631,7 @@ fn test_activity_store_end_intermission_passes(activity_store: TestData) -> Test
     } = activity_store;
 
     let ended_intermissions = store
-        .end_all_active_intermissions(EndOptions::default())?
+        .end_all_active_intermissions(EndingOptions::default())?
         .unwrap();
 
     // There should be one ended intermission
@@ -681,7 +681,7 @@ fn test_activity_store_end_intermission_with_empty_log_passes(
         store,
     } = activity_store_empty;
 
-    let result = store.end_all_active_intermissions(EndOptions::default())?;
+    let result = store.end_all_active_intermissions(EndingOptions::default())?;
 
     assert!(result.is_none(), "Should have no intermissions.");
 
@@ -725,7 +725,7 @@ fn test_activity_store_resume_activity_passes(activity_store: TestData) -> PaceR
     );
 
     let resumed_activity = store
-        .resume_most_recent_activity(ResumeOptions::default())?
+        .resume_most_recent_activity(ResumingOptions::default())?
         .expect("Should have an activity.");
 
     assert!(
