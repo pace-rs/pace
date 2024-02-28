@@ -15,6 +15,11 @@
 `pace-core` is a library to support timetracking on the command line. It is the
 core library for the `pace` timetracking application.
 
+⚠️ **Note:** `pace-core` is currently in active development and is not yet ready
+for production use. Expect breaking changes and incomplete features. We
+encourage you to try it out and provide feedback, but please be aware that it is
+not yet stable.
+
 ## Contact
 
 You can ask questions in the
