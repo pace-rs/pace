@@ -15,8 +15,8 @@ use tracing::{debug, info};
 use typed_builder::TypedBuilder;
 
 use pace_core::{
-    get_activity_log_paths, get_config_paths, toml, ActivityLog, PaceConfig,
-    PACE_ACTIVITY_LOG_FILENAME, PACE_CONFIG_FILENAME,
+    constants::PACE_ACTIVITY_LOG_FILENAME, constants::PACE_CONFIG_FILENAME, get_activity_log_paths,
+    get_config_paths, toml, ActivityLog, PaceConfig,
 };
 
 use crate::prompt::{prompt_activity_log_path, prompt_config_file_path};
