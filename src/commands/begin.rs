@@ -1,5 +1,7 @@
 //! `begin` subcommand
 
+use std::collections::HashSet;
+
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 use clap::Parser;
 use eyre::Result;
@@ -18,18 +20,19 @@ pub struct BeginCmd {
     ///
     /// You can use the separator you setup in the configuration file
     /// to specify a subcategory.
-    #[clap(short, long)]
+    #[clap(short, long, name = "Category")]
     category: Option<String>,
 
-    /// The time the activity has been started at
-    #[clap(long)]
-    time: Option<String>,
+    /// The time the activity has been started at. Format: HH:MM
+    #[clap(long, name = "Starting Time", alias = "at")]
+    start: Option<String>,
 
     /// The description of the activity you want to start
+    #[clap(name = "Activity Description")]
     description: String,
 
-    /// The tags you want to associate with the activity
-    #[clap(short, long)]
+    /// The tags you want to associate with the activity, separated by a comma
+    #[clap(short, long, name = "Tag", value_delimiter = ',')]
     tags: Option<Vec<String>>,
 
     /// TODO: The project you want to start tracking time for
@@ -53,10 +56,16 @@ impl BeginCmd {
     pub fn inner_run(&self, config: &PaceConfig) -> Result<()> {
         let Self {
             category,
-            time,
+            start: time,
             description,
-            ..
+            tags,
+            .. // TODO: exclude projects for now
         } = self;
+
+        // parse tags from string or get an empty set
+        let tags = tags
+            .as_ref()
+            .map(|tags| tags.iter().cloned().collect::<HashSet<String>>());
 
         // parse time from string or get now
         let date_time = extract_time_or_now(time)?;
@@ -86,6 +95,7 @@ impl BeginCmd {
             .begin(date_time)
             .kind(ActivityKind::default())
             .category(category.clone())
+            .tags(tags.clone())
             .build();
 
         let activity_store = ActivityStore::new(get_storage_from_config(config)?);

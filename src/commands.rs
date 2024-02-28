@@ -107,15 +107,15 @@ pub struct EntryPoint {
     pub verbose: bool,
 
     /// Use the specified config file
-    #[arg(long, env = "PACE_CONFIG_FILE")]
+    #[arg(long, env = "PACE_CONFIG_FILE", value_hint = clap::ValueHint::FilePath)]
     pub config: Option<PathBuf>,
 
     /// Use the specified activity log file
-    #[arg(long, env = "PACE_ACTIVITY_LOG_FILE")]
+    #[arg(long, env = "PACE_ACTIVITY_LOG_FILE", value_hint = clap::ValueHint::FilePath)]
     pub activity_log_file: Option<PathBuf>,
 
     /// Pace Home Directory
-    #[arg(long, env = "PACE_HOME")]
+    #[arg(long, env = "PACE_HOME", value_hint = clap::ValueHint::DirPath)]
     pub home: Option<PathBuf>,
 }
 

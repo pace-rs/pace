@@ -14,8 +14,8 @@ use pace_core::{
 #[derive(Command, Debug, Parser)]
 pub struct EndCmd {
     /// The time the activity has ended (defaults to the current time if not provided). Format: HH:MM
-    #[clap(long)]
-    time: Option<String>,
+    #[clap(long, name = "Finishing Time", alias = "at")]
+    end: Option<String>,
 
     /// End only the last unfinished activity
     #[clap(long)]
@@ -37,7 +37,9 @@ impl Runnable for EndCmd {
 impl EndCmd {
     fn inner_run(&self) -> Result<()> {
         let Self {
-            time, only_last, ..
+            end: time,
+            only_last,
+            ..
         } = self;
 
         let time = parse_time_from_user_input(time)?;

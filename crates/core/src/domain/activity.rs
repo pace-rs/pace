@@ -5,7 +5,7 @@ use core::fmt::Formatter;
 use getset::{Getters, MutGetters, Setters};
 use merge::Merge;
 use serde_derive::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 use strum_macros::EnumString;
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
@@ -181,11 +181,13 @@ enum PomodoroCycle {
 )]
 #[getset(get = "pub", set = "pub", get_mut = "pub")]
 #[derive(Merge)]
+// TODO: How to better support subcategories
+// subcategory: Option<Category>,
+/// The category of the activity
+// TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
+// TODO: Reconsider when we implement the project management part
+// category: Category,
 pub struct Activity {
-    /// The category of the activity
-    // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
-    // TODO: Reconsider when we implement the project management part
-    // category: Category,
     #[builder(default, setter(into))]
     #[getset(get = "pub", get_mut = "pub")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -202,8 +204,9 @@ pub struct Activity {
     /// The start date and time of the activity
     #[builder(default, setter(into))]
     #[getset(get = "pub")]
-    // TODO: Should the begin time be updatable?
     #[merge(skip)]
+    // The begin time should be immutable, because it's the start of the activity
+    // and should not be changed. We may reconsider that if there is any use case for that.
     begin: PaceDateTime,
 
     #[builder(default)]
@@ -223,14 +226,11 @@ pub struct Activity {
     #[merge(strategy = crate::util::overwrite_left_with_right)]
     activity_kind_options: Option<ActivityKindOptions>,
 
-    // TODO: How to better support subcategories
-    // subcategory: Option<Category>,
-
-    // TODO: Was `Tag` before, but we want to check how to better support that
-    // TODO: also, we should consider using a HashSet instead of a Vec
-    // TODO: also, we might want to reconsider
-    // #[builder(default, setter(strip_option))]
-    // tags: Option<Vec<String>>,
+    /// Tags for the activity
+    #[builder(default, setter(into))]
+    #[merge(skip)]
+    // We
+    tags: Option<HashSet<String>>,
 
     // Pomodoro-specific attributes
     /// The pomodoro cycle of the activity
@@ -360,6 +360,7 @@ impl Activity {
             .kind(self.kind)
             .activity_kind_options(self.activity_kind_options.clone())
             .pomodoro_cycle_options(self.pomodoro_cycle_options)
+            .tags(self.tags.clone())
             .build()
     }
 

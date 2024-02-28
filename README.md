@@ -223,6 +223,16 @@ Got an idea for an improvement? Don't keep it to yourself!
 Please make sure, that you read the
 [contribution guide](https://pace.cli.rs/docs/contributing_to_pace.html).
 
+## Acknowledgements
+
+Some of the inspiration for `pace` came from the following projects:
+
+- [bartib](https://github.com/nikolassv/bartib)
+- [Super Productivity](https://github.com/johannesjo/super-productivity)
+- [timetracking](https://github.com/hardliner66/timetracking)
+- [vayu](https://github.com/MythicalCow/vayu)
+- [work-break](https://github.com/ShadoySV/work-break)
+
 ## Minimum Rust version policy
 
 This crate's minimum supported `rustc` version is `1.74.1`.

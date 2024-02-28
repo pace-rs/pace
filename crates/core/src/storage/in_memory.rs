@@ -627,6 +627,8 @@ impl ActivityQuerying for InMemoryActivityStorage {
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashSet;
+
     use chrono::Local;
 
     use crate::{PaceDate, PaceDateTime};
@@ -663,11 +665,15 @@ mod tests {
         let begin = Local::now().naive_local();
         let kind = ActivityKind::Activity;
         let description = "Test activity";
+        let tags = vec!["test".to_string(), "activity".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
 
         let activity = Activity::builder()
             .begin(begin)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         let item = storage.create_activity(activity.clone()).unwrap();
@@ -694,11 +700,15 @@ mod tests {
         let begin = Local::now().naive_local();
         let kind = ActivityKind::Activity;
         let description = "Test activity";
+        let tags = vec!["test".to_string(), "activity".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
 
         let activity = Activity::builder()
             .begin(begin)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         let _activity_item = storage.create_activity(activity.clone()).unwrap();
@@ -731,11 +741,15 @@ mod tests {
         let begin = Local::now().naive_local();
         let kind = ActivityKind::Activity;
         let description = "Test activity";
+        let tags = vec!["test".to_string(), "activity".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
 
         let og_activity = Activity::builder()
             .begin(begin)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         let activity_item = storage.create_activity(og_activity.clone()).unwrap();
@@ -750,11 +764,16 @@ mod tests {
 
         let new_description = "Updated description";
 
+        let tags = vec!["bla".to_string(), "test".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
+
         let updated_activity = Activity::builder()
             .begin(begin + chrono::Duration::seconds(30))
             .kind(ActivityKind::PomodoroWork)
             .status(ActivityStatus::Active)
             .description(new_description)
+            .tags(tags.clone())
             .build();
 
         let old_activity = storage
@@ -786,6 +805,12 @@ mod tests {
         );
 
         assert_eq!(
+            old_activity.activity().tags(),
+            new_stored_activity.activity().tags(),
+            "Tags were updated, but shouldn't."
+        );
+
+        assert_eq!(
             old_activity.activity().kind(),
             new_stored_activity.activity().kind(),
             "Kind was updated, but shouldn't."
@@ -811,11 +836,15 @@ mod tests {
         let begin = Local::now().naive_local();
         let kind = ActivityKind::Activity;
         let description = "Test activity";
+        let tags = vec!["test".to_string(), "activity".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
 
         let mut activity = Activity::builder()
             .begin(begin)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         assert_eq!(
@@ -853,11 +882,16 @@ mod tests {
         // Update activity
         let new_description = "Updated description";
 
+        let tags = vec!["bla".to_string(), "test".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
+
         let updated_activity = Activity::builder()
             .begin(begin + chrono::Duration::seconds(30))
             .kind(ActivityKind::PomodoroWork)
             .status(ActivityStatus::Inactive)
             .description(new_description)
+            .tags(tags.clone())
             .build();
 
         let _ = storage
@@ -880,6 +914,12 @@ mod tests {
             stored_activity.activity().kind(),
             new_stored_activity.activity().kind(),
             "Kind was updated, but shouldn't."
+        );
+
+        assert_eq!(
+            stored_activity.activity().tags(),
+            new_stored_activity.activity().tags(),
+            "Tags were updated, but shouldn't."
         );
 
         assert_eq!(
@@ -927,11 +967,15 @@ mod tests {
         let end_time = now + chrono::Duration::seconds(30);
         let kind = ActivityKind::Activity;
         let description = "Test activity";
+        let tags = vec!["test".to_string(), "activity".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
 
         let activity = Activity::builder()
             .begin(begin_time)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         let activity_item = storage.begin_activity(activity.clone()).unwrap();
@@ -957,6 +1001,12 @@ mod tests {
         );
 
         assert_eq!(
+            activity.tags().as_ref().unwrap(),
+            ended_activity.activity().tags().as_ref().unwrap(),
+            "Tags were updated, but shouldn't."
+        );
+
+        assert_eq!(
             ended_activity
                 .activity()
                 .activity_end_options()
@@ -975,11 +1025,15 @@ mod tests {
         let begin_time = now - chrono::Duration::seconds(30);
         let kind = ActivityKind::Activity;
         let description = "Test activity";
+        let tags = vec!["test".to_string(), "activity".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
 
         let activity = Activity::builder()
             .begin(begin_time)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         let activity_item = storage.begin_activity(activity.clone()).unwrap();
@@ -1001,6 +1055,12 @@ mod tests {
         );
 
         assert_eq!(
+            activity.tags().as_ref().unwrap(),
+            ended_activity.activity().tags().as_ref().unwrap(),
+            "Tags were updated, but shouldn't."
+        );
+
+        assert_eq!(
             ended_activity
                 .activity()
                 .activity_end_options()
@@ -1019,11 +1079,15 @@ mod tests {
         let begin_time = now - chrono::Duration::seconds(30);
         let kind = ActivityKind::Activity;
         let description = "Test activity";
+        let tags = vec!["test".to_string(), "activity".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
 
         let activity = Activity::builder()
             .begin(begin_time)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         // Begin the first activity
@@ -1037,6 +1101,7 @@ mod tests {
             .begin(begin_time)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         // Begin the second activity, the first one should be ended automatically now
@@ -1080,11 +1145,15 @@ mod tests {
         let begin_time = now - chrono::Duration::seconds(30);
         let kind = ActivityKind::Activity;
         let description = "Test activity";
+        let tags = vec!["test".to_string(), "activity".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
 
         let activity = Activity::builder()
             .begin(begin_time)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         let activity_item = storage.begin_activity(activity.clone()).unwrap();
@@ -1102,6 +1171,12 @@ mod tests {
             held_activity.guid(),
             activity_item.guid(),
             "Activity IDs do not match."
+        );
+
+        assert_eq!(
+            activity.tags().as_ref().unwrap(),
+            held_activity.activity().tags().as_ref().unwrap(),
+            "Tags were updated, but shouldn't."
         );
 
         let intermission_guids = storage
@@ -1139,11 +1214,15 @@ mod tests {
         let begin_time = now - chrono::Duration::seconds(30);
         let kind = ActivityKind::Activity;
         let description = "Test activity";
+        let tags = vec!["test".to_string(), "activity".to_string()]
+            .into_iter()
+            .collect::<HashSet<String>>();
 
         let activity = Activity::builder()
             .begin(begin_time)
             .kind(kind)
             .description(description)
+            .tags(tags.clone())
             .build();
 
         let active_activity_item = storage.begin_activity(activity.clone()).unwrap();
@@ -1196,6 +1275,19 @@ mod tests {
             intermission_guids.len(),
             1,
             "Intermission was created again."
+        );
+
+        let intermission_item = storage.read_activity(intermission_guids[0]).unwrap();
+
+        assert_eq!(
+            *intermission_item.activity().kind(),
+            ActivityKind::Intermission,
+            "Intermission was not created."
+        );
+
+        assert!(
+            intermission_item.activity().tags().is_none(),
+            "Intermission has tags, but shouldn't."
         );
     }
 

@@ -21,6 +21,13 @@ use pace_core::{
 
 use crate::prompt::{prompt_activity_log_path, prompt_config_file_path};
 
+#[derive(Debug, TypedBuilder, Getters)]
+pub struct PathOptions {
+    /// Path to the activity log file
+    #[getset(get = "pub")]
+    activity_log: Option<PathBuf>,
+}
+
 /// Final paths for the configuration and activity log files
 ///
 /// This struct is used to store the final paths for the configuration and activity log files
@@ -318,7 +325,7 @@ pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
 /// # Returns
 ///
 /// Returns `Ok(())` if the setup assistant succeeds
-pub fn setup_config(term: &Term) -> Result<()> {
+pub fn setup_config(term: &Term, path_opts: PathOptions) -> Result<()> {
     let mut config = PaceConfig::default();
 
     let config_paths = get_config_paths(PACE_CONFIG_FILENAME)
@@ -326,10 +333,16 @@ pub fn setup_config(term: &Term) -> Result<()> {
         .map(|f| f.to_string_lossy().to_string())
         .collect::<Vec<String>>();
 
-    let activity_log_paths = get_activity_log_paths(PACE_ACTIVITY_LOG_FILENAME)
+    let mut activity_log_paths = get_activity_log_paths(PACE_ACTIVITY_LOG_FILENAME)
         .into_iter()
         .map(|f| f.to_string_lossy().to_string())
         .collect::<Vec<String>>();
+
+    // Add the custom path from the cli input to the activity log paths
+    if let Some(mut custom_path) = path_opts.activity_log().clone() {
+        custom_path.push(PACE_ACTIVITY_LOG_FILENAME);
+        activity_log_paths.push(custom_path.to_string_lossy().to_string());
+    }
 
     print_intro(term)?;
 

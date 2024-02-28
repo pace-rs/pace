@@ -15,11 +15,11 @@ use crate::prelude::PACE_APP;
 #[derive(Command, Debug, Parser)]
 pub struct HoldCmd {
     /// The time the activity has been holded (defaults to the current time if not provided). Format: HH:MM
-    #[clap(long)]
-    time: Option<String>,
+    #[clap(long, name = "Pause Time", alias = "at")]
+    pause_at: Option<String>,
 
     /// The reason for the intermission, if this is not set, the description of the activity to be held will be used
-    #[clap(long)]
+    #[clap(short, long, name = "Reason")]
     reason: Option<String>,
 
     /// If there are existing intermissions, they will be finished and a new one is being created
@@ -43,7 +43,7 @@ impl HoldCmd {
     /// Inner run implementation for the hold command
     pub fn inner_run(&self) -> Result<()> {
         let HoldCmd {
-            time,
+            pause_at: time,
             new_if_exists,
             reason,
         } = self;

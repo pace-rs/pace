@@ -1,5 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use itertools::Itertools;
+
 use crate::{
     commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     config::{ActivityLogStorageKind, PaceConfig},
@@ -584,15 +586,21 @@ pub trait ActivityQuerying: ActivityReadOps {
             .list_activities(ActivityStatusFilter::OnlyActivities)?
             .map(FilteredActivities::into_vec);
 
-        let Some(mut filtered) = filtered else {
+        let Some(filtered) = filtered else {
             return Ok(None);
         };
 
-        // TODO!: Actually check if we are sorted right way
-        filtered.sort();
-
         if filtered.len() > count {
-            Ok(Some((*filtered).iter().take(count).cloned().collect()))
+            Ok(Some(
+                (*filtered)
+                    .iter()
+                    .sorted()
+                    .rev()
+                    .take(count)
+                    .rev()
+                    .cloned()
+                    .collect(),
+            ))
         } else {
             Ok(Some(filtered))
         }
@@ -667,17 +675,15 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// The latest active activity.
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
-        let Some(mut current) = self.list_current_activities(ActivityStatusFilter::Active)? else {
+        let Some(current) = self.list_current_activities(ActivityStatusFilter::Active)? else {
             // There are no active activities at all
             return Ok(None);
         };
 
-        // ULIDs are lexicographically sortable, so we can just sort them
-        // TODO!: Check if it's right like this or we need to reverse
-        current.sort();
-
         current
             .into_iter()
+            .sorted()
+            .rev()
             .find(|activity_id| {
                 self.read_activity(*activity_id)
                     .map(|activity| {
@@ -702,17 +708,15 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// The latest held activity.
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_held_activity(&self) -> PaceOptResult<ActivityItem> {
-        let Some(mut current) = self.list_current_activities(ActivityStatusFilter::Held)? else {
+        let Some(current) = self.list_current_activities(ActivityStatusFilter::Held)? else {
             // There are no active activities at all
             return Ok(None);
         };
 
-        // ULIDs are lexicographically sortable, so we can just sort them
-        // TODO!: Check if it's right like this or we need to reverse
-        current.sort();
-
         current
             .into_iter()
+            .sorted()
+            .rev()
             .find(|activity_id| {
                 self.read_activity(*activity_id)
                     .map(|activity| {

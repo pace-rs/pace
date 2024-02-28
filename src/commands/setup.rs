@@ -12,6 +12,7 @@ mod show;
 #[derive(Subcommand, Command, Debug, Runnable)]
 pub enum SetupSubCmd {
     /// Create a new pace config and activity log
+    #[clap(alias = "init", alias = "new", alias = "i", alias = "c")]
     Config(config::ConfigSubCmd),
     // TODO! Show command
     // /// Show the current pace configuration
@@ -21,6 +22,7 @@ pub enum SetupSubCmd {
     // /// Setup a new pace project
     // Project(project::ProjectSubCmd),
     /// Generate shell completions for the specified shell
+    #[clap(alias = "comp")]
     Completions(completions::CompletionsCmd),
 }
 
