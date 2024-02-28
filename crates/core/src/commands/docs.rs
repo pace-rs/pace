@@ -8,7 +8,7 @@ use crate::{constants::PACE_DEV_DOCS_URL, constants::PACE_DOCS_URL, PaceResult};
 #[cfg_attr(feature = "clap", derive(Parser))]
 pub struct DocsCommandOptions {
     /// Open the development documentation
-    #[clap(short, long)]
+    #[cfg_attr(feature = "clap", clap(short, long))]
     dev: bool,
 }
 

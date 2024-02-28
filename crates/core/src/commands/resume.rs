@@ -17,8 +17,8 @@ pub struct ResumeCommandOptions {
 }
 
 impl ResumeCommandOptions {
-    // Inner run implementation for the resume command kept in pace-rs crate for now
-    // due to the dependency on pace-cli
+    // FIXME: Inner run implementation for the resume command kept in pace-rs crate for now
+    // FIXME: due to the dependency on pace-cli
 }
 
 /// Options for resuming an activity
