@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
 
 use crate::{
@@ -10,7 +11,8 @@ use crate::{
         filter::{ActivityStatusFilter, FilteredActivities},
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
-    storage::file::TomlActivityStorage,
+    service::activity_store::ActivityStore,
+    storage::{file::TomlActivityStorage, in_memory::InMemoryActivityStorage},
     ActivityKind, ActivityStatus, EndOptions, HoldOptions, KeywordOptions, PaceDate,
     PaceDurationRange, TimeRangeOptions,
 };
@@ -37,28 +39,37 @@ pub mod in_memory;
 /// # Returns
 ///
 /// The storage backend.
-pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<dyn ActivityStorage>> {
-    let storage: Arc<dyn ActivityStorage> = match config
+pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<StorageKind>> {
+    let storage: StorageKind = match config
         .general()
         .activity_log_options()
         .activity_log_storage()
     {
-        ActivityLogStorageKind::File => Arc::new(TomlActivityStorage::new(
-            config.general().activity_log_options().activity_log_path(),
-        )?),
+        ActivityLogStorageKind::File => {
+            TomlActivityStorage::new(config.general().activity_log_options().activity_log_path())?
+                .into()
+        }
         ActivityLogStorageKind::Database => {
             return Err(PaceErrorKind::DatabaseStorageNotImplemented.into())
         }
         #[cfg(test)]
-        ActivityLogStorageKind::InMemory => Arc::new(in_memory::InMemoryActivityStorage::new()),
+        ActivityLogStorageKind::InMemory => InMemoryActivityStorage::new().into(),
     };
 
-    Ok(storage)
+    Ok(Arc::new(storage))
+}
+
+#[enum_dispatch]
+pub enum StorageKind {
+    ActivityStore,
+    InMemoryActivityStorage,
+    TomlActivityStorage,
 }
 
 /// A type of storage that can be synced to a persistent medium.
 ///
 /// This is useful for in-memory storage that needs to be persisted to disk or a database.
+#[enum_dispatch(StorageKind)]
 pub trait SyncStorage {
     /// Sync the storage to a persistent medium.
     ///
@@ -77,6 +88,7 @@ pub trait SyncStorage {
 ///
 /// Storage backends can be in-memory, on-disk, or in a database. They can be any kind of
 /// persistent storage that can be used to store activities.
+#[enum_dispatch(StorageKind)]
 pub trait ActivityStorage:
     ActivityReadOps + ActivityWriteOps + ActivityStateManagement + SyncStorage + ActivityQuerying
 // TODO!: Implement other traits
@@ -103,6 +115,7 @@ pub trait ActivityStorage:
 /// Read operations are essential for loading activities from the storage backend.
 /// These operations are used to get activities by their ID, list all activities, or filter activities by a specific criterion.
 /// They are also used to get the current state of activities, such as the currently active activities.
+#[enum_dispatch(StorageKind)]
 pub trait ActivityReadOps {
     /// Read an activity from the storage backend.
     ///
@@ -139,6 +152,7 @@ pub trait ActivityReadOps {
 ///
 /// CUD stands for Create, Update, and Delete. These are the basic operations that can be performed on activities.
 /// These operations are essential for managing activities in the storage backend.
+#[enum_dispatch(StorageKind)]
 pub trait ActivityWriteOps: ActivityReadOps {
     /// Create an activity in the storage backend.
     ///
@@ -211,6 +225,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
 /// This is useful for keeping track of the current state of activities and making sure they are properly managed.
 ///
 /// For example, you might want to start a new activity, end an activity that is currently running, or hold an activity temporarily.
+#[enum_dispatch(StorageKind)]
 pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + ActivityQuerying {
     /// Begin an activity in the storage backend. This makes the activity active.
     ///
@@ -398,6 +413,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
 ///
 /// For example, you might want to list all activities that are currently active,
 /// find all activities within a specific date range, or get a specific activity by its ID.
+#[enum_dispatch(StorageKind)]
 pub trait ActivityQuerying: ActivityReadOps {
     /// Group activities by predefined duration ranges (e.g., short, medium, long).
     ///
