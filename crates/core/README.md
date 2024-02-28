@@ -57,6 +57,13 @@ Got an idea for an improvement? Don't keep it to yourself!
 Please make sure, that you read the
 [contribution guide](https://pace.cli.rs/docs/contributing_to_pace.html).
 
+## Code of Conduct
+
+Please review and abide by the general
+[Rust Community Code of Conduct](https://www.rust-lang.org/policies/code-of-conduct)
+when contributing to this project. In the future, we might create our own Code
+of Conduct and supplement it at this location.
+
 ## Minimum Rust version policy
 
 This crate's minimum supported `rustc` version is `1.74.1`.
