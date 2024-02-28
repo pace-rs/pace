@@ -52,7 +52,7 @@ pub use crate::{
     storage::{
         file::TomlActivityStorage, get_storage_from_config, in_memory::InMemoryActivityStorage,
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
-        ActivityWriteOps, SyncStorage,
+        ActivityWriteOps, StorageKind, SyncStorage,
     },
     util::overwrite_left_with_right,
 };

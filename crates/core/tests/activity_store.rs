@@ -149,9 +149,10 @@ fn setup_activity_store(kind: ActivityStoreTestKind) -> TestData {
 
     TestData {
         activities: activities.clone(),
-        store: ActivityStore::new(Arc::new(InMemoryActivityStorage::new_with_activity_log(
-            ActivityLog::from_iter(activities),
-        ))),
+        store: ActivityStore::new(Arc::new(
+            InMemoryActivityStorage::new_with_activity_log(ActivityLog::from_iter(activities))
+                .into(),
+        )),
     }
 }
 

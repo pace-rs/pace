@@ -14,7 +14,7 @@ use crate::{
     error::{PaceOptResult, PaceResult},
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
-        ActivityWriteOps, SyncStorage,
+        ActivityWriteOps, StorageKind, SyncStorage,
     },
     ActivityStatus, EndOptions, HoldOptions,
 };
@@ -25,7 +25,7 @@ pub struct ActivityStore {
     cache: ActivityStoreCache,
 
     /// The storage backend
-    storage: Arc<dyn ActivityStorage>,
+    storage: Arc<StorageKind>,
 }
 
 /// TODO: Optimization for later to make lookup faster
@@ -39,7 +39,7 @@ struct ActivityStoreCache {
 impl ActivityStore {
     /// Create a new `ActivityStore`
     #[must_use]
-    pub fn new(storage: Arc<dyn ActivityStorage>) -> Self {
+    pub fn new(storage: Arc<StorageKind>) -> Self {
         let store = Self {
             cache: ActivityStoreCache::default(),
             storage,
