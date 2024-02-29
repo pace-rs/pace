@@ -140,3 +140,7 @@ check-powerset *ARGS:
 # Run checks with feature powerset
 test-powerset *ARGS:
 	cargo hack test --feature-powerset -p {{ARGS}}
+
+update-scoop-manifest *ARGS:
+	sd {{ARGS}} $(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version) scoop/pace.json
+	
