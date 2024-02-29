@@ -3,7 +3,7 @@ use clap::Parser;
 
 use crate::{constants::PACE_DEV_DOCS_URL, constants::PACE_DOCS_URL, PaceResult};
 
-/// Opens the documentation.
+/// `docs` subcommand options
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "clap", derive(Parser))]
 pub struct DocsCommandOptions {

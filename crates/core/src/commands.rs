@@ -1,3 +1,4 @@
+pub mod adjust;
 pub mod begin;
 pub mod docs;
 pub mod end;

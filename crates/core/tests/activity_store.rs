@@ -393,6 +393,8 @@ fn test_activity_store_update_activity_passes(activity_store: TestData) -> TestR
 
     let stored_activity = store.read_activity(og_activity_id)?;
 
+    // INFO: This should not have been updated, as we haven't set it explicitly.
+    // If we set it, it should update, we test that directly in the in-memory storage tests.
     assert_eq!(
         stored_activity.activity().begin(),
         og_activity.activity().begin(),
@@ -411,16 +413,10 @@ fn test_activity_store_update_activity_passes(activity_store: TestData) -> TestR
         "Category should have been updated."
     );
 
-    assert_ne!(
+    assert_eq!(
         stored_activity.activity().tags(),
         &Some(tags),
-        "Tags should not have been updated."
-    );
-
-    assert_eq!(
-        stored_activity.activity().begin(),
-        og_activity.activity().begin(),
-        "Begin should not have been updated."
+        "Tags should have been updated."
     );
 
     Ok(())

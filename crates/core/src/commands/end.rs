@@ -8,7 +8,7 @@ use crate::{
     EndOptions, PaceConfig, PaceResult, SyncStorage,
 };
 
-/// `end` subcommand
+/// `end` subcommand options
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
 #[getset(get = "pub")]
 #[non_exhaustive]

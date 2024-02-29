@@ -770,12 +770,13 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
+        let new_begin = PaceDateTime::new(begin + chrono::Duration::seconds(30));
         let updated_activity = Activity::builder()
-            .begin(begin + chrono::Duration::seconds(30))
+            .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
             .status(ActivityStatus::Active)
             .description(new_description)
-            .tags(tags)
+            .tags(tags.clone())
             .build();
 
         let old_activity = storage
@@ -807,9 +808,9 @@ mod tests {
         );
 
         assert_eq!(
-            old_activity.activity().tags(),
-            new_stored_activity.activity().tags(),
-            "Tags were updated, but shouldn't."
+            *new_stored_activity.activity().tags(),
+            Some(tags),
+            "Tags were not updated, but should."
         );
 
         assert_eq!(
@@ -819,9 +820,9 @@ mod tests {
         );
 
         assert_eq!(
-            og_activity.begin(),
+            &new_begin,
             new_stored_activity.activity().begin(),
-            "Begin time was updated, but shouldn't."
+            "Begin time was not updated, but should."
         );
 
         assert!(
@@ -888,12 +889,13 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
+        let new_begin = PaceDateTime::new(begin + chrono::Duration::seconds(30));
         let updated_activity = Activity::builder()
-            .begin(begin + chrono::Duration::seconds(30))
+            .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
             .status(ActivityStatus::Inactive)
             .description(new_description)
-            .tags(tags)
+            .tags(tags.clone())
             .build();
 
         let _ = storage
@@ -919,15 +921,15 @@ mod tests {
         );
 
         assert_eq!(
-            stored_activity.activity().tags(),
-            new_stored_activity.activity().tags(),
-            "Tags were updated, but shouldn't."
+            Some(tags),
+            *new_stored_activity.activity().tags(),
+            "Tags were not updated, but should."
         );
 
         assert_eq!(
-            stored_activity.activity().begin(),
+            &new_begin,
             new_stored_activity.activity().begin(),
-            "Begin time was updated, but shouldn't."
+            "Begin time was not updated, but should."
         );
 
         assert!(

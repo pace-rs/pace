@@ -6,7 +6,7 @@ use typed_builder::TypedBuilder;
 
 use crate::PaceDateTime;
 
-/// `resume` subcommand
+/// `resume` subcommand options
 #[derive(Debug, Getters, TypedBuilder, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "clap", derive(Parser))]
 pub struct ResumeCommandOptions {

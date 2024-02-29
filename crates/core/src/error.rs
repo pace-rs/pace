@@ -159,6 +159,8 @@ pub enum ActivityLogErrorKind {
     ParentIdNotSet(ActivityGuid),
     /// Category not set for activity with id '{0}'
     CategoryNotSet(ActivityGuid),
+    /// No active activity to adjust
+    NoActiveActivityToAdjust,
 }
 
 trait PaceErrorMarker: Error {}

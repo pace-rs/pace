@@ -133,7 +133,7 @@ cargo install pace-rs
 Currently they are stating the intended functionality and may not be fully
 implemented yet (e.g. using activities instead of tasks).
 
-🔍 **`pace setup`**
+✅ **`pace setup`**
 
 - **Description:** Create configuration files for pace, including the main
   configuration file and any additional settings. This is useful for setting up
@@ -142,49 +142,66 @@ implemented yet (e.g. using activities instead of tasks).
   configuration file.
 - **Usage:** `pace setup config` or `pace setup completions`
 
-🔍 **`pace begin`**
+✅ **`pace adjust`**
+
+- **Description:** Adjust the current activity's start time, description,
+  category, or tags. This is useful for correcting mistakes or adding more
+  detail to your activities.
+- **Usage:**
+  `pace adjust --category <Category> --description <Description> --start <Start Time>`
+
+✅ **`pace begin`**
 
 - **Description:** Starts tracking time for the specified task. You can
   optionally specify a category or project to help organize your tasks.
-- **Usage:** `pace begin "Design Work" --category "Freelance" --time 10:00`
+- **Usage:** `pace begin "Design Work" --category "Freelance" --start 10:00`
 
-🔍 **`pace end`**
+✅ **`pace end`**
 
 - **Description:** Stops time tracking for the specified task, marking it as
   completed or finished for the day.
-- **Usage:** `pace end --time 11:30 --only-last`
+- **Usage:** `pace end --end 11:30 --only-last`
 
-🔍 **`pace now`**
+✅ **`pace docs`**
+
+- **Description:** Opens the (dev-)documentation in your default browser.
+- **Usage:** `pace docs` or `pace docs --dev`
+
+✅ **`pace now`**
 
 - **Description:** Displays the currently running task, showing you at a glance
   what you're currently tracking.
 - **Usage:** `pace now`
 
-🔍 **`pace hold`**
+✅ **`pace hold`**
 
 - **Description:** Pauses the time tracking for the specified task. This is
   useful for taking breaks without ending the task.
-- **Usage:** `pace hold` or `pace hold "Design Work"`
+- **Usage:** `pace hold --reason <Reason>`
 
-🔍 **`pace resume`**
+✅ **`pace resume`**
 
 - **Description:** Resumes time tracking for a previously paused task, allowing
   you to continue where you left off.
-- **Usage:** `pace resume "Design Work"`
+- **Usage:** `pace resume` or `pace resume --list`
 
 ⏲️ **`pace review`**
 
 - **Description:** Gain insight in your activities and tasks. You can specify
   the time frame for daily, weekly, or monthly insights.
-- **Usage:** `pace review --weekly`
+- **Usage:** tbd
 
 ✅ **`pace help`**
 
 - **Description:** Displays help information, offering quick access to command
   usage and options.
-- **Usage:** `pace help` or `pace <command> --help`
+- **Usage:** `pace help`, `pace <command> --help`, or `pace help <command>`
 
-### Ideas For Additional Useful Commands
+<details>
+  <summary>Some Ideas For Additional Useful Commands</summary>
+
+**Note:** These commands are not yet implemented and are subject change to
+during their design process.
 
 💡 **`pace export --json/--csv`**
 
@@ -215,6 +232,8 @@ implemented yet (e.g. using activities instead of tasks).
 - **Description:** Sets various application configurations, including Pomodoro
   lengths and preferred review formats.
 - **Usage:** `pace set --work 25 --break 5`
+
+</details>
 
 ## Contributing
 

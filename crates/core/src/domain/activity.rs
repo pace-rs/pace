@@ -204,9 +204,7 @@ pub struct Activity {
     /// The start date and time of the activity
     #[builder(default, setter(into))]
     #[getset(get = "pub")]
-    #[merge(skip)]
-    // The begin time should be immutable, because it's the start of the activity
-    // and should not be changed. We may reconsider that if there is any use case for that.
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
     begin: PaceDateTime,
 
     #[builder(default)]
@@ -228,8 +226,7 @@ pub struct Activity {
 
     /// Tags for the activity
     #[builder(default, setter(into))]
-    #[merge(skip)]
-    // We
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
     tags: Option<HashSet<String>>,
 
     // Pomodoro-specific attributes

@@ -8,7 +8,7 @@ use crate::{
     ActivityStore, PaceConfig, PaceResult, SyncStorage,
 };
 
-/// `begin` subcommand
+/// `begin` subcommand options
 #[derive(Debug)]
 #[cfg_attr(feature = "clap", derive(Parser))]
 pub struct BeginCommandOptions {
@@ -31,7 +31,7 @@ pub struct BeginCommandOptions {
     /// The tags you want to associate with the activity, separated by a comma
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, name = "Tag", value_delimiter = ',')
+        clap(short, long, name = "Tags", alias = "tag", value_delimiter = ',')
     )]
     tags: Option<Vec<String>>,
 

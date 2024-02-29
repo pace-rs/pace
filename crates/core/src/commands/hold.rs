@@ -9,7 +9,7 @@ use crate::{
     IntermissionAction, PaceConfig, PaceDateTime, PaceResult, SyncStorage,
 };
 
-/// `hold` subcommand>
+/// `hold` subcommand options
 #[derive(Debug)]
 #[cfg_attr(feature = "clap", derive(Parser))]
 pub struct HoldCommandOptions {

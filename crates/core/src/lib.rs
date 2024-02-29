@@ -25,6 +25,7 @@ pub use toml;
 // Public API
 pub use crate::{
     commands::{
+        adjust::AdjustCommandOptions,
         begin::BeginCommandOptions,
         docs::DocsCommandOptions,
         end::EndCommandOptions,

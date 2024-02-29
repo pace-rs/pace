@@ -12,6 +12,7 @@ use crate::{
     ActivityKind, ActivityStore, ActivityTracker, PaceConfig, PaceResult,
 };
 
+/// `review` subcommand options
 #[derive(Debug, Getters)]
 #[getset(get = "pub")]
 #[cfg_attr(feature = "clap", derive(Parser))]

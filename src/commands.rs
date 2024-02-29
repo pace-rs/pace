@@ -10,19 +10,15 @@
 //! See the `impl Configurable` below for how to specify the path to the
 //! application's configuration file.
 
+pub mod adjust;
 pub mod begin;
 pub mod docs;
 pub mod end;
-// pub mod export;
-// TODO: pub mod import;
 pub mod hold;
 pub mod now;
-pub mod setup;
-// pub mod pomo;
 pub mod resume;
 pub mod review;
-// pub mod set;
-// pub mod tasks;
+pub mod setup;
 
 use abscissa_core::{config::Override, Command, Configurable, FrameworkError, Runnable};
 use clap::builder::{styling::AnsiColor, Styles};
@@ -35,7 +31,12 @@ use pace_core::{constants::PACE_CONFIG_FILENAME, get_config_paths, PaceConfig};
 /// Subcommands need to be listed in an enum.
 #[derive(clap::Parser, Command, Debug, Runnable)]
 pub enum PaceCmd {
-    /// ▶️  Starts tracking time for an activity.
+    /// 📝 Adjust the details of an activity, such as its category, description, or tags.
+    /// [alias: a]
+    #[clap(alias = "a")]
+    Adjust(adjust::AdjustCmd),
+
+    /// ⌚ Starts tracking time for an activity.
     /// [alias: b]
     #[clap(alias = "b")]
     Begin(begin::BeginCmd),
@@ -60,7 +61,7 @@ pub enum PaceCmd {
     #[clap(alias = "r")]
     Resume(resume::ResumeCmd),
 
-    /// 🔍 Get sophisticated insights on your activities.
+    /// 📈 Get sophisticated insights on your activities.
     /// [alias: rev]
     #[clap(alias = "rev")]
     Review(review::ReviewCmd),

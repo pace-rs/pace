@@ -6,7 +6,7 @@ use crate::{
     ActivityStore, PaceConfig, PaceResult,
 };
 
-/// `now` subcommand
+/// `now` subcommand options
 #[derive(Debug)]
 #[cfg_attr(feature = "clap", derive(Parser))]
 pub struct NowCommandOptions {}
