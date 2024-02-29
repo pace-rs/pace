@@ -19,3 +19,7 @@ pub mod application;
 pub mod commands;
 pub mod error;
 pub mod prelude;
+
+// Re-export pace libraries
+pub use pace_cli;
+pub use pace_core;
