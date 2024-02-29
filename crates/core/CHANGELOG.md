@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.12.1](https://github.com/pace-rs/pace/compare/pace_core-v0.12.0...pace_core-v0.12.1) - 2024-02-29
+
+### Added
+- *(commands)* implement adjust command and update readme accordingly
+
+### Fixed
+- clippy
+
+### Other
+- *(activitylog)* do not pretty print to have collections (e.g., for tags) on one line
+
 ## [0.12.0](https://github.com/pace-rs/pace/compare/pace_core-v0.11.0...pace_core-v0.12.0) - 2024-02-28
 
 ### Fixed

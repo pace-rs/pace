@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.11.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.10.0...pace-rs-v0.11.0) - 2024-02-29
+
+### Added
+- *(commands)* implement adjust command and update readme accordingly
+- re-export pace libraries
+
+### Fixed
+- clippy
+
+### Other
+- *(activitylog)* do not pretty print to have collections (e.g., for tags) on one line
+- make just and dprint files hidden
+- update scoop manifest
+
 ## [0.10.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.9.0...pace-rs-v0.10.0) - 2024-02-28
 
 ### Fixed
