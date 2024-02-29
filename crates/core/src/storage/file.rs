@@ -92,7 +92,7 @@ impl TomlActivityStorage {
     ///
     /// Returns `Ok(())` if the cache is written successfully
     pub fn sync_to_file(&self) -> PaceResult<()> {
-        let data = toml::to_string_pretty(&self.cache.get_activity_log()?)?;
+        let data = toml::to_string(&self.cache.get_activity_log()?)?;
         std::fs::write(&self.path, data)?;
         Ok(())
     }
