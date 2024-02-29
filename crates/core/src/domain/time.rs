@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     commands::review::{DateFlags, TimeFlags},
-    error::{ActivityLogErrorKind, PaceErrorKind, PaceOptResult, PaceResult},
+    error::{PaceOptResult, PaceResult, PaceTimeErrorKind},
 };
 use chrono::{
     DateTime, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone,
@@ -105,15 +105,15 @@ pub fn duration_to_str(initial_time: DateTime<Local>) -> String {
 /// # Returns
 ///
 /// A tuple containing the time and date
-pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<NaiveDateTime> {
+pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<PaceDateTime> {
     Ok(if let Some(ref time) = time {
-        NaiveDateTime::new(
+        PaceDateTime::new(NaiveDateTime::new(
             Local::now().date_naive(),
             NaiveTime::parse_from_str(time, "%H:%M")?,
-        )
+        ))
     } else {
         // if no time is given, use the current time
-        Local::now().naive_local().round_subsecs(0)
+        PaceDateTime::now()
     })
 }
 
@@ -134,7 +134,7 @@ pub fn parse_time_from_user_input(time: &Option<String>) -> PaceOptResult<NaiveD
     time.as_ref()
         .map(|time| -> PaceResult<NaiveDateTime> {
             let Ok(time) = NaiveTime::parse_from_str(time, "%H:%M") else {
-                return Err(PaceErrorKind::ParsingTimeFromUserInputFailed(time.clone()).into());
+                return Err(PaceTimeErrorKind::ParsingTimeFromUserInputFailed(time.clone()).into());
             };
 
             Ok(NaiveDateTime::new(Local::now().date_naive(), time))
@@ -155,11 +155,11 @@ pub enum PaceDurationRange {
 pub struct PaceDuration(u64);
 
 impl FromStr for PaceDuration {
-    type Err = ActivityLogErrorKind;
+    type Err = PaceTimeErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.parse::<u64>().map_or_else(
-            |_| Err(ActivityLogErrorKind::ParsingDurationFailed(s.to_string())),
+            |_| Err(PaceTimeErrorKind::ParsingDurationFailed(s.to_string())),
             |duration| Ok(Self(duration)),
         )
     }
@@ -231,7 +231,7 @@ impl std::ops::Deref for PaceTime {
 }
 
 /// Wrapper for the start and end time of an activity to implement default
-#[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceDateTime(NaiveDateTime);
 
 impl PaceDateTime {
@@ -379,10 +379,10 @@ mod tests {
         let result = extract_time_or_now(&time).expect("Time extraction failed");
         assert_eq!(
             result,
-            NaiveDateTime::new(
+            PaceDateTime(NaiveDateTime::new(
                 Local::now().date_naive(),
                 NaiveTime::from_hms_opt(12, 0, 0).expect("Invalid date"),
-            )
+            ))
         );
     }
 

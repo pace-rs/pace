@@ -7,8 +7,9 @@ use getset::Getters;
 use typed_builder::TypedBuilder;
 
 use crate::{
-    error::ActivityLogErrorKind, get_storage_from_config, ActivityQuerying, ActivityStore,
-    ActivityWriteOps, PaceConfig, PaceDateTime, PaceResult, SyncStorage, UpdateOptions,
+    error::{ActivityLogErrorKind, PaceTimeErrorKind},
+    get_storage_from_config, ActivityQuerying, ActivityStore, ActivityWriteOps, PaceConfig,
+    PaceDateTime, PaceResult, SyncStorage, UpdateOptions,
 };
 
 /// `adjust` subcommand options
@@ -88,8 +89,15 @@ impl AdjustCommandOptions {
         }
 
         if let Some(start) = &self.start {
+            // Test if PaceDateTime actually lies in the future
             let start_time =
                 PaceDateTime::new(NaiveDateTime::new(*activity.begin().date(), *start));
+
+            // Test if PaceDateTime actually lies in the future
+            if start_time > PaceDateTime::now() {
+                return Err(PaceTimeErrorKind::StartTimeInFuture(start_time).into());
+            };
+
             _ = activity.set_begin(start_time);
         }
 

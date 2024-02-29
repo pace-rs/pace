@@ -4,8 +4,8 @@ use std::collections::HashSet;
 use clap::Parser;
 
 use crate::{
-    extract_time_or_now, get_storage_from_config, Activity, ActivityKind, ActivityStateManagement,
-    ActivityStore, PaceConfig, PaceResult, SyncStorage,
+    error::PaceTimeErrorKind, extract_time_or_now, get_storage_from_config, Activity, ActivityKind,
+    ActivityStateManagement, ActivityStore, PaceConfig, PaceDateTime, PaceResult, SyncStorage,
 };
 
 /// `begin` subcommand options
@@ -46,7 +46,7 @@ impl BeginCommandOptions {
     pub fn handle_begin(&self, config: &PaceConfig) -> PaceResult<()> {
         let Self {
             category,
-            start: time,
+            start,
             description,
             tags,
             .. // TODO: exclude projects for now
@@ -58,7 +58,12 @@ impl BeginCommandOptions {
             .map(|tags| tags.iter().cloned().collect::<HashSet<String>>());
 
         // parse time from string or get now
-        let date_time = extract_time_or_now(time)?;
+        let date_time = extract_time_or_now(start)?;
+
+        // Test if PaceDateTime actually lies in the future
+        if date_time > PaceDateTime::now() {
+            return Err(PaceTimeErrorKind::StartTimeInFuture(date_time).into());
+        }
 
         // TODO: Parse categories and subcategories from string
         // let (category, subcategory) = if let Some(ref category) = category {
