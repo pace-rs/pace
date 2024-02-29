@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/pace-rs/pace/compare/pace_cli-v0.4.0...pace_cli-v0.4.1) - 2024-02-29
+
+### Fixed
+- clippy
+
 ## [0.4.0](https://github.com/pace-rs/pace/compare/pace_cli-v0.3.0...pace_cli-v0.4.0) - 2024-02-28
 
 ### Other

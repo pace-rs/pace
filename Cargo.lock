@@ -770,9 +770,9 @@ checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 
 [[package]]
 name = "indexmap"
-version = "2.2.3"
+version = "2.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "233cf39063f058ea2caae4091bf4a3ef70a653afbc026f5c4a4135d114e3c177"
+checksum = "967d6dd42f16dbf0eb8040cb9e477933562684d3918f7d253f2ff9087fb3e7a3"
 dependencies = [
  "equivalent",
  "hashbrown",
@@ -1072,7 +1072,7 @@ checksum = "caff54706df99d2a78a5a4e3455ff45448d81ef1bb63c22cd14052ca0e993a3f"
 
 [[package]]
 name = "pace-rs"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "abscissa_core",
  "assert_cmd",
@@ -1098,7 +1098,7 @@ dependencies = [
 
 [[package]]
 name = "pace_cli"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "chrono",
  "dialoguer",
@@ -1111,7 +1111,7 @@ dependencies = [
 
 [[package]]
 name = "pace_core"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "chrono",
  "clap",
