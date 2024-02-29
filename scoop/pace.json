@@ -1,12 +1,12 @@
 {
-    "version": "0.10.0",
+    "version": "0.11.0",
     "description": "Mindful Time Tracking: Simplify Your Focus and Boost Productivity Effortlessly.",
     "homepage": "https://pace.cli.rs",
     "license": "AGPL-3.0",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/pace-rs/pace/releases/download/pace-rs-v0.10.0/pace-rs-x86_64-pc-windows-msvc.zip",
-            "hash": "6c174a3488f08e94d74585ce2ab8ed456f6ead678da9b50ce0c629116bfe983b"
+            "url": "https://github.com/pace-rs/pace/releases/download/pace-rs-v0.11.0/pace-rs-x86_64-pc-windows-msvc.zip",
+            "hash": "d4970b88c0bc1091b00a9ba793db2a8aa3ca0b2010f777ed9cbb59c12802be2b"
         }
     },
     "env_set": {
