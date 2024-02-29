@@ -79,7 +79,9 @@ impl AdjustCommandOptions {
         let guid = *activity_item.guid();
         let mut activity = activity_item.activity().clone();
 
-        _ = activity.set_category(self.category.clone());
+        if let Some(category) = &self.category {
+            _ = activity.set_category(category.clone().into());
+        }
 
         if let Some(description) = &self.description {
             _ = activity.set_description(description.clone());
