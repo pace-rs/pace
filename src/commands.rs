@@ -32,48 +32,39 @@ use pace_core::{constants::PACE_CONFIG_FILENAME, get_config_paths, PaceConfig};
 #[derive(clap::Parser, Command, Debug, Runnable)]
 pub enum PaceCmd {
     /// 📝 Adjust the details of an activity, such as its category, description, or tags.
-    /// [alias: a]
-    #[clap(alias = "a")]
+    #[clap(visible_alias = "a")]
     Adjust(adjust::AdjustCmd),
 
     /// ⌚ Starts tracking time for an activity.
-    /// [alias: b]
-    #[clap(alias = "b")]
+    #[clap(visible_alias = "b")]
     Begin(begin::BeginCmd),
 
     /// ⏹️  Stops time tracking for the most recent or all activities.
-    /// [alias: e]
-    #[clap(alias = "e")]
+    #[clap(visible_alias = "e")]
     End(end::EndCmd),
 
     /// ⏸️  Pauses the time tracking for the most recent active activity.
-    /// [alias: h]
-    #[clap(alias = "h")]
+    #[clap(visible_alias = "h")]
     Hold(hold::HoldCmd),
 
     /// ⏲️  Shows you at a glance what you're currently tracking.
-    /// [alias: n]
-    #[clap(alias = "n")]
+    #[clap(visible_alias = "n")]
     Now(now::NowCmd),
 
     /// ⏯️  Resumes a previously paused activity, allowing you to continue where you left off.
-    /// [alias: r]
-    #[clap(alias = "r")]
+    #[clap(visible_alias = "r")]
     Resume(resume::ResumeCmd),
 
     /// 📈 Get sophisticated insights on your activities.
-    /// [alias: rev]
-    #[clap(alias = "rev")]
+    #[clap(visible_alias = "rev")]
     Review(review::ReviewCmd),
 
     /// 🛠️  Set up a pace configuration, a new project, or generate shell completions.
-    /// [alias: s]
-    #[clap(alias = "s")]
+    #[clap(visible_alias = "s")]
     Setup(setup::SetupCmd),
 
     /// 📚 Open the online documentation for pace.
-    /// [alias: d]
-    #[clap(alias = "d")]
+    #[clap(visible_alias = "d")]
     Docs(docs::DocsCmd),
     // /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
     // Export(export::ExportCmd),
@@ -98,7 +89,7 @@ const fn cli_colour_styles() -> Styles {
 
 /// Entry point for the application. It needs to be a struct to allow using subcommands!
 #[derive(clap::Parser, Command, Debug)]
-#[command(name="pace", author, about, styles=cli_colour_styles(), version, arg_required_else_help = true)]
+#[command(name="pace", author, about, styles=cli_colour_styles(), version, arg_required_else_help = true, propagate_version = true, )]
 pub struct EntryPoint {
     #[command(subcommand)]
     cmd: PaceCmd,
