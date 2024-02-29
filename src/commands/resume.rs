@@ -73,7 +73,7 @@ impl ResumeCmd {
                 .map(|activity| activity.activity().to_string())
                 .collect::<Vec<_>>();
 
-            let selection = prompt_resume_activity(string_repr)?;
+            let selection = prompt_resume_activity(&string_repr)?;
 
             let Some(activity_item) = activity_items.get(selection) else {
                 println!("No activity selected to resume.");

@@ -35,7 +35,7 @@ impl FromIterator<ActivityItem> for ActivityLog {
         let iter = iter
             .into_iter()
             .map(|item| (*item.guid(), item.activity().clone()));
-        let map = BTreeMap::from_iter(iter);
+        let map = iter.collect::<BTreeMap<_, _>>();
 
         Self { activities: map }
     }
@@ -96,7 +96,7 @@ mod tests {
 
     #[rstest]
     fn test_parse_activity_log_empty() {
-        let toml_string = r#""#;
+        let toml_string = r"";
 
         let result = toml::from_str::<ActivityLog>(toml_string);
         assert!(result.is_ok());

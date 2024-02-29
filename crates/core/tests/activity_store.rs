@@ -26,20 +26,20 @@ enum ActivityStoreTestKind {
 
 #[fixture]
 fn activity_store_empty() -> TestData {
-    setup_activity_store(ActivityStoreTestKind::Empty)
+    setup_activity_store(&ActivityStoreTestKind::Empty)
 }
 
 #[fixture]
 fn activity_store() -> TestData {
-    setup_activity_store(ActivityStoreTestKind::WithActivitiesAndOpenIntermission)
+    setup_activity_store(&ActivityStoreTestKind::WithActivitiesAndOpenIntermission)
 }
 
 #[fixture]
 fn activity_store_no_intermissions() -> TestData {
-    setup_activity_store(ActivityStoreTestKind::WithoutIntermissions)
+    setup_activity_store(&ActivityStoreTestKind::WithoutIntermissions)
 }
 
-fn setup_activity_store(kind: ActivityStoreTestKind) -> TestData {
+fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestData {
     let begin_time = PaceDateTime::new(NaiveDateTime::new(
         NaiveDateTime::from_timestamp_opt(0, 0).unwrap().date(),
         NaiveDateTime::from_timestamp_opt(0, 0).unwrap().time(),
@@ -124,7 +124,7 @@ fn setup_activity_store(kind: ActivityStoreTestKind) -> TestData {
         Activity::builder()
             .description("Default activity, but no end and not active.")
             .status(ActivityStatus::Inactive)
-            .tags(tags.clone())
+            .tags(tags)
             .build(),
     ));
 
@@ -386,11 +386,8 @@ fn test_activity_store_update_activity_passes(activity_store: TestData) -> TestR
         .tags(tags.clone())
         .build();
 
-    let old_activity = store.update_activity(
-        og_activity_id,
-        new_activity.clone(),
-        UpdateOptions::default(),
-    )?;
+    let old_activity =
+        store.update_activity(og_activity_id, new_activity, UpdateOptions::default())?;
 
     assert_eq!(old_activity, og_activity, "Should have the same activity.");
 
@@ -410,7 +407,7 @@ fn test_activity_store_update_activity_passes(activity_store: TestData) -> TestR
 
     assert_eq!(
         stored_activity.activity().category(),
-        &Some(updated_test_cat.clone()),
+        &Some(updated_test_cat),
         "Category should have been updated."
     );
 

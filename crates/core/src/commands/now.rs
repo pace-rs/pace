@@ -22,9 +22,9 @@ impl NowCommandOptions {
                     .flat_map(|activity_id| activity_store.read_activity(*activity_id))
                     .collect::<Vec<ActivityItem>>();
 
-                activity_items.iter().for_each(|activity| {
+                for activity in &activity_items {
                     println!("{}", activity.activity());
-                });
+                }
             }
             None => {
                 println!("No activities are currently running.");

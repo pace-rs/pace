@@ -155,7 +155,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
     fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
         let activities = self.log.read();
 
-        let activity_item = ActivityItem::from(activity.clone());
+        let activity_item = ActivityItem::from(activity);
 
         // Search for the activity in the list of activities to see if the ID is already in use.
         // We use a ULID as the ID for the activity, so it should be unique and not collide with
@@ -375,7 +375,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let _ = self.update_activity(
             *resumable_activity.guid(),
-            updated_activity.clone(),
+            updated_activity,
             UpdateOptions::default(),
         )?;
 
@@ -439,7 +439,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             .activity_kind_options(Some(activity_kind_opts))
             .build();
 
-        let _created_intermission_item = self.begin_activity(intermission.clone())?;
+        let _created_intermission_item = self.begin_activity(intermission)?;
 
         // Update the active activity to be held
         let mut editable_activity = active_activity.clone();
@@ -675,7 +675,7 @@ mod tests {
             .begin(begin)
             .kind(kind)
             .description(description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         let item = storage.create_activity(activity.clone()).unwrap();
@@ -710,7 +710,7 @@ mod tests {
             .begin(begin)
             .kind(kind)
             .description(description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         let _activity_item = storage.create_activity(activity.clone()).unwrap();
@@ -751,7 +751,7 @@ mod tests {
             .begin(begin)
             .kind(kind)
             .description(description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         let activity_item = storage.create_activity(og_activity.clone()).unwrap();
@@ -775,13 +775,13 @@ mod tests {
             .kind(ActivityKind::PomodoroWork)
             .status(ActivityStatus::Active)
             .description(new_description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         let old_activity = storage
             .update_activity(
                 *activity_item.guid(),
-                updated_activity.clone(),
+                updated_activity,
                 UpdateOptions::default(),
             )
             .unwrap();
@@ -846,7 +846,7 @@ mod tests {
             .begin(begin)
             .kind(kind)
             .description(description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         assert_eq!(
@@ -893,13 +893,13 @@ mod tests {
             .kind(ActivityKind::PomodoroWork)
             .status(ActivityStatus::Inactive)
             .description(new_description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         let _ = storage
             .update_activity(
                 *activity_item.guid(),
-                updated_activity.clone(),
+                updated_activity,
                 UpdateOptions::default(),
             )
             .unwrap();
@@ -977,7 +977,7 @@ mod tests {
             .begin(begin_time)
             .kind(kind)
             .description(description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         let activity_item = storage.begin_activity(activity.clone()).unwrap();
@@ -1035,7 +1035,7 @@ mod tests {
             .begin(begin_time)
             .kind(kind)
             .description(description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         let activity_item = storage.begin_activity(activity.clone()).unwrap();
@@ -1093,7 +1093,7 @@ mod tests {
             .build();
 
         // Begin the first activity
-        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity).unwrap();
 
         let begin_time = now - chrono::Duration::seconds(60);
         let kind = ActivityKind::Activity;
@@ -1103,11 +1103,11 @@ mod tests {
             .begin(begin_time)
             .kind(kind)
             .description(description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         // Begin the second activity, the first one should be ended automatically now
-        let activity_item2 = storage.begin_activity(activity2.clone()).unwrap();
+        let activity_item2 = storage.begin_activity(activity2).unwrap();
 
         let ended_activity = storage.read_activity(*activity_item.guid()).unwrap();
 
@@ -1155,7 +1155,7 @@ mod tests {
             .begin(begin_time)
             .kind(kind)
             .description(description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         let activity_item = storage.begin_activity(activity.clone()).unwrap();
@@ -1224,10 +1224,10 @@ mod tests {
             .begin(begin_time)
             .kind(kind)
             .description(description)
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
-        let active_activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let active_activity_item = storage.begin_activity(activity).unwrap();
 
         let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(30))
@@ -1308,7 +1308,7 @@ mod tests {
             .description(description)
             .build();
 
-        let active_activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let active_activity_item = storage.begin_activity(activity).unwrap();
 
         let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(30))
@@ -1570,7 +1570,7 @@ mod tests {
             .category("Project::Test".to_string())
             .build();
 
-        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity).unwrap();
 
         let keyword_opts = KeywordOptions::builder().category("Test").build();
 
@@ -1614,7 +1614,7 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity).unwrap();
 
         let grouped_activities = storage.group_activities_by_kind().unwrap().unwrap();
 
@@ -1665,7 +1665,7 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity).unwrap();
 
         let grouped_activities = storage.group_activities_by_status().unwrap().unwrap();
 
@@ -1722,7 +1722,7 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity).unwrap();
 
         let grouped_activities = storage.group_activities_by_start_date().unwrap().unwrap();
 

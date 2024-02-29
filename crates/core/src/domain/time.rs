@@ -158,10 +158,10 @@ impl FromStr for PaceDuration {
     type Err = ActivityLogErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.parse::<u64>() {
-            Ok(duration) => Ok(Self(duration)),
-            _ => Err(ActivityLogErrorKind::ParsingDurationFailed(s.to_string())),
-        }
+        s.parse::<u64>().map_or_else(
+            |_| Err(ActivityLogErrorKind::ParsingDurationFailed(s.to_string())),
+            |duration| Ok(Self(duration)),
+        )
     }
 }
 
@@ -287,10 +287,7 @@ impl From<NaiveDateTime> for PaceDateTime {
 
 impl From<Option<NaiveDateTime>> for PaceDateTime {
     fn from(time: Option<NaiveDateTime>) -> Self {
-        match time {
-            Some(time) => Self(time.round_subsecs(0)),
-            None => Self::default(),
-        }
+        time.map_or_else(Self::default, |time| Self(time.round_subsecs(0)))
     }
 }
 

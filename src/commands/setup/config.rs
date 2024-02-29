@@ -31,7 +31,7 @@ impl Runnable for ConfigSubCmd {
             .activity_log(activity_log.clone())
             .build();
 
-        if let Err(err) = setup_config(&term, path_opts) {
+        if let Err(err) = setup_config(&term, &path_opts) {
             // Do nothing, and let the error be, we are already panicking anyway
             _ = term.clear_screen();
 

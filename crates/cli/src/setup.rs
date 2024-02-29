@@ -325,7 +325,7 @@ pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
 /// # Returns
 ///
 /// Returns `Ok(())` if the setup assistant succeeds
-pub fn setup_config(term: &Term, path_opts: PathOptions) -> Result<()> {
+pub fn setup_config(term: &Term, path_opts: &PathOptions) -> Result<()> {
     let mut config = PaceConfig::default();
 
     let config_paths = get_config_paths(PACE_CONFIG_FILENAME)

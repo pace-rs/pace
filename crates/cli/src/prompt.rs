@@ -137,9 +137,9 @@ pub fn confirmation_or_break(prompt: &str) -> Result<()> {
 /// # Returns
 ///
 /// Returns the index of the selected activity
-pub fn prompt_resume_activity(string_repr: Vec<String>) -> Result<usize, dialoguer::Error> {
+pub fn prompt_resume_activity(string_repr: &[String]) -> Result<usize, dialoguer::Error> {
     FuzzySelect::with_theme(&ColorfulTheme::default())
         .with_prompt("Which activity do you want to continue?")
-        .items(&string_repr)
+        .items(string_repr)
         .interact()
 }

@@ -614,7 +614,7 @@ pub trait ActivityQuerying: ActivityReadOps {
                     .rev()
                     .take(count)
                     .rev()
-                    .cloned()
+                    .copied()
                     .collect(),
             ))
         } else {
