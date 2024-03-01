@@ -153,3 +153,7 @@ insta:
 tag-release:
 	git tag -a pace-rs-v$(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version)
 	git push origin pace-rs-v$(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version)
+
+# Make the most recent version from crates.io the latest release on GitHub
+make-latest:
+	gh release edit pace-rs-v$(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version) --latest
