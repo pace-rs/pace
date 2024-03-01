@@ -148,3 +148,8 @@ update-scoop-manifest *ARGS:
 # Run insta tests in review mode
 insta:
 	cargo insta test --review --workspace
+
+# Create a new tag for the current version on crates.io to make cargo-dist create a new release
+tag-release:
+	git tag -a pace-rs-v$(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version)
+	git push origin pace-rs-v$(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version)
