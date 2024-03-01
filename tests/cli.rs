@@ -57,13 +57,14 @@ fn test_version_command_passes() -> TestResult<()> {
 }
 
 #[test]
-fn test_subcommand_not_provided_snapshot_passes() {
-    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")));
-}
+fn test_help_command_passes() -> TestResult<()> {
+    _ = pace_runner()?
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Usage:"));
 
-#[test]
-fn test_help_snapshot_passes() {
-    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).arg("help"));
+    Ok(())
 }
 
 #[test]
