@@ -11,7 +11,7 @@ exit_code: 0
 ----- stdout -----
 pace - Mindful Time Tracking: Simplify Your Focus and Boost Productivity Effortlessly.
 
-Usage: pace.exe [OPTIONS] <COMMAND>
+Usage: pace [OPTIONS] <COMMAND>
 
 Commands:
   adjust  📝 Adjust the details of an activity, such as its category, description, or tags
