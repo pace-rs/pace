@@ -28,6 +28,23 @@ fn temp_dir_with(path: &str) -> TestResult<String> {
     Ok(dir_str)
 }
 
+fn fixture_begin_activity(dir_str: &String) -> TestResult<()> {
+    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
+        .args([
+            "--activity-log-file",
+            dir_str,
+            "begin",
+            "MyActivity",
+            "--tags",
+            "tag1,tag2",
+            "--category",
+            "MyCategory::SubCategory",
+        ])
+        .output()?;
+
+    Ok(())
+}
+
 #[test]
 fn test_version_command_passes() -> TestResult<()> {
     _ = pace_runner()?
@@ -89,18 +106,7 @@ fn test_now_no_activities_snapshot_passes() -> TestResult<()> {
 fn test_now_with_active_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
-    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
-        .args([
-            "--activity-log-file",
-            &dir_str,
-            "begin",
-            "MyActivity",
-            "--tags",
-            "tag1,tag2",
-            "--category",
-            "MyCategory::SubCategory",
-        ])
-        .output()?;
+    fixture_begin_activity(&dir_str)?;
 
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--activity-log-file",
@@ -115,18 +121,7 @@ fn test_now_with_active_activity_snapshot_passes() -> TestResult<()> {
 fn test_end_with_active_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
-    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
-        .args([
-            "--activity-log-file",
-            &dir_str,
-            "begin",
-            "MyActivity",
-            "--tags",
-            "tag1,tag2",
-            "--category",
-            "MyCategory::SubCategory",
-        ])
-        .output()?;
+    fixture_begin_activity(&dir_str)?;
 
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--activity-log-file",
@@ -141,18 +136,7 @@ fn test_end_with_active_activity_snapshot_passes() -> TestResult<()> {
 fn test_hold_with_active_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
-    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
-        .args([
-            "--activity-log-file",
-            &dir_str,
-            "begin",
-            "MyActivity",
-            "--tags",
-            "tag1,tag2",
-            "--category",
-            "MyCategory::SubCategory",
-        ])
-        .output()?;
+    fixture_begin_activity(&dir_str)?;
 
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--activity-log-file",
@@ -167,18 +151,7 @@ fn test_hold_with_active_activity_snapshot_passes() -> TestResult<()> {
 fn test_resume_with_held_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
-    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
-        .args([
-            "--activity-log-file",
-            &dir_str,
-            "begin",
-            "MyActivity",
-            "--tags",
-            "tag1,tag2",
-            "--category",
-            "MyCategory::SubCategory",
-        ])
-        .output()?;
+    fixture_begin_activity(&dir_str)?;
 
     StdCommand::new(env!("CARGO_BIN_EXE_pace"))
         .args(["--activity-log-file", &dir_str, "hold"])
@@ -197,18 +170,7 @@ fn test_resume_with_held_activity_snapshot_passes() -> TestResult<()> {
 fn test_adjust_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
-    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
-        .args([
-            "--activity-log-file",
-            &dir_str,
-            "begin",
-            "MyActivity",
-            "--tags",
-            "tag1,tag2",
-            "--category",
-            "MyCategory::SubCategory",
-        ])
-        .output()?;
+    fixture_begin_activity(&dir_str)?;
 
     StdCommand::new(env!("CARGO_BIN_EXE_pace"))
         .args([
