@@ -1750,7 +1750,7 @@ mod tests {
 
         assert_eq!(
             grouped_activity.activity().begin().date(),
-            PaceDate(now.date()),
+            PaceDate(begin_time.date()),
             "Grouped activity date is not the same as the original activity date."
         );
 
