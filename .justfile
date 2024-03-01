@@ -147,4 +147,4 @@ update-scoop-manifest *ARGS:
 
 # Run insta tests in review mode
 insta:
-	cargo insta test --review
+	cargo insta test --review --workspace

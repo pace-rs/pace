@@ -1595,6 +1595,8 @@ mod tests {
             .unwrap()
             .clone();
 
+        insta::assert_toml_snapshot!(grouped_activity, { ".guid" => "guid", ".activity.begin" => "begin" });
+
         assert_eq!(
             *grouped_activity.guid(),
             *activity_item.guid(),

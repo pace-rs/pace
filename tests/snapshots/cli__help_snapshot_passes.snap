@@ -1,5 +1,6 @@
 ---
 source: tests/cli.rs
+assertion_line: 66
 info:
   program: pace
   args:
@@ -35,7 +36,7 @@ Options:
       --activity-log-file <ACTIVITY_LOG_FILE>
           Use the specified activity log file [env: PACE_ACTIVITY_LOG_FILE=]
       --home <HOME>
-          Pace Home Directory [env: PACE_HOME=C:\Users\dailyuse\scoop\apps\pace\current]
+          Pace Home Directory [env: PACE_HOME=]
   -h, --help
           Print help
   -V, --version
