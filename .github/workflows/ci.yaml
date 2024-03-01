@@ -91,6 +91,14 @@ jobs:
       - name: Run Cargo Test
         # run: cargo test -r --all-targets --features ${{ matrix.feature }} --workspace
         run: cargo test -r --all-targets --workspace
+        env:
+          INSTA_UPDATE: new
+      - name: Upload snapshots of failed tests
+        if: ${{ failure() && steps.run_tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: failed-snapshots
+          path: "**/snapshots/*.snap.new"
 
   docs:
     name: Build docs
