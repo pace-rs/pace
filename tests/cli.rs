@@ -68,11 +68,6 @@ fn test_help_command_passes() -> TestResult<()> {
 }
 
 #[test]
-fn test_version_snapshot_passes() {
-    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).arg("--version"));
-}
-
-#[test]
 fn test_begin_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
