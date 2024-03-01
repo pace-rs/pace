@@ -141,6 +141,10 @@ check-powerset *ARGS:
 test-powerset *ARGS:
 	cargo hack test --feature-powerset -p {{ARGS}}
 
+# Update the scoop manifest from the given version to the latest on crates.io
 update-scoop-manifest *ARGS:
 	sd {{ARGS}} $(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version) scoop/pace.json
-	
+
+# Run insta tests in review mode
+insta:
+	cargo insta test --review

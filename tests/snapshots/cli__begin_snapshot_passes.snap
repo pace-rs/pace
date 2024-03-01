@@ -1,0 +1,20 @@
+---
+source: tests/cli.rs
+info:
+  program: pace
+  args:
+    - "--activity-log-file"
+    - "C:\\Users\\dailyuse\\backup\\PARA\\Personal\\2 Areas\\Developer\\Maintenance\\pace\\pace-rs\\pace\\./tests/generated\\.tmpbKS7dL\\activities.pace.toml"
+    - begin
+    - MyActivity
+    - "--tags"
+    - "tag1,tag2"
+    - "--category"
+    - "MyCategory::SubCategory"
+---
+success: true
+exit_code: 0
+----- stdout -----
+📆  Activity: "MyActivity" (MyCategory::SubCategory) started just now
+
+----- stderr -----

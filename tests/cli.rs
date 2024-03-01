@@ -1,7 +1,9 @@
 use assert_cmd::Command;
 use predicates::prelude::predicate;
 // use similar_asserts::assert_eq;
-// use tempfile::tempdir;
+use insta_cmd::assert_cmd_snapshot;
+use std::process::Command as StdCommand;
+use tempfile::TempDir;
 
 // use pace_core::ActivityLog;
 
@@ -16,13 +18,15 @@ pub fn pace_runner(/*temp_dir: &TempDir*/) -> TestResult<Command> {
     Ok(runner)
 }
 
-// TODO: when we have implemented init, we can use this to create a new pace project
-// fn setup() -> TestResult<TempDir> {
-//     let temp_dir = tempdir()?;
-//     pace_runner(&temp_dir)?.args(["init"]).assert().success();
+fn temp_dir_with(path: &str) -> TestResult<String> {
+    // create directory
+    std::fs::create_dir_all("./tests/generated")?;
 
-//     Ok(temp_dir)
-// }
+    let tmp_dir = TempDir::new_in("./tests/generated")?.into_path().join(path);
+    let dir_str = tmp_dir.to_string_lossy().to_string();
+
+    Ok(dir_str)
+}
 
 #[test]
 fn test_version_command_passes() -> TestResult<()> {
@@ -36,86 +40,193 @@ fn test_version_command_passes() -> TestResult<()> {
 }
 
 #[test]
-fn test_help_command_passes() -> TestResult<()> {
-    _ = pace_runner()?
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Usage:"));
+fn test_subcommand_not_provided_snapshot_passes() {
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")));
+}
+
+#[test]
+fn test_help_snapshot_passes() {
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).arg("help"));
+}
+
+#[test]
+fn test_version_snapshot_passes() {
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).arg("--version"));
+}
+
+#[test]
+fn test_begin_snapshot_passes() -> TestResult<()> {
+    let dir_str = temp_dir_with("activities.pace.toml")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--activity-log-file",
+        &dir_str,
+        "begin",
+        "MyActivity",
+        "--tags",
+        "tag1,tag2",
+        "--category",
+        "MyCategory::SubCategory",
+    ]));
 
     Ok(())
 }
 
-// TODO!: Test begin command
-// #[test]
-// fn test_begin_command_passes() -> TestResult<()> {
-//     let activity_log_file = tempdir()?.into_path().join("activity_log.toml");
+#[test]
+fn test_now_no_activities_snapshot_passes() -> TestResult<()> {
+    let dir_str = temp_dir_with("activities.pace.toml")?;
 
-//     let desc = "Test description";
-//     let category = "Test::Category";
-//     let time = "22:00";
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--activity-log-file",
+        &dir_str,
+        "now"
+    ]));
 
-//     if activity_log_file.exists() {
-//         std::fs::remove_file(&activity_log_file)?;
-//     }
+    Ok(())
+}
 
-//     std::fs::write(&activity_log_file, "")?;
+#[test]
+fn test_now_with_active_activity_snapshot_passes() -> TestResult<()> {
+    let dir_str = temp_dir_with("activities.pace.toml")?;
 
-//     _ = pace_runner()?
-//         .args([
-//             "-a",
-//             activity_log_file.as_path().to_str().unwrap(),
-//             "begin",
-//             desc,
-//             "-c",
-//             category,
-//             "-t",
-//             time,
-//         ])
-//         .assert()
-//         .success()
-//         .stdout(predicate::str::contains("started"));
+    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
+        .args([
+            "--activity-log-file",
+            &dir_str,
+            "begin",
+            "MyActivity",
+            "--tags",
+            "tag1,tag2",
+            "--category",
+            "MyCategory::SubCategory",
+        ])
+        .output()?;
 
-//     let contents = std::fs::read_to_string(&activity_log_file)?;
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--activity-log-file",
+        &dir_str,
+        "now"
+    ]));
 
-//     let activity_log = toml::from_str::<ActivityLog>(&contents)?;
+    Ok(())
+}
 
-//     insta::assert_toml_snapshot!(activity_log);
-//     assert_eq!(activity_log.activities().len(), 1);
+#[test]
+fn test_end_with_active_activity_snapshot_passes() -> TestResult<()> {
+    let dir_str = temp_dir_with("activities.pace.toml")?;
 
-//     let activity = activity_log.activities().front().unwrap();
+    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
+        .args([
+            "--activity-log-file",
+            &dir_str,
+            "begin",
+            "MyActivity",
+            "--tags",
+            "tag1,tag2",
+            "--category",
+            "MyCategory::SubCategory",
+        ])
+        .output()?;
 
-//     assert_eq!(activity.description(), &Some(desc.to_string()));
-//     assert_eq!(activity.category(), &Some(category.to_string()));
-//     assert_eq!(format!("{:?}", activity.begin()), time);
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--activity-log-file",
+        &dir_str,
+        "end"
+    ]));
 
-//     if activity_log_file.exists() {
-//         std::fs::remove_file(&activity_log_file)?;
-//     }
+    Ok(())
+}
 
-//     Ok(())
-// }
+#[test]
+fn test_hold_with_active_activity_snapshot_passes() -> TestResult<()> {
+    let dir_str = temp_dir_with("activities.pace.toml")?;
 
-// TODO: Test end command
-// #[test]
-// fn test_end_command_passes() -> TestResult<()> {
-//     pace_runner()?
-//         .args(["-a", "./activity_log.toml", "end"])
-//         .assert()
-//         .success()
-//         .stdout(predicate::str::contains("finished")); // TODO
+    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
+        .args([
+            "--activity-log-file",
+            &dir_str,
+            "begin",
+            "MyActivity",
+            "--tags",
+            "tag1,tag2",
+            "--category",
+            "MyCategory::SubCategory",
+        ])
+        .output()?;
 
-//     Ok(())
-// }
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--activity-log-file",
+        &dir_str,
+        "hold"
+    ]));
 
-// TODO: Test now command
-// #[test]
-// fn test_now_command_passes() -> TestResult<()> {
-//     pace_runner()?
-//         .args(["-a", "./activity_log.toml", "now"])
-//         .assert()
-//         .success()
-//         .stdout(predicate::str::contains("current")); // TODO
+    Ok(())
+}
 
-//     Ok(())
-// }
+#[test]
+fn test_resume_with_held_activity_snapshot_passes() -> TestResult<()> {
+    let dir_str = temp_dir_with("activities.pace.toml")?;
+
+    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
+        .args([
+            "--activity-log-file",
+            &dir_str,
+            "begin",
+            "MyActivity",
+            "--tags",
+            "tag1,tag2",
+            "--category",
+            "MyCategory::SubCategory",
+        ])
+        .output()?;
+
+    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
+        .args(["--activity-log-file", &dir_str, "hold"])
+        .output()?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--activity-log-file",
+        &dir_str,
+        "resume"
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_adjust_activity_snapshot_passes() -> TestResult<()> {
+    let dir_str = temp_dir_with("activities.pace.toml")?;
+
+    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
+        .args([
+            "--activity-log-file",
+            &dir_str,
+            "begin",
+            "MyActivity",
+            "--tags",
+            "tag1,tag2",
+            "--category",
+            "MyCategory::SubCategory",
+        ])
+        .output()?;
+
+    StdCommand::new(env!("CARGO_BIN_EXE_pace"))
+        .args([
+            "--activity-log-file",
+            &dir_str,
+            "adjust",
+            "--description",
+            "NewDescription",
+            "--category",
+            "NewCategory::SubCategory",
+        ])
+        .output()?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--activity-log-file",
+        &dir_str,
+        "now",
+    ]));
+
+    Ok(())
+}

@@ -1,0 +1,15 @@
+---
+source: tests/cli.rs
+info:
+  program: pace
+  args:
+    - "--activity-log-file"
+    - "C:\\Users\\dailyuse\\backup\\PARA\\Personal\\2 Areas\\Developer\\Maintenance\\pace\\pace-rs\\pace\\./tests/generated\\.tmpl3kOMN\\activities.pace.toml"
+    - now
+---
+success: true
+exit_code: 0
+----- stdout -----
+📆  Activity: "NewDescription" (NewCategory::SubCategory) started just now
+
+----- stderr -----

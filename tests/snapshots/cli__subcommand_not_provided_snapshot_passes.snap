@@ -1,0 +1,17 @@
+---
+source: tests/cli.rs
+info:
+  program: pace
+  args: []
+---
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+error: 'pace.exe' requires a subcommand but one was not provided
+  [subcommands: adjust, a, begin, b, end, e, hold, h, now, n, resume, r, review, rev, setup, s, docs, d, help]
+
+Usage: pace.exe [OPTIONS] <COMMAND>
+
+For more information, try '--help'.
