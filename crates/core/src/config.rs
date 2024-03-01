@@ -7,6 +7,7 @@ use getset::{Getters, MutGetters};
 use serde_derive::{Deserialize, Serialize};
 
 use directories::ProjectDirs;
+use strum_macros::EnumString;
 
 use crate::{
     domain::{priority::ItemPriorityKind, review::ReviewFormatKind},
@@ -104,6 +105,7 @@ pub struct ActivityLogOptions {
 
     /// The format for the activity log
     /// Default: `toml`
+    #[getset(get = "pub", get_mut = "pub")]
     activity_log_format: Option<ActivityLogFormatKind>,
 
     /// The storage type for the activity log
@@ -115,7 +117,7 @@ pub struct ActivityLogOptions {
 /// Default: `toml`
 ///
 /// Options: `toml`, `json`, `yaml`
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default, EnumString)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum ActivityLogFormatKind {

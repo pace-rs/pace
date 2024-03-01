@@ -37,9 +37,9 @@ pub use crate::{
     },
     config::{
         find_root_config_file_path, find_root_project_file, get_activity_log_paths,
-        get_config_paths, get_home_activity_log_path, get_home_config_path, AutoArchivalConfig,
-        DatabaseConfig, ExportConfig, GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig,
-        ReviewConfig,
+        get_config_paths, get_home_activity_log_path, get_home_config_path, ActivityLogFormatKind,
+        ActivityLogStorageKind, AutoArchivalConfig, DatabaseConfig, ExportConfig, GeneralConfig,
+        InboxConfig, PaceConfig, PomodoroConfig, ReviewConfig,
     },
     domain::{
         activity::{

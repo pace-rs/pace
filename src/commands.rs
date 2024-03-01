@@ -25,7 +25,9 @@ use clap::builder::{styling::AnsiColor, Styles};
 use human_panic::setup_panic;
 use std::path::PathBuf;
 
-use pace_core::{constants::PACE_CONFIG_FILENAME, get_config_paths, PaceConfig};
+use pace_core::{
+    constants::PACE_CONFIG_FILENAME, get_config_paths, ActivityLogFormatKind, PaceConfig,
+};
 
 /// Pace Subcommands
 /// Subcommands need to be listed in an enum.
@@ -122,12 +124,29 @@ impl Override<PaceConfig> for EntryPoint {
     fn override_config(&self, mut config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
         // Override the activity log file if it's set
         if let Some(activity_log_file) = &self.activity_log_file {
-            if activity_log_file.exists() {
-                *config
-                    .general_mut()
-                    .activity_log_options_mut()
-                    .activity_log_path_mut() = activity_log_file.to_path_buf();
-            }
+            // Handle not existing activity log file and parent directory
+            match (activity_log_file.parent(), activity_log_file.exists()) {
+                (Some(dir), false) if dir.exists() => {
+                    std::fs::File::create(activity_log_file)?;
+                }
+                (Some(dir), false) if !dir.exists() => {
+                    std::fs::create_dir_all(dir)?;
+                    std::fs::File::create(activity_log_file)?;
+                }
+                _ => {}
+            };
+
+            *config
+                .general_mut()
+                .activity_log_options_mut()
+                .activity_log_path_mut() = activity_log_file.to_path_buf();
+
+            // Set the activity log format to TOML
+            // TODO: This should be configurable
+            *config
+                .general_mut()
+                .activity_log_options_mut()
+                .activity_log_format_mut() = Some(ActivityLogFormatKind::Toml);
         };
 
         Ok(config)
@@ -138,24 +157,34 @@ impl Override<PaceConfig> for EntryPoint {
 impl Configurable<PaceConfig> for EntryPoint {
     /// Location of the configuration file
     fn config_path(&self) -> Option<PathBuf> {
-        let config_paths = get_config_paths(PACE_CONFIG_FILENAME)
+        let automatically_determined = get_config_paths(PACE_CONFIG_FILENAME)
             .into_iter()
             .filter(|f| f.exists())
             .collect::<Vec<_>>();
 
         // Get the first path that exists
         // FIXME: This feels hacky, is this sensible?
-        let path = config_paths.first();
+        let first_automatically_determined = automatically_determined.first();
 
-        let filename = self
-            .config
-            .as_ref()
-            .and_then(|f| if f.exists() { Some(f) } else { None });
+        let user_specified = self.config.as_ref().and_then(|f| {
+            if f.exists() {
+                Some(f)
+            } else {
+                // If the parent directory doesn't exist, create it
+                if let Some(parent) = f.parent() {
+                    std::fs::create_dir_all(parent).ok()?;
+                }
+
+                // If the file doesn't exist, create it
+                std::fs::File::create(f).ok()?;
+                Some(f)
+            }
+        });
 
         // If the user has specified a config file, use that
         // otherwise, use the first config file found in specified
         // standard locations
-        match (filename, path) {
+        match (user_specified, first_automatically_determined) {
             (Some(filename), _) => Some(filename.clone()),
             (None, Some(first_path)) => Some(first_path.clone()),
             _ => None,
