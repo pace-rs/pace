@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.13.0](https://github.com/pace-rs/pace/compare/pace_core-v0.12.1...pace_core-v0.13.0) - 2024-03-01
+
+### Fixed
+- create parent dir and activity and config file if --activity-log-file/--config is passed to pace but not existing
+- *(commands)* add short arg -s for begin --start
+- *(time)* actually test if begin time lies in the future, throwing an error that begin time cannot be after end time
+- *(command)* only set/override description when it actually contains a value
+
+### Other
+- fix snapshot testing for ci ([#62](https://github.com/pace-rs/pace/pull/62))
+- fix test for grouping activities fail on the boundary to midnight
+
 ## [0.12.1](https://github.com/pace-rs/pace/compare/pace_core-v0.12.0...pace_core-v0.12.1) - 2024-02-29
 
 ### Added

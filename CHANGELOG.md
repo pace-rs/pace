@@ -8,6 +8,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.11.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.11.0...pace-rs-v0.11.1) - 2024-03-01
+
+### Fixed
+- create parent dir and activity and config file if --activity-log-file/--config is passed to pace but not existing
+- *(cli)* set aliases to subcommands to visible
+- phrasing in confirmation for not being able to resume ended activity
+- *(commands)* add short arg -s for begin --start
+- *(time)* actually test if begin time lies in the future, throwing an error that begin time cannot be after end time
+- *(command)* only set/override description when it actually contains a value
+
+### Other
+- remove version snapshot
+- fix snapshot testing for ci ([#62](https://github.com/pace-rs/pace/pull/62))
+- factor out begin command for keeping it dry
+- fix missing id for upload of snapshots
+- upload insta snapshots from failed ci runs
+- implement snapshot tests for cli output
+- *(deps)* lock file maintenance ([#61](https://github.com/pace-rs/pace/pull/61))
+- fix test for grouping activities fail on the boundary to midnight
+
 ## [0.11.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.10.0...pace-rs-v0.11.0) - 2024-02-29
 
 ### Added
