@@ -739,3 +739,70 @@ fn test_activity_store_resume_activity_passes(activity_store: TestData) -> PaceR
 
     Ok(())
 }
+
+#[rstest]
+fn test_begin_activity_with_held_activity() -> TestResult<()> {
+    let store = ActivityStore::new(Arc::new(InMemoryActivityStorage::new().into()));
+
+    // Begin activity
+    let activity = Activity::builder()
+        .description("Test Description".to_string())
+        .build();
+
+    let activity = store.begin_activity(activity)?;
+
+    let read_activity = store
+        .read_activity(*activity.guid())
+        .expect("Should have activity.");
+
+    assert!(
+        read_activity.activity().status().is_active(),
+        "Activity should be active."
+    );
+
+    // Hold this activity
+    let _held_activity = store.hold_most_recent_active_activity(HoldOptions::default())?;
+
+    let held_activity = store
+        .read_activity(*read_activity.guid())
+        .expect("Should have activity.");
+
+    assert!(
+        held_activity.activity().status().is_held(),
+        "Activity should be held."
+    );
+
+    // Begin another activity although there is a held activity
+    let new_activity = Activity::builder()
+        .description("New Description".to_string())
+        .build();
+
+    let new_activity = store.begin_activity(new_activity)?;
+
+    let new_activity = store
+        .read_activity(*new_activity.guid())
+        .expect("Should have activity.");
+
+    assert!(
+        new_activity.activity().status().is_active(),
+        "Activity should be active."
+    );
+
+    assert!(
+        store
+            .read_activity(*held_activity.guid())?
+            .activity()
+            .status()
+            .is_ended(),
+        "Held activity should be ended."
+    );
+
+    assert!(
+        store
+            .list_activities(ActivityStatusFilter::ActiveIntermission)?
+            .is_none(),
+        "Should have no active intermissions."
+    );
+
+    Ok(())
+}
