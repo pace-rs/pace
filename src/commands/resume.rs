@@ -7,8 +7,8 @@ use eyre::Result;
 
 use pace_cli::{confirmation_or_break, prompt_resume_activity};
 use pace_core::{
-    get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
-    ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage,
+    extract_time_or_now, get_storage_from_config, ActivityQuerying, ActivityReadOps,
+    ActivityStateManagement, ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage,
 };
 
 use crate::prelude::PACE_APP;
@@ -48,7 +48,20 @@ impl ResumeCmd {
     pub fn inner_run(&self) -> Result<()> {
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
-        if *self.resume_opts.list() {
+        // parse time from string or get now
+        let date_time = extract_time_or_now(self.resume_opts.at())?;
+
+        let resumed = if let Ok(Some(resumed_activity)) = activity_store
+            .resume_most_recent_activity(ResumeOptions::builder().resume_time(date_time).build())
+        {
+            println!("Resumed {}", resumed_activity.activity());
+            true
+        } else {
+            false
+        };
+
+        // If there is no activity to resume or the user wants to list activities to resume
+        if *self.resume_opts.list() || !resumed {
             // List activities to resume with fuzzy search and select
             let Some(activity_ids) = activity_store.list_most_recent_activities(usize::from(
                 PACE_APP
@@ -66,7 +79,13 @@ impl ResumeCmd {
                 .iter()
                 // TODO: With pomodoro, we might want to filter for activities that are not intermissions
                 .flat_map(|activity_id| activity_store.read_activity(*activity_id))
+                .filter_map(|activity| activity.activity().is_resumable().then_some(activity))
                 .collect::<Vec<_>>();
+
+            if activity_items.is_empty() {
+                println!("No activities to continue.");
+                return Ok(());
+            }
 
             let string_repr = activity_items
                 .iter()
@@ -100,12 +119,6 @@ impl ResumeCmd {
                 }
                 Err(err) => return Err(err.into()),
             }
-        } else if let Ok(Some(resumed_activity)) =
-            activity_store.resume_most_recent_activity(ResumeOptions::default())
-        {
-            println!("Resumed {}", resumed_activity.activity());
-        } else {
-            println!("No activities to resume.");
         }
 
         activity_store.sync()?;

@@ -265,16 +265,13 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         Ok(Some(activity))
     }
 
-    fn end_all_unfinished_activities(
-        &self,
-        end_opts: EndOptions,
-    ) -> PaceOptResult<Vec<ActivityItem>> {
+    fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>> {
         let activities = self.log.read();
 
-        let active_activities = activities
+        let endable_activities = activities
             .par_iter()
             .filter_map(|(activity_id, activity)| {
-                if activity.is_active() {
+                if activity.is_endable() {
                     Some(*activity_id)
                 } else {
                     None
@@ -285,18 +282,18 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         drop(activities);
 
         // There are no active activities
-        if active_activities.is_empty() {
+        if endable_activities.is_empty() {
             return Ok(None);
         }
 
-        let ended_activities = active_activities
+        let ended_activities = endable_activities
             .par_iter()
             .map(|activity_id| -> PaceResult<ActivityItem> {
                 self.end_activity(*activity_id, end_opts.clone())
             })
             .collect::<PaceResult<Vec<ActivityItem>>>()?;
 
-        if ended_activities.len() != active_activities.len() {
+        if ended_activities.len() != endable_activities.len() {
             // This is weird, we should return an error about it
             return Err(ActivityLogErrorKind::ActivityNotEnded.into());
         }

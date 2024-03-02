@@ -25,7 +25,7 @@ pub enum ActivityStatus {
     #[default]
     Inactive,
     Held,
-    Unarchived,
+    Unarchived, // TODO: Do we need this or can be unarchiving done without it?
 }
 
 impl ActivityStatus {

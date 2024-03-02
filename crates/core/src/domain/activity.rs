@@ -402,6 +402,10 @@ impl Activity {
         }
     }
 
+    pub fn is_endable(&self) -> bool {
+        self.is_active() || self.is_held()
+    }
+
     /// If the activity is an active intermission
     #[must_use]
     pub fn is_active_intermission(&self) -> bool {
@@ -429,6 +433,12 @@ impl Activity {
             && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
             && !self.is_archived()
             && self.status.is_ended()
+    }
+
+    /// If the activity is resumable
+    #[must_use]
+    pub fn is_resumable(&self) -> bool {
+        self.is_inactive() || self.is_archived() || self.is_held() || self.has_ended()
     }
 
     /// End the activity

@@ -55,6 +55,7 @@ pub struct AdjustCommandOptions {
     )]
     tags: Option<Vec<String>>,
 
+    /// Do not extend the current list of tags, but override them
     #[cfg_attr(
         feature = "clap",
         clap(

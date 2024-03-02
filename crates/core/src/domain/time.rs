@@ -101,12 +101,13 @@ pub fn duration_to_str(initial_time: DateTime<Local>) -> String {
 /// # Errors
 ///
 /// [`chrono::ParseError`] - If the time cannot be parsed
+/// [`PaceTimeErrorKind::StartTimeInFuture`] - If the time is in the future
 ///
 /// # Returns
 ///
 /// A tuple containing the time and date
 pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<PaceDateTime> {
-    Ok(if let Some(ref time) = time {
+    let date_time = if let Some(ref time) = time {
         PaceDateTime::new(NaiveDateTime::new(
             Local::now().date_naive(),
             NaiveTime::parse_from_str(time, "%H:%M")?,
@@ -114,7 +115,14 @@ pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<PaceDateTime> {
     } else {
         // if no time is given, use the current time
         PaceDateTime::now()
-    })
+    };
+
+    // Test if PaceDateTime actually lies in the future
+    if date_time > PaceDateTime::now() {
+        Err(PaceTimeErrorKind::StartTimeInFuture(date_time).into())
+    } else {
+        Ok(date_time)
+    }
 }
 
 /// Parses time from user input

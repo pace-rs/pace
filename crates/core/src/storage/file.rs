@@ -130,11 +130,8 @@ impl ActivityReadOps for TomlActivityStorage {
 }
 
 impl ActivityStateManagement for TomlActivityStorage {
-    fn end_all_unfinished_activities(
-        &self,
-        end_opts: EndOptions,
-    ) -> PaceOptResult<Vec<ActivityItem>> {
-        self.cache.end_all_unfinished_activities(end_opts)
+    fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>> {
+        self.cache.end_all_activities(end_opts)
     }
 
     fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {

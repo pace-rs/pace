@@ -243,7 +243,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn begin_activity(&self, mut activity: Activity) -> PaceResult<ActivityItem> {
         // End all unfinished activities before starting a new one,
         // we don't want to have multiple activities running at the same time
-        let _ = self.end_all_unfinished_activities(EndOptions::default())?;
+        let _ = self.end_all_activities(EndOptions::default())?;
 
         // Make the current activity active
         activity.make_active();
@@ -330,7 +330,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
         end_opts: EndOptions,
     ) -> PaceResult<ActivityItem>;
 
-    /// End all unfinished activities in the storage backend.
+    /// End all activities in the storage backend.
     ///
     /// # Arguments
     ///
@@ -343,10 +343,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// A collection of the activities that were ended. Returns Ok(None) if no activities were ended.
-    fn end_all_unfinished_activities(
-        &self,
-        end_opts: EndOptions,
-    ) -> PaceOptResult<Vec<ActivityItem>>;
+    fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>>;
 
     /// End all active intermissions in the storage backend.
     ///

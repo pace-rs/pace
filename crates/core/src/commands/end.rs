@@ -31,9 +31,7 @@ impl EndCommandOptions {
 
         let end_opts = EndOptions::builder().end_time(time).build();
 
-        if let Some(unfinished_activities) =
-            activity_store.end_all_unfinished_activities(end_opts)?
-        {
+        if let Some(unfinished_activities) = activity_store.end_all_activities(end_opts)? {
             for activity in &unfinished_activities {
                 println!("Ended {}", activity.activity());
             }

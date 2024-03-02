@@ -4,8 +4,8 @@ use std::collections::HashSet;
 use clap::Parser;
 
 use crate::{
-    error::PaceTimeErrorKind, extract_time_or_now, get_storage_from_config, Activity, ActivityKind,
-    ActivityStateManagement, ActivityStore, PaceConfig, PaceDateTime, PaceResult, SyncStorage,
+    extract_time_or_now, get_storage_from_config, Activity, ActivityKind, ActivityStateManagement,
+    ActivityStore, PaceConfig, PaceResult, SyncStorage,
 };
 
 /// `begin` subcommand options
@@ -62,11 +62,6 @@ impl BeginCommandOptions {
 
         // parse time from string or get now
         let date_time = extract_time_or_now(start)?;
-
-        // Test if PaceDateTime actually lies in the future
-        if date_time > PaceDateTime::now() {
-            return Err(PaceTimeErrorKind::StartTimeInFuture(date_time).into());
-        }
 
         // TODO: Parse categories and subcategories from string
         // let (category, subcategory) = if let Some(ref category) = category {

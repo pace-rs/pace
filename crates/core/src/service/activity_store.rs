@@ -112,11 +112,8 @@ impl ActivityStateManagement for ActivityStore {
         self.storage.end_activity(activity_id, end_opts)
     }
 
-    fn end_all_unfinished_activities(
-        &self,
-        end_opts: EndOptions,
-    ) -> PaceOptResult<Vec<ActivityItem>> {
-        self.storage.end_all_unfinished_activities(end_opts)
+    fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>> {
+        self.storage.end_all_activities(end_opts)
     }
 
     fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
