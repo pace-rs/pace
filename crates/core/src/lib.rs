@@ -16,6 +16,8 @@ pub mod constants {
     pub const PACE_ACTIVITY_LOG_FILENAME: &str = "activities.pace.toml";
     pub const PACE_DOCS_URL: &str = "https://pace.cli.rs/docs";
     pub const PACE_DEV_DOCS_URL: &str = "https://pace.cli.rs/dev-docs";
+    pub const PACE_CONFIG_DOCS_URL: &str =
+        "https://github.com/pace-rs/pace/blob/main/config/README.md";
 }
 
 // Re-export commonly used external crates
