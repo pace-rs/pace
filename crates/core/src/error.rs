@@ -96,7 +96,7 @@ pub enum PaceErrorKind {
     #[error(transparent)]
     ChronoParse(#[from] chrono::ParseError),
 
-    /// Chrono duration is negative: {0}
+    /// Time chosen is not valid, because it lays before the current activity's beginning: {0}
     #[error(transparent)]
     ChronoDurationIsNegative(#[from] chrono::OutOfRangeError),
 

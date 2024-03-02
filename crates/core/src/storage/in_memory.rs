@@ -232,24 +232,24 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         activity_id: ActivityGuid,
         end_opts: EndOptions,
     ) -> PaceResult<ActivityItem> {
+        let activities = self.log.read();
+
+        let begin_time = *activities
+            .get(&activity_id)
+            .ok_or(ActivityLogErrorKind::ActivityNotFound(activity_id))?
+            .begin();
+
+        drop(activities);
+
+        let end_opts = ActivityEndOptions::new(
+            *end_opts.end_time(),
+            calculate_duration(&begin_time, *end_opts.end_time())?,
+        );
+
         let mut activities = self.log.write();
-
-        let _ = activities.entry(activity_id).and_modify(|activity| {
-            match calculate_duration(activity.begin(), *end_opts.end_time()) {
-                Ok(duration) => {
-                    let end_opts = ActivityEndOptions::new(*end_opts.end_time(), duration);
-                    activity.end_activity(end_opts);
-                }
-                Err(_) => {
-                    log::warn!(
-                        "Activity {} ends before it began. That's impossible. Skipping \
-                                 activity. Please fix manually and run the command again.",
-                        activity
-                    );
-                }
-            }
-        });
-
+        let _ = activities
+            .entry(activity_id)
+            .and_modify(|activity| activity.end_activity(end_opts));
         drop(activities);
 
         self.read_activity(activity_id)

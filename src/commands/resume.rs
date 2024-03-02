@@ -51,8 +51,8 @@ impl ResumeCmd {
         // parse time from string or get now
         let date_time = extract_time_or_now(self.resume_opts.at())?.is_future()?;
 
-        let resumed = if let Ok(Some(resumed_activity)) = activity_store
-            .resume_most_recent_activity(ResumeOptions::builder().resume_time(date_time).build())
+        let resumed = if let Some(resumed_activity) = activity_store
+            .resume_most_recent_activity(ResumeOptions::builder().resume_time(date_time).build())?
         {
             println!("Resumed {}", resumed_activity.activity());
             true
