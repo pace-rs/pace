@@ -630,12 +630,12 @@ mod tests {
 
     use chrono::Local;
 
-    use crate::{PaceDate, PaceDateTime};
+    use crate::{PaceDate, PaceDateTime, TestResult};
 
     use super::*;
 
     #[test]
-    fn test_in_memory_activity_storage_passes() {
+    fn test_in_memory_activity_storage_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
 
         assert_eq!(
@@ -643,22 +643,26 @@ mod tests {
             0,
             "Activity log is not empty."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_in_memory_activity_storage_from_activity_log_passes() {
+    fn test_in_memory_activity_storage_from_activity_log_passes() -> TestResult<()> {
         let activity_log = ActivityLog::default();
         let storage = InMemoryActivityStorage::from(activity_log);
 
         assert_eq!(
-            storage.get_activity_log().unwrap().activities().len(),
+            storage.get_activity_log()?.activities().len(),
             0,
             "Activity log is not empty."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_create_read_activity_passes() {
+    fn test_create_read_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
 
         let begin = Local::now().naive_local();
@@ -675,10 +679,10 @@ mod tests {
             .tags(tags)
             .build();
 
-        let item = storage.create_activity(activity.clone()).unwrap();
+        let item = storage.create_activity(activity.clone())?;
 
         assert_eq!(
-            storage.get_activity_log().unwrap().activities().len(),
+            storage.get_activity_log()?.activities().len(),
             1,
             "Activity was not created."
         );
@@ -690,10 +694,12 @@ mod tests {
             *stored_activity.activity(),
             "Stored activity is not the same as the original activity."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_list_activities_passes() {
+    fn test_list_activities_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
 
         let begin = Local::now().naive_local();
@@ -713,8 +719,7 @@ mod tests {
         let _activity_item = storage.create_activity(activity.clone()).unwrap();
 
         let filtered_activities = storage
-            .list_activities(ActivityStatusFilter::Everything)
-            .unwrap()
+            .list_activities(ActivityStatusFilter::Everything)?
             .unwrap()
             .into_vec();
 
@@ -724,17 +729,19 @@ mod tests {
             "Amount of activities is not the same as the amount of created activities."
         );
 
-        let stored_activity = storage.read_activity(filtered_activities[0]).unwrap();
+        let stored_activity = storage.read_activity(filtered_activities[0])?;
 
         assert_eq!(
             activity,
             *stored_activity.activity(),
             "Filtered activities are not the same as the original activity."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_update_activity_passes() {
+    fn test_update_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
 
         let begin = Local::now().naive_local();
@@ -776,13 +783,11 @@ mod tests {
             .tags(tags.clone())
             .build();
 
-        let old_activity = storage
-            .update_activity(
-                *activity_item.guid(),
-                updated_activity,
-                UpdateOptions::default(),
-            )
-            .unwrap();
+        let old_activity = storage.update_activity(
+            *activity_item.guid(),
+            updated_activity,
+            UpdateOptions::default(),
+        )?;
 
         assert_eq!(
             og_activity,
@@ -790,7 +795,7 @@ mod tests {
             "Stored activity is not the same as the original activity."
         );
 
-        let new_stored_activity = storage.read_activity(*activity_item.guid()).unwrap();
+        let new_stored_activity = storage.read_activity(*activity_item.guid())?;
 
         assert_eq!(
             old_activity.guid(),
@@ -826,10 +831,12 @@ mod tests {
             new_stored_activity.activity().is_active(),
             "Activity should be active now, but was not updated."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_crud_activity_passes() {
+    fn test_crud_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
 
         // Create activity
@@ -853,16 +860,16 @@ mod tests {
             "Activity log is not empty."
         );
 
-        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity.clone())?;
 
         assert_eq!(
-            storage.get_activity_log().unwrap().activities().len(),
+            storage.get_activity_log()?.activities().len(),
             1,
             "Activity was not created."
         );
 
         // Read activity
-        let stored_activity = storage.read_activity(*activity_item.guid()).unwrap();
+        let stored_activity = storage.read_activity(*activity_item.guid())?;
 
         // Make sure the activity is active now, as begin_activity should make it active automatically
         activity.make_active();
@@ -895,15 +902,13 @@ mod tests {
             .tags(tags.clone())
             .build();
 
-        let _ = storage
-            .update_activity(
-                *activity_item.guid(),
-                updated_activity,
-                UpdateOptions::default(),
-            )
-            .unwrap();
+        let _ = storage.update_activity(
+            *activity_item.guid(),
+            updated_activity,
+            UpdateOptions::default(),
+        )?;
 
-        let new_stored_activity = storage.read_activity(*activity_item.guid()).unwrap();
+        let new_stored_activity = storage.read_activity(*activity_item.guid())?;
 
         assert_eq!(
             new_stored_activity.activity().description(),
@@ -935,12 +940,11 @@ mod tests {
         );
 
         // Delete activity
-        let deleted_activity = storage
-            .delete_activity(*activity_item.guid(), DeleteOptions::default())
-            .unwrap();
+        let deleted_activity =
+            storage.delete_activity(*activity_item.guid(), DeleteOptions::default())?;
 
         assert_eq!(
-            storage.get_activity_log().unwrap().activities().len(),
+            storage.get_activity_log()?.activities().len(),
             0,
             "Activity was not deleted."
         );
@@ -958,10 +962,12 @@ mod tests {
             read_deleted_activity_result.is_err(),
             "Deleted activity was read."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_end_single_activity_passes() {
+    fn test_end_single_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -979,13 +985,11 @@ mod tests {
             .tags(tags)
             .build();
 
-        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity.clone())?;
 
         let end_opts = EndOptions::builder().end_time(end_time).build();
 
-        let ended_activity = storage
-            .end_activity(*activity_item.guid(), end_opts)
-            .unwrap();
+        let ended_activity = storage.end_activity(*activity_item.guid(), end_opts)?;
 
         assert_ne!(
             activity_item, ended_activity,
@@ -994,7 +998,7 @@ mod tests {
 
         assert!(ended_activity.activity().activity_end_options().is_some());
 
-        let ended_activity = storage.read_activity(*activity_item.guid()).unwrap();
+        let ended_activity = storage.read_activity(*activity_item.guid())?;
 
         assert!(
             ended_activity.activity().has_ended(),
@@ -1017,10 +1021,12 @@ mod tests {
             &PaceDateTime::new(end_time),
             "End time was not set."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_end_last_unfinished_activity_passes() {
+    fn test_end_last_unfinished_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -1037,11 +1043,10 @@ mod tests {
             .tags(tags)
             .build();
 
-        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity.clone())?;
 
         let ended_activity = storage
-            .end_last_unfinished_activity(EndOptions::builder().end_time(now).build())
-            .unwrap()
+            .end_last_unfinished_activity(EndOptions::builder().end_time(now).build())?
             .unwrap();
 
         assert_eq!(
@@ -1071,10 +1076,12 @@ mod tests {
             &PaceDateTime::new(now),
             "End time was not set."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_begin_and_auto_end_for_multiple_activities_passes() {
+    fn test_begin_and_auto_end_for_multiple_activities_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -1092,7 +1099,7 @@ mod tests {
             .build();
 
         // Begin the first activity
-        let activity_item = storage.begin_activity(activity).unwrap();
+        let activity_item = storage.begin_activity(activity)?;
 
         let begin_time = now - chrono::Duration::seconds(60);
         let kind = ActivityKind::Activity;
@@ -1106,9 +1113,9 @@ mod tests {
             .build();
 
         // Begin the second activity, the first one should be ended automatically now
-        let activity_item2 = storage.begin_activity(activity2).unwrap();
+        let activity_item2 = storage.begin_activity(activity2)?;
 
-        let ended_activity = storage.read_activity(*activity_item.guid()).unwrap();
+        let ended_activity = storage.read_activity(*activity_item.guid())?;
 
         assert!(
             ended_activity.activity().has_ended(),
@@ -1126,7 +1133,7 @@ mod tests {
             "End time was not set."
         );
 
-        let ended_activity2 = storage.read_activity(*activity_item2.guid()).unwrap();
+        let ended_activity2 = storage.read_activity(*activity_item2.guid())?;
 
         assert!(
             ended_activity2.activity().is_active(),
@@ -1137,10 +1144,12 @@ mod tests {
             ended_activity2.activity().activity_end_options().is_none(),
             "End time should not be set."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_hold_most_recent_active_activity_passes() {
+    fn test_hold_most_recent_active_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -1157,15 +1166,14 @@ mod tests {
             .tags(tags)
             .build();
 
-        let activity_item = storage.begin_activity(activity.clone()).unwrap();
+        let activity_item = storage.begin_activity(activity.clone())?;
 
         let hold_time = now + chrono::Duration::seconds(30);
 
         let hold_opts = HoldOptions::builder().begin_time(hold_time).build();
 
         let held_activity = storage
-            .hold_most_recent_active_activity(hold_opts)
-            .unwrap()
+            .hold_most_recent_active_activity(hold_opts)?
             .unwrap();
 
         assert_eq!(
@@ -1181,8 +1189,7 @@ mod tests {
         );
 
         let intermission_guids = storage
-            .list_active_intermissions_for_activity_id(*activity_item.guid())
-            .unwrap()
+            .list_active_intermissions_for_activity_id(*activity_item.guid())?
             .unwrap();
 
         assert_eq!(intermission_guids.len(), 1, "Intermission was not created.");
@@ -1206,10 +1213,13 @@ mod tests {
             *activity_item.guid(),
             "Parent ID is not set."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_hold_last_unfinished_activity_with_existing_intermission_does_nothing_passes() {
+    fn test_hold_last_unfinished_activity_with_existing_intermission_does_nothing_passes(
+    ) -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -1226,18 +1236,17 @@ mod tests {
             .tags(tags)
             .build();
 
-        let active_activity_item = storage.begin_activity(activity).unwrap();
+        let active_activity_item = storage.begin_activity(activity)?;
 
         let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(30))
             .build();
 
         let _held_item = storage
-            .hold_most_recent_active_activity(hold_opts)
-            .unwrap()
+            .hold_most_recent_active_activity(hold_opts)?
             .unwrap();
 
-        let held_activity = storage.read_activity(*active_activity_item.guid()).unwrap();
+        let held_activity = storage.read_activity(*active_activity_item.guid())?;
 
         assert_eq!(
             *held_activity.activity().status(),
@@ -1245,9 +1254,8 @@ mod tests {
             "Activity was not held."
         );
 
-        let intermission_guids = storage
-            .list_active_intermissions_for_activity_id(*active_activity_item.guid())
-            .unwrap();
+        let intermission_guids =
+            storage.list_active_intermissions_for_activity_id(*active_activity_item.guid())?;
 
         assert_eq!(
             intermission_guids.as_ref().unwrap().len(),
@@ -1261,15 +1269,13 @@ mod tests {
 
         assert!(
             storage
-                .hold_most_recent_active_activity(hold_opts)
-                .unwrap()
+                .hold_most_recent_active_activity(hold_opts)?
                 .is_none(),
             "Activity was held again."
         );
 
         let intermission_guids = storage
-            .list_active_intermissions_for_activity_id(*active_activity_item.guid())
-            .unwrap()
+            .list_active_intermissions_for_activity_id(*active_activity_item.guid())?
             .unwrap();
 
         assert_eq!(
@@ -1278,7 +1284,7 @@ mod tests {
             "Intermission was created again."
         );
 
-        let intermission_item = storage.read_activity(intermission_guids[0]).unwrap();
+        let intermission_item = storage.read_activity(intermission_guids[0])?;
 
         assert_eq!(
             *intermission_item.activity().kind(),
@@ -1290,10 +1296,12 @@ mod tests {
             intermission_item.activity().tags().is_none(),
             "Intermission has tags, but shouldn't."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_end_all_active_intermissions_passes() {
+    fn test_end_all_active_intermissions_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -1307,17 +1315,16 @@ mod tests {
             .description(description)
             .build();
 
-        let active_activity_item = storage.begin_activity(activity).unwrap();
+        let active_activity_item = storage.begin_activity(activity)?;
 
         let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(30))
             .build();
 
-        let _ = storage.hold_most_recent_active_activity(hold_opts).unwrap();
+        let _ = storage.hold_most_recent_active_activity(hold_opts)?;
 
-        let intermission_guids = storage
-            .list_active_intermissions_for_activity_id(*active_activity_item.guid())
-            .unwrap();
+        let intermission_guids =
+            storage.list_active_intermissions_for_activity_id(*active_activity_item.guid())?;
 
         assert_eq!(
             intermission_guids.as_ref().unwrap().len(),
@@ -1327,7 +1334,7 @@ mod tests {
 
         let end_opts = EndOptions::builder().end_time(end_time).build();
 
-        let ended_intermissions = storage.end_all_active_intermissions(end_opts).unwrap();
+        let ended_intermissions = storage.end_all_active_intermissions(end_opts)?;
 
         assert_eq!(
             ended_intermissions.as_ref().unwrap().len(),
@@ -1335,9 +1342,7 @@ mod tests {
             "Not all intermissions were ended."
         );
 
-        let ended_intermission = storage
-            .read_activity(intermission_guids.as_ref().unwrap()[0])
-            .unwrap();
+        let ended_intermission = storage.read_activity(intermission_guids.as_ref().unwrap()[0])?;
 
         assert!(
             ended_intermission.activity().has_ended(),
@@ -1354,18 +1359,20 @@ mod tests {
             &PaceDateTime::new(end_time),
             "End time was not set."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_important_pace_flow_for_activities_passes() {
+    fn test_important_pace_flow_for_activities_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let _now = PaceDateTime::now();
 
         let first_og_activity = Activity::builder().description("Test activity").build();
 
-        let first_begin_activity = storage.begin_activity(first_og_activity.clone()).unwrap();
+        let first_begin_activity = storage.begin_activity(first_og_activity.clone())?;
 
-        let first_stored_activity = storage.read_activity(*first_begin_activity.guid()).unwrap();
+        let first_stored_activity = storage.read_activity(*first_begin_activity.guid())?;
 
         assert_eq!(
             first_og_activity.begin(),
@@ -1405,13 +1412,13 @@ mod tests {
 
         let second_og_activity = Activity::builder().description("Our new activity").build();
 
-        let second_begin_activity = storage.begin_activity(second_og_activity.clone()).unwrap();
+        let second_begin_activity = storage.begin_activity(second_og_activity.clone())?;
 
         let second_stored_activity = storage
             .read_activity(*second_begin_activity.guid())
             .unwrap();
 
-        let first_stored_activity = storage.read_activity(*first_begin_activity.guid()).unwrap();
+        let first_stored_activity = storage.read_activity(*first_begin_activity.guid())?;
 
         assert!(
             first_stored_activity.activity().status().is_ended(),
@@ -1455,13 +1462,10 @@ mod tests {
         // Now we create an intermission for the second activity
 
         let _ = storage
-            .hold_most_recent_active_activity(HoldOptions::default())
-            .unwrap()
+            .hold_most_recent_active_activity(HoldOptions::default())?
             .unwrap();
 
-        let second_stored_activity = storage
-            .read_activity(*second_begin_activity.guid())
-            .unwrap();
+        let second_stored_activity = storage.read_activity(*second_begin_activity.guid())?;
 
         assert!(
             second_stored_activity.activity().status().is_held(),
@@ -1472,14 +1476,11 @@ mod tests {
         // is not the most common use case and should be discouraged as messing with it could lead to
         // inconsistencies in the data.
         let second_activity_intermission_id = storage
-            .list_active_intermissions_for_activity_id(*second_begin_activity.guid())
-            .unwrap()
+            .list_active_intermissions_for_activity_id(*second_begin_activity.guid())?
             .unwrap();
         let second_activity_intermission_id = second_activity_intermission_id.first().unwrap();
 
-        let second_stored_intermission = storage
-            .read_activity(*second_activity_intermission_id)
-            .unwrap();
+        let second_stored_intermission = storage.read_activity(*second_activity_intermission_id)?;
 
         assert_eq!(
             second_stored_intermission
@@ -1497,15 +1498,12 @@ mod tests {
         // and set the activity from held to active again
 
         let resumed_activity = storage
-            .resume_most_recent_activity(ResumeOptions::default())
-            .unwrap()
+            .resume_most_recent_activity(ResumeOptions::default())?
             .unwrap();
 
         let resumed_stored_activity = storage.read_activity(*resumed_activity.guid()).unwrap();
 
-        let second_stored_intermission = storage
-            .read_activity(*second_activity_intermission_id)
-            .unwrap();
+        let second_stored_intermission = storage.read_activity(*second_activity_intermission_id)?;
 
         assert!(
             resumed_stored_activity.activity().status().is_active(),
@@ -1552,10 +1550,12 @@ mod tests {
         );
 
         assert!(!resumed_stored_activity.activity().has_ended());
+
+        Ok(())
     }
 
     #[test]
-    fn test_group_activities_by_keywords_passes() {
+    fn test_group_activities_by_keywords_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -1569,14 +1569,11 @@ mod tests {
             .category("Project::Test".to_string())
             .build();
 
-        let activity_item = storage.begin_activity(activity).unwrap();
+        let activity_item = storage.begin_activity(activity)?;
 
         let keyword_opts = KeywordOptions::builder().category("Test").build();
 
-        let grouped_activities = storage
-            .group_activities_by_keywords(keyword_opts)
-            .unwrap()
-            .unwrap();
+        let grouped_activities = storage.group_activities_by_keywords(keyword_opts)?.unwrap();
 
         assert_eq!(
             grouped_activities.len(),
@@ -1597,10 +1594,12 @@ mod tests {
             *activity_item.guid(),
             "Grouped activity is not the same as the original activity."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_group_activities_by_kind_passes() {
+    fn test_group_activities_by_kind_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -1613,9 +1612,9 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.begin_activity(activity).unwrap();
+        let activity_item = storage.begin_activity(activity)?;
 
-        let grouped_activities = storage.group_activities_by_kind().unwrap().unwrap();
+        let grouped_activities = storage.group_activities_by_kind()?.unwrap();
 
         assert_eq!(
             grouped_activities.len(),
@@ -1648,10 +1647,12 @@ mod tests {
             description,
             "Grouped activity description is not the same as the original activity description."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_group_activities_by_status_passes() {
+    fn test_group_activities_by_status_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -1664,9 +1665,9 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.begin_activity(activity).unwrap();
+        let activity_item = storage.begin_activity(activity)?;
 
-        let grouped_activities = storage.group_activities_by_status().unwrap().unwrap();
+        let grouped_activities = storage.group_activities_by_status()?.unwrap();
 
         assert_eq!(
             grouped_activities.len(),
@@ -1705,10 +1706,12 @@ mod tests {
             description,
             "Grouped activity description is not the same as the original activity description."
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_group_activities_by_start_date_passes() {
+    fn test_group_activities_by_start_date_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
         let begin_time = now - chrono::Duration::seconds(30);
@@ -1721,9 +1724,9 @@ mod tests {
             .description(description)
             .build();
 
-        let activity_item = storage.begin_activity(activity).unwrap();
+        let activity_item = storage.begin_activity(activity)?;
 
-        let grouped_activities = storage.group_activities_by_start_date().unwrap().unwrap();
+        let grouped_activities = storage.group_activities_by_start_date()?.unwrap();
 
         assert_eq!(
             grouped_activities.len(),
@@ -1762,6 +1765,8 @@ mod tests {
             description,
             "Grouped activity description is not the same as the original activity description."
         );
+
+        Ok(())
     }
 
     // TODO!: Implement the following tests
