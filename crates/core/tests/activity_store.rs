@@ -804,5 +804,12 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
         "Should have no active intermissions."
     );
 
+    assert!(
+        store
+            .resume_most_recent_activity(ResumeOptions::default())?
+            .is_none(),
+        "Should have no activity to resume."
+    );
+
     Ok(())
 }
