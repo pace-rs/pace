@@ -23,9 +23,9 @@ pub struct BeginCommandOptions {
     // FIXME: We should directly parse that into PaceTime or PaceDateTime
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, name = "Starting Time", alias = "at")
+        clap(short, long, name = "Starting Time", alias = "start")
     )]
-    start: Option<String>,
+    at: Option<String>,
 
     /// The description of the activity you want to start
     #[cfg_attr(feature = "clap", clap(name = "Activity Description"))]
@@ -49,7 +49,7 @@ impl BeginCommandOptions {
     pub fn handle_begin(&self, config: &PaceConfig) -> PaceResult<()> {
         let Self {
             category,
-            start,
+            at: start,
             description,
             tags,
             .. // TODO: exclude projects for now
