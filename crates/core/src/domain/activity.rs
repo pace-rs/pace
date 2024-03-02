@@ -402,6 +402,7 @@ impl Activity {
         }
     }
 
+    /// If the activity is endable, meaning if it is active or held
     pub fn is_endable(&self) -> bool {
         self.is_active() || self.is_held()
     }
