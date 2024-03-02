@@ -107,7 +107,7 @@ pub fn duration_to_str(initial_time: DateTime<Local>) -> String {
 ///
 /// A tuple containing the time and date
 pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<PaceDateTime> {
-    let date_time = if let Some(ref time) = time {
+    Ok(if let Some(ref time) = time {
         PaceDateTime::new(NaiveDateTime::new(
             Local::now().date_naive(),
             NaiveTime::parse_from_str(time, "%H:%M")?,
@@ -115,14 +115,7 @@ pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<PaceDateTime> {
     } else {
         // if no time is given, use the current time
         PaceDateTime::now()
-    };
-
-    // Test if PaceDateTime actually lies in the future
-    if date_time > PaceDateTime::now() {
-        Err(PaceTimeErrorKind::StartTimeInFuture(date_time).into())
-    } else {
-        Ok(date_time)
-    }
+    })
 }
 
 /// Parses time from user input
@@ -272,6 +265,15 @@ impl PaceDateTime {
     pub fn now() -> Self {
         Self(Local::now().naive_local().round_subsecs(0))
     }
+
+    /// Check if time is in the future
+    pub fn is_future(self) -> PaceResult<Self> {
+        if self > Self::now() {
+            Err(PaceTimeErrorKind::StartTimeInFuture(self).into())
+        } else {
+            Ok(self)
+        }
+    }
 }
 
 impl Display for PaceDateTime {
@@ -372,6 +374,8 @@ mod tests {
 
     use chrono::NaiveDate;
 
+    use crate::TestResult;
+
     use super::*;
 
     #[test]
@@ -382,9 +386,22 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_time_or_now_passes() {
+    fn test_extract_time_or_now_is_now_passes() -> TestResult<()> {
+        let time = None;
+
+        let result = extract_time_or_now(&time)?;
+
+        assert_eq!(result, PaceDateTime::now());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_time_or_now_passes() -> TestResult<()> {
         let time = Some("12:00".to_string());
-        let result = extract_time_or_now(&time).expect("Time extraction failed");
+
+        let result = extract_time_or_now(&time)?;
+
         assert_eq!(
             result,
             PaceDateTime(NaiveDateTime::new(
@@ -392,6 +409,17 @@ mod tests {
                 NaiveTime::from_hms_opt(12, 0, 0).expect("Invalid date"),
             ))
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_time_is_future_fails() {
+        let future = Local::now() + chrono::Duration::days(1);
+        let time = PaceDateTime::new(future.naive_local());
+
+        let result = time.is_future();
+        assert!(result.is_err());
     }
 
     #[test]

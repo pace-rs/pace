@@ -61,7 +61,7 @@ impl BeginCommandOptions {
             .map(|tags| tags.iter().cloned().collect::<HashSet<String>>());
 
         // parse time from string or get now
-        let date_time = extract_time_or_now(start)?;
+        let date_time = extract_time_or_now(start)?.is_future()?;
 
         // TODO: Parse categories and subcategories from string
         // let (category, subcategory) = if let Some(ref category) = category {

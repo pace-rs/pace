@@ -49,7 +49,7 @@ impl ResumeCmd {
         let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
 
         // parse time from string or get now
-        let date_time = extract_time_or_now(self.resume_opts.at())?;
+        let date_time = extract_time_or_now(self.resume_opts.at())?.is_future()?;
 
         let resumed = if let Ok(Some(resumed_activity)) = activity_store
             .resume_most_recent_activity(ResumeOptions::builder().resume_time(date_time).build())
