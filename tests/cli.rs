@@ -188,3 +188,17 @@ fn test_adjust_activity_snapshot_passes() -> TestResult<()> {
 
     Ok(())
 }
+
+// Test use cases with commands and take the activity log into account as well
+//
+// Use cases to test:
+// - [ ] `pace begin` with tags and category
+// - [ ] `pace begin` with active activity
+// - [ ] `pace begin` with held activity
+// - [ ] `pace adjust` with active activity
+// - [ ] `pace now` with no activities
+// - [ ] `pace now` with active activity
+// - [ ] `pace end` with active activity
+// - [ ] `pace hold` with active activity
+// - [ ] `pace hold` with no activities
+// - [ ] `pace resume` with held activity
