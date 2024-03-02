@@ -11,7 +11,7 @@
 
 # Loads .env file for variables to be used in
 # in this just file 
-# set dotenv-load
+set dotenv-load
 
 default:
     just --choose
@@ -142,8 +142,9 @@ test-powerset *ARGS:
 	cargo hack test --feature-powerset -p {{ARGS}}
 
 # Update the scoop manifest from the given version to the latest on crates.io
-update-scoop-manifest *ARGS:
-	sd {{ARGS}} $(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version) scoop/pace.json
+update-scoop-manifest:
+	sd $env:PACE_CURRENT_VERSION $(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version) scoop/pace.json
+	sd $env:PACE_CURRENT_VERSION $(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version) .env
 
 # Run insta tests in review mode
 insta:
@@ -157,3 +158,4 @@ tag-release:
 # Make the most recent version from crates.io the latest release on GitHub
 make-latest:
 	gh release edit pace-rs-v$(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version) --latest
+
