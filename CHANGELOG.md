@@ -8,6 +8,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.12.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.11.1...pace-rs-v0.12.0) - 2024-03-02
+
+### Added
+- add opening documentation on configuration
+- *(commands)* [**breaking**] remove only-last option for end and replace --start/--end with --at/-a for setting times
+
+### Fixed
+- make sure, there are never any held activities without an active intermission
+- *(deps)* update rust crate open to 5.1.0 ([#63](https://github.com/pace-rs/pace/pull/63))
+
+### Other
+- reimplement logic to end and activity for in-memory storage to make it easier for error handling
+- check if activities to resume is none
+- add test for beginning activies on top of held ones
+- add comment about use cases still to test via cli
+- refactor tests to use results
+- use is_future validator for extract_time_or_now to make sure the user doesn't use times laying in the future
+- add doc comment to is_endable()
+
 ## [0.11.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.11.0...pace-rs-v0.11.1) - 2024-03-01
 
 ### Fixed
