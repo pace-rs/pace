@@ -50,7 +50,7 @@ dialoguer = { version = "0.11.0", features = ["history", "fuzzy-select"] }
 directories = "5.0.1"
 eyre = { workspace = true }
 human-panic = "1.2.3"
-insta = { version = "1.35.1", features = ["toml"] }
+insta = { version = "1.36.0", features = ["toml"] }
 pace_cli = { workspace = true }
 pace_core = { workspace = true, features = ["cli"] }
 serde = "1"
