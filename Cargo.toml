@@ -186,6 +186,8 @@ while_true = "warn"
 [workspace.lints.clippy]
 # pedantic = "warn"
 # nursery = "warn"
+expect_used = "warn"
+unwrap_used = "warn"
 enum_glob_use = "warn"
 correctness = "warn"
 suspicious = "warn"

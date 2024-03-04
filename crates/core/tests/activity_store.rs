@@ -8,7 +8,7 @@ use pace_core::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
     ActivityReadOps, ActivityStateManagement, ActivityStatus, ActivityStatusFilter, ActivityStore,
     ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions, InMemoryActivityStorage,
-    PaceDateTime, PaceResult, ResumeOptions, TestResult, UpdateOptions,
+    PaceDateTime, ResumeOptions, TestResult, UpdateOptions,
 };
 use rstest::{fixture, rstest};
 use similar_asserts::assert_eq;
@@ -25,24 +25,28 @@ enum ActivityStoreTestKind {
 }
 
 #[fixture]
-fn activity_store_empty() -> TestData {
+fn activity_store_empty() -> TestResult<TestData> {
     setup_activity_store(&ActivityStoreTestKind::Empty)
 }
 
 #[fixture]
-fn activity_store() -> TestData {
+fn activity_store() -> TestResult<TestData> {
     setup_activity_store(&ActivityStoreTestKind::WithActivitiesAndOpenIntermission)
 }
 
 #[fixture]
-fn activity_store_no_intermissions() -> TestData {
+fn activity_store_no_intermissions() -> TestResult<TestData> {
     setup_activity_store(&ActivityStoreTestKind::WithoutIntermissions)
 }
 
-fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestData {
+fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
     let begin_time = PaceDateTime::new(NaiveDateTime::new(
-        NaiveDateTime::from_timestamp_opt(0, 0).unwrap().date(),
-        NaiveDateTime::from_timestamp_opt(0, 0).unwrap().time(),
+        NaiveDateTime::from_timestamp_opt(0, 0)
+            .ok_or("Should have date time.")?
+            .date(),
+        NaiveDateTime::from_timestamp_opt(0, 0)
+            .ok_or("Should have date time.")?
+            .time(),
     ));
 
     let tags = vec!["test".to_string(), "activity".to_string()]
@@ -55,9 +59,7 @@ fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestData {
         .status(ActivityStatus::Ended)
         .tags(tags.clone())
         .build();
-    ended_activity
-        .end_activity_with_duration_calc(begin_time, PaceDateTime::now())
-        .expect("Creating ended activity should not fail.");
+    ended_activity.end_activity_with_duration_calc(begin_time, PaceDateTime::now())?;
 
     let ended_activity = ActivityItem::from((ActivityGuid::default(), ended_activity));
 
@@ -67,9 +69,7 @@ fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestData {
         .status(ActivityStatus::Archived)
         .tags(tags.clone())
         .build();
-    archived_activity
-        .end_activity_with_duration_calc(begin_time, PaceDateTime::now())
-        .expect("Creating ended activity should not fail.");
+    archived_activity.end_activity_with_duration_calc(begin_time, PaceDateTime::now())?;
     archived_activity.archive();
 
     let archived_activity = ActivityItem::from((ActivityGuid::default(), archived_activity));
@@ -147,21 +147,23 @@ fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestData {
         }
     }
 
-    TestData {
+    Ok(TestData {
         activities: activities.clone(),
-        store: ActivityStore::new(Arc::new(
+        store: ActivityStore::with_storage(Arc::new(
             InMemoryActivityStorage::new_with_activity_log(ActivityLog::from_iter(activities))
                 .into(),
-        )),
-    }
+        ))?,
+    })
 }
 
 #[rstest]
-fn test_activity_store_create_activity_passes(activity_store_empty: TestData) -> TestResult<()> {
+fn test_activity_store_create_activity_passes(
+    activity_store_empty: TestResult<TestData>,
+) -> TestResult<()> {
     let TestData {
         activities: _,
         store,
-    } = activity_store_empty;
+    } = activity_store_empty?;
 
     let activity = Activity::builder()
         .description("Test Description".to_string())
@@ -184,8 +186,10 @@ fn test_activity_store_create_activity_passes(activity_store_empty: TestData) ->
 }
 
 #[rstest]
-fn test_activity_store_read_activity_passes(activity_store: TestData) -> TestResult<()> {
-    let TestData { activities, store } = activity_store;
+fn test_activity_store_read_activity_passes(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
+    let TestData { activities, store } = activity_store?;
 
     let og_activity = activities[0].clone();
     let og_activity_id = *og_activity.guid();
@@ -201,11 +205,11 @@ fn test_activity_store_read_activity_passes(activity_store: TestData) -> TestRes
 }
 
 #[rstest]
-fn test_activity_store_read_activity_fails(activity_store: TestData) {
+fn test_activity_store_read_activity_fails(activity_store: TestResult<TestData>) -> TestResult<()> {
     let TestData {
         activities: _,
         store,
-    } = activity_store;
+    } = activity_store?;
 
     let activity_id = ActivityGuid::default();
 
@@ -213,16 +217,18 @@ fn test_activity_store_read_activity_fails(activity_store: TestData) {
         store.read_activity(activity_id).is_err(),
         "Can't read activity with non-existing ID."
     );
+
+    Ok(())
 }
 
 #[rstest]
 fn test_activity_store_list_activities_returns_none_on_empty_passes(
-    activity_store_empty: TestData,
+    activity_store_empty: TestResult<TestData>,
 ) -> TestResult<()> {
     let TestData {
         activities: _,
         store,
-    } = activity_store_empty;
+    } = activity_store_empty?;
 
     assert!(
         store
@@ -237,15 +243,17 @@ fn test_activity_store_list_activities_returns_none_on_empty_passes(
 // List activities can hardly fail, as it returns an empty list if no activities are found.
 // Therefore, we only test the success case. It would fail if the RwLock is poisoned.
 #[rstest]
-fn test_activity_store_list_activities_passes(activity_store: TestData) -> TestResult<()> {
+fn test_activity_store_list_activities_passes(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
     use strum::IntoEnumIterator;
 
-    let TestData { activities, store } = activity_store;
+    let TestData { activities, store } = activity_store?;
 
     for filter in ActivityStatusFilter::iter() {
         let loaded_activities = store
             .list_activities(filter)?
-            .expect("Should have activities");
+            .ok_or("Should have activities")?;
 
         match filter {
             ActivityStatusFilter::OnlyActivities => {
@@ -311,15 +319,17 @@ fn test_activity_store_list_activities_passes(activity_store: TestData) -> TestR
 }
 
 #[rstest]
-fn test_activity_store_list_ended_activities_passes(activity_store: TestData) -> TestResult<()> {
+fn test_activity_store_list_ended_activities_passes(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
     let TestData {
         activities: _,
         store,
-    } = activity_store;
+    } = activity_store?;
 
     let loaded_activities = store
         .list_activities(ActivityStatusFilter::Ended)?
-        .expect("Should have activities.");
+        .ok_or("Should have activities.")?;
 
     assert_eq!(
         1,
@@ -331,12 +341,14 @@ fn test_activity_store_list_ended_activities_passes(activity_store: TestData) ->
 }
 
 #[rstest]
-fn test_activity_store_list_all_activities_passes(activity_store: TestData) -> TestResult<()> {
-    let TestData { activities, store } = activity_store;
+fn test_activity_store_list_all_activities_passes(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
+    let TestData { activities, store } = activity_store?;
 
     let loaded_activities = store
         .list_activities(ActivityStatusFilter::Everything)?
-        .expect("Should have activities.");
+        .ok_or("Should have activities.")?;
 
     assert_eq!(
         activities.len(),
@@ -349,12 +361,12 @@ fn test_activity_store_list_all_activities_passes(activity_store: TestData) -> T
 
 #[rstest]
 fn test_activity_store_list_all_activities_empty_result_passes(
-    activity_store_empty: TestData,
+    activity_store_empty: TestResult<TestData>,
 ) -> TestResult<()> {
     let TestData {
         activities: _,
         store,
-    } = activity_store_empty;
+    } = activity_store_empty?;
 
     assert!(
         store
@@ -367,8 +379,10 @@ fn test_activity_store_list_all_activities_empty_result_passes(
 }
 
 #[rstest]
-fn test_activity_store_update_activity_passes(activity_store: TestData) -> TestResult<()> {
-    let TestData { activities, store } = activity_store;
+fn test_activity_store_update_activity_passes(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
+    let TestData { activities, store } = activity_store?;
 
     let tags = vec!["bla".to_string(), "cookie".to_string()]
         .into_iter()
@@ -423,8 +437,10 @@ fn test_activity_store_update_activity_passes(activity_store: TestData) -> TestR
 }
 
 #[rstest]
-fn test_activity_store_delete_activity_passes(activity_store: TestData) -> TestResult<()> {
-    let TestData { activities, store } = activity_store;
+fn test_activity_store_delete_activity_passes(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
+    let TestData { activities, store } = activity_store?;
 
     let og_activity = activities[0].clone();
     let og_activity_id = *og_activity.guid();
@@ -445,11 +461,13 @@ fn test_activity_store_delete_activity_passes(activity_store: TestData) -> TestR
 }
 
 #[rstest]
-fn test_activity_store_delete_activity_fails(activity_store: TestData) {
+fn test_activity_store_delete_activity_fails(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
     let TestData {
         activities: _,
         store,
-    } = activity_store;
+    } = activity_store?;
 
     let activity_id = ActivityGuid::default();
 
@@ -459,14 +477,18 @@ fn test_activity_store_delete_activity_fails(activity_store: TestData) {
             .is_err(),
         "Can't delete activity with non-existing ID."
     );
+
+    Ok(())
 }
 
 #[rstest]
-fn test_activity_store_update_activity_fails(activity_store: TestData) {
+fn test_activity_store_update_activity_fails(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
     let TestData {
         activities: _,
         store,
-    } = activity_store;
+    } = activity_store?;
 
     let new_activity = Activity::builder()
         .description("test".to_string())
@@ -481,18 +503,20 @@ fn test_activity_store_update_activity_fails(activity_store: TestData) {
             .is_err(),
         "Can't update activity with non-existing ID."
     );
+
+    Ok(())
 }
 
 #[rstest]
 fn test_activity_store_begin_intermission_passes(
-    activity_store_no_intermissions: TestData,
-) -> PaceResult<()> {
-    let TestData { activities, store } = activity_store_no_intermissions;
+    activity_store_no_intermissions: TestResult<TestData>,
+) -> TestResult<()> {
+    let TestData { activities, store } = activity_store_no_intermissions?;
 
     let og_activity = activities
         .into_iter()
         .find(|a| a.activity().is_active())
-        .expect("Should have an active activity.");
+        .ok_or("Should have an active activity.")?;
 
     let og_activity_id = og_activity.guid();
 
@@ -508,13 +532,13 @@ fn test_activity_store_begin_intermission_passes(
 
     assert_eq!(
         edited_activity,
-        *held_activity.unwrap().activity(),
+        *held_activity.ok_or("Should have activity.")?.activity(),
         "Activity should be the same after holding."
     );
 
     let active_intermissions = store
         .list_activities(ActivityStatusFilter::ActiveIntermission)?
-        .expect("Should have activities.")
+        .ok_or("Should have activities.")?
         .into_vec();
 
     assert_eq!(
@@ -525,11 +549,9 @@ fn test_activity_store_begin_intermission_passes(
 
     let intermission = active_intermissions
         .first()
-        .expect("Should have intermission.");
+        .ok_or("Should have intermission.")?;
 
-    let intermission = store
-        .read_activity(*intermission)
-        .expect("Should have intermission.");
+    let intermission = store.read_activity(*intermission)?;
 
     assert_eq!(
         intermission.activity().category(),
@@ -553,7 +575,10 @@ fn test_activity_store_begin_intermission_passes(
     );
 
     assert_eq!(
-        intermission.activity().parent_id().unwrap(),
+        intermission
+            .activity()
+            .parent_id()
+            .ok_or("Should have parent ID.")?,
         *og_activity_id,
         "Parent ID should be the same as original activity."
     );
@@ -563,9 +588,9 @@ fn test_activity_store_begin_intermission_passes(
 
 #[rstest]
 fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
-    activity_store: TestData,
+    activity_store: TestResult<TestData>,
 ) -> TestResult<()> {
-    let TestData { activities, store } = activity_store;
+    let TestData { activities, store } = activity_store?;
 
     assert!(
         store
@@ -578,7 +603,7 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
         activities.len(),
         store
             .list_activities(ActivityStatusFilter::Everything)?
-            .expect("Should have activities.")
+            .ok_or("Should have activities.")?
             .into_vec()
             .len(),
         "Should have no new activities."
@@ -587,14 +612,12 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
     // check that the intermission is still active
     let activities = store
         .list_activities(ActivityStatusFilter::ActiveIntermission)?
-        .expect("Should have activities.")
+        .ok_or("Should have activities.")?
         .into_vec();
 
-    let intermission = activities.first().expect("Should have intermission.");
+    let intermission = activities.first().ok_or("Should have intermission.")?;
 
-    let intermission = store
-        .read_activity(*intermission)
-        .expect("Should have intermission.");
+    let intermission = store.read_activity(*intermission)?;
 
     assert_eq!(
         intermission.activity().category(),
@@ -617,15 +640,17 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
 }
 
 #[rstest]
-fn test_activity_store_end_intermission_passes(activity_store: TestData) -> TestResult<()> {
+fn test_activity_store_end_intermission_passes(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
     let TestData {
         activities: og_activities,
         store,
-    } = activity_store;
+    } = activity_store?;
 
     let ended_intermissions = store
         .end_all_active_intermissions(EndOptions::default())?
-        .unwrap();
+        .ok_or("Should have ended intermissions.")?;
 
     // There should be one ended intermission
     assert_eq!(
@@ -634,15 +659,15 @@ fn test_activity_store_end_intermission_passes(activity_store: TestData) -> Test
         "Should have one intermission."
     );
 
-    let intermission = ended_intermissions.first().unwrap();
+    let intermission = ended_intermissions
+        .first()
+        .ok_or("Should have intermission.")?;
 
-    let intermission = store
-        .read_activity(*intermission)
-        .expect("Should have intermission.");
+    let intermission = store.read_activity(*intermission)?;
 
     let activities = store
         .list_activities(ActivityStatusFilter::Everything)?
-        .expect("Should have activities.")
+        .ok_or("Should have activities.")?
         .into_vec();
 
     assert_eq!(
@@ -667,12 +692,12 @@ fn test_activity_store_end_intermission_passes(activity_store: TestData) -> Test
 
 #[rstest]
 fn test_activity_store_end_intermission_with_empty_log_passes(
-    activity_store_empty: TestData,
+    activity_store_empty: TestResult<TestData>,
 ) -> TestResult<()> {
     let TestData {
         activities: _,
         store,
-    } = activity_store_empty;
+    } = activity_store_empty?;
 
     let result = store.end_all_active_intermissions(EndOptions::default())?;
 
@@ -682,15 +707,17 @@ fn test_activity_store_end_intermission_with_empty_log_passes(
 }
 
 #[rstest]
-fn test_activity_store_resume_activity_passes(activity_store: TestData) -> PaceResult<()> {
+fn test_activity_store_resume_activity_passes(
+    activity_store: TestResult<TestData>,
+) -> TestResult<()> {
     let TestData {
         activities: test_activities,
         store,
-    } = activity_store;
+    } = activity_store?;
 
     let activities = store
         .list_activities(ActivityStatusFilter::Everything)?
-        .expect("Should have activities.")
+        .ok_or("Should have activities.")?
         .into_vec();
 
     assert_eq!(
@@ -701,14 +728,14 @@ fn test_activity_store_resume_activity_passes(activity_store: TestData) -> PaceR
 
     let held_activity = store
         .list_activities(ActivityStatusFilter::Held)?
-        .unwrap()
+        .ok_or("Should have activities.")?
         .into_vec();
 
     assert_eq!(held_activity.len(), 1, "Should have one held activity.");
 
     let active_intermission = store
         .list_activities(ActivityStatusFilter::ActiveIntermission)?
-        .expect("Should have activities.")
+        .ok_or("Should have activities.")?
         .into_vec();
 
     assert_eq!(
@@ -719,7 +746,7 @@ fn test_activity_store_resume_activity_passes(activity_store: TestData) -> PaceR
 
     let resumed_activity = store
         .resume_most_recent_activity(ResumeOptions::default())?
-        .expect("Should have an activity.");
+        .ok_or("Should have an activity.")?;
 
     assert!(
         store
@@ -728,9 +755,7 @@ fn test_activity_store_resume_activity_passes(activity_store: TestData) -> PaceR
         "Should have no active intermissions."
     );
 
-    let resumed_activity = store
-        .read_activity(*resumed_activity.guid())
-        .expect("Should have activity.");
+    let resumed_activity = store.read_activity(*resumed_activity.guid())?;
 
     assert!(
         resumed_activity.activity().status().is_active(),
@@ -742,7 +767,7 @@ fn test_activity_store_resume_activity_passes(activity_store: TestData) -> PaceR
 
 #[rstest]
 fn test_begin_activity_with_held_activity() -> TestResult<()> {
-    let store = ActivityStore::new(Arc::new(InMemoryActivityStorage::new().into()));
+    let store = ActivityStore::with_storage(Arc::new(InMemoryActivityStorage::new().into()))?;
 
     // Begin activity
     let activity = Activity::builder()
@@ -751,9 +776,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
 
     let activity = store.begin_activity(activity)?;
 
-    let read_activity = store
-        .read_activity(*activity.guid())
-        .expect("Should have activity.");
+    let read_activity = store.read_activity(*activity.guid())?;
 
     assert!(
         read_activity.activity().status().is_active(),
@@ -763,9 +786,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
     // Hold this activity
     let _held_activity = store.hold_most_recent_active_activity(HoldOptions::default())?;
 
-    let held_activity = store
-        .read_activity(*read_activity.guid())
-        .expect("Should have activity.");
+    let held_activity = store.read_activity(*read_activity.guid())?;
 
     assert!(
         held_activity.activity().status().is_held(),
@@ -779,9 +800,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
 
     let new_activity = store.begin_activity(new_activity)?;
 
-    let new_activity = store
-        .read_activity(*new_activity.guid())
-        .expect("Should have activity.");
+    let new_activity = store.read_activity(*new_activity.guid())?;
 
     assert!(
         new_activity.activity().status().is_active(),

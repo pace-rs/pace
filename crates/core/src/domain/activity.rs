@@ -500,10 +500,12 @@ mod tests {
 
     use chrono::NaiveDateTime;
 
+    use crate::TestResult;
+
     use super::*;
 
     #[test]
-    fn test_parse_single_toml_activity_passes() {
+    fn test_parse_single_toml_activity_passes() -> TestResult<()> {
         let toml = r#"
             category = "Work"
             description = "This is an example activity"
@@ -513,35 +515,42 @@ mod tests {
             kind = "activity"
         "#;
 
-        let activity: Activity = toml::from_str(toml).unwrap();
+        let activity: Activity = toml::from_str(toml)?;
 
-        assert_eq!(activity.category.as_ref().unwrap(), "Work");
+        assert_eq!(activity.category.as_ref().ok_or("No category.")?, "Work");
 
         assert_eq!(activity.description, "This is an example activity");
 
-        let ActivityEndOptions { end, duration } = activity.activity_end_options().clone().unwrap();
+        let ActivityEndOptions { end, duration } = activity
+            .activity_end_options()
+            .clone()
+            .ok_or("No end options")?;
 
         assert_eq!(
             end,
-            PaceDateTime::from(
-                NaiveDateTime::parse_from_str("2021-08-01T12:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
-            )
+            PaceDateTime::from(NaiveDateTime::parse_from_str(
+                "2021-08-01T12:00:00",
+                "%Y-%m-%dT%H:%M:%S"
+            )?)
         );
 
         assert_eq!(
             activity.begin,
-            PaceDateTime::from(
-                NaiveDateTime::parse_from_str("2021-08-01T10:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
-            )
+            PaceDateTime::from(NaiveDateTime::parse_from_str(
+                "2021-08-01T10:00:00",
+                "%Y-%m-%dT%H:%M:%S"
+            )?)
         );
 
-        assert_eq!(duration, PaceDuration::from_str("5").unwrap());
+        assert_eq!(duration, PaceDuration::from_str("5")?);
 
         assert_eq!(activity.kind, ActivityKind::Activity);
+
+        Ok(())
     }
 
     #[test]
-    fn test_parse_single_toml_intermission_passes() {
+    fn test_parse_single_toml_intermission_passes() -> TestResult<()> {
         let toml = r#"
             end = "2021-08-01T12:00:00"
             begin = "2021-08-01T10:00:00"
@@ -551,24 +560,29 @@ mod tests {
             parent-id = "01F9Z4Z3Z3Z3Z4Z3Z3Z3Z3Z3Z4" 
         "#;
 
-        let activity: Activity = toml::from_str(toml).unwrap();
+        let activity: Activity = toml::from_str(toml)?;
 
-        let ActivityEndOptions { end, duration } = activity.activity_end_options().clone().unwrap();
+        let ActivityEndOptions { end, duration } = activity
+            .activity_end_options()
+            .clone()
+            .ok_or("No end options")?;
 
         assert_eq!(
             end,
-            PaceDateTime::from(
-                NaiveDateTime::parse_from_str("2021-08-01T12:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
-            )
+            PaceDateTime::from(NaiveDateTime::parse_from_str(
+                "2021-08-01T12:00:00",
+                "%Y-%m-%dT%H:%M:%S"
+            )?)
         );
 
-        assert_eq!(duration, PaceDuration::from_str("50").unwrap());
+        assert_eq!(duration, PaceDuration::from_str("50")?);
 
         assert_eq!(
             activity.begin,
-            PaceDateTime::from(
-                NaiveDateTime::parse_from_str("2021-08-01T10:00:00", "%Y-%m-%dT%H:%M:%S").unwrap()
-            )
+            PaceDateTime::from(NaiveDateTime::parse_from_str(
+                "2021-08-01T10:00:00",
+                "%Y-%m-%dT%H:%M:%S"
+            )?)
         );
 
         assert_eq!(activity.kind, ActivityKind::Intermission);
@@ -576,11 +590,13 @@ mod tests {
         assert_eq!(
             activity
                 .activity_kind_options
-                .unwrap()
+                .ok_or("No activity kind options")?
                 .parent_id
-                .unwrap()
+                .ok_or("No parent id")?
                 .to_string(),
             "01F9Z4Z3Z3Z3Z4Z3Z3Z3Z3Z3Z4"
         );
+
+        Ok(())
     }
 }

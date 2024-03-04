@@ -70,7 +70,7 @@ pub struct ReviewCommandOptions {
 
 impl ReviewCommandOptions {
     pub fn handle_review(&self, config: Arc<PaceConfig>) -> PaceResult<()> {
-        let activity_store = ActivityStore::new(get_storage_from_config(&config)?);
+        let activity_store = ActivityStore::with_storage(get_storage_from_config(&config)?)?;
 
         let _activity_tracker = ActivityTracker::with_activity_store(activity_store);
 

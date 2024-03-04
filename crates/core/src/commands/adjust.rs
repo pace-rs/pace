@@ -72,7 +72,7 @@ pub struct AdjustCommandOptions {
 
 impl AdjustCommandOptions {
     pub fn handle_adjust(&self, config: &PaceConfig) -> PaceResult<()> {
-        let activity_store = ActivityStore::new(get_storage_from_config(config)?);
+        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let activity_item = activity_store
             .most_recent_active_activity()?

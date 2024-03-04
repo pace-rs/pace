@@ -208,6 +208,11 @@ pub enum PaceTimeErrorKind {
 
     /// Failed to parse duration '{0}' from activity log, please use only numbers >= 0
     ParsingDurationFailed(String),
+
+    /// Failed to parse date '{0}' from activity log, please use the format YYYY-MM-DD
+    InvalidDate(String),
+    /// Date is not present!
+    DateShouldBePresent,
 }
 
 trait PaceErrorMarker: Error {}
