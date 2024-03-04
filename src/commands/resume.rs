@@ -46,7 +46,8 @@ impl Runnable for ResumeCmd {
 impl ResumeCmd {
     /// Inner run implementation for the resume command
     pub fn inner_run(&self) -> Result<()> {
-        let activity_store = ActivityStore::new(get_storage_from_config(&PACE_APP.config())?);
+        let activity_store =
+            ActivityStore::with_storage(get_storage_from_config(&PACE_APP.config())?)?;
 
         // parse time from string or get now
         let date_time = extract_time_or_now(self.resume_opts.at())?.is_future()?;

@@ -45,7 +45,7 @@ impl HoldCommandOptions {
             .begin_time(time)
             .build();
 
-        let activity_store = ActivityStore::new(get_storage_from_config(config)?);
+        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         if let Some(activity) = activity_store.hold_most_recent_active_activity(hold_opts)? {
             activity_store.sync()?;

@@ -639,7 +639,7 @@ mod tests {
         let storage = InMemoryActivityStorage::new();
 
         assert_eq!(
-            storage.get_activity_log().unwrap().activities().len(),
+            storage.get_activity_log()?.activities().len(),
             0,
             "Activity log is not empty."
         );
@@ -687,7 +687,7 @@ mod tests {
             "Activity was not created."
         );
 
-        let stored_activity = storage.read_activity(*item.guid()).unwrap();
+        let stored_activity = storage.read_activity(*item.guid())?;
 
         assert_eq!(
             activity,
@@ -716,11 +716,11 @@ mod tests {
             .tags(tags)
             .build();
 
-        let _activity_item = storage.create_activity(activity.clone()).unwrap();
+        let _activity_item = storage.create_activity(activity.clone())?;
 
         let filtered_activities = storage
             .list_activities(ActivityStatusFilter::Everything)?
-            .unwrap()
+            .ok_or("No activities found.")?
             .into_vec();
 
         assert_eq!(
@@ -758,9 +758,9 @@ mod tests {
             .tags(tags)
             .build();
 
-        let activity_item = storage.create_activity(og_activity.clone()).unwrap();
+        let activity_item = storage.create_activity(og_activity.clone())?;
 
-        let read_activity = storage.read_activity(*activity_item.guid()).unwrap();
+        let read_activity = storage.read_activity(*activity_item.guid())?;
 
         assert_eq!(
             og_activity,
@@ -855,7 +855,7 @@ mod tests {
             .build();
 
         assert_eq!(
-            storage.get_activity_log().unwrap().activities().len(),
+            storage.get_activity_log()?.activities().len(),
             0,
             "Activity log is not empty."
         );
@@ -1006,8 +1006,12 @@ mod tests {
         );
 
         assert_eq!(
-            activity.tags().as_ref().unwrap(),
-            ended_activity.activity().tags().as_ref().unwrap(),
+            activity.tags().as_ref().ok_or("Tags not set.")?,
+            ended_activity
+                .activity()
+                .tags()
+                .as_ref()
+                .ok_or("Tags not set.")?,
             "Tags were updated, but shouldn't."
         );
 
@@ -1016,7 +1020,7 @@ mod tests {
                 .activity()
                 .activity_end_options()
                 .as_ref()
-                .unwrap()
+                .ok_or("End options not set.")?
                 .end(),
             &PaceDateTime::new(end_time),
             "End time was not set."
@@ -1047,7 +1051,7 @@ mod tests {
 
         let ended_activity = storage
             .end_last_unfinished_activity(EndOptions::builder().end_time(now).build())?
-            .unwrap();
+            .ok_or("Activity was not ended.")?;
 
         assert_eq!(
             ended_activity.guid(),
@@ -1061,8 +1065,12 @@ mod tests {
         );
 
         assert_eq!(
-            activity.tags().as_ref().unwrap(),
-            ended_activity.activity().tags().as_ref().unwrap(),
+            activity.tags().as_ref().ok_or("Tags not set.")?,
+            ended_activity
+                .activity()
+                .tags()
+                .as_ref()
+                .ok_or("Tags not set.")?,
             "Tags were updated, but shouldn't."
         );
 
@@ -1071,7 +1079,7 @@ mod tests {
                 .activity()
                 .activity_end_options()
                 .as_ref()
-                .unwrap()
+                .ok_or("End options not set.")?
                 .end(),
             &PaceDateTime::new(now),
             "End time was not set."
@@ -1127,7 +1135,7 @@ mod tests {
                 .activity()
                 .activity_end_options()
                 .as_ref()
-                .unwrap()
+                .ok_or("End options not set.")?
                 .end(),
             &PaceDateTime::new(now),
             "End time was not set."
@@ -1174,7 +1182,7 @@ mod tests {
 
         let held_activity = storage
             .hold_most_recent_active_activity(hold_opts)?
-            .unwrap();
+            .ok_or("Activity was not held.")?;
 
         assert_eq!(
             held_activity.guid(),
@@ -1183,18 +1191,22 @@ mod tests {
         );
 
         assert_eq!(
-            activity.tags().as_ref().unwrap(),
-            held_activity.activity().tags().as_ref().unwrap(),
+            activity.tags().as_ref().ok_or("Tags not set.")?,
+            held_activity
+                .activity()
+                .tags()
+                .as_ref()
+                .ok_or("Tags not set.")?,
             "Tags were updated, but shouldn't."
         );
 
         let intermission_guids = storage
             .list_active_intermissions_for_activity_id(*activity_item.guid())?
-            .unwrap();
+            .ok_or("Intermission was not created.")?;
 
         assert_eq!(intermission_guids.len(), 1, "Intermission was not created.");
 
-        let intermission_item = storage.read_activity(intermission_guids[0]).unwrap();
+        let intermission_item = storage.read_activity(intermission_guids[0])?;
 
         assert_eq!(
             *intermission_item.activity().kind(),
@@ -1207,9 +1219,9 @@ mod tests {
                 .activity()
                 .activity_kind_options()
                 .as_ref()
-                .unwrap()
+                .ok_or("Activity kind options not set.")?
                 .parent_id()
-                .unwrap(),
+                .ok_or("Parent ID not set.")?,
             *activity_item.guid(),
             "Parent ID is not set."
         );
@@ -1244,7 +1256,7 @@ mod tests {
 
         let _held_item = storage
             .hold_most_recent_active_activity(hold_opts)?
-            .unwrap();
+            .ok_or("Activity was not held.")?;
 
         let held_activity = storage.read_activity(*active_activity_item.guid())?;
 
@@ -1254,14 +1266,11 @@ mod tests {
             "Activity was not held."
         );
 
-        let intermission_guids =
-            storage.list_active_intermissions_for_activity_id(*active_activity_item.guid())?;
+        let intermission_guids = storage
+            .list_active_intermissions_for_activity_id(*active_activity_item.guid())?
+            .ok_or("Intermission was not created.")?;
 
-        assert_eq!(
-            intermission_guids.as_ref().unwrap().len(),
-            1,
-            "Intermission was not created."
-        );
+        assert_eq!(intermission_guids.len(), 1, "Intermission was not created.");
 
         let hold_opts = HoldOptions::builder()
             .begin_time(now + chrono::Duration::seconds(60))
@@ -1276,7 +1285,7 @@ mod tests {
 
         let intermission_guids = storage
             .list_active_intermissions_for_activity_id(*active_activity_item.guid())?
-            .unwrap();
+            .ok_or("Intermission was not created.")?;
 
         assert_eq!(
             intermission_guids.len(),
@@ -1323,26 +1332,25 @@ mod tests {
 
         let _ = storage.hold_most_recent_active_activity(hold_opts)?;
 
-        let intermission_guids =
-            storage.list_active_intermissions_for_activity_id(*active_activity_item.guid())?;
+        let intermission_guids = storage
+            .list_active_intermissions_for_activity_id(*active_activity_item.guid())?
+            .ok_or("Intermission was not created.")?;
 
-        assert_eq!(
-            intermission_guids.as_ref().unwrap().len(),
-            1,
-            "Intermission was not created."
-        );
+        assert_eq!(intermission_guids.len(), 1, "Intermission was not created.");
 
         let end_opts = EndOptions::builder().end_time(end_time).build();
 
-        let ended_intermissions = storage.end_all_active_intermissions(end_opts)?;
+        let ended_intermissions = storage
+            .end_all_active_intermissions(end_opts)?
+            .ok_or("Intermissions were not ended.")?;
 
         assert_eq!(
-            ended_intermissions.as_ref().unwrap().len(),
+            ended_intermissions.len(),
             1,
             "Not all intermissions were ended."
         );
 
-        let ended_intermission = storage.read_activity(intermission_guids.as_ref().unwrap()[0])?;
+        let ended_intermission = storage.read_activity(intermission_guids[0])?;
 
         assert!(
             ended_intermission.activity().has_ended(),
@@ -1354,7 +1362,7 @@ mod tests {
                 .activity()
                 .activity_end_options()
                 .as_ref()
-                .unwrap()
+                .ok_or("End options not set.")?
                 .end(),
             &PaceDateTime::new(end_time),
             "End time was not set."
@@ -1414,9 +1422,7 @@ mod tests {
 
         let second_begin_activity = storage.begin_activity(second_og_activity.clone())?;
 
-        let second_stored_activity = storage
-            .read_activity(*second_begin_activity.guid())
-            .unwrap();
+        let second_stored_activity = storage.read_activity(*second_begin_activity.guid())?;
 
         let first_stored_activity = storage.read_activity(*first_begin_activity.guid())?;
 
@@ -1463,7 +1469,7 @@ mod tests {
 
         let _ = storage
             .hold_most_recent_active_activity(HoldOptions::default())?
-            .unwrap();
+            .ok_or("Activity was not held.")?;
 
         let second_stored_activity = storage.read_activity(*second_begin_activity.guid())?;
 
@@ -1477,8 +1483,11 @@ mod tests {
         // inconsistencies in the data.
         let second_activity_intermission_id = storage
             .list_active_intermissions_for_activity_id(*second_begin_activity.guid())?
-            .unwrap();
-        let second_activity_intermission_id = second_activity_intermission_id.first().unwrap();
+            .ok_or("Intermission was not created.")?;
+
+        let second_activity_intermission_id = second_activity_intermission_id
+            .first()
+            .ok_or("Intermission was not created, but the ID was not found.")?;
 
         let second_stored_intermission = storage.read_activity(*second_activity_intermission_id)?;
 
@@ -1487,9 +1496,9 @@ mod tests {
                 .activity()
                 .activity_kind_options()
                 .as_ref()
-                .unwrap()
+                .ok_or("Activity kind options not set.")?
                 .parent_id()
-                .unwrap(),
+                .ok_or("Parent ID not set.")?,
             *second_begin_activity.guid(),
             "Parent IDs of intermission and parent activity do not match."
         );
@@ -1499,9 +1508,9 @@ mod tests {
 
         let resumed_activity = storage
             .resume_most_recent_activity(ResumeOptions::default())?
-            .unwrap();
+            .ok_or("Activity was not resumed.")?;
 
-        let resumed_stored_activity = storage.read_activity(*resumed_activity.guid()).unwrap();
+        let resumed_stored_activity = storage.read_activity(*resumed_activity.guid())?;
 
         let second_stored_intermission = storage.read_activity(*second_activity_intermission_id)?;
 
@@ -1573,7 +1582,9 @@ mod tests {
 
         let keyword_opts = KeywordOptions::builder().category("Test").build();
 
-        let grouped_activities = storage.group_activities_by_keywords(keyword_opts)?.unwrap();
+        let grouped_activities = storage.group_activities_by_keywords(keyword_opts)?.ok_or(
+            "Grouped activities by keywords returned None, but should have returned Some.",
+        )?;
 
         assert_eq!(
             grouped_activities.len(),
@@ -1584,9 +1595,9 @@ mod tests {
         let grouped_activity = grouped_activities
             .values()
             .next()
-            .unwrap()
+            .ok_or("Grouped activities are empty.")?
             .first()
-            .unwrap()
+            .ok_or("Grouped activities are empty.")?
             .clone();
 
         assert_eq!(
@@ -1614,7 +1625,9 @@ mod tests {
 
         let activity_item = storage.begin_activity(activity)?;
 
-        let grouped_activities = storage.group_activities_by_kind()?.unwrap();
+        let grouped_activities = storage
+            .group_activities_by_kind()?
+            .ok_or("Grouped activities by kind returned None, but should have returned Some.")?;
 
         assert_eq!(
             grouped_activities.len(),
@@ -1625,9 +1638,9 @@ mod tests {
         let grouped_activity = grouped_activities
             .values()
             .next()
-            .unwrap()
+            .ok_or("Grouped activities are empty.")?
             .first()
-            .unwrap()
+            .ok_or("Grouped activities are empty.")?
             .clone();
 
         assert_eq!(
@@ -1667,7 +1680,9 @@ mod tests {
 
         let activity_item = storage.begin_activity(activity)?;
 
-        let grouped_activities = storage.group_activities_by_status()?.unwrap();
+        let grouped_activities = storage
+            .group_activities_by_status()?
+            .ok_or("Grouped activities by status returned None, but should have returned Some.")?;
 
         assert_eq!(
             grouped_activities.len(),
@@ -1678,9 +1693,9 @@ mod tests {
         let grouped_activity = grouped_activities
             .values()
             .next()
-            .unwrap()
+            .ok_or("Grouped activities are empty.")?
             .first()
-            .unwrap()
+            .ok_or("Grouped activities are empty.")?
             .clone();
 
         assert_eq!(
@@ -1726,7 +1741,9 @@ mod tests {
 
         let activity_item = storage.begin_activity(activity)?;
 
-        let grouped_activities = storage.group_activities_by_start_date()?.unwrap();
+        let grouped_activities = storage.group_activities_by_start_date()?.ok_or(
+            "Grouped activities by start date returned None, but should have returned Some.",
+        )?;
 
         assert_eq!(
             grouped_activities.len(),
@@ -1737,9 +1754,9 @@ mod tests {
         let grouped_activity = grouped_activities
             .values()
             .next()
-            .unwrap()
+            .ok_or("Grouped activities are empty?")?
             .first()
-            .unwrap()
+            .ok_or("Grouped activities are empty?")?
             .clone();
 
         assert_eq!(

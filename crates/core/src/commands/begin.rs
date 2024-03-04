@@ -91,7 +91,7 @@ impl BeginCommandOptions {
             .tags(tags.clone())
             .build();
 
-        let activity_store = ActivityStore::new(get_storage_from_config(config)?);
+        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let activity_item = activity_store.begin_activity(activity.clone())?;
 

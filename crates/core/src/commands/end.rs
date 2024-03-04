@@ -27,7 +27,7 @@ impl EndCommandOptions {
     pub fn handle_end(&self, config: &PaceConfig) -> PaceResult<()> {
         let time = parse_time_from_user_input(&self.at)?;
 
-        let activity_store = ActivityStore::new(get_storage_from_config(config)?);
+        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let end_opts = EndOptions::builder().end_time(time).build();
 

@@ -24,20 +24,27 @@ pub struct TimeRangeOptions {
     end: PaceDateTime,
 }
 
-impl From<(PaceDate, PaceDate)> for TimeRangeOptions {
-    fn from((start, end): (PaceDate, PaceDate)) -> Self {
-        Self::builder().start(start.into()).end(end.into()).build()
+impl TryFrom<(PaceDate, PaceDate)> for TimeRangeOptions {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from((start, end): (PaceDate, PaceDate)) -> Result<Self, Self::Error> {
+        Ok(Self::builder()
+            .start(start.try_into()?)
+            .end(end.try_into()?)
+            .build())
     }
 }
 
-impl From<PaceDate> for PaceDateTime {
-    fn from(date: PaceDate) -> Self {
+impl TryFrom<PaceDate> for PaceDateTime {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from(date: PaceDate) -> Result<Self, Self::Error> {
         // if the date is invalid because of the time, use the default time
-        Self::new(
+        Ok(Self::new(
             date.0
                 .and_hms_opt(0, 0, 0)
-                .expect("Should be a valid date."),
-        )
+                .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+        ))
     }
 }
 
@@ -172,14 +179,13 @@ impl From<Duration> for PaceDuration {
     }
 }
 
-impl From<chrono::Duration> for PaceDuration {
-    fn from(duration: chrono::Duration) -> Self {
-        Self(
-            duration
-                .num_seconds()
-                .try_into()
-                .expect("Can't convert chrono duration to pace duration"),
-        )
+impl TryFrom<chrono::Duration> for PaceDuration {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from(duration: chrono::Duration) -> Result<Self, Self::Error> {
+        Ok(Self(duration.num_seconds().try_into().map_err(|_| {
+            PaceTimeErrorKind::ParsingDurationFailed(duration.to_string())
+        })?))
     }
 }
 
@@ -333,40 +339,45 @@ pub fn calculate_duration(begin: &PaceDateTime, end: PaceDateTime) -> PaceResult
 /// # Returns
 ///
 /// A `PaceTimeFrame` representing the time frame
-pub fn get_time_frame_from_flags(time_flags: &TimeFlags, date_flags: &DateFlags) -> PaceTimeFrame {
-    match (time_flags, date_flags) {
+pub fn get_time_frame_from_flags(
+    time_flags: &TimeFlags,
+    date_flags: &DateFlags,
+) -> PaceResult<PaceTimeFrame> {
+    let time_frame = match (time_flags, date_flags) {
         (val, _) if *val.today() => PaceTimeFrame::Today,
         (val, _) if *val.yesterday() => PaceTimeFrame::Yesterday,
         (val, _) if *val.current_week() => PaceTimeFrame::CurrentWeek,
         (val, _) if *val.last_week() => PaceTimeFrame::LastWeek,
         (val, _) if *val.current_month() => PaceTimeFrame::CurrentMonth,
         (val, _) if *val.last_month() => PaceTimeFrame::LastMonth,
-        (_, val) if val.date().is_some() => {
-            PaceTimeFrame::SpecificDate(PaceDate::from(val.date().expect("Date should be present")))
-        }
+        (_, val) if val.date().is_some() => PaceTimeFrame::SpecificDate(PaceDate::from(
+            val.date().ok_or(PaceTimeErrorKind::DateShouldBePresent)?,
+        )),
         (_, val) if val.from().is_some() && val.to().is_none() => PaceTimeFrame::DateRange(
             (
-                PaceDate::from(val.from().expect("Date should be present.")),
+                PaceDate::from(val.from().ok_or(PaceTimeErrorKind::DateShouldBePresent)?),
                 PaceDate::default(),
             )
-                .into(),
+                .try_into()?,
         ),
         (_, val) if val.to().is_some() && val.from().is_none() => PaceTimeFrame::DateRange(
             (
                 PaceDate::with_start(),
-                PaceDate::from(val.to().expect("Date should be present.")),
+                PaceDate::from(val.to().ok_or(PaceTimeErrorKind::DateShouldBePresent)?),
             )
-                .into(),
+                .try_into()?,
         ),
         (_, val) if val.to().is_some() && val.from().is_some() => PaceTimeFrame::DateRange(
             (
-                PaceDate::from(val.from().expect("Date should be present.")),
-                PaceDate::from(val.to().expect("Date should be present.")),
+                PaceDate::from(val.from().ok_or(PaceTimeErrorKind::DateShouldBePresent)?),
+                PaceDate::from(val.to().ok_or(PaceTimeErrorKind::DateShouldBePresent)?),
             )
-                .into(),
+                .try_into()?,
         ),
         _ => PaceTimeFrame::default(),
-    }
+    };
+
+    Ok(time_frame)
 }
 
 #[cfg(test)]
@@ -406,7 +417,7 @@ mod tests {
             result,
             PaceDateTime(NaiveDateTime::new(
                 Local::now().date_naive(),
-                NaiveTime::from_hms_opt(12, 0, 0).expect("Invalid date"),
+                NaiveTime::from_hms_opt(12, 0, 0).ok_or("Invalid date.")?,
             ))
         );
 
@@ -414,114 +425,145 @@ mod tests {
     }
 
     #[test]
-    fn test_pace_date_time_is_future_fails() {
+    fn test_pace_date_time_is_future_fails() -> TestResult<()> {
         let future = Local::now() + chrono::Duration::days(1);
         let time = PaceDateTime::new(future.naive_local());
 
         let result = time.is_future();
         assert!(result.is_err());
+
+        Ok(())
     }
 
     #[test]
-    fn test_parse_time_from_user_input_passes() {
+    fn test_parse_time_from_user_input_passes() -> TestResult<()> {
         let time = Some("12:00".to_string());
-        let result = parse_time_from_user_input(&time).expect("Time parsing failed");
+
+        let result = parse_time_from_user_input(&time)?.ok_or("No time.")?;
+
         assert_eq!(
             result,
-            Some(NaiveDateTime::new(
+            NaiveDateTime::new(
                 Local::now().date_naive(),
-                NaiveTime::from_hms_opt(12, 0, 0).expect("Invalid date"),
-            ))
+                NaiveTime::from_hms_opt(12, 0, 0).ok_or("Invalid date.")?,
+            )
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_calculate_duration_passes() {
+    fn test_calculate_duration_passes() -> TestResult<()> {
         let begin = PaceDateTime::new(NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
-            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or("Invalid date.")?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
         ));
         let end = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
-            NaiveTime::from_hms_opt(0, 0, 1).expect("Invalid date"),
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or("Invalid date.")?,
+            NaiveTime::from_hms_opt(0, 0, 1).ok_or("Invalid date.")?,
         );
 
-        let duration = calculate_duration(&begin, end.into()).expect("Duration calculation failed");
+        let duration = calculate_duration(&begin, end.into())?;
         assert_eq!(duration, Duration::from_secs(1).into());
+
+        Ok(())
     }
 
     #[test]
-    fn test_calculate_duration_fails() {
+    fn test_calculate_duration_fails() -> TestResult<()> {
         let begin = PaceDateTime::new(NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
-            NaiveTime::from_hms_opt(0, 0, 1).expect("Invalid date"),
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or("Invalid date.")?,
+            NaiveTime::from_hms_opt(0, 0, 1).ok_or("Invalid date.")?,
         ));
         let end = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
-            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or("Invalid date.")?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
         );
 
         let duration = calculate_duration(&begin, end.into());
+
         assert!(duration.is_err());
+
+        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_from_duration_passes() {
+    fn test_pace_duration_from_duration_passes() -> TestResult<()> {
         let duration = Duration::from_secs(1);
         let result = PaceDuration::from(duration);
         assert_eq!(result, PaceDuration(1));
+
+        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_from_chrono_duration_passes() {
+    fn test_pace_duration_from_chrono_duration_passes() -> TestResult<()> {
         let duration = chrono::Duration::seconds(1);
-        let result = PaceDuration::from(duration);
+        let result = PaceDuration::try_from(duration)?;
         assert_eq!(result, PaceDuration(1));
+
+        Ok(())
     }
 
     #[test]
-    fn test_begin_date_time_new_passes() {
+    fn test_begin_date_time_new_passes() -> TestResult<()> {
         let time = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
-            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or("Invalid date.")?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
         );
         let result = PaceDateTime::new(time);
         assert_eq!(result, PaceDateTime(time));
+
+        Ok(())
     }
 
     #[test]
-    fn test_begin_date_time_naive_date_time_passes() {
+    fn test_begin_date_time_naive_date_time_passes() -> TestResult<()> {
         let time = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
-            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or("Invalid date.")?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
         );
         let begin_date_time = PaceDateTime::new(time);
+
         let result = begin_date_time.naive_date_time();
+
         assert_eq!(result, time);
+
+        Ok(())
     }
 
     #[test]
-    fn test_begin_date_time_default_passes() {
+    fn test_begin_date_time_default_passes() -> TestResult<()> {
         let result = PaceDateTime::default();
+
         assert_eq!(
             result,
             PaceDateTime(Local::now().naive_local().round_subsecs(0))
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_begin_date_time_from_naive_date_time_passes() {
+    fn test_begin_date_time_from_naive_date_time_passes() -> TestResult<()> {
         let time = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2021, 1, 1).expect("Invalid date"),
-            NaiveTime::from_hms_opt(0, 0, 0).expect("Invalid date"),
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or("Invalid date.")?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
         );
+
         let result = PaceDateTime::from(time);
+
         assert_eq!(result, PaceDateTime(time));
+
+        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_default_passes() {
+    fn test_pace_duration_default_passes() -> TestResult<()> {
         let result = PaceDuration::default();
+
         assert_eq!(result, PaceDuration(0));
+
+        Ok(())
     }
 }

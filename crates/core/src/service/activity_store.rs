@@ -37,19 +37,16 @@ struct ActivityStoreCache {
 }
 
 impl ActivityStore {
-    /// Create a new `ActivityStore`
-    #[must_use]
-    pub fn new(storage: Arc<StorageKind>) -> Self {
+    /// Create a new `ActivityStore` with a given storage backend
+    pub fn with_storage(storage: Arc<StorageKind>) -> PaceResult<Self> {
         let store = Self {
             cache: ActivityStoreCache::default(),
             storage,
         };
 
-        store
-            .setup_storage()
-            .expect("Should not fail to setup storage.");
+        store.setup_storage()?;
 
-        store
+        Ok(store)
     }
 }
 

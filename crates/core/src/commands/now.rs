@@ -13,7 +13,7 @@ pub struct NowCommandOptions {}
 
 impl NowCommandOptions {
     pub fn handle_now(&self, config: &PaceConfig) -> PaceResult<()> {
-        let activity_store = ActivityStore::new(get_storage_from_config(config)?);
+        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         match activity_store.list_current_activities(ActivityStatusFilter::Active)? {
             Some(activities) => {
