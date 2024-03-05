@@ -13,6 +13,7 @@ use chrono::{
 };
 use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
+use tracing::debug;
 use typed_builder::TypedBuilder;
 
 #[derive(
@@ -72,6 +73,7 @@ pub enum PaceTimeFrame {
 /// # Returns
 ///
 /// A string representing the relative time from the initial time
+#[tracing::instrument]
 pub fn duration_to_str(initial_time: DateTime<Local>) -> String {
     let now = Local::now();
     let delta = now.signed_duration_since(initial_time);
@@ -82,6 +84,8 @@ pub fn duration_to_str(initial_time: DateTime<Local>) -> String {
         delta.num_minutes(),
         delta.num_seconds(),
     );
+
+    debug!("Time Delta: {:?}", delta);
 
     match delta {
         (days, ..) if days > 5 => format!("{}", initial_time.format("%b %d, %Y")),
@@ -113,16 +117,22 @@ pub fn duration_to_str(initial_time: DateTime<Local>) -> String {
 /// # Returns
 ///
 /// A tuple containing the time and date
+#[tracing::instrument]
 pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<PaceDateTime> {
-    Ok(if let Some(ref time) = time {
+    let time = if let Some(ref time) = time {
         PaceDateTime::new(NaiveDateTime::new(
             Local::now().date_naive(),
             NaiveTime::parse_from_str(time, "%H:%M")?,
         ))
     } else {
         // if no time is given, use the current time
+        debug!("No time given, using current time.");
         PaceDateTime::now()
-    })
+    };
+
+    debug!("Extracted time: {:?}", time);
+
+    Ok(time)
 }
 
 /// Parses time from user input
@@ -138,12 +148,15 @@ pub fn extract_time_or_now(time: &Option<String>) -> PaceResult<PaceDateTime> {
 /// # Returns
 ///
 /// The parsed time or None
+#[tracing::instrument]
 pub fn parse_time_from_user_input(time: &Option<String>) -> PaceOptResult<NaiveDateTime> {
     time.as_ref()
         .map(|time| -> PaceResult<NaiveDateTime> {
             let Ok(time) = NaiveTime::parse_from_str(time, "%H:%M") else {
                 return Err(PaceTimeErrorKind::ParsingTimeFromUserInputFailed(time.clone()).into());
             };
+
+            debug!("Parsed time: {:?}", time);
 
             Ok(NaiveDateTime::new(Local::now().date_naive(), time))
         })
@@ -320,11 +333,14 @@ impl From<Option<NaiveDateTime>> for PaceDateTime {
 /// # Returns
 ///
 /// Returns the duration of the activity
+#[tracing::instrument]
 pub fn calculate_duration(begin: &PaceDateTime, end: PaceDateTime) -> PaceResult<PaceDuration> {
     let duration = end
         .0
         .signed_duration_since(begin.naive_date_time())
         .to_std()?;
+
+    debug!("Duration: {:?}", duration);
 
     Ok(duration.into())
 }
@@ -339,6 +355,7 @@ pub fn calculate_duration(begin: &PaceDateTime, end: PaceDateTime) -> PaceResult
 /// # Returns
 ///
 /// A `PaceTimeFrame` representing the time frame
+#[tracing::instrument]
 pub fn get_time_frame_from_flags(
     time_flags: &TimeFlags,
     date_flags: &DateFlags,
@@ -376,6 +393,8 @@ pub fn get_time_frame_from_flags(
         ),
         _ => PaceTimeFrame::default(),
     };
+
+    debug!("Time frame: {:?}", time_frame);
 
     Ok(time_frame)
 }

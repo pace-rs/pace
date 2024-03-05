@@ -94,6 +94,7 @@ impl SyncStorage for InMemoryActivityStorage {
 }
 
 impl ActivityReadOps for InMemoryActivityStorage {
+    #[tracing::instrument]
     fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
         let activities = self.log.read();
 
@@ -107,6 +108,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
         Ok((activity_id, activity).into())
     }
 
+    #[tracing::instrument]
     fn list_activities(&self, filter: ActivityStatusFilter) -> PaceOptResult<FilteredActivities> {
         let activity_log = self.log.read();
 
@@ -152,6 +154,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
 }
 
 impl ActivityWriteOps for InMemoryActivityStorage {
+    #[tracing::instrument]
     fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
         let activities = self.log.read();
 
@@ -183,6 +186,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         Ok(activity_item)
     }
 
+    #[tracing::instrument]
     fn update_activity(
         &self,
         activity_id: ActivityGuid,
@@ -209,6 +213,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         Ok((activity_id, original_activity).into())
     }
 
+    #[tracing::instrument]
     fn delete_activity(
         &self,
         activity_id: ActivityGuid,
@@ -227,6 +232,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
 }
 
 impl ActivityStateManagement for InMemoryActivityStorage {
+    #[tracing::instrument]
     fn end_activity(
         &self,
         activity_id: ActivityGuid,
@@ -255,6 +261,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         self.read_activity(activity_id)
     }
 
+    #[tracing::instrument]
     fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
         let Some(most_recent) = self.most_recent_active_activity()? else {
             return Ok(None);
@@ -265,6 +272,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         Ok(Some(activity))
     }
 
+    #[tracing::instrument]
     fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>> {
         let activities = self.log.read();
 
@@ -301,6 +309,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         Ok(Some(ended_activities))
     }
 
+    #[tracing::instrument]
     fn hold_most_recent_active_activity(
         &self,
         hold_opts: HoldOptions,
@@ -314,6 +323,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         Some(self.hold_activity(*active_activity.guid(), hold_opts)).transpose()
     }
 
+    #[tracing::instrument]
     fn end_all_active_intermissions(
         &self,
         end_opts: EndOptions,
@@ -339,6 +349,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         Ok(Some(ended_intermissions))
     }
 
+    #[tracing::instrument]
     fn resume_activity(
         &self,
         activity_id: ActivityGuid,
@@ -379,6 +390,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         Ok(resumable_activity)
     }
 
+    #[tracing::instrument]
     fn hold_activity(
         &self,
         activity_id: ActivityGuid,
@@ -454,6 +466,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         Ok((*active_activity.guid(), updated_activity).into())
     }
 
+    #[tracing::instrument]
     fn resume_most_recent_activity(
         &self,
         resume_opts: ResumeOptions,
@@ -475,6 +488,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 }
 
 impl ActivityQuerying for InMemoryActivityStorage {
+    #[tracing::instrument]
     fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
         let activities = self.log.read();
 
@@ -489,12 +503,14 @@ impl ActivityQuerying for InMemoryActivityStorage {
         Ok(Some(activities_by_id))
     }
 
+    #[tracing::instrument]
     fn group_activities_by_duration_range(
         &self,
     ) -> PaceOptResult<BTreeMap<crate::PaceDurationRange, Vec<ActivityItem>>> {
         todo!("Implement grouping activities by duration range")
     }
 
+    #[tracing::instrument]
     fn group_activities_by_start_date(
         &self,
     ) -> PaceOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
@@ -515,6 +531,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         .transpose()
     }
 
+    #[tracing::instrument]
     fn list_activities_with_intermissions(
         &self,
     ) -> PaceOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
@@ -550,6 +567,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         .transpose()
     }
 
+    #[tracing::instrument]
     fn group_activities_by_keywords(
         &self,
         keyword_opts: KeywordOptions,
@@ -581,6 +599,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         .transpose()
     }
 
+    #[tracing::instrument]
     fn group_activities_by_kind(&self) -> PaceOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
         let activities = self.log.read();
 
@@ -597,6 +616,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         .transpose()
     }
 
+    #[tracing::instrument]
     fn group_activities_by_status(
         &self,
     ) -> PaceOptResult<BTreeMap<ActivityStatus, Vec<ActivityItem>>> {
@@ -615,6 +635,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         .transpose()
     }
 
+    #[tracing::instrument]
     fn list_activities_by_time_range(
         &self,
         _time_range_opts: TimeRangeOptions,
