@@ -2,13 +2,11 @@
 
 use std::collections::HashMap;
 
-use getset::{Getters, MutGetters, Setters};
 use tracing::debug;
-use typed_builder::TypedBuilder;
 
 use crate::{
-    error::ActivityLogErrorKind, ActivityItem, ActivityQuerying, ActivityStore, KeywordOptions,
-    PaceDate, PaceDuration, PaceOptResult, PaceTimeFrame, ReviewSummary,
+    error::ActivityLogErrorKind, ActivityQuerying, ActivityStore, KeywordOptions, PaceDuration,
+    PaceOptResult, PaceTimeFrame, ReviewSummary,
 };
 
 // This struct represents the overall structure for tracking activities and their intermissions.

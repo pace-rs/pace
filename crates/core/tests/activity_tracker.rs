@@ -1,19 +1,7 @@
-//! Test the ActivityStore implementation with a InMemoryStorage backend.
+//! Test the `ActivityStore` implementation with a `InMemoryStorage` backend.
 
-use std::{collections::HashSet, path::Path, sync::Arc};
-
-use chrono::{Local, NaiveDateTime};
-
-use itertools::Itertools;
-use pace_core::{
-    Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStatus,
-    ActivityStatusFilter, ActivityStore, ActivityTracker, ActivityWriteOps, DeleteOptions,
-    EndOptions, FilteredActivities, HoldOptions, InMemoryActivityStorage, PaceDate, PaceDateTime,
-    ResumeOptions, TestResult, TimeRangeOptions, TomlActivityStorage, UpdateOptions,
-};
-use rayon::iter;
-use rstest::{fixture, rstest};
+use pace_core::{ActivityStore, ActivityTracker, TestResult};
+use rstest::rstest;
 use similar_asserts::assert_eq;
 
 use pace_testing::setup_activity_store_for_activity_tracker;
