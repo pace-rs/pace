@@ -22,7 +22,8 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    ActivityKind, ActivityKindOptions, ActivityStatus, PaceDate, TimeRangeOptions,
+    ActivityKind, ActivityKindOptions, ActivityStatus, PaceDate, PaceDurationRange,
+    TimeRangeOptions,
 };
 
 /// Type for shared `ActivityLog`
@@ -578,7 +579,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_duration_range(
         &self,
-    ) -> PaceOptResult<BTreeMap<crate::PaceDurationRange, Vec<ActivityItem>>> {
+    ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
         todo!("Implement grouping activities by duration range")
     }
 
@@ -753,9 +754,31 @@ impl ActivityQuerying for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
     fn list_activities_by_time_range(
         &self,
-        _time_range_opts: TimeRangeOptions,
+        time_range_opts: TimeRangeOptions,
     ) -> PaceOptResult<Vec<ActivityItem>> {
-        todo!("Implement listing activities by time range")
+        let activities = self.log.read();
+
+        let filtered_activities = activities
+            .par_iter()
+            .filter(|(_, activity)| time_range_opts.is_in_range(*activity.begin()))
+            .map(|(activity_id, activity)| ActivityItem::from((*activity_id, activity.clone())))
+            .collect::<Vec<ActivityItem>>();
+
+        drop(activities);
+
+        debug!("Filtered activities: {:?}", filtered_activities);
+
+        if filtered_activities.is_empty() {
+            debug!(
+                "No activities found in time range between {} and {}.",
+                time_range_opts.start(),
+                time_range_opts.end()
+            );
+
+            return Ok(None);
+        }
+
+        Ok(Some(filtered_activities))
     }
 }
 

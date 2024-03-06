@@ -1,6 +1,6 @@
 //! Test the `ActivityStore` implementation with a `InMemoryStorage` backend.
 
-use pace_core::{ActivityStore, ActivityTracker, TestResult};
+use pace_core::{ActivityStore, ActivityTracker, TestResult, TimeRangeOptions};
 use rstest::rstest;
 use similar_asserts::assert_eq;
 
@@ -19,10 +19,9 @@ fn test_activity_tracker(
         "Should have 2 start dates."
     );
 
-    // let time_range_opts = TimeRangeOptions::from(
-    //     PaceDate::try_from((2024, 2, 26))?,
-    //     PaceDate::try_from((2024, 2, 26))?,
-    // );
+    let time_range_opts = TimeRangeOptions::specific_date("2024-03-07".parse()?)?;
+
+    dbg!(&time_range_opts);
 
     // let dates = activity_tracker
     //     .store

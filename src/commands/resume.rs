@@ -53,7 +53,7 @@ impl ResumeCmd {
             ActivityStore::with_storage(get_storage_from_config(&PACE_APP.config())?)?;
 
         // parse time from string or get now
-        let date_time = extract_time_or_now(self.resume_opts.at())?.is_future()?;
+        let date_time = extract_time_or_now(self.resume_opts.at())?.validate_future()?;
 
         let (msg, resumed) = if let Some(resumed_activity) = activity_store
             .resume_most_recent_activity(ResumeOptions::builder().resume_time(date_time).build())?

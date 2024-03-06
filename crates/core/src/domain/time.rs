@@ -85,23 +85,11 @@ impl TimeRangeOptions {
             PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), now.month())),
         )?;
 
-        let end = start
-            .with_day(1)
-            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?
-            .with_month(start.month() + 1)
-            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?
-            .pred_opt()
-            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?;
-
         Ok(Self::builder()
             .start(PaceDateTime::from(
                 start
                     .and_hms_opt(0, 0, 0)
                     .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
-            ))
-            .end(PaceDateTime::from(
-                end.and_hms_opt(23, 59, 59)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
             ))
             .build())
     }
@@ -122,11 +110,6 @@ impl TimeRangeOptions {
                     .and_hms_opt(0, 0, 0)
                     .ok_or(PaceTimeErrorKind::InvalidDate(week.first_day().to_string()))?,
             ))
-            .end(PaceDateTime::from(
-                week.last_day()
-                    .and_hms_opt(23, 59, 59)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(week.last_day().to_string()))?,
-            ))
             .build())
     }
 
@@ -137,36 +120,44 @@ impl TimeRangeOptions {
             PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), 1)),
         )?;
 
-        let end = NaiveDate::from_ymd_opt(now.year(), 12, 31).ok_or(
-            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), 12)),
-        )?;
-
         Ok(Self::builder()
             .start(PaceDateTime::from(
                 start
                     .and_hms_opt(0, 0, 0)
                     .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
             ))
-            .end(PaceDateTime::from(
-                end.and_hms_opt(23, 59, 59)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
-            ))
             .build())
     }
 
     pub fn specific_date(date: PaceDate) -> PaceResult<Self> {
-        Ok(Self::builder()
-            .start(PaceDateTime::from(
-                date.0
-                    .and_hms_opt(0, 0, 0)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
-            ))
-            .end(PaceDateTime::from(
-                date.0
-                    .and_hms_opt(23, 59, 59)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
-            ))
-            .build())
+        // handle date if it's in the future
+        let (start, end) = if date.is_future() {
+            debug!("Date is in the future, using today.");
+            (
+                PaceDateTime::from(
+                    PaceDate::default()
+                        .0
+                        .and_hms_opt(0, 0, 0)
+                        .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+                ),
+                PaceDateTime::now(),
+            )
+        } else {
+            (
+                PaceDateTime::from(
+                    date.0
+                        .and_hms_opt(0, 0, 0)
+                        .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+                ),
+                PaceDateTime::from(
+                    date.0
+                        .and_hms_opt(23, 59, 59)
+                        .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+                ),
+            )
+        };
+
+        Ok(Self::builder().start(start).end(end).build())
     }
 
     pub fn last_month() -> PaceResult<Self> {
@@ -200,12 +191,44 @@ impl TimeRangeOptions {
     pub fn last_week() -> PaceResult<Self> {
         let now = Local::now();
 
-        let start = now
+        let last_week = now
             .date_naive()
-            .pred_opt()
-            .ok_or(PaceTimeErrorKind::InvalidDate(now.to_string()))?;
+            .iso_week()
+            .week()
+            .checked_sub(1)
+            .ok_or(PaceTimeErrorKind::InvalidDate(now.date_naive().to_string()))?;
 
-        let week = start.week(chrono::Weekday::Mon);
+        let week = NaiveDate::from_isoywd_opt(now.year(), last_week, chrono::Weekday::Mon)
+            .ok_or(PaceTimeErrorKind::InvalidDate(format!(
+                "{}/{}",
+                now.year(),
+                last_week
+            )))?
+            .week(chrono::Weekday::Mon);
+
+        // handle first week of the year
+        // FIXME: this is a hack, find a better way to handle this
+        if week.first_day().year() != now.year() {
+            let start = NaiveDate::from_ymd_opt(now.year() - 1, 12, 25).ok_or(
+                PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 12)),
+            )?;
+
+            let end = NaiveDate::from_ymd_opt(now.year() - 1, 12, 31).ok_or(
+                PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 12)),
+            )?;
+
+            return Ok(Self::builder()
+                .start(PaceDateTime::from(
+                    start
+                        .and_hms_opt(0, 0, 0)
+                        .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
+                ))
+                .end(PaceDateTime::from(
+                    end.and_hms_opt(23, 59, 59)
+                        .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
+                ))
+                .build());
+        }
 
         Ok(Self::builder()
             .start(PaceDateTime::from(
@@ -252,11 +275,6 @@ impl TimeRangeOptions {
             .start(PaceDateTime::from(
                 now.date_naive()
                     .and_hms_opt(0, 0, 0)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(now.to_string()))?,
-            ))
-            .end(PaceDateTime::from(
-                now.date_naive()
-                    .and_hms_opt(23, 59, 59)
                     .ok_or(PaceTimeErrorKind::InvalidDate(now.to_string()))?,
             ))
             .build())
@@ -547,6 +565,23 @@ impl TryFrom<chrono::Duration> for PaceDuration {
 )]
 pub struct PaceDate(pub NaiveDate);
 
+impl PaceDate {
+    pub fn is_future(&self) -> bool {
+        self.0 > Local::now().naive_local().date()
+    }
+}
+
+impl FromStr for PaceDate {
+    type Err = PaceTimeErrorKind;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let date = NaiveDate::parse_from_str(s, "%Y-%m-%d")
+            .map_err(|_| PaceTimeErrorKind::ParsingDateFailed(format!("Invalid date: {s}")))?;
+
+        Ok(Self(date))
+    }
+}
+
 impl TryFrom<(i32, u32, u32)> for PaceDate {
     type Error = PaceTimeErrorKind;
 
@@ -643,7 +678,7 @@ impl PaceDateTime {
     }
 
     /// Check if time is in the future
-    pub fn is_future(self) -> PaceResult<Self> {
+    pub fn validate_future(self) -> PaceResult<Self> {
         if self > Self::now() {
             Err(PaceTimeErrorKind::StartTimeInFuture(self).into())
         } else {
@@ -805,7 +840,7 @@ mod tests {
         let future = Local::now() + chrono::TimeDelta::try_days(1).ok_or("Invalid time delta.")?;
         let time = PaceDateTime::new(future.naive_local());
 
-        let result = time.is_future();
+        let result = time.validate_future();
         assert!(result.is_err());
 
         Ok(())
