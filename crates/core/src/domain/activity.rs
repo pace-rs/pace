@@ -17,6 +17,7 @@ use crate::{
         status::ActivityStatus,
         time::{duration_to_str, PaceDateTime, PaceDuration},
     },
+    error::ActivityLogErrorKind,
     PaceResult,
 };
 
@@ -514,6 +515,16 @@ impl Activity {
         self.activity_kind_options
             .as_ref()
             .and_then(|opts| opts.parent_id)
+    }
+
+    /// Get the overall duration of the activity
+    pub fn duration(&self) -> PaceResult<PaceDuration> {
+        let end_opts = self
+            .activity_end_options()
+            .clone()
+            .ok_or(ActivityLogErrorKind::NoEndOptionsFound)?;
+
+        Ok(end_opts.duration)
     }
 }
 

@@ -7,22 +7,280 @@ use std::{
 use crate::{
     commands::review::{DateFlags, TimeFlags},
     error::{PaceOptResult, PaceResult, PaceTimeErrorKind},
+    PaceError,
 };
 use chrono::{
-    DateTime, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone,
+    DateTime, Datelike, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound,
+    TimeZone,
 };
+use displaydoc::Display;
 use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
+/// `TimeRangeOptions`: {start} - {end}
 #[derive(
-    Debug, Clone, PartialEq, Serialize, Deserialize, TypedBuilder, Eq, Hash, Default, Getters,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TypedBuilder,
+    Eq,
+    Hash,
+    Default,
+    Getters,
+    displaydoc::Display,
 )]
 #[getset(get = "pub")]
 pub struct TimeRangeOptions {
+    #[builder(default = PaceDateTime::now())]
     start: PaceDateTime,
+    #[builder(default = PaceDateTime::now())]
     end: PaceDateTime,
+}
+
+impl TryFrom<PaceTimeFrame> for TimeRangeOptions {
+    type Error = PaceError;
+
+    fn try_from(time_frame: PaceTimeFrame) -> Result<Self, Self::Error> {
+        match time_frame {
+            PaceTimeFrame::DateRange(range) => Ok(range),
+            PaceTimeFrame::CurrentMonth => TimeRangeOptions::current_month(),
+            PaceTimeFrame::CurrentWeek => TimeRangeOptions::current_week(),
+            PaceTimeFrame::CurrentYear => TimeRangeOptions::current_year(),
+            PaceTimeFrame::SpecificDate(date) => TimeRangeOptions::specific_date(date),
+            PaceTimeFrame::LastMonth => TimeRangeOptions::last_month(),
+            PaceTimeFrame::LastWeek => TimeRangeOptions::last_week(),
+            PaceTimeFrame::LastYear => TimeRangeOptions::last_year(),
+            PaceTimeFrame::Today => TimeRangeOptions::today(),
+            PaceTimeFrame::Yesterday => TimeRangeOptions::yesterday(),
+        }
+    }
+}
+
+impl TimeRangeOptions {
+    pub fn is_in_range(&self, time: PaceDateTime) -> bool {
+        time >= self.start && time <= self.end
+    }
+
+    pub fn validate(self) -> PaceResult<Self> {
+        if self.start > self.end {
+            return Err(PaceTimeErrorKind::InvalidTimeRange(
+                self.start.to_string(),
+                self.end.to_string(),
+            )
+            .into());
+        }
+
+        Ok(self)
+    }
+
+    pub fn current_month() -> PaceResult<Self> {
+        let now = Local::now();
+
+        let start = NaiveDate::from_ymd_opt(now.year(), now.month(), 1).ok_or(
+            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), now.month())),
+        )?;
+
+        let end = start
+            .with_day(1)
+            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?
+            .with_month(start.month() + 1)
+            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?
+            .pred_opt()
+            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?;
+
+        Ok(Self::builder()
+            .start(PaceDateTime::from(
+                start
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
+            ))
+            .end(PaceDateTime::from(
+                end.and_hms_opt(23, 59, 59)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
+            ))
+            .build())
+    }
+
+    pub fn current_week() -> PaceResult<Self> {
+        let now = Local::now();
+
+        let start = now
+            .date_naive()
+            .pred_opt()
+            .ok_or(PaceTimeErrorKind::InvalidDate(now.to_string()))?;
+
+        let week = start.week(chrono::Weekday::Mon);
+
+        Ok(Self::builder()
+            .start(PaceDateTime::from(
+                week.first_day()
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(week.first_day().to_string()))?,
+            ))
+            .end(PaceDateTime::from(
+                week.last_day()
+                    .and_hms_opt(23, 59, 59)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(week.last_day().to_string()))?,
+            ))
+            .build())
+    }
+
+    pub fn current_year() -> PaceResult<Self> {
+        let now = Local::now();
+
+        let start = NaiveDate::from_ymd_opt(now.year(), 1, 1).ok_or(
+            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), 1)),
+        )?;
+
+        let end = NaiveDate::from_ymd_opt(now.year(), 12, 31).ok_or(
+            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), 12)),
+        )?;
+
+        Ok(Self::builder()
+            .start(PaceDateTime::from(
+                start
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
+            ))
+            .end(PaceDateTime::from(
+                end.and_hms_opt(23, 59, 59)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
+            ))
+            .build())
+    }
+
+    pub fn specific_date(date: PaceDate) -> PaceResult<Self> {
+        Ok(Self::builder()
+            .start(PaceDateTime::from(
+                date.0
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+            ))
+            .end(PaceDateTime::from(
+                date.0
+                    .and_hms_opt(23, 59, 59)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+            ))
+            .build())
+    }
+
+    pub fn last_month() -> PaceResult<Self> {
+        let now = Local::now();
+
+        let start = NaiveDate::from_ymd_opt(now.year(), now.month() - 1, 1).ok_or(
+            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), now.month() - 1)),
+        )?;
+
+        let end = start
+            .with_day(1)
+            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?
+            .with_month(start.month() + 1)
+            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?
+            .pred_opt()
+            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?;
+
+        Ok(Self::builder()
+            .start(PaceDateTime::from(
+                start
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
+            ))
+            .end(PaceDateTime::from(
+                end.and_hms_opt(23, 59, 59)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
+            ))
+            .build())
+    }
+
+    pub fn last_week() -> PaceResult<Self> {
+        let now = Local::now();
+
+        let start = now
+            .date_naive()
+            .pred_opt()
+            .ok_or(PaceTimeErrorKind::InvalidDate(now.to_string()))?;
+
+        let week = start.week(chrono::Weekday::Mon);
+
+        Ok(Self::builder()
+            .start(PaceDateTime::from(
+                week.first_day()
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(week.first_day().to_string()))?,
+            ))
+            .end(PaceDateTime::from(
+                week.last_day()
+                    .and_hms_opt(23, 59, 59)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(week.last_day().to_string()))?,
+            ))
+            .build())
+    }
+
+    pub fn last_year() -> PaceResult<Self> {
+        let now = Local::now();
+
+        let start = NaiveDate::from_ymd_opt(now.year() - 1, 1, 1).ok_or(
+            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 1)),
+        )?;
+
+        let end = NaiveDate::from_ymd_opt(now.year() - 1, 12, 31).ok_or(
+            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 12)),
+        )?;
+
+        Ok(Self::builder()
+            .start(PaceDateTime::from(
+                start
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
+            ))
+            .end(PaceDateTime::from(
+                end.and_hms_opt(23, 59, 59)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
+            ))
+            .build())
+    }
+
+    pub fn today() -> PaceResult<Self> {
+        let now = Local::now();
+
+        Ok(Self::builder()
+            .start(PaceDateTime::from(
+                now.date_naive()
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(now.to_string()))?,
+            ))
+            .end(PaceDateTime::from(
+                now.date_naive()
+                    .and_hms_opt(23, 59, 59)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(now.to_string()))?,
+            ))
+            .build())
+    }
+
+    pub fn yesterday() -> PaceResult<Self> {
+        let now = Local::now();
+
+        let yesterday = now
+            .date_naive()
+            .pred_opt()
+            .ok_or(PaceTimeErrorKind::InvalidDate(now.date_naive().to_string()))?;
+
+        Ok(Self::builder()
+            .start(PaceDateTime::from(yesterday.and_hms_opt(0, 0, 0).ok_or(
+                PaceTimeErrorKind::InvalidDate(yesterday.to_string()),
+            )?))
+            .end(PaceDateTime::from(
+                yesterday
+                    .and_hms_opt(23, 59, 59)
+                    .ok_or(PaceTimeErrorKind::InvalidDate(yesterday.to_string()))?,
+            ))
+            .build())
+    }
 }
 
 impl TryFrom<(PaceDate, PaceDate)> for TimeRangeOptions {
@@ -49,18 +307,37 @@ impl TryFrom<PaceDate> for PaceDateTime {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Display)]
 pub enum PaceTimeFrame {
+    /// Current Month
     CurrentMonth,
+
+    /// Current Week
     CurrentWeek,
+
+    /// Current Year
     CurrentYear,
+
+    /// Date Range: {0}
     DateRange(TimeRangeOptions),
+
+    /// Specific Date: {0}
     SpecificDate(PaceDate),
+
+    /// Last Month
     LastMonth,
+
+    /// Last Week
     LastWeek,
+
+    /// Last Year
     LastYear,
+
+    /// Today
     #[default]
     Today,
+
+    /// Yesterday
     Yesterday,
 }
 
@@ -175,6 +452,58 @@ pub enum PaceDurationRange {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct PaceDuration(u64);
 
+impl PaceDuration {
+    pub fn zero() -> Self {
+        Self(0)
+    }
+}
+
+impl std::ops::AddAssign for PaceDuration {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl std::ops::Sub for PaceDuration {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        match self.0.checked_sub(rhs.0) {
+            Some(result) => Self(result),
+            None => Self(0),
+        }
+    }
+}
+
+impl std::ops::SubAssign for PaceDuration {
+    fn sub_assign(&mut self, rhs: Self) {
+        match self.0.checked_sub(rhs.0) {
+            Some(result) => self.0 = result,
+            None => self.0 = 0,
+        }
+    }
+}
+
+impl std::ops::AddAssign<u64> for PaceDuration {
+    fn add_assign(&mut self, rhs: u64) {
+        self.0 += rhs;
+    }
+}
+
+impl std::ops::SubAssign<u64> for PaceDuration {
+    fn sub_assign(&mut self, rhs: u64) {
+        self.0 -= rhs;
+    }
+}
+
+impl std::ops::Add for PaceDuration {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
 impl FromStr for PaceDuration {
     type Err = PaceTimeErrorKind;
 
@@ -202,9 +531,37 @@ impl TryFrom<chrono::Duration> for PaceDuration {
     }
 }
 
-/// Wrapper for a date of an activity
-#[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+/// `PaceDate`: {0}
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Hash,
+    Clone,
+    Copy,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    displaydoc::Display,
+)]
 pub struct PaceDate(pub NaiveDate);
+
+impl TryFrom<(i32, u32, u32)> for PaceDate {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from((year, month, day): (i32, u32, u32)) -> Result<Self, Self::Error> {
+        NaiveDate::from_ymd_opt(year, month, day).map_or_else(
+            || {
+                Err(PaceTimeErrorKind::InvalidDate(format!(
+                    "{}/{}/{}",
+                    year, month, day
+                )))
+            },
+            |date| Ok(Self(date)),
+        )
+    }
+}
 
 impl PaceDate {
     pub fn with_start() -> Self {
@@ -445,7 +802,7 @@ mod tests {
 
     #[test]
     fn test_pace_date_time_is_future_fails() -> TestResult<()> {
-        let future = Local::now() + chrono::Duration::days(1);
+        let future = Local::now() + chrono::TimeDelta::try_days(1).ok_or("Invalid time delta.")?;
         let time = PaceDateTime::new(future.naive_local());
 
         let result = time.is_future();
@@ -517,7 +874,7 @@ mod tests {
 
     #[test]
     fn test_pace_duration_from_chrono_duration_passes() -> TestResult<()> {
-        let duration = chrono::Duration::seconds(1);
+        let duration = chrono::TimeDelta::try_seconds(1).ok_or("Invalid time delta.")?;
         let result = PaceDuration::try_from(duration)?;
         assert_eq!(result, PaceDuration(1));
 
@@ -582,6 +939,295 @@ mod tests {
         let result = PaceDuration::default();
 
         assert_eq!(result, PaceDuration(0));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_zero_passes() -> TestResult<()> {
+        let result = PaceDuration::zero();
+
+        assert_eq!(result, PaceDuration(0));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_add_assign_passes() -> TestResult<()> {
+        let mut duration = PaceDuration(1);
+        duration += PaceDuration(1);
+
+        assert_eq!(duration, PaceDuration(2));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_sub_passes() -> TestResult<()> {
+        let duration = PaceDuration(2) - PaceDuration(1);
+
+        assert_eq!(duration, PaceDuration(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_sub_assign_passes() -> TestResult<()> {
+        let mut duration = PaceDuration(2);
+        duration -= PaceDuration(1);
+
+        assert_eq!(duration, PaceDuration(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_sub_assign_with_u64_passes() -> TestResult<()> {
+        let mut duration = PaceDuration(2);
+        duration -= 1;
+
+        assert_eq!(duration, PaceDuration(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_sub_assign_below_zero_passes() -> TestResult<()> {
+        let mut duration = PaceDuration(2);
+        duration -= PaceDuration(3);
+
+        assert_eq!(duration, PaceDuration(0));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_add_passes() -> TestResult<()> {
+        let duration = PaceDuration(1) + PaceDuration(1);
+
+        assert_eq!(duration, PaceDuration(2));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_from_str_passes() -> TestResult<()> {
+        let duration = "1".parse::<PaceDuration>()?;
+
+        assert_eq!(duration, PaceDuration(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_from_str_fails() -> TestResult<()> {
+        let duration = "a".parse::<PaceDuration>();
+
+        assert!(duration.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_time_is_in_range_options_passes() -> TestResult<()> {
+        let activity_date_time = PaceDateTime::from(NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2021, 2, 3).ok_or("Invalid date.")?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+        ));
+
+        let time_range = TimeRangeOptions::builder()
+            .start(PaceDateTime::from(NaiveDateTime::new(
+                NaiveDate::from_ymd_opt(2021, 2, 2).ok_or("Invalid date.")?,
+                NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+            )))
+            .end(PaceDateTime::from(NaiveDateTime::new(
+                NaiveDate::from_ymd_opt(2021, 2, 4).ok_or("Invalid date.")?,
+                NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+            )))
+            .build();
+
+        assert!(time_range.is_in_range(activity_date_time));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_time_is_in_range_options_fails() -> TestResult<()> {
+        assert!(TimeRangeOptions::builder()
+            .start(PaceDateTime::from(NaiveDateTime::new(
+                NaiveDate::from_ymd_opt(2021, 2, 4).ok_or("Invalid date.")?,
+                NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+            )))
+            .end(PaceDateTime::from(NaiveDateTime::new(
+                NaiveDate::from_ymd_opt(2021, 2, 2).ok_or("Invalid date.")?,
+                NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+            )))
+            .build()
+            .validate()
+            .is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_date_range_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::DateRange(
+            TimeRangeOptions::builder()
+                .start(PaceDateTime::from(NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 2).ok_or("Invalid date.")?,
+                    NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+                )))
+                .end(PaceDateTime::from(NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 4).ok_or("Invalid date.")?,
+                    NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+                )))
+                .build(),
+        );
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::builder()
+                .start(PaceDateTime::from(NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 2).ok_or("Invalid date.")?,
+                    NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+                )))
+                .end(PaceDateTime::from(NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 4).ok_or("Invalid date.")?,
+                    NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+                )))
+                .build()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_specific_date_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::SpecificDate(PaceDate(
+            NaiveDate::from_ymd_opt(2021, 2, 2).ok_or("Invalid date.")?,
+        ));
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::builder()
+                .start(PaceDateTime::from(NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 2).ok_or("Invalid date.")?,
+                    NaiveTime::from_hms_opt(0, 0, 0).ok_or("Invalid date.")?,
+                )))
+                .end(PaceDateTime::from(NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 2).ok_or("Invalid date.")?,
+                    NaiveTime::from_hms_opt(23, 59, 59).ok_or("Invalid date.")?,
+                )))
+                .build()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_current_month_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::CurrentMonth;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::current_month()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_current_week_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::CurrentWeek;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::current_week()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_current_year_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::CurrentYear;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::current_year()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_last_month_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::LastMonth;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::last_month()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_last_week_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::LastWeek;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::last_week()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_last_year_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::LastYear;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::last_year()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_today_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::Today;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::today()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_yesterday_to_time_range_options_passes() -> TestResult<()> {
+        let time_frame = PaceTimeFrame::Yesterday;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::yesterday()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_time_frame_from_flags_today_passes() -> TestResult<()> {
+        let time_flags = TimeFlags::builder().today().build();
+        let date_flags = DateFlags::default();
+
+        let result = get_time_frame_from_flags(&time_flags, &date_flags)?;
+
+        assert_eq!(result, PaceTimeFrame::Today);
 
         Ok(())
     }

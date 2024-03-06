@@ -1,9 +1,8 @@
-use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
-    sync::Arc,
-};
+use std::{collections::BTreeMap, sync::Arc};
 
-use serde_derive::{Deserialize, Serialize};
+use getset::{Getters, MutGetters, Setters};
+use tracing::debug;
+use typed_builder::TypedBuilder;
 
 use crate::{
     commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
@@ -11,15 +10,17 @@ use crate::{
         activity::{Activity, ActivityGuid, ActivityItem},
         filter::{ActivityStatusFilter, FilteredActivities},
     },
-    error::{PaceOptResult, PaceResult},
+    error::{ActivityStoreErrorKind, PaceOptResult, PaceResult},
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, StorageKind, SyncStorage,
     },
-    ActivityStatus, EndOptions, HoldOptions,
+    ActivityLog, ActivityStatus, EndOptions, HoldOptions, PaceDate, TimeRangeOptions,
 };
 
 /// The activity store entity
+#[derive(TypedBuilder, Getters, Setters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ActivityStore {
     /// In-memory cache for activities
     cache: ActivityStoreCache,
@@ -28,25 +29,73 @@ pub struct ActivityStore {
     storage: Arc<StorageKind>,
 }
 
-/// TODO: Optimization for later to make lookup faster
-#[derive(Serialize, Deserialize, Debug, Default)]
-struct ActivityStoreCache {
-    activity_ids: HashSet<ActivityGuid>,
-    activities_by_id: BTreeMap<ActivityGuid, Activity>,
-    last_entries: VecDeque<ActivityGuid>,
+#[derive(Debug, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct ActivityStoreCache {
+    by_start_date: BTreeMap<PaceDate, Vec<ActivityItem>>,
 }
 
 impl ActivityStore {
     /// Create a new `ActivityStore` with a given storage backend
+    ///
+    /// # Arguments
+    ///
+    /// * `storage` - The storage backend to use for the activity store
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if the storage backend cannot be used
+    ///
+    /// # Returns
+    ///
+    /// This method returns a new `ActivityStore` if the storage backend
+    /// was successfully created
     pub fn with_storage(storage: Arc<StorageKind>) -> PaceResult<Self> {
-        let store = Self {
+        debug!("Creating activity store with storage: {}", storage);
+
+        let mut store = Self {
             cache: ActivityStoreCache::default(),
             storage,
         };
 
         store.setup_storage()?;
 
+        store.populate_caches()?;
+
         Ok(store)
+    }
+
+    /// Populate the in-memory cache with activities from the storage backend
+    ///
+    /// This method is called during the initialization of the activity store
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if the cache cannot be populated
+    ///
+    /// # Returns
+    ///
+    /// This method returns `Ok(())` if the cache was successfully populated
+    fn populate_caches(&mut self) -> PaceResult<()> {
+        self.cache.by_start_date = self
+            .storage
+            .group_activities_by_start_date()?
+            .ok_or(ActivityStoreErrorKind::PopulatingCache)?;
+
+        Ok(())
+    }
+
+    pub fn activity_log_for_date_range(
+        &self,
+        time_range_opts: TimeRangeOptions,
+    ) -> PaceOptResult<ActivityLog> {
+        let Some(activities) = self.list_activities_by_time_range(time_range_opts)? else {
+            debug!("No activities found for time range: {:?}", time_range_opts);
+
+            return Ok(None);
+        };
+
+        Ok(Some(ActivityLog::from_iter(activities)))
     }
 }
 
@@ -187,7 +236,7 @@ impl ActivityQuerying for ActivityStore {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_start_date(
         &self,
-    ) -> PaceOptResult<BTreeMap<crate::PaceDate, Vec<ActivityItem>>> {
+    ) -> PaceOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
         self.storage.group_activities_by_start_date()
     }
 
@@ -216,7 +265,7 @@ impl ActivityQuerying for ActivityStore {
     #[tracing::instrument(skip(self))]
     fn list_activities_by_time_range(
         &self,
-        time_range_opts: crate::TimeRangeOptions,
+        time_range_opts: TimeRangeOptions,
     ) -> PaceOptResult<Vec<ActivityItem>> {
         self.storage.list_activities_by_time_range(time_range_opts)
     }

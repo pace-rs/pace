@@ -671,6 +671,60 @@ pub trait ActivityQuerying: ActivityReadOps {
         Ok(activity.activity().is_active())
     }
 
+    /// List all intermissions for an activity id from the storage backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `activity_id` - The ID of the activity to list intermissions for.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the intermissions cannot be loaded.
+    ///
+    /// # Returns
+    ///
+    /// A collection of the intermissions for the activity.
+    /// If no intermissions are found, it should return `Ok(None)`.
+    fn list_intermissions_for_activity_id(
+        &self,
+        activity_id: ActivityGuid,
+    ) -> PaceOptResult<Vec<ActivityItem>> {
+        let Some(filtered) = self
+            .list_activities(ActivityStatusFilter::Intermission)?
+            .map(FilteredActivities::into_vec)
+        else {
+            debug!("No intermissions found.");
+            return Ok(None);
+        };
+
+        let intermissions = filtered
+            .iter()
+            .filter_map(|activity| {
+                let activity_item = self.read_activity(*activity).ok()?;
+
+                if activity_item.activity().parent_id() == Some(activity_id) {
+                    debug!("Found intermission for activity: {}", activity_id);
+                    Some(activity_item)
+                } else {
+                    debug!("Not an intermission for activity: {}", activity_id);
+                    None
+                }
+            })
+            .collect::<Vec<ActivityItem>>();
+
+        if intermissions.is_empty() {
+            debug!("No intermissions found for activity: {}", activity_id);
+            return Ok(None);
+        }
+
+        debug!(
+            "Activity with id {:?} has intermissions: {:?}",
+            activity_id, intermissions
+        );
+
+        Ok(Some(intermissions))
+    }
+
     /// Check if an activity currently has one or more active intermissions.
     ///
     /// # Arguments

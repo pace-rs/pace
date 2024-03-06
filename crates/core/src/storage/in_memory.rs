@@ -661,6 +661,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         Some(activities.activities().iter().try_fold(
             BTreeMap::new(),
             |mut acc: BTreeMap<String, Vec<ActivityItem>>, (activity_id, activity)| {
+                // Group by category
                 if let Some(category) = keyword_opts.category() {
                     let category = category.to_lowercase();
 
@@ -677,6 +678,20 @@ impl ActivityQuerying for InMemoryActivityStorage {
                             .or_default()
                             .push(ActivityItem::from((*activity_id, activity.clone())));
                     }
+                } else {
+                    // Use the existing activity category as the keyword
+
+                    debug!("No category specified. Using 'Uncategorized' as the category.");
+
+                    acc.entry(
+                        activity
+                            .category()
+                            .as_ref()
+                            .unwrap_or(&"Uncategorized".to_string())
+                            .to_string(),
+                    )
+                    .or_default()
+                    .push(ActivityItem::from((*activity_id, activity.clone())));
                 }
 
                 Ok(acc)
@@ -895,7 +910,9 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceDateTime::new(begin + chrono::Duration::seconds(30));
+        let new_begin = PaceDateTime::new(
+            begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
+        );
         let updated_activity = Activity::builder()
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
@@ -1014,7 +1031,9 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceDateTime::new(begin + chrono::Duration::seconds(30));
+        let new_begin = PaceDateTime::new(
+            begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
+        );
         let updated_activity = Activity::builder()
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
@@ -1091,8 +1110,8 @@ mod tests {
     fn test_end_single_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
-        let end_time = now + chrono::Duration::seconds(30);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
+        let end_time = now + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
         let tags = vec!["test".to_string(), "activity".to_string()]
@@ -1154,7 +1173,7 @@ mod tests {
     fn test_end_last_unfinished_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
         let tags = vec!["test".to_string(), "activity".to_string()]
@@ -1213,7 +1232,7 @@ mod tests {
     fn test_begin_and_auto_end_for_multiple_activities_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
         let tags = vec!["test".to_string(), "activity".to_string()]
@@ -1230,7 +1249,7 @@ mod tests {
         // Begin the first activity
         let activity_item = storage.begin_activity(activity)?;
 
-        let begin_time = now - chrono::Duration::seconds(60);
+        let begin_time = now - chrono::TimeDelta::try_seconds(60).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity 2";
 
@@ -1281,7 +1300,7 @@ mod tests {
     fn test_hold_most_recent_active_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
         let tags = vec!["test".to_string(), "activity".to_string()]
@@ -1297,7 +1316,7 @@ mod tests {
 
         let activity_item = storage.begin_activity(activity.clone())?;
 
-        let hold_time = now + chrono::Duration::seconds(30);
+        let hold_time = now + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
 
         let hold_opts = HoldOptions::builder().begin_time(hold_time).build();
 
@@ -1355,7 +1374,7 @@ mod tests {
     ) -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
         let tags = vec!["test".to_string(), "activity".to_string()]
@@ -1372,7 +1391,7 @@ mod tests {
         let active_activity_item = storage.begin_activity(activity)?;
 
         let hold_opts = HoldOptions::builder()
-            .begin_time(now + chrono::Duration::seconds(30))
+            .begin_time(now + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?)
             .build();
 
         let _held_item = storage
@@ -1394,7 +1413,7 @@ mod tests {
         assert_eq!(intermission_guids.len(), 1, "Intermission was not created.");
 
         let hold_opts = HoldOptions::builder()
-            .begin_time(now + chrono::Duration::seconds(60))
+            .begin_time(now + chrono::TimeDelta::try_seconds(60).ok_or("Invalid time delta.")?)
             .build();
 
         assert!(
@@ -1434,8 +1453,8 @@ mod tests {
     fn test_end_all_active_intermissions_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
-        let end_time = now + chrono::Duration::seconds(60);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
+        let end_time = now + chrono::TimeDelta::try_seconds(60).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
 
@@ -1448,7 +1467,7 @@ mod tests {
         let active_activity_item = storage.begin_activity(activity)?;
 
         let hold_opts = HoldOptions::builder()
-            .begin_time(now + chrono::Duration::seconds(30))
+            .begin_time(now + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?)
             .build();
 
         let _ = storage.hold_most_recent_active_activity(hold_opts)?;
@@ -1688,7 +1707,7 @@ mod tests {
     fn test_group_activities_by_keywords_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
 
@@ -1734,7 +1753,7 @@ mod tests {
     fn test_group_activities_by_kind_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
 
@@ -1789,7 +1808,7 @@ mod tests {
     fn test_group_activities_by_status_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
 
@@ -1850,7 +1869,7 @@ mod tests {
     fn test_group_activities_by_start_date_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let now = Local::now().naive_local();
-        let begin_time = now - chrono::Duration::seconds(30);
+        let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
 

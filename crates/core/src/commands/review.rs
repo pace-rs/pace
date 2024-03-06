@@ -74,9 +74,13 @@ impl ReviewCommandOptions {
     pub fn handle_review(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
-        let _activity_tracker = ActivityTracker::with_activity_store(activity_store);
+        let activity_tracker = ActivityTracker::with_activity_store(activity_store);
 
-        let _time_frame = get_time_frame_from_flags(self.time_flags(), self.date_flags());
+        let time_frame = get_time_frame_from_flags(self.time_flags(), self.date_flags())?;
+
+        debug!("Displaying review for time frame: {}", time_frame);
+
+        let _review_summary = activity_tracker.generate_review_summary(time_frame)?;
 
         debug!("{:#?}", self);
 
@@ -84,7 +88,7 @@ impl ReviewCommandOptions {
     }
 }
 
-#[derive(Debug, Getters)]
+#[derive(Debug, Getters, Default, TypedBuilder, Setters, MutGetters, Clone, Eq, PartialEq)]
 #[getset(get = "pub")]
 #[cfg_attr(feature = "clap", derive(Parser))]
 #[cfg_attr(
@@ -95,14 +99,17 @@ pub struct DateFlags {
         feature = "clap",
         clap(long, group = "date-flag", name = "Specific Date", exclusive = true)
     )]
+    #[builder(setter(strip_option))]
     date: Option<NaiveDate>,
 
     /// Start date for the review period. Format: YYYY-MM-DD
     #[cfg_attr(feature = "clap", clap(long, group = "date-flag", name = "Start Date"))]
+    #[builder(setter(strip_option))]
     from: Option<NaiveDate>,
 
     /// End date for the review period. Format: YYYY-MM-DD
     #[cfg_attr(feature = "clap", clap(long, group = "date-flag", name = "End Date"))]
+    #[builder(setter(strip_option))]
     to: Option<NaiveDate>,
 }
 
@@ -124,32 +131,38 @@ pub struct ExpensiveFlags {
     recommendations: bool,
 }
 
-#[derive(Debug, Getters)]
+#[derive(Debug, Getters, TypedBuilder, Setters, MutGetters, Clone, Eq, PartialEq, Default)]
 #[getset(get = "pub")]
 #[cfg_attr(feature = "clap", derive(Parser))]
 #[cfg_attr(feature = "clap", clap(group = clap::ArgGroup::new("time-flag").multiple(false)))]
 pub struct TimeFlags {
     /// Show the review for the current day
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
+    #[builder(setter(strip_bool))]
     today: bool,
 
     /// Show the review for the previous day
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
+    #[builder(setter(strip_bool))]
     yesterday: bool,
 
     /// Show the review for the current week
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
+    #[builder(setter(strip_bool))]
     current_week: bool,
 
     /// Show the review for the previous week
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
+    #[builder(setter(strip_bool))]
     last_week: bool,
 
     /// Show the review for the current month
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
+    #[builder(setter(strip_bool))]
     current_month: bool,
 
     /// Show the review for the previous month
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
+    #[builder(setter(strip_bool))]
     last_month: bool,
 }

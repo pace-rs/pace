@@ -27,7 +27,7 @@ clap = ["dep:clap"]
 # testing = ["dep:arbitrary"]
 
 [dependencies]
-chrono = { version = "0.4.35", features = ["serde"] }
+chrono = { workspace = true }
 clap = { workspace = true, optional = true }
 directories = "5.0.1"
 displaydoc = "0.2.4"
@@ -52,6 +52,7 @@ ulid = { version = "1.1.2", features = ["serde"] }
 
 [dev-dependencies]
 insta = { version = "1.36.1", features = ["toml", "redactions"] }
+pace_testing = { workspace = true }
 rstest = "0.18.2"
 similar-asserts = { workspace = true }
 
