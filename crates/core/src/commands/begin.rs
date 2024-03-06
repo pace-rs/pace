@@ -2,10 +2,11 @@ use std::collections::HashSet;
 
 #[cfg(feature = "clap")]
 use clap::Parser;
+use tracing::debug;
 
 use crate::{
     extract_time_or_now, get_storage_from_config, Activity, ActivityKind, ActivityStateManagement,
-    ActivityStore, PaceConfig, PaceResult, SyncStorage,
+    ActivityStore, PaceConfig, PaceResult, SyncStorage, UserMessage,
 };
 
 /// `begin` subcommand options
@@ -46,7 +47,8 @@ pub struct BeginCommandOptions {
 
 impl BeginCommandOptions {
     /// Inner run implementation for the begin command
-    pub fn handle_begin(&self, config: &PaceConfig) -> PaceResult<()> {
+    #[tracing::instrument(skip(self))]
+    pub fn handle_begin(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let Self {
             category,
             at: start,
@@ -60,8 +62,12 @@ impl BeginCommandOptions {
             .as_ref()
             .map(|tags| tags.iter().cloned().collect::<HashSet<String>>());
 
+        debug!("Parsed tags: {:?}", tags);
+
         // parse time from string or get now
         let date_time = extract_time_or_now(start)?.is_future()?;
+
+        debug!("Parsed date time: {:?}", date_time);
 
         // TODO: Parse categories and subcategories from string
         // let (category, subcategory) = if let Some(ref category) = category {
@@ -95,10 +101,10 @@ impl BeginCommandOptions {
 
         let activity_item = activity_store.begin_activity(activity.clone())?;
 
+        debug!("Started Activity: {:?}", activity_item);
+
         activity_store.sync()?;
 
-        println!("{}", activity_item.activity());
-
-        Ok(())
+        Ok(UserMessage::new(format!("{}", activity_item.activity())))
     }
 }

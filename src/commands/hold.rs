@@ -15,11 +15,13 @@ pub struct HoldCmd {
 }
 
 impl Runnable for HoldCmd {
-    /// Start the application.
     fn run(&self) {
-        if let Err(err) = self.hold_opts.handle_hold(&PACE_APP.config()) {
-            status_err!("{}", err);
-            PACE_APP.shutdown(Shutdown::Crash);
+        match self.hold_opts.handle_hold(&PACE_APP.config()) {
+            Ok(user_message) => user_message.display(),
+            Err(err) => {
+                status_err!("{}", err);
+                PACE_APP.shutdown(Shutdown::Crash);
+            }
         };
     }
 }

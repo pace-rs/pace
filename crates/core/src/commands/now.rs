@@ -1,9 +1,10 @@
 #[cfg(feature = "clap")]
 use clap::Parser;
+use tracing::debug;
 
 use crate::{
     get_storage_from_config, ActivityItem, ActivityQuerying, ActivityReadOps, ActivityStatusFilter,
-    ActivityStore, PaceConfig, PaceResult,
+    ActivityStore, PaceConfig, PaceResult, UserMessage,
 };
 
 /// `now` subcommand options
@@ -12,25 +13,31 @@ use crate::{
 pub struct NowCommandOptions {}
 
 impl NowCommandOptions {
-    pub fn handle_now(&self, config: &PaceConfig) -> PaceResult<()> {
+    #[tracing::instrument(skip(self))]
+    pub fn handle_now(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
-        match activity_store.list_current_activities(ActivityStatusFilter::Active)? {
-            Some(activities) => {
-                let activity_items = activities
-                    .iter()
-                    .flat_map(|activity_id| activity_store.read_activity(*activity_id))
-                    .collect::<Vec<ActivityItem>>();
+        let user_message =
+            match activity_store.list_current_activities(ActivityStatusFilter::Active)? {
+                Some(activities) => {
+                    debug!("Current Activities: {:?}", activities);
 
-                for activity in &activity_items {
-                    println!("{}", activity.activity());
+                    // Get the activity items
+                    let activity_items = activities
+                        .iter()
+                        .flat_map(|activity_id| activity_store.read_activity(*activity_id))
+                        .collect::<Vec<ActivityItem>>();
+
+                    let mut msgs = vec![];
+                    for activity in &activity_items {
+                        msgs.push(format!("{}", activity.activity()));
+                    }
+
+                    msgs.join("\n")
                 }
-            }
-            None => {
-                println!("No activities are currently running.");
-            }
-        }
+                None => "No activities are currently running.".to_string(),
+            };
 
-        Ok(())
+        Ok(UserMessage::new(user_message))
     }
 }

@@ -29,7 +29,6 @@ pub struct PomoCmd {
 }
 
 impl Runnable for PomoCmd {
-    /// Start the application.
     fn run(&self) {
         // Your code goes here
     }

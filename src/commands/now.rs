@@ -15,11 +15,13 @@ pub struct NowCmd {
 }
 
 impl Runnable for NowCmd {
-    /// Start the application.
     fn run(&self) {
-        if let Err(err) = self.now_opts.handle_now(&PACE_APP.config()) {
-            status_err!("{}", err);
-            PACE_APP.shutdown(Shutdown::Crash);
+        match self.now_opts.handle_now(&PACE_APP.config()) {
+            Ok(user_message) => user_message.display(),
+            Err(err) => {
+                status_err!("{}", err);
+                PACE_APP.shutdown(Shutdown::Crash);
+            }
         };
     }
 }

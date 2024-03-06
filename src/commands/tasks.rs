@@ -25,7 +25,6 @@ pub struct TasksCmd {
 }
 
 impl Runnable for TasksCmd {
-    /// Start the application.
     fn run(&self) {
         // Your code goes here
     }

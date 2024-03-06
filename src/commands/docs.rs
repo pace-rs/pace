@@ -17,7 +17,7 @@ pub struct DocsCmd {
 impl Runnable for DocsCmd {
     fn run(&self) {
         match self.docs_opts.handle_docs() {
-            Ok(_) => {}
+            Ok(user_message) => user_message.display(),
             Err(err) => {
                 status_err!("{}", err);
                 PACE_APP.shutdown(Shutdown::Crash);

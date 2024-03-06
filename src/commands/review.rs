@@ -18,11 +18,13 @@ pub struct ReviewCmd {
 }
 
 impl Runnable for ReviewCmd {
-    /// Start the application.
     fn run(&self) {
-        if let Err(err) = self.review_opts.handle_review(PACE_APP.config()) {
-            status_err!("{}", err);
-            PACE_APP.shutdown(Shutdown::Crash);
+        match self.review_opts.handle_review(&PACE_APP.config()) {
+            Ok(user_message) => user_message.display(),
+            Err(err) => {
+                status_err!("{}", err);
+                PACE_APP.shutdown(Shutdown::Crash);
+            }
         };
     }
 }
