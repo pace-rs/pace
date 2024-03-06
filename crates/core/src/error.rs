@@ -116,6 +116,10 @@ pub enum PaceErrorKind {
     #[error(transparent)]
     DeserializationFromTomlFailed(#[from] toml::de::Error),
 
+    /// Activity store error: {0}
+    #[error(transparent)]
+    ActivityStore(#[from] ActivityStoreErrorKind),
+
     /// Activity log error: {0}
     #[error(transparent)]
     ActivityLog(#[from] ActivityLogErrorKind),
@@ -123,10 +127,10 @@ pub enum PaceErrorKind {
     /// Time related error: {0}
     #[error(transparent)]
     PaceTime(#[from] PaceTimeErrorKind),
-    #[cfg(feature = "sqlite")]
 
     /// SQLite error: {0}
     #[error(transparent)]
+    #[cfg(feature = "sqlite")]
     SQLite(#[from] rusqlite::Error),
 
     /// Chrono parse error: {0}
@@ -256,6 +260,41 @@ pub enum PaceTimeErrorKind {
     InvalidDate(String),
     /// Date is not present!
     DateShouldBePresent,
+
+    /// Failed to parse date '{0}'
+    ParsingDateFailed(String),
+
+    /// Invalid time range: Start {0} - End {1}
+    InvalidTimeRange(String, String),
+}
+
+/// [`PaceTimeErrorKind`] describes the errors that can happen while dealing with time.
+#[non_exhaustive]
+#[derive(Error, Debug, Display)]
+pub enum ActivityStoreErrorKind {
+    /// Failed to list activities by id
+    ListActivitiesById,
+
+    /// Failed to group activities by duration range
+    GroupByDurationRange,
+
+    /// Failed to group activities by start date
+    GroupByStartDate,
+
+    /// Failed to list activities with intermissions
+    ListActivitiesWithIntermissions,
+
+    /// Failed to group activities by keywords
+    GroupByKeywords,
+
+    /// Failed to group activities by kind
+    GroupByKind,
+
+    /// Failed to list activities by time range
+    ListActivitiesByTimeRange,
+
+    /// Failed to populate `ActivityStore` cache
+    PopulatingCache,
 }
 
 trait PaceErrorMarker: Error {}
@@ -269,6 +308,7 @@ impl PaceErrorMarker for chrono::ParseError {}
 impl PaceErrorMarker for chrono::OutOfRangeError {}
 impl PaceErrorMarker for ActivityLogErrorKind {}
 impl PaceErrorMarker for PaceTimeErrorKind {}
+impl PaceErrorMarker for ActivityStoreErrorKind {}
 
 impl<E> From<E> for PaceError
 where

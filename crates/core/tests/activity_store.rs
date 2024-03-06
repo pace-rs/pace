@@ -2,21 +2,17 @@
 
 use std::{collections::HashSet, sync::Arc};
 
-use chrono::{Local, NaiveDateTime};
-
 use pace_core::{
-    Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityReadOps, ActivityStateManagement, ActivityStatus, ActivityStatusFilter, ActivityStore,
-    ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions, InMemoryActivityStorage,
-    PaceDateTime, ResumeOptions, TestResult, UpdateOptions,
+    Activity, ActivityGuid, ActivityReadOps, ActivityStateManagement, ActivityStatus,
+    ActivityStatusFilter, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
+    InMemoryActivityStorage, ResumeOptions, TestResult, UpdateOptions,
 };
 
 use pace_testing::{
-    activity_store, activity_store_empty, activity_store_no_intermissions, ActivityStoreTestKind,
-    TestData,
+    activity_store, activity_store_empty, activity_store_no_intermissions, TestData,
 };
 
-use rstest::{fixture, rstest};
+use rstest::rstest;
 use similar_asserts::assert_eq;
 
 #[rstest]

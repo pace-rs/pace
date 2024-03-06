@@ -1,15 +1,13 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, path::Path, sync::Arc};
 
 use chrono::{Local, NaiveDateTime};
 use pace_core::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityReadOps, ActivityStateManagement, ActivityStatus, ActivityStatusFilter, ActivityStore,
-    ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions, InMemoryActivityStorage,
-    PaceDateTime, ResumeOptions, TestResult, UpdateOptions,
+    ActivityStatus, ActivityStore, InMemoryActivityStorage, PaceDateTime, TestResult,
+    TomlActivityStorage,
 };
 
-use rstest::{fixture, rstest};
-use similar_asserts::assert_eq;
+use rstest::fixture;
 
 pub struct TestData {
     pub activities: Vec<ActivityItem>,
@@ -152,4 +150,14 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
                 .into(),
         ))?,
     })
+}
+
+#[fixture]
+pub fn setup_activity_store_for_activity_tracker() -> TestResult<ActivityStore> {
+    let fixture_path =
+        Path::new("../../tests/fixtures/activity_tracker/activities.pace.toml").canonicalize()?;
+
+    let storage = TomlActivityStorage::new(fixture_path)?;
+
+    Ok(ActivityStore::with_storage(Arc::new(storage.into()))?)
 }

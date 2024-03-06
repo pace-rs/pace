@@ -1,14 +1,69 @@
 //! Test the ActivityStore implementation with a InMemoryStorage backend.
 
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, path::Path, sync::Arc};
 
 use chrono::{Local, NaiveDateTime};
 
+use itertools::Itertools;
 use pace_core::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityReadOps, ActivityStateManagement, ActivityStatus, ActivityStatusFilter, ActivityStore,
-    ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions, InMemoryActivityStorage,
-    PaceDateTime, ResumeOptions, TestResult, UpdateOptions,
+    ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStatus,
+    ActivityStatusFilter, ActivityStore, ActivityTracker, ActivityWriteOps, DeleteOptions,
+    EndOptions, FilteredActivities, HoldOptions, InMemoryActivityStorage, PaceDate, PaceDateTime,
+    ResumeOptions, TestResult, TimeRangeOptions, TomlActivityStorage, UpdateOptions,
 };
+use rayon::iter;
 use rstest::{fixture, rstest};
 use similar_asserts::assert_eq;
+
+use pace_testing::setup_activity_store_for_activity_tracker;
+
+#[rstest]
+fn test_activity_tracker(
+    setup_activity_store_for_activity_tracker: TestResult<ActivityStore>,
+) -> TestResult<()> {
+    let activity_tracker =
+        ActivityTracker::with_activity_store(setup_activity_store_for_activity_tracker?);
+
+    assert_eq!(
+        activity_tracker.store.cache().by_start_date().len(),
+        2,
+        "Should have 2 start dates."
+    );
+
+    // let time_range_opts = TimeRangeOptions::from(
+    //     PaceDate::try_from((2024, 2, 26))?,
+    //     PaceDate::try_from((2024, 2, 26))?,
+    // );
+
+    // let dates = activity_tracker
+    //     .store
+    //     .activity_log_for_date_range(time_range_opts)
+    //     .keys()
+    //     .sorted()
+    //     .cloned()
+    //     .collect::<Vec<_>>();
+
+    // assert_eq!(
+    //     dates,
+    //     vec![
+    //         PaceDate::try_from((2024, 2, 26))?,
+    //         PaceDate::try_from((2024, 2, 27))?
+    //     ],
+    //     "Should have the start dates in the correct order."
+    // );
+
+    // let activities_for_date = activity_tracker
+    //     .store
+    //     .cache()
+    //     .by_start_date()
+    //     .get(&PaceDate::try_from((2024, 2, 26))?)
+    //     .ok_or("Should have activities for the date.")?
+    //     .clone();
+
+    // let activity_log = ActivityLog::from_iter(activities_for_date);
+
+    // dbg!(&activity_log);
+
+    Ok(())
+}
