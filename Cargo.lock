@@ -1192,6 +1192,7 @@ dependencies = [
  "merge",
  "miette",
  "open",
+ "pace_testing",
  "parking_lot",
  "rayon",
  "rstest",
@@ -1211,6 +1212,16 @@ dependencies = [
 [[package]]
 name = "pace_server"
 version = "0.1.2"
+
+[[package]]
+name = "pace_testing"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "pace_core",
+ "rstest",
+ "similar-asserts",
+]
 
 [[package]]
 name = "parking_lot"

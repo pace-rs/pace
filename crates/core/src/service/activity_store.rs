@@ -4,6 +4,7 @@ use std::{
 };
 
 use serde_derive::{Deserialize, Serialize};
+use tracing::debug;
 
 use crate::{
     commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
@@ -39,6 +40,8 @@ struct ActivityStoreCache {
 impl ActivityStore {
     /// Create a new `ActivityStore` with a given storage backend
     pub fn with_storage(storage: Arc<StorageKind>) -> PaceResult<Self> {
+        debug!("Creating activity store with storage: {}", storage);
+
         let store = Self {
             cache: ActivityStoreCache::default(),
             storage,

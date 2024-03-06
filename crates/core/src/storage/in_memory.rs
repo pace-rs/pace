@@ -661,6 +661,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         Some(activities.activities().iter().try_fold(
             BTreeMap::new(),
             |mut acc: BTreeMap<String, Vec<ActivityItem>>, (activity_id, activity)| {
+                // Group by category
                 if let Some(category) = keyword_opts.category() {
                     let category = category.to_lowercase();
 
@@ -677,6 +678,20 @@ impl ActivityQuerying for InMemoryActivityStorage {
                             .or_default()
                             .push(ActivityItem::from((*activity_id, activity.clone())));
                     }
+                } else {
+                    // Use the existing activity category as the keyword
+
+                    debug!("No category specified. Using 'Uncategorized' as the category.");
+
+                    acc.entry(
+                        activity
+                            .category()
+                            .as_ref()
+                            .unwrap_or(&"Uncategorized".to_string())
+                            .to_string(),
+                    )
+                    .or_default()
+                    .push(ActivityItem::from((*activity_id, activity.clone())));
                 }
 
                 Ok(acc)

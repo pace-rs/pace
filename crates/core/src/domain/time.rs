@@ -11,13 +11,25 @@ use crate::{
 use chrono::{
     DateTime, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone,
 };
+use displaydoc::Display;
 use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
+/// `TimeRangeOptions`: {start} - {end}
 #[derive(
-    Debug, Clone, PartialEq, Serialize, Deserialize, TypedBuilder, Eq, Hash, Default, Getters,
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TypedBuilder,
+    Eq,
+    Hash,
+    Default,
+    Getters,
+    displaydoc::Display,
 )]
 #[getset(get = "pub")]
 pub struct TimeRangeOptions {
@@ -49,18 +61,37 @@ impl TryFrom<PaceDate> for PaceDateTime {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Display)]
 pub enum PaceTimeFrame {
+    /// Current Month
     CurrentMonth,
+
+    /// Current Week
     CurrentWeek,
+
+    /// Current Year
     CurrentYear,
+
+    /// Date Range: {0}
     DateRange(TimeRangeOptions),
+
+    /// Specific Date: {0}
     SpecificDate(PaceDate),
+
+    /// Last Month
     LastMonth,
+
+    /// Last Week
     LastWeek,
+
+    /// Last Year
     LastYear,
+
+    /// Today
     #[default]
     Today,
+
+    /// Yesterday
     Yesterday,
 }
 
@@ -175,6 +206,58 @@ pub enum PaceDurationRange {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct PaceDuration(u64);
 
+impl PaceDuration {
+    pub fn zero() -> Self {
+        Self(0)
+    }
+}
+
+impl std::ops::AddAssign for PaceDuration {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl std::ops::Sub for PaceDuration {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        match self.0.checked_sub(rhs.0) {
+            Some(result) => Self(result),
+            None => Self(0),
+        }
+    }
+}
+
+impl std::ops::SubAssign for PaceDuration {
+    fn sub_assign(&mut self, rhs: Self) {
+        match self.0.checked_sub(rhs.0) {
+            Some(result) => self.0 = result,
+            None => self.0 = 0,
+        }
+    }
+}
+
+impl std::ops::AddAssign<u64> for PaceDuration {
+    fn add_assign(&mut self, rhs: u64) {
+        self.0 += rhs;
+    }
+}
+
+impl std::ops::SubAssign<u64> for PaceDuration {
+    fn sub_assign(&mut self, rhs: u64) {
+        self.0 -= rhs;
+    }
+}
+
+impl std::ops::Add for PaceDuration {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
 impl FromStr for PaceDuration {
     type Err = PaceTimeErrorKind;
 
@@ -202,8 +285,20 @@ impl TryFrom<chrono::Duration> for PaceDuration {
     }
 }
 
-/// Wrapper for a date of an activity
-#[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+/// `PaceDate`: {0}
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Hash,
+    Clone,
+    Copy,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    displaydoc::Display,
+)]
 pub struct PaceDate(pub NaiveDate);
 
 impl PaceDate {
@@ -582,6 +677,91 @@ mod tests {
         let result = PaceDuration::default();
 
         assert_eq!(result, PaceDuration(0));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_zero_passes() -> TestResult<()> {
+        let result = PaceDuration::zero();
+
+        assert_eq!(result, PaceDuration(0));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_add_assign_passes() -> TestResult<()> {
+        let mut duration = PaceDuration(1);
+        duration += PaceDuration(1);
+
+        assert_eq!(duration, PaceDuration(2));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_sub_passes() -> TestResult<()> {
+        let duration = PaceDuration(2) - PaceDuration(1);
+
+        assert_eq!(duration, PaceDuration(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_sub_assign_passes() -> TestResult<()> {
+        let mut duration = PaceDuration(2);
+        duration -= PaceDuration(1);
+
+        assert_eq!(duration, PaceDuration(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_sub_assign_with_u64_passes() -> TestResult<()> {
+        let mut duration = PaceDuration(2);
+        duration -= 1;
+
+        assert_eq!(duration, PaceDuration(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_sub_assign_below_zero_passes() -> TestResult<()> {
+        let mut duration = PaceDuration(2);
+        duration -= PaceDuration(3);
+
+        assert_eq!(duration, PaceDuration(0));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_add_passes() -> TestResult<()> {
+        let duration = PaceDuration(1) + PaceDuration(1);
+
+        assert_eq!(duration, PaceDuration(2));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_from_str_passes() -> TestResult<()> {
+        let duration = "1".parse::<PaceDuration>()?;
+
+        assert_eq!(duration, PaceDuration(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_from_str_fails() -> TestResult<()> {
+        let duration = "a".parse::<PaceDuration>();
+
+        assert!(duration.is_err());
 
         Ok(())
     }

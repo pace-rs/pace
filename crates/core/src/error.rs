@@ -231,6 +231,12 @@ pub enum ActivityLogErrorKind {
 
     /// No active activity to adjust
     NoActiveActivityToAdjust,
+
+    /// Failed to group activities by keywords
+    FailedToGroupByKeywords,
+
+    /// No end options found for activity
+    NoEndOptionsFound,
 }
 
 /// [`PaceTimeErrorKind`] describes the errors that can happen while dealing with time.

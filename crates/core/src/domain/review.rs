@@ -24,6 +24,11 @@ pub enum ReviewFormatKind {
     PlainText,
 }
 
+/// Represents a category for summarizing activities.
+// We use a string to allow for user-defined categories for now,
+// but we may want to change this to an enum in the future.
+pub type SummaryCategory = String;
+
 /// Represents a summary of activities and insights for a specified review period.
 #[derive(
     Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
@@ -40,7 +45,7 @@ pub struct ReviewSummary {
     pub total_time_spent: PaceDuration,
 
     /// Summary of activities grouped by a category or another relevant identifier.
-    pub activities_summary: HashMap<String, ActivitySummary>,
+    pub activities_summary: HashMap<SummaryCategory, ActivitySummary>,
 
     /// Highlights extracted from the review data, offering insights into user productivity.
     pub highlights: Highlights,
@@ -66,6 +71,46 @@ pub struct ActivitySummary {
 
     /// Average duration of an activity within the group.
     pub average_duration: PaceDuration,
+
+    /// Activities within the summary group, with clean durations.
+    pub clean_activities: Vec<GroupedByActivityDescriptionWithCleanDuration>,
+
+    /// Activities within the summary group
+    activities: Vec<ActivityItem>,
+}
+
+#[derive(
+    Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
+)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct GroupedByActivityDescriptionWithCleanDuration {
+    description: String,
+    clean_duration: PaceDuration,
+}
+
+impl GroupedByActivityDescriptionWithCleanDuration {
+    pub fn new(description: String, clean_duration: PaceDuration) -> Self {
+        Self {
+            description,
+            clean_duration,
+        }
+    }
+}
+
+impl ActivitySummary {
+    pub fn new(
+        total_duration: PaceDuration,
+        average_duration: PaceDuration,
+        activities: Vec<ActivityItem>,
+    ) -> Self {
+        Self {
+            total_duration,
+            average_duration,
+            clean_activities: vec![], // TODO!: Implement this
+            count: activities.len(),
+            activities,
+        }
+    }
 }
 
 /// Highlights from the review period, providing quick insights into key metrics.

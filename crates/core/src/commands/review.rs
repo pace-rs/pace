@@ -74,9 +74,14 @@ impl ReviewCommandOptions {
     pub fn handle_review(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
-        let _activity_tracker = ActivityTracker::with_activity_store(activity_store);
+        let activity_tracker = ActivityTracker::with_activity_store(activity_store);
 
-        let _time_frame = get_time_frame_from_flags(self.time_flags(), self.date_flags());
+        let time_frame: crate::PaceTimeFrame =
+            get_time_frame_from_flags(self.time_flags(), self.date_flags())?;
+
+        debug!("Displaying review for time frame: {}", time_frame);
+
+        let _review_summary = activity_tracker.generate_review_summary(time_frame)?;
 
         debug!("{:#?}", self);
 
