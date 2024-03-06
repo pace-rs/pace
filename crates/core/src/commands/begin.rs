@@ -46,7 +46,20 @@ pub struct BeginCommandOptions {
 }
 
 impl BeginCommandOptions {
-    /// Inner run implementation for the begin command
+    /// Handles the `begin` subcommand
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The configuration for the pace application
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the activity could not be started
+    ///
+    /// # Returns
+    ///
+    /// Returns a `UserMessage` with the information about the started activity
+    /// that can be displayed to the user
     #[tracing::instrument(skip(self))]
     pub fn handle_begin(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let Self {

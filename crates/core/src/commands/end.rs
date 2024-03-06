@@ -25,6 +25,20 @@ pub struct EndCommandOptions {
 }
 
 impl EndCommandOptions {
+    /// Handles the `end` subcommand
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The configuration for the pace application
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the activity could not be ended
+    ///
+    /// # Returns
+    ///
+    /// Returns a `UserMessage` with the information about the ended activity
+    /// that can be displayed to the user
     #[tracing::instrument(skip(self))]
     pub fn handle_end(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let date_time = parse_time_from_user_input(&self.at)?;

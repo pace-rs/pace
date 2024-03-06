@@ -72,6 +72,20 @@ pub struct AdjustCommandOptions {
 }
 
 impl AdjustCommandOptions {
+    /// Handle the `adjust` subcommand
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The pace configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the activity store cannot be created or if the most recent active activity cannot be found
+    ///
+    /// # Returns
+    ///
+    /// A `UserMessage` to be printed to the user indicating the result of the operation and
+    /// some additional information
     #[tracing::instrument(skip(self))]
     pub fn handle_adjust(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;

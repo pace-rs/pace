@@ -23,6 +23,16 @@ pub struct DocsCommandOptions {
 }
 
 impl DocsCommandOptions {
+    /// Handles the `docs` subcommand
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the browser could not be opened
+    ///
+    /// # Returns
+    ///
+    /// Returns a `UserMessage` with the information about the opened documentation
+    /// that can be displayed to the user
     #[tracing::instrument(skip(self))]
     pub fn handle_docs(&self) -> PaceResult<UserMessage> {
         // If no flag is set, open the regular documentation

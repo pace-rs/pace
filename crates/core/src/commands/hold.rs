@@ -31,6 +31,19 @@ pub struct HoldCommandOptions {
 }
 
 impl HoldCommandOptions {
+    /// Handles the `hold` subcommand
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The configuration for the pace application
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the activity could not be held
+    ///
+    /// # Returns
+    ///
+    /// A `UserMessage` with the information about the held activity that can be displayed to the user
     #[tracing::instrument(skip(self))]
     pub fn handle_hold(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let action = if self.new_if_exists {

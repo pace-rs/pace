@@ -13,6 +13,19 @@ use crate::{
 pub struct NowCommandOptions {}
 
 impl NowCommandOptions {
+    /// Handles the `now` subcommand
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The configuration for the pace application
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the current activities could not be listed
+    ///
+    /// # Returns
+    ///
+    /// Returns a `UserMessage` with the information about the current activities that can be displayed to the user
     #[tracing::instrument(skip(self))]
     pub fn handle_now(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;

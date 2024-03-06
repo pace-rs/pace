@@ -1,7 +1,8 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, fmt::Display, sync::Arc};
 
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
+use tracing::debug;
 
 use crate::{
     commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
@@ -56,6 +57,8 @@ pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<StorageKin
         ActivityLogStorageKind::InMemory => InMemoryActivityStorage::new().into(),
     };
 
+    debug!("Using storage backend: {}", storage);
+
     Ok(Arc::new(storage))
 }
 
@@ -64,6 +67,18 @@ pub enum StorageKind {
     ActivityStore,
     InMemoryActivityStorage,
     TomlActivityStorage,
+}
+
+impl Display for StorageKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StorageKind::ActivityStore(_) => write!(f, "StorageKind: ActivityStore"),
+            StorageKind::InMemoryActivityStorage(_) => {
+                write!(f, "StorageKind: InMemoryActivityStorage")
+            }
+            StorageKind::TomlActivityStorage(_) => write!(f, "StorageKind: TomlActivityStorage"),
+        }
+    }
 }
 
 /// A type of storage that can be synced to a persistent medium.
@@ -600,10 +615,17 @@ pub trait ActivityQuerying: ActivityReadOps {
             .map(FilteredActivities::into_vec);
 
         let Some(filtered) = filtered else {
+            debug!("No recent activities found");
+
             return Ok(None);
         };
 
         if filtered.len() > count {
+            debug!(
+                "Found more than {} recent activities, dropping some...",
+                count
+            );
+
             Ok(Some(
                 (*filtered)
                     .iter()
@@ -615,6 +637,7 @@ pub trait ActivityQuerying: ActivityReadOps {
                     .collect(),
             ))
         } else {
+            debug!("Found {} recent activities", filtered.len());
             Ok(Some(filtered))
         }
     }
@@ -634,6 +657,16 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If the activity is active, it should return `Ok(true)`. If it is not active, it should return `Ok(false)`.
     fn is_activity_active(&self, activity_id: ActivityGuid) -> PaceResult<bool> {
         let activity = self.read_activity(activity_id)?;
+
+        debug!(
+            "Checking if Activity with id {:?} is active: {}",
+            activity_id,
+            if activity.activity().is_active() {
+                "yes"
+            } else {
+                "no"
+            }
+        );
 
         Ok(activity.activity().is_active())
     }
@@ -666,13 +699,20 @@ pub trait ActivityQuerying: ActivityReadOps {
                         .parent_id()
                         == Some(activity_id)
                     {
+                        debug!("Found active intermission for activity: {}", activity_id);
                         Some(*active_intermission_id)
                     } else {
+                        debug!("No active intermission found for activity: {}", activity_id);
                         None
                     }
                 })
                 .collect::<Vec<ActivityGuid>>()
         });
+
+        debug!(
+            "Activity with id {:?} has active intermissions: {:?}",
+            activity_id, guids
+        );
 
         Ok(guids)
     }
@@ -689,6 +729,8 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
         let Some(current) = self.list_current_activities(ActivityStatusFilter::Active)? else {
+            debug!("No active activities found");
+
             // There are no active activities at all
             return Ok(None);
         };
@@ -722,6 +764,8 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_held_activity(&self) -> PaceOptResult<ActivityItem> {
         let Some(current) = self.list_current_activities(ActivityStatusFilter::Held)? else {
+            debug!("No held activities found");
+
             // There are no active activities at all
             return Ok(None);
         };

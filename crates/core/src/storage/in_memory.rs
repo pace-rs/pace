@@ -310,6 +310,8 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         drop(activities);
 
+        debug!("Endable activities: {:?}", endable_activities);
+
         // There are no active activities
         if endable_activities.is_empty() {
             debug!("No active activities found.");
@@ -395,12 +397,16 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         // If the activity is active, return early with an error
         if resumable_activity.activity().is_active() {
+            debug!("Activity is already active.");
             return Err(ActivityLogErrorKind::ActiveActivityFound(activity_id).into());
         } else if resumable_activity.activity().has_ended() {
+            debug!("Activity has ended.");
             return Err(ActivityLogErrorKind::ActivityAlreadyEnded(activity_id).into());
         } else if resumable_activity.activity().is_archived() {
+            debug!("Activity is archived.");
             return Err(ActivityLogErrorKind::ActivityAlreadyArchived(activity_id).into());
         } else if !resumable_activity.activity().is_held() {
+            debug!("Activity is not held.");
             return Err(ActivityLogErrorKind::NoHeldActivityFound(activity_id).into());
         };
 
@@ -443,10 +449,13 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         // make sure, the activity is not already ended or archived
         if !active_activity.activity().is_active() {
+            debug!("Activity is not active.");
             return Err(ActivityLogErrorKind::NoActiveActivityFound(activity_id).into());
         } else if active_activity.activity().has_ended() {
+            debug!("Activity has ended.");
             return Err(ActivityLogErrorKind::ActivityAlreadyEnded(activity_id).into());
         } else if active_activity.activity().is_archived() {
+            debug!("Activity is archived.");
             return Err(ActivityLogErrorKind::ActivityAlreadyArchived(activity_id).into());
         };
 
