@@ -1,7 +1,8 @@
 use chrono::NaiveDate;
 use getset::{Getters, MutGetters, Setters};
 use serde_derive::Serialize;
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use tracing::debug;
 use typed_builder::TypedBuilder;
 
 #[cfg(feature = "clap")]
@@ -9,7 +10,7 @@ use clap::Parser;
 
 use crate::{
     domain::review::ReviewFormatKind, get_storage_from_config, get_time_frame_from_flags,
-    ActivityKind, ActivityStore, ActivityTracker, PaceConfig, PaceResult,
+    ActivityKind, ActivityStore, ActivityTracker, PaceConfig, PaceResult, UserMessage,
 };
 
 /// `review` subcommand options
@@ -69,16 +70,17 @@ pub struct ReviewCommandOptions {
 }
 
 impl ReviewCommandOptions {
-    pub fn handle_review(&self, config: Arc<PaceConfig>) -> PaceResult<()> {
-        let activity_store = ActivityStore::with_storage(get_storage_from_config(&config)?)?;
+    #[tracing::instrument(skip(self))]
+    pub fn handle_review(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let _activity_tracker = ActivityTracker::with_activity_store(activity_store);
 
         let _time_frame = get_time_frame_from_flags(self.time_flags(), self.date_flags());
 
-        println!("{:#?}", self);
+        debug!("{:#?}", self);
 
-        Ok(())
+        Ok(UserMessage::new("Review report generated"))
     }
 }
 

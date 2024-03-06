@@ -16,9 +16,12 @@ pub struct AdjustCmd {
 
 impl Runnable for AdjustCmd {
     fn run(&self) {
-        if let Err(err) = self.adjust_opts.handle_adjust(&PACE_APP.config()) {
-            status_err!("{}", err);
-            PACE_APP.shutdown(Shutdown::Crash);
+        match self.adjust_opts.handle_adjust(&PACE_APP.config()) {
+            Ok(user_message) => user_message.display(),
+            Err(err) => {
+                status_err!("{}", err);
+                PACE_APP.shutdown(Shutdown::Crash);
+            }
         };
     }
 }

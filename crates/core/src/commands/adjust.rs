@@ -4,12 +4,13 @@ use chrono::{NaiveDateTime, NaiveTime};
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::Getters;
+use tracing::debug;
 use typed_builder::TypedBuilder;
 
 use crate::{
     error::{ActivityLogErrorKind, PaceTimeErrorKind},
     get_storage_from_config, ActivityQuerying, ActivityStore, ActivityWriteOps, PaceConfig,
-    PaceDateTime, PaceResult, SyncStorage, UpdateOptions,
+    PaceDateTime, PaceResult, SyncStorage, UpdateOptions, UserMessage,
 };
 
 /// `adjust` subcommand options
@@ -71,21 +72,28 @@ pub struct AdjustCommandOptions {
 }
 
 impl AdjustCommandOptions {
-    pub fn handle_adjust(&self, config: &PaceConfig) -> PaceResult<()> {
+    #[tracing::instrument(skip(self))]
+    pub fn handle_adjust(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let activity_item = activity_store
             .most_recent_active_activity()?
             .ok_or_else(|| ActivityLogErrorKind::NoActiveActivityToAdjust)?;
 
+        debug!("Most recent active activity item: {:?}", activity_item);
+
         let guid = *activity_item.guid();
         let mut activity = activity_item.activity().clone();
 
         if let Some(category) = &self.category {
+            debug!("Setting category to: {:?}", category);
+
             _ = activity.set_category(category.clone().into());
         }
 
         if let Some(description) = &self.description {
+            debug!("Setting description to: {:?}", description);
+
             _ = activity.set_description(description.clone());
         }
 
@@ -99,6 +107,8 @@ impl AdjustCommandOptions {
                 return Err(PaceTimeErrorKind::StartTimeInFuture(start_time).into());
             };
 
+            debug!("Setting start time to: {:?}", start_time);
+
             _ = activity.set_begin(start_time);
         }
 
@@ -106,12 +116,16 @@ impl AdjustCommandOptions {
             let tags = tags.iter().cloned().collect::<HashSet<String>>();
 
             if self.override_tags {
+                debug!("Overriding tags with: {:?}", tags);
                 _ = activity.set_tags(Some(tags.clone()));
             } else {
                 let merged_tags = activity.tags_mut().as_mut().map_or_else(
                     || tags.clone(),
                     |existing_tags| existing_tags.union(&tags).cloned().collect(),
                 );
+
+                debug!("Setting merged tags: {:?}", merged_tags);
+
                 _ = activity.set_tags(Some(merged_tags));
             }
         }
@@ -120,11 +134,12 @@ impl AdjustCommandOptions {
 
         if activity_item.activity() != &activity {
             activity_store.sync()?;
-            println!("{} has been adjusted.", activity);
-        } else {
-            println!("No changes were made.");
+            return Ok(UserMessage::new(format!(
+                "{} has been adjusted.",
+                activity_item.activity()
+            )));
         }
 
-        Ok(())
+        Ok(UserMessage::new("No changes were made."))
     }
 }

@@ -311,6 +311,7 @@ pub fn find_root_project_file(
 /// # Returns
 ///
 /// The path to the file if found
+#[tracing::instrument(skip(current_dir))]
 pub fn find_root_config_file_path(
     current_dir: impl AsRef<Path>,
     file_name: &str,
@@ -334,6 +335,7 @@ pub fn find_root_config_file_path(
 ///
 /// A vector of [`PathBuf`]s to the activity log files
 #[must_use]
+#[tracing::instrument]
 pub fn get_activity_log_paths(filename: &str) -> Vec<PathBuf> {
     vec![
         ProjectDirs::from("org", "pace-rs", "pace").map(|project_dirs| {
@@ -360,6 +362,7 @@ pub fn get_activity_log_paths(filename: &str) -> Vec<PathBuf> {
 ///
 /// A vector of [`PathBuf`]s to the config files
 #[must_use]
+#[tracing::instrument]
 pub fn get_config_paths(filename: &str) -> Vec<PathBuf> {
     #[allow(unused_mut)]
     let mut paths = vec![
@@ -390,6 +393,7 @@ pub fn get_config_paths(filename: &str) -> Vec<PathBuf> {
 ///
 /// The path to the home activity log directory.
 /// If the environment variable `PACE_HOME` is not set, `None` is returned.
+#[tracing::instrument]
 pub fn get_home_activity_log_path() -> Option<PathBuf> {
     std::env::var_os("PACE_HOME").map(|home_dir| PathBuf::from(home_dir).join("activities"))
 }
@@ -400,6 +404,7 @@ pub fn get_home_activity_log_path() -> Option<PathBuf> {
 ///
 /// The path to the home config directory.
 /// If the environment variable `PACE_HOME` is not set, `None` is returned.
+#[tracing::instrument]
 pub fn get_home_config_path() -> Option<PathBuf> {
     std::env::var_os("PACE_HOME").map(|home_dir| PathBuf::from(home_dir).join("config"))
 }
@@ -413,6 +418,7 @@ pub fn get_home_config_path() -> Option<PathBuf> {
 /// # Note
 ///
 /// If the environment variable `USERPROFILE` is not set, `None` is returned.
+#[tracing::instrument]
 #[cfg(target_os = "windows")]
 fn get_windows_portability_config_directories() -> Option<Vec<Option<PathBuf>>> {
     std::env::var_os("USERPROFILE").map(|path| {
@@ -429,6 +435,7 @@ fn get_windows_portability_config_directories() -> Option<Vec<Option<PathBuf>>> 
 ///
 /// The path to the global config directory on Windows.
 /// If the environment variable `PROGRAMDATA` is not set, `None` is returned.
+#[tracing::instrument]
 #[cfg(target_os = "windows")]
 fn get_global_config_path() -> Option<PathBuf> {
     std::env::var_os("PROGRAMDATA")
@@ -440,6 +447,7 @@ fn get_global_config_path() -> Option<PathBuf> {
 /// # Returns
 ///
 /// `None` is returned.
+#[tracing::instrument]
 #[cfg(any(target_os = "ios", target_arch = "wasm32"))]
 fn get_global_config_path() -> Option<PathBuf> {
     None
@@ -451,6 +459,7 @@ fn get_global_config_path() -> Option<PathBuf> {
 /// # Returns
 ///
 /// "/etc/pace" is returned.
+#[tracing::instrument]
 #[cfg(not(any(target_os = "windows", target_os = "ios", target_arch = "wasm32")))]
 fn get_global_config_path() -> Option<PathBuf> {
     Some(PathBuf::from("/etc/pace"))

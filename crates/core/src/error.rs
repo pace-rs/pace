@@ -16,6 +16,43 @@ pub type PaceResult<T> = Result<T, PaceError>;
 /// Result type that is being returned from methods that have optional return values and can fail thus having [`PaceError`]s.
 pub type PaceOptResult<T> = PaceResult<Option<T>>;
 
+/// User message type that is being returned from methods that need to print a message to the user.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UserMessage {
+    /// The message to be printed to the user
+    msg: String,
+}
+
+impl std::fmt::Display for UserMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.msg)
+    }
+}
+
+impl UserMessage {
+    pub fn new(msg: impl Into<String>) -> Self {
+        Self { msg: msg.into() }
+    }
+
+    pub fn display(&self) {
+        println!("{}", self.msg);
+    }
+}
+
+impl std::ops::DerefMut for UserMessage {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.msg
+    }
+}
+
+impl std::ops::Deref for UserMessage {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.msg
+    }
+}
+
 // [`Error`] is public, but opaque and easy to keep compatible.
 /// Errors that can result from pace.
 #[derive(Error, Debug, Diagnostic)]

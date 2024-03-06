@@ -1189,7 +1189,6 @@ dependencies = [
  "getset",
  "insta",
  "itertools",
- "log",
  "merge",
  "miette",
  "open",
@@ -1204,6 +1203,7 @@ dependencies = [
  "strum_macros",
  "thiserror",
  "toml 0.8.10",
+ "tracing",
  "typed-builder",
  "ulid",
 ]

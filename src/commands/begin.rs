@@ -16,9 +16,12 @@ pub struct BeginCmd {
 
 impl Runnable for BeginCmd {
     fn run(&self) {
-        if let Err(err) = self.begin_opts.handle_begin(&PACE_APP.config()) {
-            status_err!("{}", err);
-            PACE_APP.shutdown(Shutdown::Crash);
+        match self.begin_opts.handle_begin(&PACE_APP.config()) {
+            Ok(user_message) => user_message.display(),
+            Err(err) => {
+                status_err!("{}", err);
+                PACE_APP.shutdown(Shutdown::Crash);
+            }
         };
     }
 }

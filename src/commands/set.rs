@@ -25,7 +25,6 @@ pub struct SetCmd {
 }
 
 impl Runnable for SetCmd {
-    /// Start the application.
     fn run(&self) {
         // Your code goes here
     }

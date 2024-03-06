@@ -20,7 +20,9 @@ pub mod resume;
 pub mod review;
 pub mod setup;
 
-use abscissa_core::{config::Override, Command, Configurable, FrameworkError, Runnable};
+use abscissa_core::{
+    config::Override, tracing::debug, Command, Configurable, FrameworkError, Runnable,
+};
 use clap::builder::{styling::AnsiColor, Styles};
 use human_panic::setup_panic;
 use std::path::PathBuf;
@@ -124,6 +126,8 @@ impl Override<PaceConfig> for EntryPoint {
     fn override_config(&self, mut config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
         // Override the activity log file if it's set
         if let Some(activity_log_file) = &self.activity_log_file {
+            debug!("Overriding activity log file with: {:?}", activity_log_file);
+
             // Handle not existing activity log file and parent directory
             match (activity_log_file.parent(), activity_log_file.exists()) {
                 (Some(dir), false) if dir.exists() => {
@@ -149,6 +153,8 @@ impl Override<PaceConfig> for EntryPoint {
                 .activity_log_format_mut() = Some(ActivityLogFormatKind::Toml);
         };
 
+        debug!("Overridden config: {:?}", config);
+
         Ok(config)
     }
 }
@@ -162,9 +168,19 @@ impl Configurable<PaceConfig> for EntryPoint {
             .filter(|f| f.exists())
             .collect::<Vec<_>>();
 
+        debug!(
+            "Automatically determined config paths: {:?}",
+            automatically_determined
+        );
+
         // Get the first path that exists
         // FIXME: This feels hacky, is this sensible?
         let first_automatically_determined = automatically_determined.first();
+
+        debug!(
+            "First automatically determined config path: {:?}",
+            first_automatically_determined
+        );
 
         let user_specified = self.config.as_ref().and_then(|f| {
             if f.exists() {
@@ -184,11 +200,15 @@ impl Configurable<PaceConfig> for EntryPoint {
         // If the user has specified a config file, use that
         // otherwise, use the first config file found in specified
         // standard locations
-        match (user_specified, first_automatically_determined) {
+        let config_path = match (user_specified, first_automatically_determined) {
             (Some(filename), _) => Some(filename.clone()),
             (None, Some(first_path)) => Some(first_path.clone()),
             _ => None,
-        }
+        };
+
+        debug!("Using config path: {:?}", config_path);
+
+        config_path
     }
 
     /// Apply changes to the config after it's been loaded, e.g. overriding

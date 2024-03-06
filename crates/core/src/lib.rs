@@ -59,7 +59,7 @@ pub use crate::{
             PaceTime, PaceTimeFrame, TimeRangeOptions,
         },
     },
-    error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult},
+    error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult, UserMessage},
     service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
     storage::{
         file::TomlActivityStorage, get_storage_from_config, in_memory::InMemoryActivityStorage,

@@ -25,7 +25,6 @@ pub struct ExportCmd {
 }
 
 impl Runnable for ExportCmd {
-    /// Start the application.
     fn run(&self) {
         // Your code goes here
     }
