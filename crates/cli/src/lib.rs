@@ -5,6 +5,8 @@ pub(crate) mod prompt;
 /// Contains the main logic for the `setup` command
 pub(crate) mod setup;
 
+pub(crate) static PACE_ART: &str = include_str!("pace.art");
+
 // Public API
 pub use crate::{
     prompt::{confirmation_or_break, prompt_resume_activity},

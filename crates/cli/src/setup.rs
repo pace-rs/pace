@@ -19,7 +19,10 @@ use pace_core::{
     get_config_paths, toml, ActivityLog, PaceConfig,
 };
 
-use crate::prompt::{prompt_activity_log_path, prompt_config_file_path};
+use crate::{
+    prompt::{prompt_activity_log_path, prompt_config_file_path},
+    PACE_ART,
+};
 
 #[derive(Debug, TypedBuilder, Getters)]
 pub struct PathOptions {
@@ -234,20 +237,8 @@ pub(crate) fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
 pub(crate) fn print_intro(term: &Term) -> Result<()> {
     // Font name: Font Name: Georgia11
     // Source: https://patorjk.com/software/taag/#p=display&f=Georgia11&t=PACE
-    let logo = style(
-        r#"
-`7MM"""Mq.   db       .g8"""bgd `7MM"""YMM  
-  MM   `MM. ;MM:    .dP'     `M   MM    `7  
-  MM   ,M9 ,V^MM.   dM'       `   MM   d    
-  MMmmdM9 ,M  `MM   MM            MMmmMM    
-  MM      AbmmmqMA  MM.           MM   Y  , 
-  MM     A'     VML `Mb.     ,'   MM     ,M 
-.JMML. .AMA.   .AMMA. `"bmmmd'  .JMMmmmmMMM 
-    "#,
-    )
-    .italic()
-    .green()
-    .bold();
+
+    let logo = style(PACE_ART.to_string()).italic().green().bold();
 
     let assistant_headline = style("Setup Assistant")
         .white()
@@ -256,6 +247,7 @@ pub(crate) fn print_intro(term: &Term) -> Result<()> {
         .underlined();
 
     term.clear_screen()?;
+
     println!("{logo}");
 
     println!("{assistant_headline}");
