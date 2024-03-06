@@ -16,7 +16,7 @@ license = "AGPL-3.0-or-later"
 repository = "https://github.com/pace-rs/pace"
 
 [workspace.dependencies]
-chrono = { version = "0.4.34", features = ["serde"] }
+chrono = { version = "0.4.35", features = ["serde"] }
 clap = { version = "4", features = ["env", "wrap_help", "derive"] }
 eyre = "0.6.12"
 pace_cli = { path = "crates/cli", version = "0" }

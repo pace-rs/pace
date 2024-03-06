@@ -802,7 +802,7 @@ mod tests {
 
     #[test]
     fn test_pace_date_time_is_future_fails() -> TestResult<()> {
-        let future = Local::now() + chrono::Duration::days(1);
+        let future = Local::now() + chrono::TimeDelta::try_days(1).ok_or("Invalid time delta.")?;
         let time = PaceDateTime::new(future.naive_local());
 
         let result = time.is_future();
@@ -874,7 +874,7 @@ mod tests {
 
     #[test]
     fn test_pace_duration_from_chrono_duration_passes() -> TestResult<()> {
-        let duration = chrono::Duration::seconds(1);
+        let duration = chrono::TimeDelta::try_seconds(1).ok_or("Invalid time delta.")?;
         let result = PaceDuration::try_from(duration)?;
         assert_eq!(result, PaceDuration(1));
 

@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::Path, sync::Arc};
 
-use chrono::{Local, NaiveDateTime};
+use chrono::{DateTime, Local, NaiveDateTime};
 use pace_core::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
     ActivityStatus, ActivityStore, InMemoryActivityStorage, PaceDateTime, TestResult,
@@ -37,11 +37,13 @@ pub fn activity_store_no_intermissions() -> TestResult<TestData> {
 
 pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
     let begin_time = PaceDateTime::new(NaiveDateTime::new(
-        NaiveDateTime::from_timestamp_opt(0, 0)
+        DateTime::from_timestamp(0, 0)
             .ok_or("Should have date time.")?
+            .naive_local()
             .date(),
-        NaiveDateTime::from_timestamp_opt(0, 0)
+        DateTime::from_timestamp(0, 0)
             .ok_or("Should have date time.")?
+            .naive_local()
             .time(),
     ));
 
@@ -70,10 +72,12 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
 
     let archived_activity = ActivityItem::from((ActivityGuid::default(), archived_activity));
 
-    let time_30_min_ago = Local::now().naive_local() - chrono::Duration::minutes(30);
+    let time_30_min_ago = Local::now().naive_local()
+        - chrono::TimeDelta::try_minutes(30).ok_or("Should have time delta.")?;
     let begin_time = PaceDateTime::new(time_30_min_ago);
-    let intermission_begin_time =
-        PaceDateTime::new(time_30_min_ago + chrono::Duration::minutes(15));
+    let intermission_begin_time = PaceDateTime::new(
+        time_30_min_ago + chrono::TimeDelta::try_minutes(15).ok_or("Should have time delta.")?,
+    );
     let desc = "Activity with Intermission".to_string();
     let cat = "Test::Intermission".to_string();
 
