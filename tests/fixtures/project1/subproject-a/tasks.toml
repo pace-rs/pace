@@ -1,4 +1,4 @@
-[[task]]
+[[tasks]]
 id = "018d84a1-d7b2-7383-a6ab-8cfee92b5308"
 title = "Implement feature X"
 created_at = "2024-02-04T12:34:56"
@@ -8,7 +8,7 @@ priority = "High"
 status = "Pending"
 tags = ["feature", "X"]
 
-[[task]]
+[[tasks]]
 id = "018d84a1-ea37-7716-8ec0-845a1a396e20"
 title = "Fix bug Y"
 created_at = "2024-02-06T12:34:56"

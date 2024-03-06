@@ -11,7 +11,7 @@ fn test_find_root_projects_file() -> TestResult<()> {
 
     // navigate to the test directory for the fixtures
     let root = current_dir
-        .join("tests/fixtures/project1/subproject-a/")
+        .join("../../tests/fixtures/project1/subproject-a/")
         .canonicalize()?;
 
     // get the path to the projects config file
@@ -20,7 +20,7 @@ fn test_find_root_projects_file() -> TestResult<()> {
     assert_eq!(
         projects_config_path,
         current_dir
-            .join("tests/fixtures/project1/projects.pace.toml")
+            .join("../../tests/fixtures/project1/projects.pace.toml")
             .canonicalize()?
     );
 
