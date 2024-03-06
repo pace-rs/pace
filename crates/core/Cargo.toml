@@ -27,7 +27,7 @@ clap = ["dep:clap"]
 # testing = ["dep:arbitrary"]
 
 [dependencies]
-chrono = { version = "0.4.34", features = ["serde"] }
+chrono = { version = "0.4.35", features = ["serde"] }
 clap = { workspace = true, optional = true }
 directories = "5.0.1"
 displaydoc = "0.2.4"
