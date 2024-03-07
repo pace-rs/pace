@@ -15,24 +15,14 @@ use chrono::{
 };
 use displaydoc::Display;
 use getset::Getters;
+use humantime::format_duration;
 use serde_derive::{Deserialize, Serialize};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-/// `TimeRangeOptions`: {start} - {end}
+/// `TimeRangeOptions` represents the start and end time of a time range
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TypedBuilder,
-    Eq,
-    Hash,
-    Default,
-    Getters,
-    displaydoc::Display,
+    Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TypedBuilder, Eq, Hash, Default, Getters,
 )]
 #[getset(get = "pub")]
 pub struct TimeRangeOptions {
@@ -40,6 +30,12 @@ pub struct TimeRangeOptions {
     start: PaceDateTime,
     #[builder(default = PaceDateTime::now())]
     end: PaceDateTime,
+}
+
+impl Display for TimeRangeOptions {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{} - {}", self.start, self.end)
+    }
 }
 
 impl TryFrom<PaceTimeFrame> for TimeRangeOptions {
@@ -470,9 +466,47 @@ pub enum PaceDurationRange {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct PaceDuration(u64);
 
+impl Display for PaceDuration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", format_duration(Duration::from_secs(self.0)))
+    }
+}
+
 impl PaceDuration {
     pub fn zero() -> Self {
         Self(0)
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
+    }
+
+    pub fn as_secs(&self) -> u64 {
+        self.0
+    }
+
+    pub fn as_duration(&self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+
+    pub fn as_minutes(&self) -> f64 {
+        self.0 as f64 / 60.0
+    }
+
+    pub fn as_hours(&self) -> f64 {
+        self.0 as f64 / 3600.0
+    }
+
+    pub fn as_days(&self) -> f64 {
+        self.0 as f64 / 86400.0
+    }
+
+    pub fn as_weeks(&self) -> f64 {
+        self.0 as f64 / 604800.0
+    }
+
+    pub fn from_seconds(seconds: u64) -> Self {
+        Self(seconds)
     }
 }
 

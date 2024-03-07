@@ -80,9 +80,13 @@ impl ReviewCommandOptions {
 
         debug!("Displaying review for time frame: {}", time_frame);
 
-        let _review_summary = activity_tracker.generate_review_summary(time_frame)?;
+        let Some(review_summary) = activity_tracker.generate_review_summary(time_frame)? else {
+            return Ok(UserMessage::new(
+                "No activities found for the specified time frame",
+            ));
+        };
 
-        debug!("{:#?}", self);
+        println!("{}", review_summary);
 
         Ok(UserMessage::new("Review report generated"))
     }

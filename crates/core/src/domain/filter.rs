@@ -1,9 +1,9 @@
-use crate::ActivityGuid;
+use crate::{ActivityGuid, TimeRangeOptions};
 use strum::EnumIter;
 
 /// Filter for activities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumIter)]
-pub enum ActivityStatusFilter {
+pub enum ActivityFilterKind {
     /// Everything, activities, intermissions, archived, and ended
     #[default]
     Everything,
@@ -28,6 +28,9 @@ pub enum ActivityStatusFilter {
 
     /// Intermission
     Intermission,
+
+    /// Time range
+    TimeRange(TimeRangeOptions),
 }
 
 /// Filtered activities
@@ -56,6 +59,9 @@ pub enum FilteredActivities {
 
     /// Intermission
     Intermission(Vec<ActivityGuid>),
+
+    /// Time range
+    TimeRange(Vec<ActivityGuid>),
 }
 
 impl FilteredActivities {
@@ -70,7 +76,8 @@ impl FilteredActivities {
             | Self::Ended(activities)
             | Self::ActiveIntermission(activities)
             | Self::Held(activities)
-            | Self::Intermission(activities) => activities,
+            | Self::Intermission(activities)
+            | Self::TimeRange(activities) => activities,
         }
     }
 }

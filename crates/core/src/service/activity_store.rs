@@ -8,14 +8,16 @@ use crate::{
     commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
-        filter::{ActivityStatusFilter, FilteredActivities},
+        filter::{ActivityFilterKind, FilteredActivities},
+        review::SummaryCategory,
     },
     error::{ActivityStoreErrorKind, PaceOptResult, PaceResult},
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, StorageKind, SyncStorage,
     },
-    ActivityLog, ActivityStatus, EndOptions, HoldOptions, PaceDate, TimeRangeOptions,
+    ActivityGroup, ActivityStatus, EndOptions, HoldOptions, PaceDate, SummaryGroup,
+    TimeRangeOptions,
 };
 
 /// The activity store entity
@@ -85,17 +87,44 @@ impl ActivityStore {
         Ok(())
     }
 
-    pub fn activity_log_for_date_range(
+    #[tracing::instrument(skip(self))]
+    pub fn summary_groups_by_category_for_time_range(
         &self,
         time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<ActivityLog> {
-        let Some(activities) = self.list_activities_by_time_range(time_range_opts)? else {
+    ) -> PaceOptResult<BTreeMap<SummaryCategory, SummaryGroup>> {
+        let Some(activity_guids) = self.list_activities_by_time_range(time_range_opts)? else {
             debug!("No activities found for time range: {:?}", time_range_opts);
 
             return Ok(None);
         };
 
-        Ok(Some(ActivityLog::from_iter(activities)))
+        // merge the activities into summary groups
+        let mut summary_groups: BTreeMap<SummaryCategory, SummaryGroup> = BTreeMap::new();
+
+        for activity_guid in activity_guids {
+            let activity_item = self.read_activity(activity_guid)?;
+
+            let mut activity_group = ActivityGroup::new(activity_item.clone());
+
+            if let Some(intermissions) =
+                self.list_intermissions_for_activity_id(*activity_item.guid())?
+            {
+                activity_group.add_multiple_intermissions(intermissions);
+            };
+
+            _ = summary_groups
+                .entry(
+                    activity_item
+                        .activity()
+                        .category()
+                        .clone()
+                        .unwrap_or_else(|| "Uncategorized".to_string()),
+                )
+                .and_modify(|e| e.add_activity_group(activity_group.clone()))
+                .or_insert_with(|| SummaryGroup::with_activity_group(activity_group));
+        }
+
+        Ok(Some(summary_groups))
     }
 }
 
@@ -120,7 +149,7 @@ impl ActivityReadOps for ActivityStore {
     }
 
     #[tracing::instrument(skip(self))]
-    fn list_activities(&self, filter: ActivityStatusFilter) -> PaceOptResult<FilteredActivities> {
+    fn list_activities(&self, filter: ActivityFilterKind) -> PaceOptResult<FilteredActivities> {
         self.storage.list_activities(filter)
     }
 }
@@ -266,7 +295,7 @@ impl ActivityQuerying for ActivityStore {
     fn list_activities_by_time_range(
         &self,
         time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<Vec<ActivityItem>> {
+    ) -> PaceOptResult<Vec<ActivityGuid>> {
         self.storage.list_activities_by_time_range(time_range_opts)
     }
 

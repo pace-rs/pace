@@ -3,8 +3,8 @@
 use std::{collections::HashSet, sync::Arc};
 
 use pace_core::{
-    Activity, ActivityGuid, ActivityReadOps, ActivityStateManagement, ActivityStatus,
-    ActivityStatusFilter, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
+    Activity, ActivityFilterKind, ActivityGuid, ActivityReadOps, ActivityStateManagement,
+    ActivityStatus, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
     InMemoryActivityStorage, ResumeOptions, TestResult, UpdateOptions,
 };
 
@@ -91,7 +91,7 @@ fn test_activity_store_list_activities_returns_none_on_empty_passes(
 
     assert!(
         store
-            .list_activities(ActivityStatusFilter::Everything)?
+            .list_activities(ActivityFilterKind::Everything)?
             .is_none(),
         "Should have no activities."
     );
@@ -109,67 +109,70 @@ fn test_activity_store_list_activities_passes(
 
     let TestData { activities, store } = activity_store?;
 
-    for filter in ActivityStatusFilter::iter() {
+    for filter in ActivityFilterKind::iter() {
         let loaded_activities = store
             .list_activities(filter)?
             .ok_or("Should have activities")?;
 
         match filter {
-            ActivityStatusFilter::OnlyActivities => {
+            ActivityFilterKind::OnlyActivities => {
                 assert_eq!(
                     4,
                     loaded_activities.clone().into_vec().len(),
                     "Should have only 4 activities."
                 );
             }
-            ActivityStatusFilter::Archived => {
+            ActivityFilterKind::Archived => {
                 assert_eq!(
                     1,
                     loaded_activities.into_vec().len(),
                     "Should have one archived."
                 );
             }
-            ActivityStatusFilter::ActiveIntermission => {
+            ActivityFilterKind::ActiveIntermission => {
                 assert_eq!(
                     1,
                     loaded_activities.into_vec().len(),
                     "Should have one active intermission."
                 );
             }
-            ActivityStatusFilter::Active => {
+            ActivityFilterKind::Active => {
                 assert_eq!(
                     1,
                     loaded_activities.into_vec().len(),
                     "Should have one active activities."
                 );
             }
-            ActivityStatusFilter::Ended => {
+            ActivityFilterKind::Ended => {
                 assert_eq!(
                     1,
                     loaded_activities.into_vec().len(),
                     "Should have one ended activity."
                 );
             }
-            ActivityStatusFilter::Everything => {
+            ActivityFilterKind::Everything => {
                 assert_eq!(
                     activities.len(),
                     loaded_activities.into_vec().len(),
                     "Should be the same length as initial activities."
                 );
             }
-            ActivityStatusFilter::Held => {
+            ActivityFilterKind::Held => {
                 assert_eq!(
                     1,
                     loaded_activities.into_vec().len(),
                     "Should have one held activity."
                 );
             }
-            ActivityStatusFilter::Intermission => {
+            ActivityFilterKind::Intermission => {
                 assert_eq!(
                     1,
                     loaded_activities.into_vec().len(),
                     "Should have one intermission."
                 );
+            }
+            ActivityFilterKind::TimeRange(_) => {
+                // We don't have any time range here, so we can't test this.
             }
         }
     }
@@ -187,7 +190,7 @@ fn test_activity_store_list_ended_activities_passes(
     } = activity_store?;
 
     let loaded_activities = store
-        .list_activities(ActivityStatusFilter::Ended)?
+        .list_activities(ActivityFilterKind::Ended)?
         .ok_or("Should have activities.")?;
 
     assert_eq!(
@@ -206,7 +209,7 @@ fn test_activity_store_list_all_activities_passes(
     let TestData { activities, store } = activity_store?;
 
     let loaded_activities = store
-        .list_activities(ActivityStatusFilter::Everything)?
+        .list_activities(ActivityFilterKind::Everything)?
         .ok_or("Should have activities.")?;
 
     assert_eq!(
@@ -229,7 +232,7 @@ fn test_activity_store_list_all_activities_empty_result_passes(
 
     assert!(
         store
-            .list_activities(ActivityStatusFilter::Everything)?
+            .list_activities(ActivityFilterKind::Everything)?
             .is_none(),
         "Should have no activities."
     );
@@ -396,7 +399,7 @@ fn test_activity_store_begin_intermission_passes(
     );
 
     let active_intermissions = store
-        .list_activities(ActivityStatusFilter::ActiveIntermission)?
+        .list_activities(ActivityFilterKind::ActiveIntermission)?
         .ok_or("Should have activities.")?
         .into_vec();
 
@@ -461,7 +464,7 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
     assert_eq!(
         activities.len(),
         store
-            .list_activities(ActivityStatusFilter::Everything)?
+            .list_activities(ActivityFilterKind::Everything)?
             .ok_or("Should have activities.")?
             .into_vec()
             .len(),
@@ -470,7 +473,7 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
 
     // check that the intermission is still active
     let activities = store
-        .list_activities(ActivityStatusFilter::ActiveIntermission)?
+        .list_activities(ActivityFilterKind::ActiveIntermission)?
         .ok_or("Should have activities.")?
         .into_vec();
 
@@ -525,7 +528,7 @@ fn test_activity_store_end_intermission_passes(
     let intermission = store.read_activity(*intermission)?;
 
     let activities = store
-        .list_activities(ActivityStatusFilter::Everything)?
+        .list_activities(ActivityFilterKind::Everything)?
         .ok_or("Should have activities.")?
         .into_vec();
 
@@ -575,7 +578,7 @@ fn test_activity_store_resume_activity_passes(
     } = activity_store?;
 
     let activities = store
-        .list_activities(ActivityStatusFilter::Everything)?
+        .list_activities(ActivityFilterKind::Everything)?
         .ok_or("Should have activities.")?
         .into_vec();
 
@@ -586,14 +589,14 @@ fn test_activity_store_resume_activity_passes(
     );
 
     let held_activity = store
-        .list_activities(ActivityStatusFilter::Held)?
+        .list_activities(ActivityFilterKind::Held)?
         .ok_or("Should have activities.")?
         .into_vec();
 
     assert_eq!(held_activity.len(), 1, "Should have one held activity.");
 
     let active_intermission = store
-        .list_activities(ActivityStatusFilter::ActiveIntermission)?
+        .list_activities(ActivityFilterKind::ActiveIntermission)?
         .ok_or("Should have activities.")?
         .into_vec();
 
@@ -609,7 +612,7 @@ fn test_activity_store_resume_activity_passes(
 
     assert!(
         store
-            .list_activities(ActivityStatusFilter::ActiveIntermission)?
+            .list_activities(ActivityFilterKind::ActiveIntermission)?
             .is_none(),
         "Should have no active intermissions."
     );
@@ -677,7 +680,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
 
     assert!(
         store
-            .list_activities(ActivityStatusFilter::ActiveIntermission)?
+            .list_activities(ActivityFilterKind::ActiveIntermission)?
             .is_none(),
         "Should have no active intermissions."
     );

@@ -295,6 +295,9 @@ pub enum ActivityStoreErrorKind {
 
     /// Failed to populate `ActivityStore` cache
     PopulatingCache,
+
+    /// Failed to list activities for activity: {0}
+    ListIntermissionsForActivity(ActivityGuid),
 }
 
 trait PaceErrorMarker: Error {}

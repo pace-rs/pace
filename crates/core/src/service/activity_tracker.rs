@@ -1,13 +1,8 @@
 //! This module contains the domain logic for tracking activities and their intermissions.
 
-use std::collections::HashMap;
-
 use tracing::debug;
 
-use crate::{
-    error::ActivityLogErrorKind, ActivityQuerying, ActivityStore, KeywordOptions, PaceDuration,
-    PaceOptResult, PaceTimeFrame, ReviewSummary,
-};
+use crate::{ActivityStore, PaceOptResult, PaceTimeFrame, ReviewSummary, TimeRangeOptions};
 
 // This struct represents the overall structure for tracking activities and their intermissions.
 pub struct ActivityTracker {
@@ -27,71 +22,16 @@ impl ActivityTracker {
         &self,
         time_frame: PaceTimeFrame,
     ) -> PaceOptResult<ReviewSummary> {
-        let keyword_opts = KeywordOptions::default();
+        let time_range_opts = TimeRangeOptions::try_from(time_frame)?;
 
-        let grouped_by_keywords = self
+        let Some(summary_groups) = self
             .store
-            .group_activities_by_keywords(keyword_opts)?
-            .ok_or(ActivityLogErrorKind::FailedToGroupByKeywords)?;
+            .summary_groups_by_category_for_time_range(time_range_opts)?
+        else {
+            return Ok(None);
+        };
 
-        debug!("Grouped activities by keywords: {:#?}", grouped_by_keywords);
-
-        for (keyword, activities) in grouped_by_keywords {
-            debug!("Keyword: {}", keyword);
-            debug!("{} Activities", activities.len());
-
-            let mut grouped_by_description: HashMap<String, PaceDuration> = HashMap::new();
-
-            for activity_item in activities {
-                // Skip activities with no duration
-                let Ok(duration) = activity_item.activity().duration() else {
-                    debug!(
-                        "Activity: {} has no duration",
-                        activity_item.activity().description()
-                    );
-                    continue;
-                };
-
-                _ = grouped_by_description
-                    .entry(activity_item.activity().description().to_string())
-                    .and_modify(|e| *e += duration)
-                    .or_insert(PaceDuration::zero());
-
-                // Handle intermissions for the activity
-                if let Some(intermissions) = self
-                    .store
-                    .list_intermissions_for_activity_id(*activity_item.guid())?
-                {
-                    debug!(
-                        "Activity: {} has intermissions: {:#?}",
-                        activity_item.activity().description(),
-                        intermissions.len()
-                    );
-
-                    for intermission in intermissions {
-                        let Ok(duration) = intermission.activity().duration() else {
-                            debug!(
-                                "Intermission: {} has no duration",
-                                intermission.activity().description()
-                            );
-                            continue;
-                        };
-
-                        _ = grouped_by_description
-                            .entry(activity_item.activity().description().to_string())
-                            .and_modify(|e| *e -= duration)
-                            .or_insert(PaceDuration::zero());
-                    }
-                };
-            }
-
-            println!(
-                "{}\nGrouped by description: {:#?}",
-                keyword, grouped_by_description
-            );
-        }
-
-        let summary = ReviewSummary::default();
+        let summary = ReviewSummary::new(time_range_opts, summary_groups);
 
         debug!("Generated review summary: {:#?}", summary);
 
