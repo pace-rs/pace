@@ -1160,7 +1160,7 @@ dependencies = [
  "insta-cmd",
  "once_cell",
  "pace_cli",
- "pace_core",
+ "pace_core 0.14.0",
  "predicates",
  "serde",
  "serde_derive",
@@ -1178,9 +1178,38 @@ dependencies = [
  "dialoguer",
  "eyre",
  "getset",
- "pace_core",
+ "pace_core 0.14.0",
  "tracing",
  "typed-builder",
+]
+
+[[package]]
+name = "pace_core"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ce7ff076decf5674b09492646baaac5e0dc874d190a337477de8a6ea16c6187"
+dependencies = [
+ "chrono",
+ "clap",
+ "directories",
+ "displaydoc",
+ "enum_dispatch",
+ "getset",
+ "itertools",
+ "log",
+ "merge",
+ "miette",
+ "open",
+ "parking_lot",
+ "rayon",
+ "serde",
+ "serde_derive",
+ "strum",
+ "strum_macros",
+ "thiserror",
+ "toml 0.8.10",
+ "typed-builder",
+ "ulid",
 ]
 
 [[package]]
@@ -1226,7 +1255,7 @@ name = "pace_testing"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "pace_core",
+ "pace_core 0.14.0",
  "rstest",
  "similar-asserts",
 ]

@@ -20,7 +20,8 @@ chrono = { version = "0.4.35", features = ["serde"] }
 clap = { version = "4", features = ["env", "wrap_help", "derive"] }
 eyre = "0.6.12"
 pace_cli = { path = "crates/cli", version = "0" }
-pace_core = { path = "crates/core", version = "0" }
+# pace_core = { path = "crates/core", version = "0" }
+pace_core = "0"
 pace_testing = { path = "crates/testing", version = "0" }
 similar-asserts = { version = "1.5.0", features = ["serde"] }
 

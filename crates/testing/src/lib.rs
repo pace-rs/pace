@@ -149,10 +149,10 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
 
     Ok(TestData {
         activities: activities.clone(),
-        store: ActivityStore::with_storage(Arc::new(
+        store: ActivityStore::new(Arc::new(
             InMemoryActivityStorage::new_with_activity_log(ActivityLog::from_iter(activities))
                 .into(),
-        ))?,
+        )),
     })
 }
 
@@ -163,5 +163,5 @@ pub fn setup_activity_store_for_activity_tracker() -> TestResult<ActivityStore> 
 
     let storage = TomlActivityStorage::new(fixture_path)?;
 
-    Ok(ActivityStore::with_storage(Arc::new(storage.into()))?)
+    Ok(ActivityStore::new(Arc::new(storage.into())))
 }
