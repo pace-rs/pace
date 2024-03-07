@@ -1206,6 +1206,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_derive",
+ "serde_json",
  "similar-asserts",
  "strum",
  "strum_macros",

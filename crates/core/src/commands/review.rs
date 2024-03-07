@@ -86,9 +86,35 @@ impl ReviewCommandOptions {
             ));
         };
 
-        println!("{}", review_summary);
+        match self.output_format() {
+            Some(ReviewFormatKind::Console) | None => {
+                return Ok(UserMessage::new(review_summary.to_string()));
+            }
+            Some(ReviewFormatKind::Json) => {
+                let json = serde_json::to_string_pretty(&review_summary)?;
 
-        Ok(UserMessage::new("Review report generated"))
+                debug!("Review summary: {}", json);
+
+                // write to file if export file is specified
+                if let Some(export_file) = self.export_file() {
+                    std::fs::write(export_file, json)?;
+
+                    return Ok(UserMessage::new(format!(
+                        "Review report generated: {}",
+                        export_file.display()
+                    )));
+                } else {
+                    return Ok(UserMessage::new(json));
+                }
+            }
+
+            Some(ReviewFormatKind::Html) => unimplemented!("HTML format not yet supported"),
+            Some(ReviewFormatKind::Csv) => unimplemented!("CSV format not yet supported"),
+            Some(ReviewFormatKind::Markdown) => unimplemented!("Markdown format not yet supported"),
+            Some(ReviewFormatKind::PlainText) => {
+                unimplemented!("Plain text format not yet supported")
+            }
+        }
     }
 }
 

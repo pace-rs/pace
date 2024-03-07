@@ -13,15 +13,19 @@ use crate::{ActivityItem, ActivityKind, PaceDateTime, PaceDuration, TimeRangeOpt
 ///
 /// Options: `console`, `html`, `markdown`, `plain-text`
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, Default, EnumString, PartialEq, Eq)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
 pub enum ReviewFormatKind {
     #[default]
     Console,
+    Json,
     Html,
     Csv,
+    #[cfg_attr(feature = "clap", clap(alias("md")))]
     #[serde(rename = "md")]
     Markdown,
+    #[cfg_attr(feature = "clap", clap(alias("txt")))]
     #[serde(rename = "txt")]
     PlainText,
 }
@@ -30,6 +34,8 @@ pub enum ReviewFormatKind {
 // We use a string to allow for user-defined categories for now,
 // but we may want to change this to an enum in the future.
 pub type SummaryCategory = String;
+
+pub type SummaryGroupByCategory = BTreeMap<SummaryCategory, SummaryGroup>;
 
 /// Represents a summary of activities and insights for a specified review period.
 #[derive(
@@ -44,7 +50,7 @@ pub struct ReviewSummary {
     total_time_spent: PaceDuration,
 
     /// Summary of activities grouped by a category or another relevant identifier.
-    summary_groups_by_category: BTreeMap<SummaryCategory, SummaryGroup>,
+    summary_groups_by_category: SummaryGroupByCategory,
     // TODO: Highlights extracted from the review data, offering insights into user productivity.
     // highlights: Highlights,
 
@@ -55,7 +61,7 @@ pub struct ReviewSummary {
 impl ReviewSummary {
     pub fn new(
         time_range: TimeRangeOptions,
-        summary_groups_by_category: BTreeMap<SummaryCategory, SummaryGroup>,
+        summary_groups_by_category: SummaryGroupByCategory,
     ) -> Self {
         let total_time_spent = PaceDuration::from_seconds(
             summary_groups_by_category
@@ -72,6 +78,7 @@ impl ReviewSummary {
     }
 }
 
+// TODO!: Refine the display of the review summary
 impl std::fmt::Display for ReviewSummary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Review Summary for the period: {}\n\n", self.time_range)?;
@@ -79,7 +86,7 @@ impl std::fmt::Display for ReviewSummary {
         for (category, summary_group) in self.summary_groups_by_category.iter() {
             write!(
                 f,
-                "{}........................................................ {}",
+                "{}\t\t\t\t\t\t{}",
                 category,
                 summary_group.total_duration()
             )?;
@@ -87,7 +94,7 @@ impl std::fmt::Display for ReviewSummary {
             for activity_group in summary_group.activity_groups() {
                 write!(
                     f,
-                    "\n    {}.............................................. {}",
+                    "\n\t{}\t\t\t\t{}",
                     activity_group.description(),
                     activity_group.adjusted_duration()
                 )?;
@@ -96,11 +103,7 @@ impl std::fmt::Display for ReviewSummary {
             write!(f, "\n\n")?;
         }
 
-        write!(
-            f,
-            "Total.................................................. {}",
-            self.total_time_spent
-        )
+        write!(f, "Total\t\t\t\t\t\t\t{}", self.total_time_spent)
     }
 }
 

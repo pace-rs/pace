@@ -9,7 +9,7 @@ use crate::{
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         filter::{ActivityFilterKind, FilteredActivities},
-        review::SummaryCategory,
+        review::SummaryGroupByCategory,
     },
     error::{ActivityStoreErrorKind, PaceOptResult, PaceResult},
     storage::{
@@ -91,7 +91,7 @@ impl ActivityStore {
     pub fn summary_groups_by_category_for_time_range(
         &self,
         time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<BTreeMap<SummaryCategory, SummaryGroup>> {
+    ) -> PaceOptResult<SummaryGroupByCategory> {
         let Some(activity_guids) = self.list_activities_by_time_range(time_range_opts)? else {
             debug!("No activities found for time range: {:?}", time_range_opts);
 
@@ -99,7 +99,7 @@ impl ActivityStore {
         };
 
         // merge the activities into summary groups
-        let mut summary_groups: BTreeMap<SummaryCategory, SummaryGroup> = BTreeMap::new();
+        let mut summary_groups: SummaryGroupByCategory = BTreeMap::new();
 
         for activity_guid in activity_guids {
             let activity_item = self.read_activity(activity_guid)?;

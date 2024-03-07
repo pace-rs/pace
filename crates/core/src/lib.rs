@@ -51,7 +51,10 @@ pub use crate::{
         activity_log::ActivityLog,
         filter::{ActivityFilterKind, FilteredActivities},
         intermission::IntermissionAction,
-        review::{ActivityGroup, Highlights, ReviewSummary, SummaryGroup},
+        review::{
+            ActivityGroup, Highlights, ReviewSummary, SummaryCategory, SummaryGroup,
+            SummaryGroupByCategory,
+        },
         status::ActivityStatus,
         time::{
             calculate_duration, duration_to_str, extract_time_or_now, get_time_frame_from_flags,

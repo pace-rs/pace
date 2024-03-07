@@ -128,6 +128,10 @@ pub enum PaceErrorKind {
     #[error(transparent)]
     PaceTime(#[from] PaceTimeErrorKind),
 
+    /// JSON error: {0}
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+
     /// SQLite error: {0}
     #[error(transparent)]
     #[cfg(feature = "sqlite")]
@@ -305,6 +309,7 @@ trait PaceErrorMarker: Error {}
 impl PaceErrorMarker for std::io::Error {}
 impl PaceErrorMarker for toml::de::Error {}
 impl PaceErrorMarker for toml::ser::Error {}
+impl PaceErrorMarker for serde_json::Error {}
 #[cfg(feature = "sqlite")]
 impl PaceErrorMarker for rusqlite::Error {}
 impl PaceErrorMarker for chrono::ParseError {}
