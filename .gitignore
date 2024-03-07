@@ -6,3 +6,4 @@ coverage/lcov.info
 .vscode
 tests/generated/
 data/data.json
+.env
