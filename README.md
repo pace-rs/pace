@@ -247,7 +247,7 @@ Found a bug? [Open an issue!](https://github.com/pace-rs/pace/issues/new/choose)
 Got an idea for an improvement? Don't keep it to yourself!
 
 - [Contribute fixes](https://github.com/pace-rs/pace/contribute) or new features
-  via a pull requests!
+  via pull requests!
 
 Please make sure, that you read the
 [contribution guide](https://pace.cli.rs/docs/contributing_to_pace.html).
