@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/pace-rs/pace/compare/pace_cli-v0.4.1...pace_cli-v0.4.2) - 2024-03-07
+
+### Fixed
+- *(deps)* update rust crate chrono to 0.4.35 ([#72](https://github.com/pace-rs/pace/pull/72))
+
+### Other
+- pull out art for easier replacement
+
 ## [0.4.1](https://github.com/pace-rs/pace/compare/pace_cli-v0.4.0...pace_cli-v0.4.1) - 2024-02-29
 
 ### Fixed

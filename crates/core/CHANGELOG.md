@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.15.0](https://github.com/pace-rs/pace/compare/pace_core-v0.14.0...pace_core-v0.15.0) - 2024-03-07
+
+### Added
+- *(insights)* export insights to json and temporary html template ([#73](https://github.com/pace-rs/pace/pull/73))
+
+### Fixed
+- *(deps)* update rust crate chrono to 0.4.35 ([#72](https://github.com/pace-rs/pace/pull/72))
+
+### Other
+- *(time)* implement more time based functionality and add more testing ([#71](https://github.com/pace-rs/pace/pull/71))
+- add more debug prints in verbose mode
+- *(debug)* use tracing and debug! macro to add some more structured logging to pace_core ([#70](https://github.com/pace-rs/pace/pull/70))
+- *(error)* [**breaking**] remove expect/unwrap from codebase ([#69](https://github.com/pace-rs/pace/pull/69))
+- *(deps)* update rust crate insta to 1.36.1 ([#68](https://github.com/pace-rs/pace/pull/68))
+- *(deps)* update rust crate insta to 1.36.0 ([#66](https://github.com/pace-rs/pace/pull/66))
+
 ## [0.14.0](https://github.com/pace-rs/pace/compare/pace_core-v0.13.0...pace_core-v0.14.0) - 2024-03-02
 
 ### Added
