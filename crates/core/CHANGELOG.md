@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.15.1](https://github.com/pace-rs/pace/compare/pace_core-v0.15.0...pace_core-v0.15.1) - 2024-03-07
+
+### Fixed
+- *(review)* the table layout for review was broken, this has been fixed now
+
 ## [0.15.0](https://github.com/pace-rs/pace/compare/pace_core-v0.14.0...pace_core-v0.15.0) - 2024-03-07
 
 ### Added
