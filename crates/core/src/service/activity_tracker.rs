@@ -16,6 +16,14 @@ impl ActivityTracker {
         Self { store }
     }
 
+    // TODO!
+    // - [ ] implement merging activities by the same description
+    // - [ ] implement so that the duration of running activities is taken at the time of the review,
+    //       so running activities don't show up as 0 duration
+    // - [ ] implement the `detailed` flag
+    // - [ ] implement the `comparative` flag
+    // - [ ] implement the `recommendations` flag
+
     /// Generate a review summary for the specified time frame.
     #[tracing::instrument(skip(self))]
     pub fn generate_review_summary(
