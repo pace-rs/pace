@@ -6,7 +6,9 @@ categories = { workspace = true }
 edition = { workspace = true }
 keywords = { workspace = true }
 license = { workspace = true }
+readme = { workspace = true }
 repository = { workspace = true }
+description = "pace-testing - Testing for the pace ecosystem"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
