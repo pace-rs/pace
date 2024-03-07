@@ -3,7 +3,7 @@ use clap::Parser;
 use tracing::debug;
 
 use crate::{
-    get_storage_from_config, ActivityItem, ActivityQuerying, ActivityReadOps, ActivityStatusFilter,
+    get_storage_from_config, ActivityFilterKind, ActivityItem, ActivityQuerying, ActivityReadOps,
     ActivityStore, PaceConfig, PaceResult, UserMessage,
 };
 
@@ -31,7 +31,7 @@ impl NowCommandOptions {
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let user_message =
-            match activity_store.list_current_activities(ActivityStatusFilter::Active)? {
+            match activity_store.list_current_activities(ActivityFilterKind::Active)? {
                 Some(activities) => {
                     debug!("Current Activities: {:?}", activities);
 

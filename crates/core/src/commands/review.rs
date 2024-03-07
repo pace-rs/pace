@@ -80,11 +80,41 @@ impl ReviewCommandOptions {
 
         debug!("Displaying review for time frame: {}", time_frame);
 
-        let _review_summary = activity_tracker.generate_review_summary(time_frame)?;
+        let Some(review_summary) = activity_tracker.generate_review_summary(time_frame)? else {
+            return Ok(UserMessage::new(
+                "No activities found for the specified time frame",
+            ));
+        };
 
-        debug!("{:#?}", self);
+        match self.output_format() {
+            Some(ReviewFormatKind::Console) | None => {
+                return Ok(UserMessage::new(review_summary.to_string()));
+            }
+            Some(ReviewFormatKind::Json) => {
+                let json = serde_json::to_string_pretty(&review_summary)?;
 
-        Ok(UserMessage::new("Review report generated"))
+                debug!("Review summary: {}", json);
+
+                // write to file if export file is specified
+                if let Some(export_file) = self.export_file() {
+                    std::fs::write(export_file, json)?;
+
+                    return Ok(UserMessage::new(format!(
+                        "Review report generated: {}",
+                        export_file.display()
+                    )));
+                } else {
+                    return Ok(UserMessage::new(json));
+                }
+            }
+
+            Some(ReviewFormatKind::Html) => unimplemented!("HTML format not yet supported"),
+            Some(ReviewFormatKind::Csv) => unimplemented!("CSV format not yet supported"),
+            Some(ReviewFormatKind::Markdown) => unimplemented!("Markdown format not yet supported"),
+            Some(ReviewFormatKind::PlainText) => {
+                unimplemented!("Plain text format not yet supported")
+            }
+        }
     }
 }
 

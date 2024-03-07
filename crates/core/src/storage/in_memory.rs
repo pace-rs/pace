@@ -14,7 +14,7 @@ use crate::{
     domain::{
         activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
-        filter::{ActivityStatusFilter, FilteredActivities},
+        filter::{ActivityFilterKind, FilteredActivities},
         time::calculate_duration,
     },
     error::{ActivityLogErrorKind, PaceOptResult, PaceResult},
@@ -22,7 +22,8 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    ActivityKind, ActivityKindOptions, ActivityStatus, PaceDate, TimeRangeOptions,
+    ActivityKind, ActivityKindOptions, ActivityStatus, PaceDate, PaceDurationRange,
+    TimeRangeOptions,
 };
 
 /// Type for shared `ActivityLog`
@@ -117,20 +118,24 @@ impl ActivityReadOps for InMemoryActivityStorage {
     }
 
     #[tracing::instrument(skip(self))]
-    fn list_activities(&self, filter: ActivityStatusFilter) -> PaceOptResult<FilteredActivities> {
+    fn list_activities(&self, filter: ActivityFilterKind) -> PaceOptResult<FilteredActivities> {
         let activity_log = self.log.read();
 
         let filtered = activity_log
             .par_iter()
             .filter(|(_, activity)| match filter {
-                ActivityStatusFilter::Everything => true,
-                ActivityStatusFilter::OnlyActivities => activity.kind().is_activity(),
-                ActivityStatusFilter::Active => activity.is_active(),
-                ActivityStatusFilter::ActiveIntermission => activity.is_active_intermission(),
-                ActivityStatusFilter::Ended => activity.has_ended(),
-                ActivityStatusFilter::Archived => activity.is_archived(),
-                ActivityStatusFilter::Held => activity.is_held(),
-                ActivityStatusFilter::Intermission => activity.kind().is_intermission(),
+                ActivityFilterKind::Everything => true,
+                ActivityFilterKind::OnlyActivities => activity.kind().is_activity(),
+                ActivityFilterKind::Active => activity.is_active(),
+                ActivityFilterKind::ActiveIntermission => activity.is_active_intermission(),
+                ActivityFilterKind::Ended => activity.has_ended(),
+                ActivityFilterKind::Archived => activity.is_archived(),
+                ActivityFilterKind::Held => activity.is_held(),
+                ActivityFilterKind::Intermission => activity.kind().is_intermission(),
+                ActivityFilterKind::TimeRange(time_range_opts) => {
+                    // TODO: When adding Pomodoro support, we should also check for Pomodoro activities
+                    time_range_opts.is_in_range(*activity.begin()) && activity.kind().is_activity()
+                }
             })
             .map(|(activity_id, _)| activity_id)
             .cloned()
@@ -145,20 +150,21 @@ impl ActivityReadOps for InMemoryActivityStorage {
         }
 
         match filter {
-            ActivityStatusFilter::Everything => Ok(Some(FilteredActivities::Everything(filtered))),
-            ActivityStatusFilter::OnlyActivities => {
+            ActivityFilterKind::Everything => Ok(Some(FilteredActivities::Everything(filtered))),
+            ActivityFilterKind::OnlyActivities => {
                 Ok(Some(FilteredActivities::OnlyActivities(filtered)))
             }
-            ActivityStatusFilter::Active => Ok(Some(FilteredActivities::Active(filtered))),
-            ActivityStatusFilter::ActiveIntermission => {
+            ActivityFilterKind::Active => Ok(Some(FilteredActivities::Active(filtered))),
+            ActivityFilterKind::ActiveIntermission => {
                 Ok(Some(FilteredActivities::ActiveIntermission(filtered)))
             }
-            ActivityStatusFilter::Archived => Ok(Some(FilteredActivities::Archived(filtered))),
-            ActivityStatusFilter::Ended => Ok(Some(FilteredActivities::Ended(filtered))),
-            ActivityStatusFilter::Held => Ok(Some(FilteredActivities::Held(filtered))),
-            ActivityStatusFilter::Intermission => {
+            ActivityFilterKind::Archived => Ok(Some(FilteredActivities::Archived(filtered))),
+            ActivityFilterKind::Ended => Ok(Some(FilteredActivities::Ended(filtered))),
+            ActivityFilterKind::Held => Ok(Some(FilteredActivities::Held(filtered))),
+            ActivityFilterKind::Intermission => {
                 Ok(Some(FilteredActivities::Intermission(filtered)))
             }
+            ActivityFilterKind::TimeRange(_) => Ok(Some(FilteredActivities::TimeRange(filtered))),
         }
     }
 }
@@ -578,7 +584,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_duration_range(
         &self,
-    ) -> PaceOptResult<BTreeMap<crate::PaceDurationRange, Vec<ActivityItem>>> {
+    ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
         todo!("Implement grouping activities by duration range")
     }
 
@@ -610,7 +616,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         &self,
     ) -> PaceOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
         let Some(intermissions) = self
-            .list_activities(ActivityStatusFilter::Intermission)?
+            .list_activities(ActivityFilterKind::Intermission)?
             .map(FilteredActivities::into_vec)
         else {
             debug!("No intermissions found.");
@@ -753,9 +759,32 @@ impl ActivityQuerying for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
     fn list_activities_by_time_range(
         &self,
-        _time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<Vec<ActivityItem>> {
-        todo!("Implement listing activities by time range")
+        time_range_opts: TimeRangeOptions,
+    ) -> PaceOptResult<Vec<ActivityGuid>> {
+        let Some(filtered_activities) = self
+            .list_activities(ActivityFilterKind::TimeRange(time_range_opts))?
+            .map(FilteredActivities::into_vec)
+        else {
+            debug!(
+                "No activities found in time range between {} and {}.",
+                time_range_opts.start(),
+                time_range_opts.end()
+            );
+
+            return Ok(None);
+        };
+
+        if filtered_activities.is_empty() {
+            debug!(
+                "No activities found in time range between {} and {}.",
+                time_range_opts.start(),
+                time_range_opts.end()
+            );
+
+            return Ok(None);
+        }
+
+        Ok(Some(filtered_activities))
     }
 }
 
@@ -855,7 +884,7 @@ mod tests {
         let _activity_item = storage.create_activity(activity.clone())?;
 
         let filtered_activities = storage
-            .list_activities(ActivityStatusFilter::Everything)?
+            .list_activities(ActivityFilterKind::Everything)?
             .ok_or("No activities found.")?
             .into_vec();
 

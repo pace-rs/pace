@@ -78,7 +78,7 @@ impl BeginCommandOptions {
         debug!("Parsed tags: {:?}", tags);
 
         // parse time from string or get now
-        let date_time = extract_time_or_now(start)?.is_future()?;
+        let date_time = extract_time_or_now(start)?.validate_future()?;
 
         debug!("Parsed date time: {:?}", date_time);
 

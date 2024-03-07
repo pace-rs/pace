@@ -1,6 +1,6 @@
 //! Test the `ActivityStore` implementation with a `InMemoryStorage` backend.
 
-use pace_core::{ActivityStore, ActivityTracker, TestResult};
+use pace_core::{ActivityStore, ActivityTracker, PaceDuration, TestResult, TimeRangeOptions};
 use rstest::rstest;
 use similar_asserts::assert_eq;
 
@@ -19,39 +19,45 @@ fn test_activity_tracker(
         "Should have 2 start dates."
     );
 
-    // let time_range_opts = TimeRangeOptions::from(
-    //     PaceDate::try_from((2024, 2, 26))?,
-    //     PaceDate::try_from((2024, 2, 26))?,
-    // );
+    let time_range_opts = TimeRangeOptions::specific_date("2024-02-26".parse()?)?;
 
-    // let dates = activity_tracker
-    //     .store
-    //     .activity_log_for_date_range(time_range_opts)
-    //     .keys()
-    //     .sorted()
-    //     .cloned()
-    //     .collect::<Vec<_>>();
+    let summary_groups_by_category = activity_tracker
+        .store
+        .summary_groups_by_category_for_time_range(time_range_opts)?
+        .ok_or("Should have dates.")?;
 
-    // assert_eq!(
-    //     dates,
-    //     vec![
-    //         PaceDate::try_from((2024, 2, 26))?,
-    //         PaceDate::try_from((2024, 2, 27))?
-    //     ],
-    //     "Should have the start dates in the correct order."
-    // );
+    assert_eq!(
+        summary_groups_by_category.len(),
+        1,
+        "Should have 1 activity group."
+    );
 
-    // let activities_for_date = activity_tracker
-    //     .store
-    //     .cache()
-    //     .by_start_date()
-    //     .get(&PaceDate::try_from((2024, 2, 26))?)
-    //     .ok_or("Should have activities for the date.")?
-    //     .clone();
+    let group = summary_groups_by_category
+        .get("development::pace")
+        .ok_or("Should have a category.")?;
 
-    // let activity_log = ActivityLog::from_iter(activities_for_date);
+    assert_eq!(group.len(), 1, "Should have 1 activity.");
 
-    // dbg!(&activity_log);
+    // assert on duration for activity group
+    let activity = group
+        .activity_groups()
+        .first()
+        .ok_or("Should have an activity.")?;
+
+    assert_eq!(
+        activity.adjusted_duration(),
+        &PaceDuration::from_seconds(202),
+        "Should have a duration of 202."
+    );
+
+    // assert on duration for summary group
+    assert_eq!(
+        group.total_duration(),
+        &PaceDuration::from_seconds(202),
+        "Should have a total duration of 202."
+    );
+
+    dbg!(&summary_groups_by_category);
 
     Ok(())
 }

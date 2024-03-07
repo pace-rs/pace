@@ -185,11 +185,16 @@ implemented yet (e.g. using activities instead of tasks).
   you to continue where you left off.
 - **Usage:** `pace resume` or `pace resume --list`
 
-⏲️ **`pace review`**
+🪧 **`pace review`**
 
 - **Description:** Gain insight in your activities and tasks. You can specify
   the time frame for daily, weekly, or monthly insights.
-- **Usage:** tbd
+
+  **⚠️ NOTE**: This command is currently in review and testing. Some features may
+  not be fully implemented yet.
+- **Usage:** `pace review --last-week` or
+  `pace review --from 2024-02-10 --to 2024-03-06` or
+  `pace review --today -o json -e ./data/data.json`
 
 ✅ **`pace help`**
 

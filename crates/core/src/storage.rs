@@ -9,7 +9,7 @@ use crate::{
     config::{ActivityLogStorageKind, PaceConfig},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
-        filter::{ActivityStatusFilter, FilteredActivities},
+        filter::{ActivityFilterKind, FilteredActivities},
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     service::activity_store::ActivityStore,
@@ -160,7 +160,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// A collection of the activities that were loaded from the storage backend. Returns Ok(None) if no activities are found.
-    fn list_activities(&self, filter: ActivityStatusFilter) -> PaceOptResult<FilteredActivities>;
+    fn list_activities(&self, filter: ActivityFilterKind) -> PaceOptResult<FilteredActivities>;
 }
 
 /// Basic CUD Operations for Activities in the storage backend.
@@ -527,12 +527,12 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// # Returns
     ///
-    /// A collection of the activities that are matching the `RangeOptions`.
+    /// A collection of the activities guids that are matching the `RangeOptions`.
     /// If no activities are found, it should return `Ok(None)`.
     fn list_activities_by_time_range(
         &self,
         time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<Vec<ActivityItem>>;
+    ) -> PaceOptResult<Vec<ActivityGuid>>;
 
     /// Group activities by their status from the storage backend.
     ///
@@ -560,7 +560,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// A collection of the activities that are matching the `ActivityFilter`.
     fn list_current_activities(
         &self,
-        filter: ActivityStatusFilter,
+        filter: ActivityFilterKind,
     ) -> PaceOptResult<Vec<ActivityGuid>> {
         Ok(self
             .list_activities(filter)?
@@ -591,7 +591,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn list_active_intermissions(&self) -> PaceOptResult<Vec<ActivityGuid>> {
         Ok(self
-            .list_activities(ActivityStatusFilter::ActiveIntermission)?
+            .list_activities(ActivityFilterKind::ActiveIntermission)?
             .map(FilteredActivities::into_vec))
     }
 
@@ -611,7 +611,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn list_most_recent_activities(&self, count: usize) -> PaceOptResult<Vec<ActivityGuid>> {
         let filtered = self
-            .list_activities(ActivityStatusFilter::OnlyActivities)?
+            .list_activities(ActivityFilterKind::OnlyActivities)?
             .map(FilteredActivities::into_vec);
 
         let Some(filtered) = filtered else {
@@ -690,7 +690,7 @@ pub trait ActivityQuerying: ActivityReadOps {
         activity_id: ActivityGuid,
     ) -> PaceOptResult<Vec<ActivityItem>> {
         let Some(filtered) = self
-            .list_activities(ActivityStatusFilter::Intermission)?
+            .list_activities(ActivityFilterKind::Intermission)?
             .map(FilteredActivities::into_vec)
         else {
             debug!("No intermissions found.");
@@ -782,7 +782,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// The latest active activity.
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
-        let Some(current) = self.list_current_activities(ActivityStatusFilter::Active)? else {
+        let Some(current) = self.list_current_activities(ActivityFilterKind::Active)? else {
             debug!("No active activities found");
 
             // There are no active activities at all
@@ -817,7 +817,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// The latest held activity.
     /// If no activity is found, it should return `Ok(None)`.
     fn most_recent_held_activity(&self) -> PaceOptResult<ActivityItem> {
-        let Some(current) = self.list_current_activities(ActivityStatusFilter::Held)? else {
+        let Some(current) = self.list_current_activities(ActivityFilterKind::Held)? else {
             debug!("No held activities found");
 
             // There are no active activities at all

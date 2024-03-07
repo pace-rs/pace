@@ -10,7 +10,7 @@ use crate::{
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem},
         activity_log::ActivityLog,
-        filter::{ActivityStatusFilter, FilteredActivities},
+        filter::{ActivityFilterKind, FilteredActivities},
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::{
@@ -129,7 +129,7 @@ impl ActivityReadOps for TomlActivityStorage {
     }
 
     #[tracing::instrument(skip(self))]
-    fn list_activities(&self, filter: ActivityStatusFilter) -> PaceOptResult<FilteredActivities> {
+    fn list_activities(&self, filter: ActivityFilterKind) -> PaceOptResult<FilteredActivities> {
         self.cache.list_activities(filter)
     }
 }
@@ -275,7 +275,7 @@ impl ActivityQuerying for TomlActivityStorage {
     fn list_activities_by_time_range(
         &self,
         time_range_opts: crate::TimeRangeOptions,
-    ) -> PaceOptResult<Vec<ActivityItem>> {
+    ) -> PaceOptResult<Vec<ActivityGuid>> {
         self.cache.list_activities_by_time_range(time_range_opts)
     }
 
