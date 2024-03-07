@@ -2,7 +2,13 @@ use getset::{Getters, MutGetters, Setters};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use strum_macros::EnumString;
-
+use tabled::{
+    builder::Builder,
+    settings::{
+        object::{Columns, LastColumn},
+        Alignment, Modify, Padding, Panel, Settings, Style,
+    },
+};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
@@ -81,29 +87,44 @@ impl ReviewSummary {
 // TODO!: Refine the display of the review summary
 impl std::fmt::Display for ReviewSummary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Review Summary for the period: {}\n\n", self.time_range)?;
+        let mut builder = Builder::new();
+
+        builder.push_record(vec!["Category", "Description", "Duration"]);
 
         for (category, summary_group) in self.summary_groups_by_category.iter() {
-            write!(
-                f,
-                "{}\t\t\t\t\t\t{}",
+            builder.push_record(vec![
                 category,
-                summary_group.total_duration()
-            )?;
+                "",
+                &summary_group.total_duration().to_string(),
+            ]);
 
             for activity_group in summary_group.activity_groups() {
-                write!(
-                    f,
-                    "\n\t{}\t\t\t\t{}",
+                builder.push_record(vec![
+                    "",
                     activity_group.description(),
-                    activity_group.adjusted_duration()
-                )?;
+                    &activity_group.adjusted_duration().to_string(),
+                ]);
             }
 
             write!(f, "\n\n")?;
         }
 
-        write!(f, "Total\t\t\t\t\t\t\t{}", self.total_time_spent)
+        builder.push_record(vec!["Total", "", &self.total_time_spent.to_string()]);
+
+        let table_config = Settings::default()
+            .with(Panel::header(format!(
+                "Review Summary for the period:\n\n{}",
+                self.time_range
+            )))
+            .with(Padding::new(1, 1, 0, 0))
+            .with(Style::modern_rounded())
+            .with(Modify::new(LastColumn).with(Alignment::right()))
+            .with(Modify::new(Columns::new(0..=1)).with(Alignment::center()));
+
+        let table = builder.build().with(table_config).to_string();
+        write!(f, "{table}")?;
+
+        Ok(())
     }
 }
 
