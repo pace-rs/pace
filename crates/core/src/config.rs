@@ -1,7 +1,7 @@
 //! Pace Config
 
-use std::fs;
 use std::path::{Path, PathBuf};
+use std::{fmt::Display, fs};
 
 use getset::{Getters, MutGetters};
 use serde_derive::{Deserialize, Serialize};
@@ -463,6 +463,16 @@ fn get_global_config_path() -> Option<PathBuf> {
 #[cfg(not(any(target_os = "windows", target_os = "ios", target_arch = "wasm32")))]
 fn get_global_config_path() -> Option<PathBuf> {
     Some(PathBuf::from("/etc/pace"))
+}
+
+impl Display for PaceConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Ok(config) = toml::to_string_pretty(self) else {
+            return write!(f, "Error: Could not serialize config to TOML");
+        };
+
+        write!(f, "{}", config)
+    }
 }
 
 #[cfg(test)]
