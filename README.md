@@ -192,7 +192,9 @@ implemented yet (e.g. using activities instead of tasks).
 
   **⚠️ NOTE**: This command is currently in review and testing. Some features may
   not be fully implemented yet.
-- **Usage:** `pace review --last-week` or `pace review --from 2024-02-10 --to 2024-03-06` or `pace review --today -o json -e ./data/data.json`
+- **Usage:** `pace review --last-week` or
+  `pace review --from 2024-02-10 --to 2024-03-06` or
+  `pace review --today -o json -e ./data/data.json`
 
 ✅ **`pace help`**
 
