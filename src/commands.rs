@@ -21,8 +21,7 @@ pub mod review;
 pub mod setup;
 
 use abscissa_core::{
-    config::Override, status_err, status_warn, tracing::debug, Command, Configurable,
-    FrameworkError, Runnable,
+    config::Override, status_warn, tracing::debug, Command, Configurable, FrameworkError, Runnable,
 };
 use clap::builder::{styling::AnsiColor, Styles};
 use human_panic::setup_panic;
@@ -171,12 +170,6 @@ impl Configurable<PaceConfig> for EntryPoint {
             "Automatically determined config paths: {:?}",
             automatically_determined
         );
-
-        if automatically_determined.is_empty() {
-            status_err!(
-                "No config file found in standard locations. Please run `pace setup config`."
-            );
-        }
 
         if automatically_determined.len() > 1 {
             status_warn!("Multiple config files found in standard locations, we will use the first one found: {:?}", automatically_determined);
