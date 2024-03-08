@@ -140,17 +140,15 @@ impl Override<PaceConfig> for EntryPoint {
                 _ => {}
             };
 
-            *config
-                .general_mut()
-                .activity_log_options_mut()
-                .activity_log_path_mut() = activity_log_file.to_path_buf();
+            *config.general_mut().activity_log_options_mut().path_mut() =
+                activity_log_file.to_path_buf();
 
             // Set the activity log format to TOML
             // TODO: This should be configurable
             *config
                 .general_mut()
                 .activity_log_options_mut()
-                .activity_log_format_mut() = Some(ActivityLogFormatKind::Toml);
+                .format_kind_mut() = Some(ActivityLogFormatKind::Toml);
         };
 
         debug!("Overridden config: {:?}", config);

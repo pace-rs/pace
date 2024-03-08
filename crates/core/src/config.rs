@@ -19,6 +19,7 @@ use crate::{
 /// The pace configuration file is a TOML file that contains the configuration for the pace application.
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone, MutGetters)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
 #[getset(get = "pub")]
 pub struct PaceConfig {
     /// General configuration for the pace application
@@ -63,16 +64,15 @@ impl PaceConfig {
     ///
     /// `activity_log` - The path to the activity log file
     pub fn add_activity_log_path(&mut self, activity_log: impl AsRef<Path>) {
-        *self
-            .general_mut()
-            .activity_log_options_mut()
-            .activity_log_path_mut() = activity_log.as_ref().to_path_buf();
+        *self.general_mut().activity_log_options_mut().path_mut() =
+            activity_log.as_ref().to_path_buf();
     }
 }
 
 /// The general configuration for the pace application
 #[derive(Debug, Deserialize, Serialize, Getters, MutGetters, Clone)]
 #[getset(get = "pub")]
+#[serde(rename_all = "kebab-case")]
 pub struct GeneralConfig {
     #[serde(flatten)]
     #[getset(get = "pub", get_mut = "pub")]
@@ -96,21 +96,22 @@ pub struct GeneralConfig {
 
 #[derive(Debug, Deserialize, Serialize, Getters, MutGetters, Clone, Default)]
 #[getset(get = "pub")]
+#[serde(rename_all = "kebab-case")]
 pub struct ActivityLogOptions {
     /// The path to the activity log file
     /// Default is operating system dependent
     /// Use `pace setup config` to set this value initially
     #[getset(get = "pub", get_mut = "pub")]
-    activity_log_path: PathBuf,
+    path: PathBuf,
 
     /// The format for the activity log
     /// Default: `toml`
     #[getset(get = "pub", get_mut = "pub")]
-    activity_log_format: Option<ActivityLogFormatKind>,
+    format_kind: Option<ActivityLogFormatKind>,
 
     /// The storage type for the activity log
     /// Default: `file`
-    activity_log_storage: ActivityLogStorageKind,
+    storage_kind: ActivityLogStorageKind,
 }
 
 /// The kind of activity log format
@@ -154,6 +155,7 @@ impl Default for GeneralConfig {
 /// The review configuration for the pace application
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 #[getset(get = "pub")]
+#[serde(rename_all = "kebab-case")]
 pub struct ReviewConfig {
     /// The directory to store the review files
     review_directory: PathBuf,
@@ -165,6 +167,7 @@ pub struct ReviewConfig {
 /// The export configuration for the pace application
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 #[getset(get = "pub")]
+#[serde(rename_all = "kebab-case")]
 pub struct ExportConfig {
     /// If the export should include descriptions
     export_include_descriptions: bool,
@@ -194,6 +197,7 @@ pub enum DatabaseEngineKind {
 /// The database configuration for the pace application
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 #[getset(get = "pub")]
+#[serde(rename_all = "kebab-case")]
 pub struct DatabaseConfig {
     /// The connection string for the database
     connection_string: String,
@@ -205,6 +209,7 @@ pub struct DatabaseConfig {
 /// The pomodoro configuration for the pace application
 #[derive(Debug, Deserialize, Serialize, Getters, Clone, Copy)]
 #[getset(get = "pub")]
+#[serde(rename_all = "kebab-case")]
 pub struct PomodoroConfig {
     /// The duration of a short break in minutes
     /// Default: `5`
@@ -237,6 +242,7 @@ impl Default for PomodoroConfig {
 /// The inbox configuration for the pace application
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 #[getset(get = "pub")]
+#[serde(rename_all = "kebab-case")]
 pub struct InboxConfig {
     /// The default time to auto-archive items in the inbox (in days)
     auto_archive_after_days: u32,
@@ -251,6 +257,7 @@ pub struct InboxConfig {
 /// The auto-archival configuration for the pace application
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 #[getset(get = "pub")]
+#[serde(rename_all = "kebab-case")]
 pub struct AutoArchivalConfig {
     /// The default auto-archival time after which items should be archived (in days)
     archive_after_days: u32,
@@ -471,7 +478,7 @@ impl Display for PaceConfig {
             return write!(f, "Error: Could not serialize config to TOML");
         };
 
-        write!(f, "{}", config)
+        write!(f, "{config}")
     }
 }
 
