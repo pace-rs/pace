@@ -45,14 +45,14 @@ pub use crate::{
     },
     domain::{
         activity::{
-            Activity, ActivityEndOptions, ActivityGuid, ActivityItem, ActivityKind,
-            ActivityKindOptions,
+            Activity, ActivityEndOptions, ActivityGroup, ActivityGuid, ActivityItem, ActivityKind,
+            ActivityKindOptions, ActivitySession,
         },
         activity_log::ActivityLog,
         filter::{ActivityFilterKind, FilteredActivities},
         intermission::IntermissionAction,
         review::{
-            ActivityGroup, Highlights, ReviewSummary, SummaryCategory, SummaryGroup,
+            Highlights, ReviewSummary, SummaryActivityGroup, SummaryCategory,
             SummaryGroupByCategory,
         },
         status::ActivityStatus,

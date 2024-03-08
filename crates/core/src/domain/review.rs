@@ -6,10 +6,12 @@ use tabled::{
     builder::Builder,
     settings::{object::Columns, Alignment, Modify, Padding, Panel, Settings, Style},
 };
-use tracing::debug;
+
 use typed_builder::TypedBuilder;
 
-use crate::{ActivityItem, ActivityKind, PaceDateTime, PaceDuration, TimeRangeOptions};
+use crate::{
+    ActivityGroup, ActivityItem, ActivityKind, PaceDateTime, PaceDuration, TimeRangeOptions,
+};
 
 /// The kind of review format
 /// Default: `console`
@@ -38,7 +40,7 @@ pub enum ReviewFormatKind {
 // but we may want to change this to an enum in the future.
 pub type SummaryCategory = String;
 
-pub type SummaryGroupByCategory = BTreeMap<SummaryCategory, SummaryGroup>;
+pub type SummaryGroupByCategory = BTreeMap<SummaryCategory, SummaryActivityGroup>;
 
 /// Represents a summary of activities and insights for a specified review period.
 #[derive(
@@ -100,7 +102,7 @@ impl std::fmt::Display for ReviewSummary {
         builder.push_record(vec![
             "Category",
             "Description",
-            "Duration",
+            "Duration (Sessions)",
             "Breaks (Amount)",
         ]);
 
@@ -112,15 +114,20 @@ impl std::fmt::Display for ReviewSummary {
                 &summary_group.total_break_duration().to_string(),
             ]);
 
-            for activity_group in summary_group.activity_groups() {
+            for (description, activity_group) in summary_group.activity_groups_by_description() {
                 builder.push_record(vec![
                     "",
-                    activity_group.description(),
-                    &activity_group.adjusted_duration().to_string(),
+                    description,
+                    format!(
+                        "{} ({})",
+                        &activity_group.adjusted_duration().to_string(),
+                        &activity_group.activity_sessions().len()
+                    )
+                    .as_str(),
                     format!(
                         "{} ({})",
                         &activity_group.intermission_duration().to_string(),
-                        &activity_group.intermissions().len().to_string()
+                        &activity_group.intermission_count().to_string()
                     )
                     .as_str(),
                 ]);
@@ -156,121 +163,51 @@ impl std::fmt::Display for ReviewSummary {
     Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
 )]
 #[getset(get = "pub")]
-pub struct SummaryGroup {
+pub struct SummaryActivityGroup {
     /// The total time spent on all activities within the group.
     total_duration: PaceDuration,
 
     /// The total time spent on breaks within the group.
     total_break_duration: PaceDuration,
 
+    /// The total amount of breaks within the group.
+    total_break_count: usize,
+
     /// The groups of activities for a summary category
-    activity_groups: Vec<ActivityGroup>,
+    activity_groups_by_description: BTreeMap<String, ActivityGroup>,
 }
 
-impl SummaryGroup {
-    /// Create a new summary group with the given activity groups.
-    pub fn new(activity_groups: Vec<ActivityGroup>) -> Self {
-        let total_duration = PaceDuration::from_seconds(
-            activity_groups
-                .iter()
-                .map(|group| group.adjusted_duration().as_secs())
-                .sum(),
-        );
-
-        let total_break_duration = PaceDuration::from_seconds(
-            activity_groups
-                .iter()
-                .map(|group| group.intermission_duration().as_secs())
-                .sum(),
-        );
-
-        Self {
-            total_break_duration,
-            total_duration,
-            activity_groups,
-        }
-    }
-
+impl SummaryActivityGroup {
     pub fn with_activity_group(activity_group: ActivityGroup) -> Self {
         Self {
+            total_break_count: *activity_group.intermission_count(),
             total_break_duration: *activity_group.intermission_duration(),
             total_duration: *activity_group.adjusted_duration(),
-            activity_groups: vec![activity_group],
+            activity_groups_by_description: BTreeMap::from([(
+                activity_group.description().to_owned(),
+                activity_group,
+            )]),
         }
     }
 
     /// Add an activity group to the summary group.
     pub fn add_activity_group(&mut self, activity_group: ActivityGroup) {
         self.total_duration += *activity_group.adjusted_duration();
+
         self.total_break_duration += *activity_group.intermission_duration();
-        self.activity_groups.push(activity_group);
+
+        _ = self
+            .activity_groups_by_description
+            .entry(activity_group.description().to_owned())
+            .or_insert(activity_group);
     }
 
     pub fn len(&self) -> usize {
-        self.activity_groups.len()
+        self.activity_groups_by_description.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.activity_groups.is_empty()
-    }
-}
-
-/// A group of activities, the root activity and its intermissions.
-#[derive(
-    Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
-)]
-#[getset(get = "pub")]
-pub struct ActivityGroup {
-    /// A description of the activity group
-    description: String,
-
-    /// Root Activity within the activity group
-    root_activity: ActivityItem,
-
-    /// Duration spent on the grouped activities, essentially the sum of all durations
-    /// of the activities within the group and their children. Intermissions are counting
-    /// negatively towards the duration.
-    adjusted_duration: PaceDuration,
-
-    /// Intermissions within the activity group
-    intermissions: Vec<ActivityItem>,
-
-    /// The total duration of intermissions within the activity group
-    intermission_duration: PaceDuration,
-}
-
-// TODO: Essentially a root activity and all intermissions should always have a duration, but we should
-// TODO: handle the case where it doesn't.
-impl ActivityGroup {
-    pub fn new(root_activity: ActivityItem) -> Self {
-        debug!("Creating new activity group");
-
-        debug!("Root Activity: {:#?}", root_activity.activity());
-
-        Self {
-            description: root_activity.activity().description().to_owned(),
-            adjusted_duration: root_activity.activity().duration().unwrap_or_default(),
-            root_activity,
-            ..Default::default()
-        }
-    }
-
-    pub fn add_intermission(&mut self, intermission: ActivityItem) {
-        debug!("Adding intermission to activity group");
-
-        debug!("Intermission: {:#?}", intermission.activity());
-
-        self.intermission_duration += intermission.activity().duration().unwrap_or_default();
-        self.adjusted_duration -= intermission.activity().duration().unwrap_or_default();
-        self.intermissions.push(intermission);
-    }
-
-    pub fn add_multiple_intermissions(&mut self, intermissions: Vec<ActivityItem>) {
-        debug!("Adding multiple intermissions to activity group");
-
-        for intermission in intermissions {
-            self.add_intermission(intermission);
-        }
+        self.activity_groups_by_description.is_empty()
     }
 }
 

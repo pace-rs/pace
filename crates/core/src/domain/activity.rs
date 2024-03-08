@@ -528,6 +528,149 @@ impl Activity {
     }
 }
 
+#[derive(
+    Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
+)]
+#[getset(get = "pub")]
+pub struct ActivitySession {
+    /// A description of the activity group
+    description: String,
+
+    /// Root Activity within the activity group
+    root_activity: ActivityItem,
+
+    /// Duration spent on the grouped activities, essentially the sum of all durations
+    /// of the activities within the group and their children. Intermissions are counting
+    /// negatively towards the duration.
+    adjusted_duration: PaceDuration,
+
+    /// Intermissions within the activity group
+    intermissions: Vec<ActivityItem>,
+
+    /// The total duration of intermissions within the activity group
+    intermission_duration: PaceDuration,
+}
+
+// TODO: Essentially a root activity and all intermissions should always have a duration, but we should
+// TODO: handle the case where it doesn't.
+impl ActivitySession {
+    pub fn new(root_activity: ActivityItem) -> Self {
+        debug!("Creating new activity session");
+
+        debug!("Root Activity: {:#?}", root_activity.activity());
+
+        Self {
+            description: root_activity.activity().description().to_owned(),
+            adjusted_duration: root_activity.activity().duration().unwrap_or_default(),
+            root_activity,
+            ..Default::default()
+        }
+    }
+
+    pub fn add_intermission(&mut self, intermission: ActivityItem) {
+        debug!("Adding intermission to activity session");
+
+        debug!("Intermission: {:#?}", intermission.activity());
+
+        self.intermission_duration += intermission.activity().duration().unwrap_or_default();
+        self.adjusted_duration -= intermission.activity().duration().unwrap_or_default();
+        self.intermissions.push(intermission);
+    }
+
+    pub fn add_multiple_intermissions(&mut self, intermissions: Vec<ActivityItem>) {
+        debug!("Adding multiple intermissions to activity session");
+
+        for intermission in intermissions {
+            self.add_intermission(intermission);
+        }
+    }
+}
+
+/// A group of activities, the root activity and its intermissions.
+#[derive(
+    Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
+)]
+#[getset(get = "pub")]
+pub struct ActivityGroup {
+    /// A description of the activity group
+    description: String,
+
+    /// Duration spent on the grouped activities, essentially the sum of all durations
+    /// of the activities within the group and their children. Intermissions are counting
+    /// negatively towards the duration.
+    adjusted_duration: PaceDuration,
+
+    /// The total duration of intermissions within the activity group
+    intermission_duration: PaceDuration,
+
+    /// The amount of intermissions within the activity group
+    intermission_count: usize,
+
+    /// Activity sessions within the activity group
+    activity_sessions: Vec<ActivitySession>,
+}
+
+impl ActivityGroup {
+    pub fn with_session(activity_session: ActivitySession) -> Self {
+        debug!("Creating new activity group");
+
+        debug!("Activity Session: {activity_session:#?}",);
+
+        Self {
+            description: activity_session.description().to_owned(),
+            adjusted_duration: *activity_session.adjusted_duration(),
+            intermission_count: activity_session.intermissions().len(),
+            intermission_duration: *activity_session.intermission_duration(),
+            ..Default::default()
+        }
+    }
+
+    pub fn with_multiple_sessions(
+        description: String,
+        activity_sessions: Vec<ActivitySession>,
+    ) -> Self {
+        debug!("Creating new activity group");
+
+        debug!("Activity Sessions: {activity_sessions:#?}",);
+
+        let mut adjusted_duration = PaceDuration::default();
+        let mut intermission_duration = PaceDuration::default();
+        let mut intermission_count = 0;
+
+        for session in &activity_sessions {
+            adjusted_duration += *session.adjusted_duration();
+            intermission_duration += *session.intermission_duration();
+            intermission_count += session.intermissions().len();
+        }
+
+        Self {
+            description,
+            adjusted_duration,
+            intermission_duration,
+            intermission_count,
+            activity_sessions,
+        }
+    }
+
+    pub fn add_session(&mut self, session: ActivitySession) {
+        debug!("Adding session to activity session");
+
+        debug!("Session: {:#?}", session);
+
+        self.intermission_duration += *session.intermission_duration();
+        self.adjusted_duration -= *session.adjusted_duration();
+        self.activity_sessions.push(session);
+    }
+
+    pub fn add_multiple_sessions(&mut self, sessions: Vec<ActivitySession>) {
+        debug!("Adding multiple intermissions to activity session");
+
+        for session in sessions {
+            self.add_session(session);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

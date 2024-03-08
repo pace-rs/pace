@@ -7,3 +7,4 @@ coverage/lcov.info
 tests/generated/
 data/data.json
 .env
+logs/*

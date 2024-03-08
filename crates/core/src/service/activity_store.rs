@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 
 use getset::{Getters, MutGetters, Setters};
 use tracing::debug;
@@ -7,7 +10,7 @@ use typed_builder::TypedBuilder;
 use crate::{
     commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     domain::{
-        activity::{Activity, ActivityGuid, ActivityItem},
+        activity::{Activity, ActivityGuid, ActivityItem, ActivitySession},
         filter::{ActivityFilterKind, FilteredActivities},
         review::SummaryGroupByCategory,
     },
@@ -16,7 +19,7 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, StorageKind, SyncStorage,
     },
-    ActivityGroup, ActivityStatus, EndOptions, HoldOptions, PaceDate, SummaryGroup,
+    ActivityGroup, ActivityStatus, EndOptions, HoldOptions, PaceDate, SummaryActivityGroup,
     TimeRangeOptions,
 };
 
@@ -101,27 +104,58 @@ impl ActivityStore {
         // merge the activities into summary groups
         let mut summary_groups: SummaryGroupByCategory = BTreeMap::new();
 
+        let mut activity_sessions_lookup_by_category: HashMap<
+            (String, String),
+            Vec<ActivitySession>,
+        > = HashMap::new();
+
         for activity_guid in activity_guids {
             let activity_item = self.read_activity(activity_guid)?;
 
-            let mut activity_group = ActivityGroup::new(activity_item.clone());
+            let mut activity_session = ActivitySession::new(activity_item.clone());
 
             if let Some(intermissions) =
                 self.list_intermissions_for_activity_id(*activity_item.guid())?
             {
-                activity_group.add_multiple_intermissions(intermissions);
+                activity_session.add_multiple_intermissions(intermissions);
             };
 
-            _ = summary_groups
-                .entry(
+            // Deduplicate activities by category and description first
+            _ = activity_sessions_lookup_by_category
+                .entry((
                     activity_item
                         .activity()
                         .category()
                         .clone()
-                        .unwrap_or_else(|| "Uncategorized".to_string()),
-                )
+                        .unwrap_or("Uncategorized".to_string()),
+                    activity_item.activity().description().to_owned(),
+                ))
+                .and_modify(|e| e.push(activity_session.clone()))
+                .or_insert_with(|| vec![activity_session.clone()]);
+        }
+
+        debug!(
+            "Activity sessions lookup by category: {:#?}",
+            activity_sessions_lookup_by_category
+        );
+
+        // Deduplicate activities by description
+        for ((category, description), activity_sessions) in &activity_sessions_lookup_by_category {
+            if activity_sessions.is_empty() {
+                // Skip if there are no activity sessions
+                continue;
+            }
+
+            // Now we have a list of activity sessions grouped by description and category
+            let activity_group = ActivityGroup::with_multiple_sessions(
+                description.clone(),
+                activity_sessions.to_vec(),
+            );
+
+            _ = summary_groups
+                .entry(category.clone())
                 .and_modify(|e| e.add_activity_group(activity_group.clone()))
-                .or_insert_with(|| SummaryGroup::with_activity_group(activity_group));
+                .or_insert_with(|| SummaryActivityGroup::with_activity_group(activity_group));
         }
 
         Ok(Some(summary_groups))

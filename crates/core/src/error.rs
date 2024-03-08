@@ -302,6 +302,9 @@ pub enum ActivityStoreErrorKind {
 
     /// Failed to list activities for activity: {0}
     ListIntermissionsForActivity(ActivityGuid),
+
+    /// Missing category for activity: {0}
+    MissingCategoryForActivity(ActivityGuid),
 }
 
 trait PaceErrorMarker: Error {}

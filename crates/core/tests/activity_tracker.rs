@@ -39,10 +39,15 @@ fn test_activity_tracker(
     assert_eq!(group.len(), 1, "Should have 1 activity.");
 
     // assert on duration for activity group
-    let activity = group
-        .activity_groups()
-        .first()
-        .ok_or("Should have an activity.")?;
+    let mut activity = group.activity_groups_by_description().values();
+
+    assert_eq!(
+        activity.len(),
+        1,
+        "Should have 1 activity group by description."
+    );
+
+    let activity = activity.next().ok_or("Should have an activity.")?;
 
     assert_eq!(
         activity.adjusted_duration(),
