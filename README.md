@@ -6,6 +6,9 @@
 <p align="center">
 <a href="https://crates.io/crates/pace-rs"><img src="https://img.shields.io/crates/v/pace-rs.svg" /></a>
 <a href="https://docs.rs/pace-rs/"><img src="https://img.shields.io/docsrs/pace-rs?style=flat&amp;labelColor=1c1d42&amp;color=4f396a&amp;logo=Rust&amp;logoColor=white" /></a>
+<a href="https://codecov.io/gh/pace-rs/pace" >
+ <img src="https://codecov.io/gh/pace-rs/pace/graph/badge.svg?token=7V1G5GLG3D"/>
+ </a>
 <a href="https://raw.githubusercontent.com/pace-rs/pace/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPLv3+-red.svg" /></a>
 <a href="https://crates.io/crates/pace-rs"><img src="https://img.shields.io/crates/d/pace-rs.svg" /></a>
 <p>
