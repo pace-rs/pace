@@ -10,7 +10,7 @@ use eyre::Result;
 /// Errors if the command failed
 ///
 pub fn bloat_time(package: impl Into<Option<String>>) -> Result<()> {
-    let package = package.into().unwrap_or("pace".to_string());
+    let package = package.into().unwrap_or("pace-rs".to_string());
     cmd!("cargo", "bloat", "--time", "-j", "1", "-p", package).run()?;
     Ok(())
 }
@@ -22,7 +22,7 @@ pub fn bloat_time(package: impl Into<Option<String>>) -> Result<()> {
 /// Errors if the command failed
 ///
 pub fn bloat_deps(package: impl Into<Option<String>>) -> Result<()> {
-    let package = package.into().unwrap_or("pace".to_string());
+    let package = package.into().unwrap_or("pace-rs".to_string());
     cmd!("cargo", "bloat", "--release", "--crates", "-p", package).run()?;
     Ok(())
 }
