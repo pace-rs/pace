@@ -131,7 +131,7 @@ impl AdjustCommandOptions {
 
             if self.override_tags {
                 debug!("Overriding tags with: {:?}", tags);
-                _ = activity.set_tags(Some(tags.clone()));
+                _ = activity.set_tags(Some(tags));
             } else {
                 let merged_tags = activity.tags_mut().as_mut().map_or_else(
                     || tags.clone(),

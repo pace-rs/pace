@@ -30,9 +30,10 @@ impl NowCommandOptions {
     pub fn handle_now(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
-        let user_message =
-            match activity_store.list_current_activities(ActivityFilterKind::Active)? {
-                Some(activities) => {
+        let user_message = (activity_store.list_current_activities(ActivityFilterKind::Active)?)
+            .map_or_else(
+                || "No activities are currently running.".to_string(),
+                |activities| {
                     debug!("Current Activities: {:?}", activities);
 
                     // Get the activity items
@@ -47,9 +48,8 @@ impl NowCommandOptions {
                     }
 
                     msgs.join("\n")
-                }
-                None => "No activities are currently running.".to_string(),
-            };
+                },
+            );
 
         Ok(UserMessage::new(user_message))
     }

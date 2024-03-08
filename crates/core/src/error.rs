@@ -79,7 +79,7 @@ impl PaceError {
     ///
     /// This is useful for matching on the error kind.
     #[must_use]
-    pub fn possible_new_activity_from_resume(&self) -> bool {
+    pub const fn possible_new_activity_from_resume(&self) -> bool {
         matches!(
             self.0,
             PaceErrorKind::ActivityLog(ActivityLogErrorKind::NoHeldActivityFound(_))

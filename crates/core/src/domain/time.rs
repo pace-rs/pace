@@ -44,24 +44,35 @@ impl TryFrom<PaceTimeFrame> for TimeRangeOptions {
     fn try_from(time_frame: PaceTimeFrame) -> Result<Self, Self::Error> {
         match time_frame {
             PaceTimeFrame::DateRange(range) => Ok(range),
-            PaceTimeFrame::CurrentMonth => TimeRangeOptions::current_month(),
-            PaceTimeFrame::CurrentWeek => TimeRangeOptions::current_week(),
-            PaceTimeFrame::CurrentYear => TimeRangeOptions::current_year(),
-            PaceTimeFrame::SpecificDate(date) => TimeRangeOptions::specific_date(date),
-            PaceTimeFrame::LastMonth => TimeRangeOptions::last_month(),
-            PaceTimeFrame::LastWeek => TimeRangeOptions::last_week(),
-            PaceTimeFrame::LastYear => TimeRangeOptions::last_year(),
-            PaceTimeFrame::Today => TimeRangeOptions::today(),
-            PaceTimeFrame::Yesterday => TimeRangeOptions::yesterday(),
+            PaceTimeFrame::CurrentMonth => Self::current_month(),
+            PaceTimeFrame::CurrentWeek => Self::current_week(),
+            PaceTimeFrame::CurrentYear => Self::current_year(),
+            PaceTimeFrame::SpecificDate(date) => Self::specific_date(date),
+            PaceTimeFrame::LastMonth => Self::last_month(),
+            PaceTimeFrame::LastWeek => Self::last_week(),
+            PaceTimeFrame::LastYear => Self::last_year(),
+            PaceTimeFrame::Today => Self::today(),
+            PaceTimeFrame::Yesterday => Self::yesterday(),
         }
     }
 }
 
 impl TimeRangeOptions {
+    /// Check if the given time is in the range
+    #[must_use]
     pub fn is_in_range(&self, time: PaceDateTime) -> bool {
         time >= self.start && time <= self.end
     }
 
+    /// Validate the time range
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the time range is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options if they are valid
     pub fn validate(self) -> PaceResult<Self> {
         if self.start > self.end {
             return Err(PaceTimeErrorKind::InvalidTimeRange(
@@ -74,29 +85,45 @@ impl TimeRangeOptions {
         Ok(self)
     }
 
+    /// Get the time range options for the current month
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the current month cannot be calculated or if the date is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options for the current month
     pub fn current_month() -> PaceResult<Self> {
         let now = Local::now();
 
-        let start = NaiveDate::from_ymd_opt(now.year(), now.month(), 1).ok_or(
-            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), now.month())),
-        )?;
+        let start = NaiveDate::from_ymd_opt(now.year(), now.month(), 1).ok_or_else(|| {
+            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), now.month()))
+        })?;
 
         Ok(Self::builder()
-            .start(PaceDateTime::from(
-                start
-                    .and_hms_opt(0, 0, 0)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
-            ))
+            .start(PaceDateTime::from(start.and_hms_opt(0, 0, 0).ok_or_else(
+                || PaceTimeErrorKind::InvalidDate(start.to_string()),
+            )?))
             .build())
     }
 
+    /// Get the time range options for the current week
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the current week cannot be calculated or if the date is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options for the current week
     pub fn current_week() -> PaceResult<Self> {
         let now = Local::now();
 
         let start = now
             .date_naive()
             .pred_opt()
-            .ok_or(PaceTimeErrorKind::InvalidDate(now.to_string()))?;
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(now.to_string()))?;
 
         let week = start.week(chrono::Weekday::Mon);
 
@@ -104,27 +131,46 @@ impl TimeRangeOptions {
             .start(PaceDateTime::from(
                 week.first_day()
                     .and_hms_opt(0, 0, 0)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(week.first_day().to_string()))?,
+                    .ok_or_else(|| PaceTimeErrorKind::InvalidDate(week.first_day().to_string()))?,
             ))
             .build())
     }
 
+    /// Get the time range options for the current year
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the current year cannot be calculated or if the date is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options for the current year
     pub fn current_year() -> PaceResult<Self> {
         let now = Local::now();
 
-        let start = NaiveDate::from_ymd_opt(now.year(), 1, 1).ok_or(
-            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), 1)),
-        )?;
+        let start = NaiveDate::from_ymd_opt(now.year(), 1, 1)
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), 1)))?;
 
         Ok(Self::builder()
-            .start(PaceDateTime::from(
-                start
-                    .and_hms_opt(0, 0, 0)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
-            ))
+            .start(PaceDateTime::from(start.and_hms_opt(0, 0, 0).ok_or_else(
+                || PaceTimeErrorKind::InvalidDate(start.to_string()),
+            )?))
             .build())
     }
 
+    /// Get the time range options for a specific date
+    ///
+    /// # Arguments
+    ///
+    /// * `date` - The specific date
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the date is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options for the specific date
     pub fn specific_date(date: PaceDate) -> PaceResult<Self> {
         // handle date if it's in the future
         let (start, end) = if date.is_future() {
@@ -134,7 +180,7 @@ impl TimeRangeOptions {
                     PaceDate::default()
                         .0
                         .and_hms_opt(0, 0, 0)
-                        .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+                        .ok_or_else(|| PaceTimeErrorKind::InvalidDate(date.to_string()))?,
                 ),
                 PaceDateTime::now(),
             )
@@ -143,12 +189,12 @@ impl TimeRangeOptions {
                 PaceDateTime::from(
                     date.0
                         .and_hms_opt(0, 0, 0)
-                        .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+                        .ok_or_else(|| PaceTimeErrorKind::InvalidDate(date.to_string()))?,
                 ),
                 PaceDateTime::from(
                     date.0
                         .and_hms_opt(23, 59, 59)
-                        .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+                        .ok_or_else(|| PaceTimeErrorKind::InvalidDate(date.to_string()))?,
                 ),
             )
         };
@@ -156,34 +202,49 @@ impl TimeRangeOptions {
         Ok(Self::builder().start(start).end(end).build())
     }
 
+    /// Get the time range options for the last month
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the last month cannot be calculated or if the date is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options for the last month
     pub fn last_month() -> PaceResult<Self> {
         let now = Local::now();
 
-        let start = NaiveDate::from_ymd_opt(now.year(), now.month() - 1, 1).ok_or(
-            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), now.month() - 1)),
-        )?;
+        let start = NaiveDate::from_ymd_opt(now.year(), now.month() - 1, 1).ok_or_else(|| {
+            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), now.month() - 1))
+        })?;
 
         let end = start
             .with_day(1)
-            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(start.to_string()))?
             .with_month(start.month() + 1)
-            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(start.to_string()))?
             .pred_opt()
-            .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?;
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(start.to_string()))?;
 
         Ok(Self::builder()
-            .start(PaceDateTime::from(
-                start
-                    .and_hms_opt(0, 0, 0)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
-            ))
-            .end(PaceDateTime::from(
-                end.and_hms_opt(23, 59, 59)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
-            ))
+            .start(PaceDateTime::from(start.and_hms_opt(0, 0, 0).ok_or_else(
+                || PaceTimeErrorKind::InvalidDate(start.to_string()),
+            )?))
+            .end(PaceDateTime::from(end.and_hms_opt(23, 59, 59).ok_or_else(
+                || PaceTimeErrorKind::InvalidDate(end.to_string()),
+            )?))
             .build())
     }
 
+    /// Get the time range options for the last week
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the last week cannot be calculated or if the date is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options for the last week
     pub fn last_week() -> PaceResult<Self> {
         let now = Local::now();
 
@@ -192,37 +253,30 @@ impl TimeRangeOptions {
             .iso_week()
             .week()
             .checked_sub(1)
-            .ok_or(PaceTimeErrorKind::InvalidDate(now.date_naive().to_string()))?;
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(now.date_naive().to_string()))?;
 
         let week = NaiveDate::from_isoywd_opt(now.year(), last_week, chrono::Weekday::Mon)
-            .ok_or(PaceTimeErrorKind::InvalidDate(format!(
-                "{}/{}",
-                now.year(),
-                last_week
-            )))?
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year(), last_week)))?
             .week(chrono::Weekday::Mon);
 
         // handle first week of the year
         // FIXME: this is a hack, find a better way to handle this
         if week.first_day().year() != now.year() {
-            let start = NaiveDate::from_ymd_opt(now.year() - 1, 12, 25).ok_or(
-                PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 12)),
-            )?;
+            let start = NaiveDate::from_ymd_opt(now.year() - 1, 12, 25).ok_or_else(|| {
+                PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 12))
+            })?;
 
-            let end = NaiveDate::from_ymd_opt(now.year() - 1, 12, 31).ok_or(
-                PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 12)),
-            )?;
+            let end = NaiveDate::from_ymd_opt(now.year() - 1, 12, 31).ok_or_else(|| {
+                PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 12))
+            })?;
 
             return Ok(Self::builder()
-                .start(PaceDateTime::from(
-                    start
-                        .and_hms_opt(0, 0, 0)
-                        .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
-                ))
-                .end(PaceDateTime::from(
-                    end.and_hms_opt(23, 59, 59)
-                        .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
-                ))
+                .start(PaceDateTime::from(start.and_hms_opt(0, 0, 0).ok_or_else(
+                    || PaceTimeErrorKind::InvalidDate(start.to_string()),
+                )?))
+                .end(PaceDateTime::from(end.and_hms_opt(23, 59, 59).ok_or_else(
+                    || PaceTimeErrorKind::InvalidDate(end.to_string()),
+                )?))
                 .build());
         }
 
@@ -230,40 +284,53 @@ impl TimeRangeOptions {
             .start(PaceDateTime::from(
                 week.first_day()
                     .and_hms_opt(0, 0, 0)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(week.first_day().to_string()))?,
+                    .ok_or_else(|| PaceTimeErrorKind::InvalidDate(week.first_day().to_string()))?,
             ))
             .end(PaceDateTime::from(
                 week.last_day()
                     .and_hms_opt(23, 59, 59)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(week.last_day().to_string()))?,
+                    .ok_or_else(|| PaceTimeErrorKind::InvalidDate(week.last_day().to_string()))?,
             ))
             .build())
     }
 
+    /// Get the time range options for the last year
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the last year cannot be calculated or if the date is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options for the last year
     pub fn last_year() -> PaceResult<Self> {
         let now = Local::now();
 
-        let start = NaiveDate::from_ymd_opt(now.year() - 1, 1, 1).ok_or(
-            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 1)),
-        )?;
+        let start = NaiveDate::from_ymd_opt(now.year() - 1, 1, 1)
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 1)))?;
 
-        let end = NaiveDate::from_ymd_opt(now.year() - 1, 12, 31).ok_or(
-            PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 12)),
-        )?;
+        let end = NaiveDate::from_ymd_opt(now.year() - 1, 12, 31)
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(format!("{}/{}", now.year() - 1, 12)))?;
 
         Ok(Self::builder()
-            .start(PaceDateTime::from(
-                start
-                    .and_hms_opt(0, 0, 0)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(start.to_string()))?,
-            ))
-            .end(PaceDateTime::from(
-                end.and_hms_opt(23, 59, 59)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(end.to_string()))?,
-            ))
+            .start(PaceDateTime::from(start.and_hms_opt(0, 0, 0).ok_or_else(
+                || PaceTimeErrorKind::InvalidDate(start.to_string()),
+            )?))
+            .end(PaceDateTime::from(end.and_hms_opt(23, 59, 59).ok_or_else(
+                || PaceTimeErrorKind::InvalidDate(end.to_string()),
+            )?))
             .build())
     }
 
+    /// Get the time range options for today
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the date is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options for today
     pub fn today() -> PaceResult<Self> {
         let now = Local::now();
 
@@ -271,27 +338,38 @@ impl TimeRangeOptions {
             .start(PaceDateTime::from(
                 now.date_naive()
                     .and_hms_opt(0, 0, 0)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(now.to_string()))?,
+                    .ok_or_else(|| PaceTimeErrorKind::InvalidDate(now.to_string()))?,
             ))
             .build())
     }
 
+    /// Get the time range options for yesterday
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the date is invalid
+    ///
+    /// # Returns
+    ///
+    /// Returns the time range options for yesterday
     pub fn yesterday() -> PaceResult<Self> {
         let now = Local::now();
 
         let yesterday = now
             .date_naive()
             .pred_opt()
-            .ok_or(PaceTimeErrorKind::InvalidDate(now.date_naive().to_string()))?;
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(now.date_naive().to_string()))?;
 
         Ok(Self::builder()
-            .start(PaceDateTime::from(yesterday.and_hms_opt(0, 0, 0).ok_or(
-                PaceTimeErrorKind::InvalidDate(yesterday.to_string()),
-            )?))
+            .start(PaceDateTime::from(
+                yesterday
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or_else(|| PaceTimeErrorKind::InvalidDate(yesterday.to_string()))?,
+            ))
             .end(PaceDateTime::from(
                 yesterday
                     .and_hms_opt(23, 59, 59)
-                    .ok_or(PaceTimeErrorKind::InvalidDate(yesterday.to_string()))?,
+                    .ok_or_else(|| PaceTimeErrorKind::InvalidDate(yesterday.to_string()))?,
             ))
             .build())
     }
@@ -313,11 +391,9 @@ impl TryFrom<PaceDate> for PaceDateTime {
 
     fn try_from(date: PaceDate) -> Result<Self, Self::Error> {
         // if the date is invalid because of the time, use the default time
-        Ok(Self::new(
-            date.0
-                .and_hms_opt(0, 0, 0)
-                .ok_or(PaceTimeErrorKind::InvalidDate(date.to_string()))?,
-        ))
+        Ok(Self::new(date.0.and_hms_opt(0, 0, 0).ok_or_else(|| {
+            PaceTimeErrorKind::InvalidDate(date.to_string())
+        })?))
     }
 }
 
@@ -473,39 +549,56 @@ impl Display for PaceDuration {
 }
 
 impl PaceDuration {
-    pub fn zero() -> Self {
+    #[must_use]
+    pub const fn zero() -> Self {
         Self(0)
     }
 
-    pub fn is_zero(&self) -> bool {
+    #[must_use]
+    pub const fn is_zero(&self) -> bool {
         self.0 == 0
     }
 
-    pub fn as_secs(&self) -> u64 {
+    #[must_use]
+    pub const fn as_secs(&self) -> u64 {
         self.0
     }
 
-    pub fn as_duration(&self) -> Duration {
+    #[must_use]
+    pub const fn as_duration(&self) -> Duration {
         Duration::from_secs(self.0)
     }
 
+    #[must_use]
+    // We allow this because it's unlikely, that we will reach this case
+    #[allow(clippy::cast_precision_loss)]
     pub fn as_minutes(&self) -> f64 {
         self.0 as f64 / 60.0
     }
 
+    #[must_use]
+    // We allow this because it's unlikely, that we will reach this case
+    #[allow(clippy::cast_precision_loss)]
     pub fn as_hours(&self) -> f64 {
         self.0 as f64 / 3600.0
     }
 
+    #[must_use]
+    // We allow this because it's unlikely, that we will reach this case
+    #[allow(clippy::cast_precision_loss)]
     pub fn as_days(&self) -> f64 {
         self.0 as f64 / 86400.0
     }
 
+    #[must_use]
+    // We allow this because it's unlikely, that we will reach this case
+    #[allow(clippy::cast_precision_loss)]
     pub fn as_weeks(&self) -> f64 {
-        self.0 as f64 / 604800.0
+        self.0 as f64 / 604_800.0
     }
 
-    pub fn from_seconds(seconds: u64) -> Self {
+    #[must_use]
+    pub const fn from_seconds(seconds: u64) -> Self {
         Self(seconds)
     }
 }
@@ -520,10 +613,7 @@ impl std::ops::Sub for PaceDuration {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        match self.0.checked_sub(rhs.0) {
-            Some(result) => Self(result),
-            None => Self(0),
-        }
+        self.0.checked_sub(rhs.0).map_or(Self(0), Self)
     }
 }
 
@@ -600,6 +690,7 @@ impl TryFrom<chrono::Duration> for PaceDuration {
 pub struct PaceDate(pub NaiveDate);
 
 impl PaceDate {
+    #[must_use]
     pub fn is_future(&self) -> bool {
         self.0 > Local::now().naive_local().date()
     }
@@ -623,8 +714,7 @@ impl TryFrom<(i32, u32, u32)> for PaceDate {
         NaiveDate::from_ymd_opt(year, month, day).map_or_else(
             || {
                 Err(PaceTimeErrorKind::InvalidDate(format!(
-                    "{}/{}/{}",
-                    year, month, day
+                    "{year}/{month}/{day}"
                 )))
             },
             |date| Ok(Self(date)),
@@ -633,6 +723,7 @@ impl TryFrom<(i32, u32, u32)> for PaceDate {
 }
 
 impl PaceDate {
+    #[must_use]
     pub fn with_start() -> Self {
         Self(NaiveDate::default())
     }
@@ -682,22 +773,26 @@ pub struct PaceDateTime(NaiveDateTime);
 
 impl PaceDateTime {
     /// Get the date of the activity
-    pub fn date(&self) -> PaceDate {
+    #[must_use]
+    pub const fn date(&self) -> PaceDate {
         PaceDate(self.0.date())
     }
 
     /// Get the time of the activity
-    pub fn time(&self) -> PaceTime {
+    #[must_use]
+    pub const fn time(&self) -> PaceTime {
         PaceTime(self.0.time())
     }
 
     /// Create a new `PaceDateTime`
+    #[must_use]
     pub fn new(time: NaiveDateTime) -> Self {
         Self(time.round_subsecs(0))
     }
 
     /// Convert to a naive date time
-    pub fn naive_date_time(&self) -> NaiveDateTime {
+    #[must_use]
+    pub const fn naive_date_time(&self) -> NaiveDateTime {
         self.0
     }
 
@@ -707,11 +802,20 @@ impl PaceDateTime {
     }
 
     /// Alias for `Local::now()` and used by `Self::default()`
+    #[must_use]
     pub fn now() -> Self {
         Self(Local::now().naive_local().round_subsecs(0))
     }
 
     /// Check if time is in the future
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the time is in the future
+    ///
+    /// # Returns
+    ///
+    /// Returns the time if it's not in the future
     pub fn validate_future(self) -> PaceResult<Self> {
         if self > Self::now() {
             Err(PaceTimeErrorKind::StartTimeInFuture(self).into())
@@ -933,12 +1037,10 @@ mod tests {
     }
 
     #[test]
-    fn test_pace_duration_from_duration_passes() -> TestResult<()> {
+    fn test_pace_duration_from_duration_passes() {
         let duration = Duration::from_secs(1);
         let result = PaceDuration::from(duration);
         assert_eq!(result, PaceDuration(1));
-
-        Ok(())
     }
 
     #[test]
@@ -978,15 +1080,13 @@ mod tests {
     }
 
     #[test]
-    fn test_begin_date_time_default_passes() -> TestResult<()> {
+    fn test_begin_date_time_default_passes() {
         let result = PaceDateTime::default();
 
         assert_eq!(
             result,
             PaceDateTime(Local::now().naive_local().round_subsecs(0))
         );
-
-        Ok(())
     }
 
     #[test]
@@ -1004,79 +1104,63 @@ mod tests {
     }
 
     #[test]
-    fn test_pace_duration_default_passes() -> TestResult<()> {
+    fn test_pace_duration_default_passes() {
         let result = PaceDuration::default();
 
         assert_eq!(result, PaceDuration(0));
-
-        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_zero_passes() -> TestResult<()> {
+    fn test_pace_duration_zero_passes() {
         let result = PaceDuration::zero();
 
         assert_eq!(result, PaceDuration(0));
-
-        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_add_assign_passes() -> TestResult<()> {
+    fn test_pace_duration_add_assign_passes() {
         let mut duration = PaceDuration(1);
         duration += PaceDuration(1);
 
         assert_eq!(duration, PaceDuration(2));
-
-        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_sub_passes() -> TestResult<()> {
+    fn test_pace_duration_sub_passes() {
         let duration = PaceDuration(2) - PaceDuration(1);
 
         assert_eq!(duration, PaceDuration(1));
-
-        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_sub_assign_passes() -> TestResult<()> {
+    fn test_pace_duration_sub_assign_passes() {
         let mut duration = PaceDuration(2);
         duration -= PaceDuration(1);
 
         assert_eq!(duration, PaceDuration(1));
-
-        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_sub_assign_with_u64_passes() -> TestResult<()> {
+    fn test_pace_duration_sub_assign_with_u64_passes() {
         let mut duration = PaceDuration(2);
         duration -= 1;
 
         assert_eq!(duration, PaceDuration(1));
-
-        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_sub_assign_below_zero_passes() -> TestResult<()> {
+    fn test_pace_duration_sub_assign_below_zero_passes() {
         let mut duration = PaceDuration(2);
         duration -= PaceDuration(3);
 
         assert_eq!(duration, PaceDuration(0));
-
-        Ok(())
     }
 
     #[test]
-    fn test_pace_duration_add_passes() -> TestResult<()> {
+    fn test_pace_duration_add_passes() {
         let duration = PaceDuration(1) + PaceDuration(1);
 
         assert_eq!(duration, PaceDuration(2));
-
-        Ok(())
     }
 
     #[test]
@@ -1089,12 +1173,10 @@ mod tests {
     }
 
     #[test]
-    fn test_pace_duration_from_str_fails() -> TestResult<()> {
+    fn test_pace_duration_from_str_fails() {
         let duration = "a".parse::<PaceDuration>();
 
         assert!(duration.is_err());
-
-        Ok(())
     }
 
     #[test]

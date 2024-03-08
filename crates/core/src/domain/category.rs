@@ -69,6 +69,7 @@ pub fn extract_categories(category_string: &str, separator: &str) -> (Category, 
 /// # Returns
 ///
 /// A tuple containing the category and and optional subcategory
+#[must_use]
 pub fn split_category_by_category_separator(
     category_string: &str,
     separator: Option<&str>,
@@ -76,7 +77,7 @@ pub fn split_category_by_category_separator(
     let default_separator = GeneralConfig::default()
         .category_separator()
         .clone()
-        .unwrap_or("::".to_string());
+        .unwrap_or_else(|| "::".to_string());
 
     let separator = separator.unwrap_or(default_separator.as_str());
 

@@ -35,6 +35,20 @@ pub fn activity_store_no_intermissions() -> TestResult<TestData> {
     setup_activity_store(&ActivityStoreTestKind::WithoutIntermissions)
 }
 
+/// Sets up an activity store with activities for testing
+///
+/// # Arguments
+///
+/// * `kind` - The kind of activities for the store to setup
+///
+/// # Errors
+///
+/// Returns an error if the store cannot be created
+///
+/// # Returns
+///
+/// A `TestData` struct containing the activities and the store
+#[allow(clippy::too_many_lines)]
 pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
     let begin_time = PaceDateTime::new(NaiveDateTime::new(
         DateTime::from_timestamp(0, 0)

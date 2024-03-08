@@ -107,12 +107,12 @@ impl BeginCommandOptions {
             .begin(date_time)
             .kind(ActivityKind::default())
             .category(category.clone())
-            .tags(tags.clone())
+            .tags(tags)
             .build();
 
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
-        let activity_item = activity_store.begin_activity(activity.clone())?;
+        let activity_item = activity_store.begin_activity(activity)?;
 
         debug!("Started Activity: {:?}", activity_item);
 

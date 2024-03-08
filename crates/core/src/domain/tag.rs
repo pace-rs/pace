@@ -37,7 +37,7 @@ pub struct Tag {
 }
 
 impl Tag {
-    pub fn new(guid: Option<TagGuid>, text: String) -> Self {
+    pub const fn new(guid: Option<TagGuid>, text: String) -> Self {
         Self { guid, text }
     }
 }

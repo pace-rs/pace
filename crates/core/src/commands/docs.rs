@@ -39,23 +39,17 @@ impl DocsCommandOptions {
         let user_string = if !self.dev && !self.config {
             open::that(PACE_DOCS_URL)?;
 
-            format!("Opening the user documentation at {}", PACE_DOCS_URL)
+            format!("Opening the user documentation at {PACE_DOCS_URL}")
         } else if self.config {
             // Open the config documentation
             open::that(PACE_CONFIG_DOCS_URL)?;
 
-            format!(
-                "Opening the configuration documentation at {}",
-                PACE_CONFIG_DOCS_URL
-            )
+            format!("Opening the configuration documentation at {PACE_CONFIG_DOCS_URL}")
         } else if self.dev {
             // Open the development documentation
             open::that(PACE_DEV_DOCS_URL)?;
 
-            format!(
-                "Opening the development documentation at {}",
-                PACE_DEV_DOCS_URL
-            )
+            format!("Opening the development documentation at {PACE_DEV_DOCS_URL}")
         } else {
             "No documentation to open".to_string()
         };

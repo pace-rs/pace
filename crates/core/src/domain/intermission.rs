@@ -17,7 +17,7 @@ impl IntermissionAction {
     ///
     /// [`Extend`]: IntermissionAction::Extend
     #[must_use]
-    pub fn is_extend(&self) -> bool {
+    pub const fn is_extend(&self) -> bool {
         matches!(self, Self::Extend)
     }
 
@@ -25,7 +25,7 @@ impl IntermissionAction {
     ///
     /// [`New`]: IntermissionAction::New
     #[must_use]
-    pub fn is_new(&self) -> bool {
+    pub const fn is_new(&self) -> bool {
         matches!(self, Self::New)
     }
 }

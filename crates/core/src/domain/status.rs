@@ -33,7 +33,7 @@ impl ActivityStatus {
     ///
     /// [`Active`]: ActivityStatus::Active
     #[must_use]
-    pub fn is_active(self) -> bool {
+    pub const fn is_active(self) -> bool {
         matches!(self, Self::Active)
     }
 
@@ -41,7 +41,7 @@ impl ActivityStatus {
     ///
     /// [`Archived`]: ActivityStatus::Archived
     #[must_use]
-    pub fn is_archived(self) -> bool {
+    pub const fn is_archived(self) -> bool {
         matches!(self, Self::Archived)
     }
 
@@ -49,7 +49,7 @@ impl ActivityStatus {
     ///
     /// [`Ended`]: ActivityStatus::Ended
     #[must_use]
-    pub fn is_ended(self) -> bool {
+    pub const fn is_ended(self) -> bool {
         matches!(self, Self::Ended)
     }
 
@@ -57,7 +57,7 @@ impl ActivityStatus {
     ///
     /// [`Inactive`]: ActivityStatus::Inactive
     #[must_use]
-    pub fn is_inactive(self) -> bool {
+    pub const fn is_inactive(self) -> bool {
         matches!(self, Self::Inactive)
     }
 
@@ -65,7 +65,7 @@ impl ActivityStatus {
     ///
     /// [`Held`]: ActivityStatus::Held
     #[must_use]
-    pub fn is_held(self) -> bool {
+    pub const fn is_held(self) -> bool {
         matches!(self, Self::Held)
     }
 
@@ -73,7 +73,7 @@ impl ActivityStatus {
     ///
     /// [`Unarchived`]: ActivityStatus::Unarchived
     #[must_use]
-    pub fn is_unarchived(&self) -> bool {
+    pub const fn is_unarchived(&self) -> bool {
         matches!(self, Self::Unarchived)
     }
 }

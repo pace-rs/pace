@@ -67,6 +67,7 @@ pub struct ReviewSummary {
 }
 
 impl ReviewSummary {
+    #[must_use]
     pub fn new(
         time_range: TimeRangeOptions,
         summary_groups_by_category: SummaryGroupByCategory,
@@ -86,9 +87,9 @@ impl ReviewSummary {
         );
 
         Self {
-            total_break_duration,
             time_range,
             total_time_spent,
+            total_break_duration,
             summary_groups_by_category,
         }
     }
@@ -106,7 +107,7 @@ impl std::fmt::Display for ReviewSummary {
             "Breaks (Amount)",
         ]);
 
-        for ((category, subcategory), summary_group) in self.summary_groups_by_category.iter() {
+        for ((category, subcategory), summary_group) in &self.summary_groups_by_category {
             builder.push_record(vec![
                 category,
                 "",
@@ -178,6 +179,7 @@ pub struct SummaryActivityGroup {
 }
 
 impl SummaryActivityGroup {
+    #[must_use]
     pub fn with_activity_group(activity_group: ActivityGroup) -> Self {
         Self {
             total_break_count: *activity_group.intermission_count(),
@@ -202,10 +204,12 @@ impl SummaryActivityGroup {
             .or_insert(activity_group);
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.activity_groups_by_description.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.activity_groups_by_description.is_empty()
     }

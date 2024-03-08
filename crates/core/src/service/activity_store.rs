@@ -190,7 +190,7 @@ impl ActivityStore {
             // Now we have a list of activity sessions grouped by description and (sub)category
             let activity_group = ActivityGroup::with_multiple_sessions(
                 description.clone(),
-                activity_sessions.to_vec(),
+                activity_sessions.clone(),
             );
 
             _ = summary_groups

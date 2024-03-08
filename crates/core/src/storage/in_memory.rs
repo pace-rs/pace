@@ -59,6 +59,7 @@ impl InMemoryActivityStorage {
     /// # Returns
     ///
     /// A new `InMemoryActivityStorage` with the given `ActivityLog`
+    #[must_use]
     pub fn new_with_activity_log(activity_log: ActivityLog) -> Self {
         Self {
             log: Arc::new(RwLock::new(activity_log)),
@@ -208,7 +209,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         &self,
         activity_id: ActivityGuid,
         updated_activity: Activity,
-        _update_opts: UpdateOptions,
+        update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem> {
         let activities = self.log.read();
 
@@ -237,7 +238,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
     fn delete_activity(
         &self,
         activity_id: ActivityGuid,
-        _delete_opts: DeleteOptions,
+        delete_opts: DeleteOptions,
     ) -> PaceResult<ActivityItem> {
         let mut activities = self.log.write();
 
@@ -1541,6 +1542,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_important_pace_flow_for_activities_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
         let _now = PaceDateTime::now();

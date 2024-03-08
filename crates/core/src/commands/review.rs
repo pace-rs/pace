@@ -110,9 +110,9 @@ impl ReviewCommandOptions {
                         "Review report generated: {}",
                         export_file.display()
                     )));
-                } else {
-                    return Ok(UserMessage::new(json));
                 }
+
+                return Ok(UserMessage::new(json));
             }
 
             Some(ReviewFormatKind::Html) => unimplemented!("HTML format not yet supported"),
@@ -172,6 +172,9 @@ pub struct ExpensiveFlags {
 #[getset(get = "pub")]
 #[cfg_attr(feature = "clap", derive(Parser))]
 #[cfg_attr(feature = "clap", clap(group = clap::ArgGroup::new("time-flag").multiple(false)))]
+// We allow this here, because it's convenient to have all the flags in one place for the cli
+// and because it's easier to deal with clap in this way.
+#[allow(clippy::struct_excessive_bools)]
 pub struct TimeFlags {
     /// Show the review for the current day
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]

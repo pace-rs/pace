@@ -41,14 +41,9 @@ pub mod in_memory;
 ///
 /// The storage backend.
 pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<StorageKind>> {
-    let storage: StorageKind = match config
-        .general()
-        .activity_log_options()
-        .activity_log_storage()
-    {
+    let storage: StorageKind = match config.general().activity_log_options().storage_kind() {
         ActivityLogStorageKind::File => {
-            TomlActivityStorage::new(config.general().activity_log_options().activity_log_path())?
-                .into()
+            TomlActivityStorage::new(config.general().activity_log_options().path())?.into()
         }
         ActivityLogStorageKind::Database => {
             return Err(PaceErrorKind::DatabaseStorageNotImplemented.into())
@@ -72,11 +67,11 @@ pub enum StorageKind {
 impl Display for StorageKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            StorageKind::ActivityStore(_) => write!(f, "StorageKind: ActivityStore"),
-            StorageKind::InMemoryActivityStorage(_) => {
+            Self::ActivityStore(_) => write!(f, "StorageKind: ActivityStore"),
+            Self::InMemoryActivityStorage(_) => {
                 write!(f, "StorageKind: InMemoryActivityStorage")
             }
-            StorageKind::TomlActivityStorage(_) => write!(f, "StorageKind: TomlActivityStorage"),
+            Self::TomlActivityStorage(_) => write!(f, "StorageKind: TomlActivityStorage"),
         }
     }
 }

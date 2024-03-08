@@ -4,4 +4,4 @@
 ///
 pub mod activity_store;
 
-pub(crate) mod activity_tracker;
+pub mod activity_tracker;

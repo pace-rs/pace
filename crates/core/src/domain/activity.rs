@@ -41,11 +41,13 @@ impl ActivityItem {
     /// # Returns
     ///
     /// Returns a new `ActivityItem`
-    pub fn new(guid: ActivityGuid, activity: Activity) -> Self {
+    #[must_use]
+    pub const fn new(guid: ActivityGuid, activity: Activity) -> Self {
         Self { guid, activity }
     }
 
     /// Consumes the `ActivityItem` and returns the inner `ActivityGuid` and `Activity`
+    #[must_use]
     pub fn into_parts(self) -> (ActivityGuid, Activity) {
         (self.guid, self.activity)
     }
@@ -106,7 +108,7 @@ impl ActivityKind {
     ///
     /// [`Activity`]: ActivityKind::Activity
     #[must_use]
-    pub fn is_activity(&self) -> bool {
+    pub const fn is_activity(&self) -> bool {
         matches!(self, Self::Activity)
     }
 
@@ -114,7 +116,7 @@ impl ActivityKind {
     ///
     /// [`Task`]: ActivityKind::Task
     #[must_use]
-    pub fn is_task(&self) -> bool {
+    pub const fn is_task(&self) -> bool {
         matches!(self, Self::Task)
     }
 
@@ -122,7 +124,7 @@ impl ActivityKind {
     ///
     /// [`Intermission`]: ActivityKind::Intermission
     #[must_use]
-    pub fn is_intermission(&self) -> bool {
+    pub const fn is_intermission(&self) -> bool {
         matches!(self, Self::Intermission)
     }
 
@@ -130,7 +132,7 @@ impl ActivityKind {
     ///
     /// [`PomodoroWork`]: ActivityKind::PomodoroWork
     #[must_use]
-    pub fn is_pomodoro_work(&self) -> bool {
+    pub const fn is_pomodoro_work(&self) -> bool {
         matches!(self, Self::PomodoroWork)
     }
 
@@ -138,11 +140,13 @@ impl ActivityKind {
     ///
     /// [`PomodoroIntermission`]: ActivityKind::PomodoroIntermission
     #[must_use]
-    pub fn is_pomodoro_intermission(&self) -> bool {
+    pub const fn is_pomodoro_intermission(&self) -> bool {
         matches!(self, Self::PomodoroIntermission)
     }
 
-    pub fn to_symbol(&self) -> &'static str {
+    /// Returns the symbol for the activity kind
+    #[must_use]
+    pub const fn to_symbol(&self) -> &'static str {
         match self {
             Self::Activity => "📆",
             Self::Task => "📋",
@@ -261,7 +265,8 @@ pub struct ActivityEndOptions {
 }
 
 impl ActivityEndOptions {
-    pub fn new(end: PaceDateTime, duration: PaceDuration) -> Self {
+    #[must_use]
+    pub const fn new(end: PaceDateTime, duration: PaceDuration) -> Self {
         Self { end, duration }
     }
 }
@@ -289,6 +294,7 @@ pub struct ActivityKindOptions {
 }
 
 impl ActivityKindOptions {
+    #[must_use]
     pub fn with_parent_id(parent_id: ActivityGuid) -> Self {
         Self {
             parent_id: parent_id.into(),
@@ -352,6 +358,7 @@ impl rusqlite::types::ToSql for ActivityGuid {
 impl Activity {
     /// Create a new activity from this activity to resume
     /// an already ended/archived/etc. activity
+    #[must_use]
     pub fn new_from_self(&self) -> Self {
         debug!(
             "Creating a new activity from the current activity: {:?}.",
@@ -518,6 +525,14 @@ impl Activity {
     }
 
     /// Get the overall duration of the activity
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there are no end options found
+    ///
+    /// # Result
+    ///
+    /// Returns the duration of the activity
     pub fn duration(&self) -> PaceResult<PaceDuration> {
         let end_opts = self
             .activity_end_options()
@@ -611,7 +626,7 @@ pub struct ActivityGroup {
 }
 
 impl ActivityGroup {
-    pub fn with_session(activity_session: ActivitySession) -> Self {
+    pub fn with_session(activity_session: &ActivitySession) -> Self {
         debug!("Creating new activity group");
 
         debug!("Activity Session: {activity_session:#?}",);

@@ -19,7 +19,7 @@ use crate::setup::FinalSetupPaths;
 /// # Returns
 ///
 /// Returns the selected activity log path
-pub(crate) fn prompt_activity_log_path(activity_log_paths: &[String]) -> Result<FinalSetupPaths> {
+pub fn prompt_activity_log_path(activity_log_paths: &[String]) -> Result<FinalSetupPaths> {
     let activity_log_path_select_text = r"Please select the location for your activity log";
 
     let selection = Select::with_theme(&ColorfulTheme::default())
@@ -63,7 +63,7 @@ pub(crate) fn prompt_activity_log_path(activity_log_paths: &[String]) -> Result<
 /// # Returns
 ///
 /// Returns the updated setup paths
-pub(crate) fn prompt_config_file_path(
+pub fn prompt_config_file_path(
     mut final_paths: FinalSetupPaths,
     config_paths: &[String],
 ) -> Result<FinalSetupPaths> {

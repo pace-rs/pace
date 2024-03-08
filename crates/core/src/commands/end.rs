@@ -49,8 +49,9 @@ impl EndCommandOptions {
 
         let end_opts = EndOptions::builder().end_time(date_time).build();
 
-        let user_message =
-            if let Some(unfinished_activities) = activity_store.end_all_activities(end_opts)? {
+        let user_message = (activity_store.end_all_activities(end_opts)?).map_or_else(
+            || "No unfinished activities to end.".to_string(),
+            |unfinished_activities| {
                 let mut msgs = vec![];
                 for activity in &unfinished_activities {
                     debug!("Ended {}", activity.activity());
@@ -59,9 +60,8 @@ impl EndCommandOptions {
                 }
 
                 msgs.join("\n")
-            } else {
-                "No unfinished activities to end.".to_string()
-            };
+            },
+        );
 
         activity_store.sync()?;
 

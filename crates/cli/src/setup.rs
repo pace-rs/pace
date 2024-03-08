@@ -35,7 +35,7 @@ pub struct PathOptions {
 ///
 /// This struct is used to store the final paths for the configuration and activity log files
 #[derive(Debug, TypedBuilder, Getters, MutGetters)]
-pub(crate) struct FinalSetupPaths {
+pub struct FinalSetupPaths {
     /// The path to the activity log file
     #[builder(default)]
     #[getset(get = "pub")]
@@ -99,7 +99,7 @@ impl Display for FinalSetupPaths {
 /// # Returns
 ///
 /// Returns `Ok(())` if the prompt succeeds
-pub(crate) fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
+pub fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> {
     let env_var_knowledge = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you know how to set environment variables?")
         .default(true)
@@ -154,7 +154,7 @@ pub(crate) fn env_knowledge_loop(term: &Term, config_root: &Path) -> Result<()> 
 /// # Returns
 ///
 /// Returns `Ok(())` if the configuration is written successfully
-pub(crate) fn write_config(
+pub fn write_config(
     config: &PaceConfig,
     config_root: &PathBuf,
     config_path: &PathBuf,
@@ -194,7 +194,7 @@ pub(crate) fn write_config(
 /// # Returns
 ///
 /// Returns `Ok(())` if the activity log is written successfully
-pub(crate) fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
+pub fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
     let activity_log = ActivityLog::default();
 
     let activity_log_content = toml::to_string_pretty(&activity_log)?;
@@ -234,7 +234,7 @@ pub(crate) fn write_activity_log(final_paths: &FinalSetupPaths) -> Result<()> {
 /// # Returns
 ///
 /// Returns `Ok(())` if the prompt succeeds
-pub(crate) fn print_intro(term: &Term) -> Result<()> {
+pub fn print_intro(term: &Term) -> Result<()> {
     // Font name: Font Name: Georgia11
     // Source: https://patorjk.com/software/taag/#p=display&f=Georgia11&t=PACE
 
@@ -291,7 +291,7 @@ Use Q, ESC, or Ctrl-C to exit gracefully at any time.";
 /// # Returns
 ///
 /// Returns `Ok(())` if the user confirms their choices
-pub(crate) fn confirmation_or_break(prompt: &str) -> Result<()> {
+pub fn confirmation_or_break(prompt: &str) -> Result<()> {
     let confirmation = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(prompt)
         .default(true)
