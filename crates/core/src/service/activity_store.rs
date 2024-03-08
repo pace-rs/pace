@@ -11,6 +11,7 @@ use crate::{
     commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem, ActivitySession},
+        category,
         filter::{ActivityFilterKind, FilteredActivities},
         review::SummaryGroupByCategory,
     },
@@ -39,6 +40,12 @@ pub struct ActivityStore {
 pub struct ActivityStoreCache {
     by_start_date: BTreeMap<PaceDate, Vec<ActivityItem>>,
 }
+
+type Category = String;
+
+type Subcategory = Option<String>;
+
+type Description = String;
 
 impl ActivityStore {
     /// Create a new `ActivityStore` with a given storage backend
@@ -105,7 +112,7 @@ impl ActivityStore {
         let mut summary_groups: SummaryGroupByCategory = BTreeMap::new();
 
         let mut activity_sessions_lookup_by_category: HashMap<
-            (String, String),
+            (Category, Subcategory, Description),
             Vec<ActivitySession>,
         > = HashMap::new();
 
@@ -124,14 +131,21 @@ impl ActivityStore {
                 activity_session.add_multiple_intermissions(intermissions);
             };
 
+            // Handle splitting subcategories
+            let (category, subcategory) = category::split_category_by_category_separator(
+                activity_item
+                    .activity()
+                    .category()
+                    .as_deref()
+                    .unwrap_or("Uncategorized"),
+                None,
+            );
+
             // Deduplicate activities by category and description first
             _ = activity_sessions_lookup_by_category
                 .entry((
-                    activity_item
-                        .activity()
-                        .category()
-                        .clone()
-                        .unwrap_or("Uncategorized".to_string()),
+                    category,
+                    subcategory,
                     activity_item.activity().description().to_owned(),
                 ))
                 .and_modify(|e| e.push(activity_session.clone()))
@@ -144,20 +158,26 @@ impl ActivityStore {
         );
 
         // Deduplicate activities by description
-        for ((category, description), activity_sessions) in &activity_sessions_lookup_by_category {
+        for ((category, subcategory, description), activity_sessions) in
+            &activity_sessions_lookup_by_category
+        {
             if activity_sessions.is_empty() {
                 // Skip if there are no activity sessions
                 continue;
             }
 
-            // Now we have a list of activity sessions grouped by description and category
+            // FIXME: This is a bit of a hack to handle the subcategory
+            // It will be an empty string if not present
+            let subcategory = subcategory.clone().unwrap_or_default();
+
+            // Now we have a list of activity sessions grouped by description and (sub)category
             let activity_group = ActivityGroup::with_multiple_sessions(
                 description.clone(),
                 activity_sessions.to_vec(),
             );
 
             _ = summary_groups
-                .entry(category.clone())
+                .entry((category.clone(), subcategory))
                 .and_modify(|e| e.add_activity_group(activity_group.clone()))
                 .or_insert_with(|| SummaryActivityGroup::with_activity_group(activity_group));
         }

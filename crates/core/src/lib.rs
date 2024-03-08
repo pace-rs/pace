@@ -49,10 +49,11 @@ pub use crate::{
             ActivityKindOptions, ActivitySession,
         },
         activity_log::ActivityLog,
+        category::split_category_by_category_separator,
         filter::{ActivityFilterKind, FilteredActivities},
         intermission::IntermissionAction,
         review::{
-            Highlights, ReviewSummary, SummaryActivityGroup, SummaryCategory,
+            Highlights, ReviewSummary, SummaryActivityGroup, SummaryCategories,
             SummaryGroupByCategory,
         },
         status::ActivityStatus,

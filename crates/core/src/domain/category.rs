@@ -4,6 +4,8 @@ use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
+use crate::GeneralConfig;
+
 /// The category entity
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, Clone)]
 pub struct Category {
@@ -53,6 +55,40 @@ pub fn extract_categories(category_string: &str, separator: &str) -> (Category, 
             Category::builder().name(category_string.to_owned()).build(),
             None,
         )
+    }
+}
+
+/// Splits the category by the category separator or the default
+/// separator from `GeneralConfig`
+///
+/// # Arguments
+///
+/// * `category_string` - The category string
+/// * `separator` - The separator used to separate the category and subcategory
+///
+/// # Returns
+///
+/// A tuple containing the category and and optional subcategory
+pub fn split_category_by_category_separator(
+    category_string: &str,
+    separator: Option<&str>,
+) -> (String, Option<String>) {
+    let default_separator = GeneralConfig::default()
+        .category_separator()
+        .clone()
+        .unwrap_or("::".to_string());
+
+    let separator = separator.unwrap_or(default_separator.as_str());
+
+    let parts: Vec<_> = category_string.split(separator).collect();
+
+    if parts.len() > 1 {
+        // if there are more than one part, the first part is the category
+        // and the rest is the subcategory
+        (parts[0].to_string(), Some(parts[1..].concat()))
+    } else {
+        // if there is only one part, it's the category
+        (parts[0].to_string(), None)
     }
 }
 

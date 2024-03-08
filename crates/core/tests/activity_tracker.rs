@@ -33,7 +33,7 @@ fn test_activity_tracker(
     );
 
     let group = summary_groups_by_category
-        .get("development::pace")
+        .get(&("development".to_string(), "pace".to_string()))
         .ok_or("Should have a category.")?;
 
     assert_eq!(group.len(), 1, "Should have 1 activity.");

@@ -38,9 +38,9 @@ pub enum ReviewFormatKind {
 /// Represents a category for summarizing activities.
 // We use a string to allow for user-defined categories for now,
 // but we may want to change this to an enum in the future.
-pub type SummaryCategory = String;
+pub type SummaryCategories = (String, String);
 
-pub type SummaryGroupByCategory = BTreeMap<SummaryCategory, SummaryActivityGroup>;
+pub type SummaryGroupByCategory = BTreeMap<SummaryCategories, SummaryActivityGroup>;
 
 /// Represents a summary of activities and insights for a specified review period.
 #[derive(
@@ -106,7 +106,7 @@ impl std::fmt::Display for ReviewSummary {
             "Breaks (Amount)",
         ]);
 
-        for (category, summary_group) in self.summary_groups_by_category.iter() {
+        for ((category, subcategory), summary_group) in self.summary_groups_by_category.iter() {
             builder.push_record(vec![
                 category,
                 "",
@@ -116,7 +116,7 @@ impl std::fmt::Display for ReviewSummary {
 
             for (description, activity_group) in summary_group.activity_groups_by_description() {
                 builder.push_record(vec![
-                    "",
+                    subcategory,
                     description,
                     format!(
                         "{} ({})",
