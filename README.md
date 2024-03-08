@@ -31,7 +31,8 @@ mindful routine.
 ⚠️ **Note:** `pace` is currently in active development and is not yet ready for
 production use. Expect breaking changes and incomplete features. We encourage
 you to try it out and provide feedback, but please be aware that it is not yet
-stable.
+stable. You can find updates to `pace` in the
+[CHANGELOG](https://github.com/pace-rs/pace/blob/main/CHANGELOG.md).
 
 ## Contact
 
