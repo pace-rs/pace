@@ -21,7 +21,8 @@ pub mod review;
 pub mod setup;
 
 use abscissa_core::{
-    config::Override, tracing::debug, Command, Configurable, FrameworkError, Runnable,
+    config::Override, status_err, status_warn, tracing::debug, Command, Configurable,
+    FrameworkError, Runnable,
 };
 use clap::builder::{styling::AnsiColor, Styles};
 use human_panic::setup_panic;
@@ -171,8 +172,18 @@ impl Configurable<PaceConfig> for EntryPoint {
             automatically_determined
         );
 
+        if automatically_determined.is_empty() {
+            status_err!(
+                "No config file found in standard locations. Please run `pace setup config`."
+            );
+        }
+
+        if automatically_determined.len() > 1 {
+            status_warn!("Multiple config files found in standard locations, we will use the first one found: {:?}", automatically_determined);
+        }
+
         // Get the first path that exists
-        // FIXME: This feels hacky, is this sensible?
+        // TODO!: Let the user specify the config file location in case there are multiple existing ones
         let first_automatically_determined = automatically_determined.first();
 
         debug!(
