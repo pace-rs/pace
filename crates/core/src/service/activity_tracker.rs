@@ -2,7 +2,9 @@
 
 use tracing::debug;
 
-use crate::{ActivityStore, PaceOptResult, PaceTimeFrame, ReviewSummary, TimeRangeOptions};
+use crate::{
+    ActivityStore, FilterOptions, PaceOptResult, PaceTimeFrame, ReviewSummary, TimeRangeOptions,
+};
 
 // This struct represents the overall structure for tracking activities and their intermissions.
 pub struct ActivityTracker {
@@ -25,13 +27,14 @@ impl ActivityTracker {
     #[tracing::instrument(skip(self))]
     pub fn generate_review_summary(
         &self,
+        filter_opts: FilterOptions,
         time_frame: PaceTimeFrame,
     ) -> PaceOptResult<ReviewSummary> {
         let time_range_opts = TimeRangeOptions::try_from(time_frame)?;
 
         let Some(summary_groups) = self
             .store
-            .summary_groups_by_category_for_time_range(time_range_opts)?
+            .summary_groups_by_category_for_time_range(filter_opts, time_range_opts)?
         else {
             return Ok(None);
         };

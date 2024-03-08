@@ -1,6 +1,8 @@
 //! Test the `ActivityStore` implementation with a `InMemoryStorage` backend.
 
-use pace_core::{ActivityStore, ActivityTracker, PaceDuration, TestResult, TimeRangeOptions};
+use pace_core::{
+    ActivityStore, ActivityTracker, FilterOptions, PaceDuration, TestResult, TimeRangeOptions,
+};
 use rstest::rstest;
 use similar_asserts::assert_eq;
 
@@ -23,7 +25,7 @@ fn test_activity_tracker(
 
     let summary_groups_by_category = activity_tracker
         .store
-        .summary_groups_by_category_for_time_range(time_range_opts)?
+        .summary_groups_by_category_for_time_range(FilterOptions::default(), time_range_opts)?
         .ok_or("Should have dates.")?;
 
     assert_eq!(

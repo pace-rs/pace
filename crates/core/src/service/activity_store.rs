@@ -7,6 +7,8 @@ use getset::{Getters, MutGetters, Setters};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
+use wildmatch::WildMatch;
+
 use crate::{
     commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
     domain::{
@@ -20,8 +22,8 @@ use crate::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, StorageKind, SyncStorage,
     },
-    ActivityGroup, ActivityStatus, EndOptions, HoldOptions, PaceDate, SummaryActivityGroup,
-    TimeRangeOptions,
+    ActivityGroup, ActivityStatus, EndOptions, FilterOptions, HoldOptions, PaceDate,
+    SummaryActivityGroup, TimeRangeOptions,
 };
 
 /// The activity store entity
@@ -100,6 +102,7 @@ impl ActivityStore {
     #[tracing::instrument(skip(self))]
     pub fn summary_groups_by_category_for_time_range(
         &self,
+        filter_opts: FilterOptions,
         time_range_opts: TimeRangeOptions,
     ) -> PaceOptResult<SummaryGroupByCategory> {
         let Some(activity_guids) = self.list_activities_by_time_range(time_range_opts)? else {
@@ -123,6 +126,26 @@ impl ActivityStore {
         for activity_guid in activity_guids {
             let activity_item = self.read_activity(activity_guid)?;
 
+            let activity_category = activity_item
+                .activity()
+                .category()
+                .as_deref()
+                .unwrap_or("Uncategorized")
+                .to_string();
+
+            // Skip if category does not match user input
+            if let Some(category) = filter_opts.category() {
+                let (filter_category, activity_category) = if *filter_opts.case_sensitive() {
+                    (category.clone(), activity_category.clone())
+                } else {
+                    (category.to_lowercase(), activity_category.to_lowercase())
+                };
+
+                if !WildMatch::new(&filter_category).matches(&activity_category) {
+                    continue;
+                }
+            }
+
             let mut activity_session = ActivitySession::new(activity_item.clone());
 
             if let Some(intermissions) =
@@ -132,14 +155,8 @@ impl ActivityStore {
             };
 
             // Handle splitting subcategories
-            let (category, subcategory) = category::split_category_by_category_separator(
-                activity_item
-                    .activity()
-                    .category()
-                    .as_deref()
-                    .unwrap_or("Uncategorized"),
-                None,
-            );
+            let (category, subcategory) =
+                category::split_category_by_category_separator(&activity_category, None);
 
             // Deduplicate activities by category and description first
             _ = activity_sessions_lookup_by_category

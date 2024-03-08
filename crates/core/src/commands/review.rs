@@ -10,7 +10,8 @@ use clap::Parser;
 
 use crate::{
     domain::review::ReviewFormatKind, get_storage_from_config, get_time_frame_from_flags,
-    ActivityKind, ActivityStore, ActivityTracker, PaceConfig, PaceResult, UserMessage,
+    ActivityKind, ActivityStore, ActivityTracker, FilterOptions, PaceConfig, PaceResult,
+    UserMessage,
 };
 
 /// `review` subcommand options
@@ -28,6 +29,10 @@ pub struct ReviewCommandOptions {
     /// Filter by category name, wildcard supported
     #[cfg_attr(feature = "clap", clap(short, long, name = "Category", alias = "cat"))]
     category: Option<String>,
+
+    /// Case sensitive category filter
+    #[cfg_attr(feature = "clap", clap(long, name = "Case Sensitive"))]
+    case_sensitive: bool,
 
     /// Specify output format (e.g., text, markdown, pdf)
     #[cfg_attr(
@@ -80,7 +85,9 @@ impl ReviewCommandOptions {
 
         debug!("Displaying review for time frame: {}", time_frame);
 
-        let Some(review_summary) = activity_tracker.generate_review_summary(time_frame)? else {
+        let Some(review_summary) =
+            activity_tracker.generate_review_summary(FilterOptions::from(self), time_frame)?
+        else {
             return Ok(UserMessage::new(
                 "No activities found for the specified time frame",
             ));

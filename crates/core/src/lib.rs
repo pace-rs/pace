@@ -50,7 +50,7 @@ pub use crate::{
         },
         activity_log::ActivityLog,
         category::split_category_by_category_separator,
-        filter::{ActivityFilterKind, FilteredActivities},
+        filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
         intermission::IntermissionAction,
         review::{
             Highlights, ReviewSummary, SummaryActivityGroup, SummaryCategories,

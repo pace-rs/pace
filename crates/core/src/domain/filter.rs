@@ -1,5 +1,8 @@
-use crate::{ActivityGuid, TimeRangeOptions};
+use crate::{ActivityGuid, ReviewCommandOptions, TimeRangeOptions};
+use getset::{Getters, MutGetters, Setters};
+use serde_derive::Serialize;
 use strum::EnumIter;
+use typed_builder::TypedBuilder;
 
 /// Filter for activities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumIter)]
@@ -78,6 +81,32 @@ impl FilteredActivities {
             | Self::Held(activities)
             | Self::Intermission(activities)
             | Self::TimeRange(activities) => activities,
+        }
+    }
+}
+
+#[derive(
+    Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
+)]
+#[getset(get = "pub")]
+pub struct FilterOptions {
+    category: Option<String>,
+    case_sensitive: bool,
+}
+
+impl From<ReviewCommandOptions> for FilterOptions {
+    fn from(options: ReviewCommandOptions) -> Self {
+        Self {
+            category: options.category().clone(),
+            case_sensitive: *options.case_sensitive(),
+        }
+    }
+}
+impl From<&ReviewCommandOptions> for FilterOptions {
+    fn from(options: &ReviewCommandOptions) -> Self {
+        Self {
+            category: options.category().clone(),
+            case_sensitive: *options.case_sensitive(),
         }
     }
 }
