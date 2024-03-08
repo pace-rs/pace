@@ -8,6 +8,30 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.14.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.13.1...pace-rs-v0.14.0) - 2024-03-08
+
+### Added
+- *(ux)* warn the user if multiple config files are found and inform that we are using the first in the list.
+- *(config)* [**breaking**] change config fields to use kebab-case and use shorter names for general config. Please rename your old config and regenerate your config with `pace setup config`. Or replace `_` with `-` and rename the following fields accordingly:
+- *(review)* add case-sensitive flag and implement filtering by categories
+- *(review)* split categories into (sub-)categories and deduplicated based on that
+- *(review)* the duration of running activities is taken at the time of the review, so running activities don't show up as 0 duration anymore
+- *(review)* deduplicate activities within a category by description
+- *(commands)* add `setup show` subcommand to show the currently loaded configuration
+- *(insights)* Show amount and duration of intermissions in insights
+
+### Fixed
+- remove warning for no config files in default locations as we already throw an error if so
+- *(ci)* remove logs directory due to failure in ci in release-plz
+
+### Other
+- protect breaking commits in git-cliff
+- fix clippy lints
+- add note about changelog for updates
+- *(deps)* update miette to v7.2.0
+- *(deps)* update dependencies
+- update scoop manifest
+
 ## [0.13.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.13.0...pace-rs-v0.13.1) - 2024-03-07
 
 ### Fixed

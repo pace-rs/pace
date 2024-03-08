@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.16.0](https://github.com/pace-rs/pace/compare/pace_core-v0.15.1...pace_core-v0.16.0) - 2024-03-08
+
+### Added
+- *(config)* [**breaking**] change config fields to use kebab-case and use shorter names for general config. Please rename your old config and regenerate your config with `pace setup config`. Or replace `_` with `-` and rename the following fields accordingly:
+- *(review)* add case-sensitive flag and implement filtering by categories
+- *(review)* split categories into (sub-)categories and deduplicated based on that
+- *(review)* the duration of running activities is taken at the time of the review, so running activities don't show up as 0 duration anymore
+- *(review)* deduplicate activities within a category by description
+- *(commands)* add `setup show` subcommand to show the currently loaded configuration
+- *(insights)* Show amount and duration of intermissions in insights
+
+### Other
+- fix clippy lints
+- *(deps)* update miette to v7.2.0
+- *(deps)* update dependencies
+
 ## [0.15.1](https://github.com/pace-rs/pace/compare/pace_core-v0.15.0...pace_core-v0.15.1) - 2024-03-07
 
 ### Fixed
