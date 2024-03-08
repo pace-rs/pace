@@ -1158,7 +1158,7 @@ checksum = "caff54706df99d2a78a5a4e3455ff45448d81ef1bb63c22cd14052ca0e993a3f"
 
 [[package]]
 name = "pace-rs"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "abscissa_core",
  "assert_cmd",
@@ -1185,7 +1185,7 @@ dependencies = [
 
 [[package]]
 name = "pace_cli"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "chrono",
  "dialoguer",
@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "pace_core"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "chrono",
  "clap",
@@ -1238,7 +1238,7 @@ version = "0.1.2"
 
 [[package]]
 name = "pace_testing"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "pace_core",
