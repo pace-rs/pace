@@ -109,6 +109,10 @@ impl ActivityStore {
             Vec<ActivitySession>,
         > = HashMap::new();
 
+        // Temporarily end all activities for duration calculation
+        let _ = self.end_all_active_intermissions(EndOptions::default())?;
+        let _ = self.end_all_activities(EndOptions::default())?;
+
         for activity_guid in activity_guids {
             let activity_item = self.read_activity(activity_guid)?;
 
