@@ -388,5 +388,12 @@ pub fn setup_config(term: &Term, path_opts: &PathOptions) -> Result<()> {
 
     println!("{final_paths}");
 
+    println!(
+        "For optimal user experience, it's essential to read our Getting Started guide here: {}",
+        style("https://pace.cli.rs/docs/getting_started.html")
+            .bold()
+            .red()
+    );
+
     Ok(())
 }
