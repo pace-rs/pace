@@ -135,7 +135,7 @@ pub enum PaceErrorKind {
     /// SQLite error: {0}
     #[error(transparent)]
     #[cfg(feature = "sqlite")]
-    SQLite(#[from] rusqlite::Error),
+    SQLite(#[from] diesel::ConnectionError),
 
     /// Chrono parse error: {0}
     #[error(transparent)]
@@ -314,7 +314,7 @@ impl PaceErrorMarker for toml::de::Error {}
 impl PaceErrorMarker for toml::ser::Error {}
 impl PaceErrorMarker for serde_json::Error {}
 #[cfg(feature = "sqlite")]
-impl PaceErrorMarker for rusqlite::Error {}
+impl PaceErrorMarker for diesel::ConnectionError {}
 impl PaceErrorMarker for chrono::ParseError {}
 impl PaceErrorMarker for chrono::OutOfRangeError {}
 impl PaceErrorMarker for ActivityLogErrorKind {}

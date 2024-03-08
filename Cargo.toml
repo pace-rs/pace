@@ -55,6 +55,7 @@ chrono = { version = "0.4.35", features = ["serde"] }
 clap = { workspace = true }
 clap_complete = "4.5.1"
 dialoguer = { version = "0.11.0", features = ["history", "fuzzy-select"] }
+diesel = { version = "2.1.4", features = ["sqlite"] }
 directories = "5.0.1"
 eyre = { workspace = true }
 human-panic = "1.2.3"

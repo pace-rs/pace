@@ -500,4 +500,26 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_add_activity_log_path_passes() {
+        let mut config = PaceConfig::default();
+        let activity_log = "activity.log";
+        config.add_activity_log_path(activity_log);
+
+        assert_eq!(
+            config.general().activity_log_options().path(),
+            Path::new(activity_log)
+        );
+    }
+
+    #[test]
+    fn test_pomodoro_default_values_passes() {
+        let pomodoro = PomodoroConfig::default();
+
+        assert_eq!(*pomodoro.break_duration_minutes(), 5);
+        assert_eq!(*pomodoro.long_break_duration_minutes(), 15);
+        assert_eq!(*pomodoro.sessions_before_long_break(), 4);
+        assert_eq!(*pomodoro.work_duration_minutes(), 25);
+    }
 }

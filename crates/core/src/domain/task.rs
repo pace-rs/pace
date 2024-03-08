@@ -39,21 +39,6 @@ pub struct TaskList {
     tasks: BTreeMap<TaskGuid, Task>,
 }
 
-#[cfg(feature = "sqlite")]
-impl rusqlite::types::FromSql for TaskGuid {
-    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-        let bytes = <[u8; 16]>::column_result(value)?;
-        Ok(Self(Ulid::from(u128::from_be_bytes(bytes))))
-    }
-}
-
-#[cfg(feature = "sqlite")]
-impl rusqlite::types::ToSql for TaskGuid {
-    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-        Ok(rusqlite::types::ToSqlOutput::from(self.0.to_string()))
-    }
-}
-
 /// The unique identifier of an activity
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
 pub struct TaskGuid(Ulid);

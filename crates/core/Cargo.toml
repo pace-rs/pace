@@ -22,25 +22,26 @@ include = [
 [features]
 default = []
 cli = ["clap"]
-sqlite = ["dep:rusqlite"]
+sqlite = ["dep:diesel", "libsqlite3-sys"]
 clap = ["dep:clap"]
 # testing = ["dep:arbitrary"]
 
 [dependencies]
 chrono = { workspace = true }
 clap = { workspace = true, optional = true }
+diesel = { version = "2.1.4", features = ["sqlite"], optional = true }
 directories = "5.0.1"
 displaydoc = "0.2.4"
 enum_dispatch = "0.3.12"
 getset = "0.1.2"
 humantime = "2.1.0"
 itertools = "0.12.1"
+libsqlite3-sys = { version = "0.27", features = ["bundled"], optional = true }
 merge = "0.1.0"
 miette = { version = "7.2.0", features = ["fancy"] }
 open = "5.1.2"
 parking_lot = { version = "0.12.1", features = ["deadlock_detection"] }
 rayon = "1.9.0"
-rusqlite = { version = "0.31.0", features = ["bundled", "chrono", "uuid"], optional = true }
 serde = "1.0.197"
 serde_derive = "1.0.197"
 serde_json = "1.0.114"
