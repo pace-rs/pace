@@ -186,7 +186,7 @@ implemented yet (e.g. using activities instead of tasks).
   you to continue where you left off.
 - **Usage:** `pace resume` or `pace resume --list`
 
-🪧 **`pace review`**
+🔍 **`pace review`**
 
 - **Description:** Gain insight in your activities and tasks. You can specify
   the time frame for daily, weekly, or monthly insights.
