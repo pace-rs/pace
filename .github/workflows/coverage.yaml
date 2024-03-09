@@ -28,4 +28,3 @@ jobs:
         with:
             token: ${{ secrets.CODECOV_TOKEN }}
             slug: pace-rs/pace
-            fail_ci_if_error: true
