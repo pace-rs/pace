@@ -159,3 +159,27 @@ tag-release:
 make-latest:
 	gh release edit pace-rs-v$(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version) --latest
 
+bloat-deps *ARGS:
+	cargo bloat --release --crates -p {{ARGS}}
+
+bloat-time *ARGS:
+	cargo bloat --release --time -j 1 -p {{ARGS}}
+
+install-dev-deps:
+	cargo install cargo-hack
+	cargo install cargo-nextest
+	cargo install cargo-tarpaulin
+	# cargo install dprint # if you want to use formatting with dprint
+	# cargo install gh # if you want to use github cli
+	cargo install sd
+	cargo install cargo-watch
+	# cargo install xh # if you want to use xh for updating scoop manifest
+	cargo install cargo-bloat
+	cargo install cargo-mutants
+	cargo install cargo-fuzz
+	rustup component add llvm-tools-preview
+
+# Run cargo build with timings
+# use `html` or `json` as ARGS
+timings *ARGS:
+	cargo +nightly build --release --timings={{ARGS}} -Z unstable-options
