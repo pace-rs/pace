@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.4.4](https://github.com/pace-rs/pace/compare/pace_cli-v0.4.3...pace_cli-v0.4.4) - 2024-03-09
+
+### Added
+- *(ux)* provide a quick start guide post-setup with basic commands and usage tips. ([#11](https://github.com/pace-rs/pace/pull/11))
+
 ## [0.4.3](https://github.com/pace-rs/pace/compare/pace_cli-v0.4.2...pace_cli-v0.4.3) - 2024-03-08
 
 ### Other

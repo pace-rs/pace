@@ -8,6 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.16.1](https://github.com/pace-rs/pace/compare/pace_core-v0.16.0...pace_core-v0.16.1) - 2024-03-09
+
+### Other
+- move journey test to integration tests
+- *(deps)* add missing chrono feature to diesel
+- cleanup after removing rusqlite and replacing with diesel
+
 ## [0.16.0](https://github.com/pace-rs/pace/compare/pace_core-v0.15.1...pace_core-v0.16.0) - 2024-03-08
 
 ### Added

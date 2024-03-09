@@ -8,6 +8,32 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.14.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.14.0...pace-rs-v0.14.1) - 2024-03-09
+
+### Added
+- *(ux)* provide a quick start guide post-setup with basic commands and usage tips. ([#11](https://github.com/pace-rs/pace/pull/11))
+
+### Other
+- update testing strategies
+- *(coverage)* don't include unneeded functions in coverage
+- move journey test to integration tests
+- add more snapshot tests for cli
+- remove whitespace to fix codecov badge looking weird
+- add comment about coverage reporting
+- change coverage command in .justfile to run for pace_core, as this contains mostly all logics
+- ignore directories we don't deem important for coverage, such as pace_testing, pace_cli and the slim wrapper around pace_core, which is pace-rs itself.
+- add workspace coverage command to .justfile
+- try coverage build on windows
+- don't use image anymore and install cargo-tarpaulin directly
+- remove xtask from release-plz.toml as well
+- remove nightly from coverage workflow as that seems to break the coverage build
+- migrate xtask tasks to justfile commands
+- *(deps)* add missing chrono feature to diesel
+- cleanup after removing rusqlite and replacing with diesel
+- *(readme)* add codecov badge to readme
+- add code coverage reporting for codecov
+- *(readme)* update state icon of implementation for `review` command
+
 ## [0.14.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.13.1...pace-rs-v0.14.0) - 2024-03-08
 
 ### Added
