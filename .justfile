@@ -60,8 +60,8 @@ dev: format lint doc test
 # Opens the crate documentation.
 # @cargo +nightly doc --all-features {{ARGS}}
 # @cargo doc --all-features --no-deps --open {{ARGS}}
-doc *ARGS:
-	@cargo doc --all-features --no-deps {{ARGS}}
+doc *CRATE:
+	@cargo doc --all-features --no-deps {{CRATE}}
 
 # Format all code
 fmt:
@@ -82,8 +82,8 @@ loop action:
 	watchexec -w src -- "just {{action}}"
 
 # Looks for undefined behavior in the (non-doc) test suite.
-miri *ARGS:
-	cargo +nightly miri test --all-features -q --lib --tests {{ARGS}}
+miri *TESTS:
+	cargo +nightly miri test --all-features -q --lib --tests {{TESTS}}
 
 # Packages the crate in preparation for publishing on crates.io
 # package:
@@ -111,13 +111,13 @@ nitest:
 
 # Runs a test defined by an expression with nextest.
 # e.g. `just ntest completions` => test completions 
-natest *ARGS:
-    cargo nextest run --all-features --workspace -E 'test({{ARGS}})'
+natest *TEST:
+    cargo nextest run --all-features --workspace -E 'test({{TEST}})'
 
 # list the inverse dependencies
 # as in which feature enables a given crate
-inv-ft *ARGS:
-	cargo tree -e features -i {{ARGS}}
+inv-ft *PACKAGE:
+	cargo tree -e features -i {{PACKAGE}}
 
 # prepare for making a PR
 pr:
@@ -130,16 +130,20 @@ ex-pr:
 	just test-powerset pace_core
 
 # Run the test suite with coverage for the given package
-coverage *ARGS: 
-	cargo tarpaulin --output-dir coverage/ -p {{ARGS}} -o Lcov
+pcoverage *PACKAGE: 
+	cargo tarpaulin --all-features -p {{PACKAGE}} --output-dir coverage/ -o Lcov
+
+# Run the test suite with coverage for the workspace
+coverage: 
+	cargo tarpaulin --all-features --workspace --output-dir coverage/ -o Lcov
 
 # Run checks with feature powerset
-check-powerset *ARGS:
-	cargo hack check --feature-powerset -p {{ARGS}}
+check-powerset *PACKAGE:
+	cargo hack check --feature-powerset -p {{PACKAGE}}
 
 # Run checks with feature powerset
-test-powerset *ARGS:
-	cargo hack test --feature-powerset -p {{ARGS}}
+test-powerset *PACKAGE:
+	cargo hack test --feature-powerset -p {{PACKAGE}}
 
 # Update the scoop manifest from the given version to the latest on crates.io
 update-scoop-manifest:
@@ -159,11 +163,11 @@ tag-release:
 make-latest:
 	gh release edit pace-rs-v$(xh get https://crates.io/api/v1/crates/pace-rs | jq .crate.max_version) --latest
 
-bloat-deps *ARGS:
-	cargo bloat --release --crates -p {{ARGS}}
+bloat-deps *PACKAGE:
+	cargo bloat --release --crates -p {{PACKAGE}}
 
-bloat-time *ARGS:
-	cargo bloat --release --time -j 1 -p {{ARGS}}
+bloat-time *PACKAGE:
+	cargo bloat --release --time -j 1 -p {{PACKAGE}}
 
 install-dev-deps:
 	cargo install cargo-hack
