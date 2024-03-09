@@ -5,12 +5,15 @@ jobs:
   test:
     name: generate coverage report
     runs-on: ubuntu-latest
-    container:
-      image: xd009642/tarpaulin:develop-nightly
-      options: --security-opt seccomp=unconfined
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
 
       - name: Generate code coverage
         run: |
