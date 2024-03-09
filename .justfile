@@ -128,6 +128,7 @@ ex-pr:
 	just pr
 	just check-powerset pace_core
 	just test-powerset pace_core
+	just coverage
 
 # Run the test suite with coverage for the given package
 p-coverage *PACKAGE: 
