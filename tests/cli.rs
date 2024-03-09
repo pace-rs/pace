@@ -2,7 +2,7 @@ use assert_cmd::Command;
 use predicates::prelude::predicate;
 // use similar_asserts::assert_eq;
 use insta_cmd::assert_cmd_snapshot;
-use std::process::Command as StdCommand;
+use std::{path::PathBuf, process::Command as StdCommand};
 use tempfile::TempDir;
 
 // use pace_core::ActivityLog;
@@ -208,6 +208,207 @@ fn test_adjust_activity_snapshot_passes() -> TestResult<()> {
         "--activity-log-file",
         &dir_str,
         "now",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_from_to_snapshot_passes() -> TestResult<()> {
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+        "--from",
+        "2024-02-26",
+        "--to",
+        "2024-02-28",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_date_snapshot_passes() -> TestResult<()> {
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+        "--date",
+        "2024-02-26",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_today_snapshot_passes() -> TestResult<()> {
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_current_week_snapshot_passes() -> TestResult<()> {
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+        "--current-week",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_current_month_snapshot_passes() -> TestResult<()> {
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+        "--current-month",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_from_to_filter_category_glob_front_snapshot_passes() -> TestResult<()> {
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+        "--from",
+        "2024-02-26",
+        "--to",
+        "2024-02-28",
+        "--category",
+        "*pace",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_from_to_filter_category_case_sensitive_snapshot_passes() -> TestResult<()> {
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+        "--from",
+        "2024-02-26",
+        "--to",
+        "2024-02-28",
+        "--category",
+        "*Pace",
+        "--case-sensitive",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_from_to_filter_category_full_snapshot_passes() -> TestResult<()> {
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+        "--from",
+        "2024-02-26",
+        "--to",
+        "2024-02-28",
+        "--category",
+        "development::pace",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_from_to_filter_category_glob_back_snapshot_passes() -> TestResult<()> {
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+        "--from",
+        "2024-02-26",
+        "--to",
+        "2024-02-28",
+        "--category",
+        "dev*",
+    ]));
+
+    Ok(())
+}
+
+#[test]
+fn test_review_from_to_filter_category_glob_back_case_sensitive_snapshot_passes() -> TestResult<()>
+{
+    let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
+    let activities = path.to_str().ok_or("Could not convert path to string")?;
+
+    assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
+        "--config",
+        "tests/fixtures/configs/pace.toml",
+        "--activity-log-file",
+        &activities,
+        "review",
+        "--from",
+        "2024-02-26",
+        "--to",
+        "2024-02-28",
+        "--category",
+        "Dev*",
+        "--case-sensitive",
     ]));
 
     Ok(())
