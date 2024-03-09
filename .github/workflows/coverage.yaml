@@ -4,11 +4,11 @@ on: [push]
 jobs:
   test:
     name: generate coverage report
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2
@@ -20,7 +20,7 @@ jobs:
           cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
       
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.1.0
+        uses: codecov/codecov-action@v4
         with:
             token: ${{ secrets.CODECOV_TOKEN }}
             slug: pace-rs/pace
