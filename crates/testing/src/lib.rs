@@ -49,6 +49,8 @@ pub fn activity_store_no_intermissions() -> TestResult<TestData> {
 ///
 /// A `TestData` struct containing the activities and the store
 #[allow(clippy::too_many_lines)]
+// We need to use `#[cfg(not(tarpaulin_include))]` to exclude this from coverage reports
+#[cfg(not(tarpaulin_include))]
 pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
     let begin_time = PaceDateTime::new(NaiveDateTime::new(
         DateTime::from_timestamp(0, 0)

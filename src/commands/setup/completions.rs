@@ -44,6 +44,8 @@ impl Runnable for CompletionsCmd {
     }
 }
 
+// We need to use `#[cfg(not(tarpaulin_include))]` to exclude this from coverage reports
+#[cfg(not(tarpaulin_include))]
 pub fn generate_completion<G: Generator>(shell: G, buf: &mut dyn Write) {
     let mut command = crate::commands::EntryPoint::command();
     generate(
