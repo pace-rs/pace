@@ -130,12 +130,16 @@ ex-pr:
 	just test-powerset pace_core
 
 # Run the test suite with coverage for the given package
-pcoverage *PACKAGE: 
+p-coverage *PACKAGE: 
 	cargo tarpaulin --all-features -p {{PACKAGE}} --output-dir coverage/ -o Lcov
 
 # Run the test suite with coverage for the workspace
-coverage: 
+ws-coverage: 
 	cargo tarpaulin --all-features --workspace --output-dir coverage/ -o Lcov
+
+# Run the test suite with coverage for the packages we care about
+coverage: 
+	just p-coverage pace_core
 
 # Run checks with feature powerset
 check-powerset *PACKAGE:
