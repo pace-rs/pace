@@ -17,14 +17,5 @@ git_tag_enable = false
 # but we want to publish the crate to crates.io
 publish = true
 
-# only internal
-[[package]]
-name = "xtask"
-changelog_update = false
-git_release_enable = false
-git_tag_enable = false
-semver_check = false
-publish = false
-
 [changelog]
 protect_breaking_commits = true
