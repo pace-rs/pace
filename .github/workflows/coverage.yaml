@@ -15,6 +15,10 @@ jobs:
         with:
           tool: cargo-tarpaulin
 
+      # We run the coverage report on the workspace, but we configured in codecov to only look at the pace_core crate essentially
+      # 
+      # This is because we have a workspace with multiple crates, and we want to generate coverage for all of them, but we only want to
+      # report the coverage of the pace_core crate as this is where the main logic is
       - name: Generate code coverage
         run: |
           cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
