@@ -102,13 +102,13 @@ Check out the [releases](https://github.com/pace-rs/pace/releases).
 unstable.
 
 ```bash
-cargo install --git https://github.com/pace-rs/pace.git pace-rs
+cargo install --git https://github.com/pace-rs/pace.git pace-rs --locked
 ```
 
 ### crates.io
 
 ```bash
-cargo install pace-rs
+cargo install pace-rs --locked
 ```
 
 ## Usage
