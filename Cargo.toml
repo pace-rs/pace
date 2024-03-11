@@ -67,7 +67,7 @@ serde_derive = "1"
 # serde_path_to_error = "0.1.15"
 
 thiserror = "1.0.57"
-toml = { version = "0.8.10", features = ["preserve_order"] }
+toml = { version = "0.8.11", features = ["preserve_order"] }
 
 [dependencies.abscissa_core]
 version = "0.7.0"
