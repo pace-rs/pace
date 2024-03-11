@@ -24,11 +24,6 @@ Whether you're a developer, a writer, or anyone who values structured time
 management, pace provides the framework to log activities, review progress, and
 optimize how you spend your time.
 
-With features like the first activity wizard for onboarding new users, real-time
-configuration validation (upcoming), and personalized activity logs, pace is
-more than a time tracker — it's your partner in crafting a productive and
-mindful routine.
-
 ⚠️ **Note:** `pace` is currently in active development and is not yet ready for
 production use. Expect breaking changes and incomplete features. We encourage
 you to try it out and provide feedback, but please be aware that it is not yet
