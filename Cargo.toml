@@ -66,7 +66,7 @@ serde_derive = "1"
 # Better error messages for Serde
 # serde_path_to_error = "0.1.15"
 
-thiserror = "1.0.57"
+thiserror = "1.0.58"
 toml = { version = "0.8.11", features = ["preserve_order"] }
 
 [dependencies.abscissa_core]
