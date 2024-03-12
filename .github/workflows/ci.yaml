@@ -155,7 +155,7 @@ jobs:
           tool: cargo-hack
 
       - name: Run Cargo Hack
-        run: cargo hack check --rust-version -p ${{ matrix.crate }}
+        run: cargo +${{ matrix.msrv }} hack check --rust-version -p ${{ matrix.crate }}
 
   powerset:
     # cargo-hack checks combinations of feature flags to ensure that features are all additive
