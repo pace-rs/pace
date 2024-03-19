@@ -214,7 +214,7 @@ fn test_adjust_activity_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
-fn test_review_from_to_snapshot_passes() -> TestResult<()> {
+fn test_reflect_from_to_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
 
@@ -223,7 +223,7 @@ fn test_review_from_to_snapshot_passes() -> TestResult<()> {
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
         "--from",
         "2024-02-26",
         "--to",
@@ -234,7 +234,7 @@ fn test_review_from_to_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
-fn test_review_date_snapshot_passes() -> TestResult<()> {
+fn test_reflect_date_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
 
@@ -243,7 +243,7 @@ fn test_review_date_snapshot_passes() -> TestResult<()> {
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
         "--date",
         "2024-02-26",
     ]));
@@ -252,7 +252,7 @@ fn test_review_date_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
-fn test_review_today_snapshot_passes() -> TestResult<()> {
+fn test_reflect_today_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
 
@@ -261,14 +261,14 @@ fn test_review_today_snapshot_passes() -> TestResult<()> {
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
     ]));
 
     Ok(())
 }
 
 #[test]
-fn test_review_current_week_snapshot_passes() -> TestResult<()> {
+fn test_reflect_current_week_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
 
@@ -277,7 +277,7 @@ fn test_review_current_week_snapshot_passes() -> TestResult<()> {
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
         "--current-week",
     ]));
 
@@ -285,7 +285,7 @@ fn test_review_current_week_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
-fn test_review_current_month_snapshot_passes() -> TestResult<()> {
+fn test_reflect_current_month_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
 
@@ -294,7 +294,7 @@ fn test_review_current_month_snapshot_passes() -> TestResult<()> {
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
         "--current-month",
     ]));
 
@@ -302,7 +302,7 @@ fn test_review_current_month_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
-fn test_review_from_to_filter_category_glob_front_snapshot_passes() -> TestResult<()> {
+fn test_reflect_from_to_filter_category_glob_front_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
 
@@ -311,7 +311,7 @@ fn test_review_from_to_filter_category_glob_front_snapshot_passes() -> TestResul
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
         "--from",
         "2024-02-26",
         "--to",
@@ -324,7 +324,7 @@ fn test_review_from_to_filter_category_glob_front_snapshot_passes() -> TestResul
 }
 
 #[test]
-fn test_review_from_to_filter_category_case_sensitive_snapshot_passes() -> TestResult<()> {
+fn test_reflect_from_to_filter_category_case_sensitive_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
 
@@ -333,7 +333,7 @@ fn test_review_from_to_filter_category_case_sensitive_snapshot_passes() -> TestR
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
         "--from",
         "2024-02-26",
         "--to",
@@ -347,7 +347,7 @@ fn test_review_from_to_filter_category_case_sensitive_snapshot_passes() -> TestR
 }
 
 #[test]
-fn test_review_from_to_filter_category_full_snapshot_passes() -> TestResult<()> {
+fn test_reflect_from_to_filter_category_full_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
 
@@ -356,7 +356,7 @@ fn test_review_from_to_filter_category_full_snapshot_passes() -> TestResult<()> 
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
         "--from",
         "2024-02-26",
         "--to",
@@ -369,7 +369,7 @@ fn test_review_from_to_filter_category_full_snapshot_passes() -> TestResult<()> 
 }
 
 #[test]
-fn test_review_from_to_filter_category_glob_back_snapshot_passes() -> TestResult<()> {
+fn test_reflect_from_to_filter_category_glob_back_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
 
@@ -378,7 +378,7 @@ fn test_review_from_to_filter_category_glob_back_snapshot_passes() -> TestResult
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
         "--from",
         "2024-02-26",
         "--to",
@@ -391,7 +391,7 @@ fn test_review_from_to_filter_category_glob_back_snapshot_passes() -> TestResult
 }
 
 #[test]
-fn test_review_from_to_filter_category_glob_back_case_sensitive_snapshot_passes() -> TestResult<()>
+fn test_reflect_from_to_filter_category_glob_back_case_sensitive_snapshot_passes() -> TestResult<()>
 {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
@@ -401,7 +401,7 @@ fn test_review_from_to_filter_category_glob_back_case_sensitive_snapshot_passes(
         "tests/fixtures/configs/pace.toml",
         "--activity-log-file",
         &activities,
-        "review",
+        "reflect",
         "--from",
         "2024-02-26",
         "--to",

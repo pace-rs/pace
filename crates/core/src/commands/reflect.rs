@@ -11,7 +11,7 @@ use clap::Parser;
 use crate::{
     config::PaceConfig,
     domain::{
-        activity::ActivityKind, filter::FilterOptions, review::ReviewFormatKind,
+        activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind,
         time::get_time_frame_from_flags,
     },
     error::{PaceResult, UserMessage},
@@ -19,11 +19,11 @@ use crate::{
     storage::get_storage_from_config,
 };
 
-/// `review` subcommand options
+/// `reflect` subcommand options
 #[derive(Debug, Getters)]
 #[getset(get = "pub")]
 #[cfg_attr(feature = "clap", derive(Parser))]
-pub struct ReviewCommandOptions {
+pub struct ReflectCommandOptions {
     /// Filter by activity kind (e.g., activity, task)
     #[cfg_attr(
         feature = "clap",
@@ -44,9 +44,9 @@ pub struct ReviewCommandOptions {
         feature = "clap",
         clap(short, long, name = "Output Format", alias = "format")
     )]
-    output_format: Option<ReviewFormatKind>,
+    output_format: Option<ReflectionsFormatKind>,
 
-    /// Export the review report to a specified file
+    /// Export the reflections to a specified file
     #[cfg_attr(
         feature = "clap",
         clap(short, long, name = "Export File", alias = "export")
@@ -79,19 +79,19 @@ pub struct ReviewCommandOptions {
     expensive_flags: ExpensiveFlags,
 }
 
-impl ReviewCommandOptions {
+impl ReflectCommandOptions {
     #[tracing::instrument(skip(self))]
-    pub fn handle_review(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+    pub fn handle_reflect(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let activity_tracker = ActivityTracker::with_activity_store(activity_store);
 
         let time_frame = get_time_frame_from_flags(self.time_flags(), self.date_flags())?;
 
-        debug!("Displaying review for time frame: {}", time_frame);
+        debug!("Displaying reflection for time frame: {}", time_frame);
 
-        let Some(review_summary) =
-            activity_tracker.generate_review_summary(FilterOptions::from(self), time_frame)?
+        let Some(reflections) =
+            activity_tracker.generate_reflection(FilterOptions::from(self), time_frame)?
         else {
             return Ok(UserMessage::new(
                 "No activities found for the specified time frame",
@@ -99,20 +99,20 @@ impl ReviewCommandOptions {
         };
 
         match self.output_format() {
-            Some(ReviewFormatKind::Console) | None => {
-                return Ok(UserMessage::new(review_summary.to_string()));
+            Some(ReflectionsFormatKind::Console) | None => {
+                return Ok(UserMessage::new(reflections.to_string()));
             }
-            Some(ReviewFormatKind::Json) => {
-                let json = serde_json::to_string_pretty(&review_summary)?;
+            Some(ReflectionsFormatKind::Json) => {
+                let json = serde_json::to_string_pretty(&reflections)?;
 
-                debug!("Review summary: {}", json);
+                debug!("Reflection: {}", json);
 
                 // write to file if export file is specified
                 if let Some(export_file) = self.export_file() {
                     std::fs::write(export_file, json)?;
 
                     return Ok(UserMessage::new(format!(
-                        "Review report generated: {}",
+                        "Reflection generated: {}",
                         export_file.display()
                     )));
                 }
@@ -120,10 +120,12 @@ impl ReviewCommandOptions {
                 return Ok(UserMessage::new(json));
             }
 
-            Some(ReviewFormatKind::Html) => unimplemented!("HTML format not yet supported"),
-            Some(ReviewFormatKind::Csv) => unimplemented!("CSV format not yet supported"),
-            Some(ReviewFormatKind::Markdown) => unimplemented!("Markdown format not yet supported"),
-            Some(ReviewFormatKind::PlainText) => {
+            Some(ReflectionsFormatKind::Html) => unimplemented!("HTML format not yet supported"),
+            Some(ReflectionsFormatKind::Csv) => unimplemented!("CSV format not yet supported"),
+            Some(ReflectionsFormatKind::Markdown) => {
+                unimplemented!("Markdown format not yet supported")
+            }
+            Some(ReflectionsFormatKind::PlainText) => {
                 unimplemented!("Plain text format not yet supported")
             }
         }
@@ -136,7 +138,7 @@ impl ReviewCommandOptions {
 #[cfg_attr(
         feature = "clap", clap(group = clap::ArgGroup::new("date-flag").multiple(true)))]
 pub struct DateFlags {
-    /// Show the review for a specific date, mutually exclusive with `from` and `to`. Format: YYYY-MM-DD
+    /// Show the reflection for a specific date, mutually exclusive with `from` and `to`. Format: YYYY-MM-DD
     #[cfg_attr(
         feature = "clap",
         clap(long, group = "date-flag", name = "Specific Date", exclusive = true)
@@ -144,12 +146,12 @@ pub struct DateFlags {
     #[builder(setter(strip_option))]
     date: Option<NaiveDate>,
 
-    /// Start date for the review period. Format: YYYY-MM-DD
+    /// Start date for the reflection period. Format: YYYY-MM-DD
     #[cfg_attr(feature = "clap", clap(long, group = "date-flag", name = "Start Date"))]
     #[builder(setter(strip_option))]
     from: Option<NaiveDate>,
 
-    /// End date for the review period. Format: YYYY-MM-DD
+    /// End date for the reflection period. Format: YYYY-MM-DD
     #[cfg_attr(feature = "clap", clap(long, group = "date-flag", name = "End Date"))]
     #[builder(setter(strip_option))]
     to: Option<NaiveDate>,
@@ -160,7 +162,7 @@ pub struct DateFlags {
 )]
 #[cfg_attr(feature = "clap", derive(Parser))]
 pub struct ExpensiveFlags {
-    /// Include detailed time logs in the review
+    /// Include detailed time logs in the reflection
     #[cfg_attr(feature = "clap", clap(long))]
     detailed: bool,
 
@@ -168,7 +170,7 @@ pub struct ExpensiveFlags {
     #[cfg_attr(feature = "clap", clap(long))]
     comparative: bool,
 
-    /// Enable personalized recommendations based on review data
+    /// Enable personalized recommendations based on reflection data
     #[cfg_attr(feature = "clap", clap(long))]
     recommendations: bool,
 }
@@ -181,32 +183,32 @@ pub struct ExpensiveFlags {
 // and because it's easier to deal with clap in this way.
 #[allow(clippy::struct_excessive_bools)]
 pub struct TimeFlags {
-    /// Show the review for the current day
+    /// Show the reflection for the current day
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
     #[builder(setter(strip_bool))]
     today: bool,
 
-    /// Show the review for the previous day
+    /// Show the reflection for the previous day
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
     #[builder(setter(strip_bool))]
     yesterday: bool,
 
-    /// Show the review for the current week
+    /// Show the reflection for the current week
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
     #[builder(setter(strip_bool))]
     current_week: bool,
 
-    /// Show the review for the previous week
+    /// Show the reflection for the previous week
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
     #[builder(setter(strip_bool))]
     last_week: bool,
 
-    /// Show the review for the current month
+    /// Show the reflection for the current month
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
     #[builder(setter(strip_bool))]
     current_month: bool,
 
-    /// Show the review for the previous month
+    /// Show the reflection for the previous month
     #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
     #[builder(setter(strip_bool))]
     last_month: bool,

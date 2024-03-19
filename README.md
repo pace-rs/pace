@@ -21,8 +21,8 @@ command-line interface (CLI) that encourages focused work sessions, thoughtful
 reflection on task durations, and a harmonious balance between work and rest.
 
 Whether you're a developer, a writer, or anyone who values structured time
-management, pace provides the framework to log activities, review progress, and
-optimize how you spend your time.
+management, pace provides the framework to log activities, reflect on progress,
+and optimize how you spend your time.
 
 ⚠️ **Note:** `pace` is currently in active development and is not yet ready for
 production use. Expect breaking changes and incomplete features. We encourage

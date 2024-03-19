@@ -34,15 +34,16 @@ pub mod prelude {
             end::EndCommandOptions,
             hold::{HoldCommandOptions, HoldOptions},
             now::NowCommandOptions,
+            reflect::{DateFlags, ExpensiveFlags, ReflectCommandOptions, TimeFlags},
             resume::{ResumeCommandOptions, ResumeOptions},
-            review::{DateFlags, ExpensiveFlags, ReviewCommandOptions, TimeFlags},
             DeleteOptions, EndOptions, KeywordOptions, UpdateOptions,
         },
         config::{
             find_root_config_file_path, find_root_project_file, get_activity_log_paths,
             get_config_paths, get_home_activity_log_path, get_home_config_path,
             ActivityLogFormatKind, ActivityLogStorageKind, AutoArchivalConfig, DatabaseConfig,
-            ExportConfig, GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig, ReviewConfig,
+            ExportConfig, GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig,
+            ReflectionsConfig,
         },
         domain::{
             activity::{
@@ -53,8 +54,8 @@ pub mod prelude {
             category::split_category_by_category_separator,
             filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
             intermission::IntermissionAction,
-            review::{
-                Highlights, ReviewFormatKind, ReviewSummary, SummaryActivityGroup,
+            reflection::{
+                Highlights, ReflectionSummary, ReflectionsFormatKind, SummaryActivityGroup,
                 SummaryCategories, SummaryGroupByCategory,
             },
             status::ActivityStatus,

@@ -22,7 +22,7 @@ use crate::domain::{
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
-pub enum ReviewFormatKind {
+pub enum ReflectionsFormatKind {
     #[default]
     Console,
     Json,
@@ -48,7 +48,7 @@ pub type SummaryGroupByCategory = BTreeMap<SummaryCategories, SummaryActivityGro
     Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
 )]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct ReviewSummary {
+pub struct ReflectionSummary {
     /// The time range of the review period.
     time_range: TimeRangeOptions,
 
@@ -67,7 +67,7 @@ pub struct ReviewSummary {
     // suggestions: Vec<String>,
 }
 
-impl ReviewSummary {
+impl ReflectionSummary {
     #[must_use]
     pub fn new(
         time_range: TimeRangeOptions,
@@ -97,7 +97,7 @@ impl ReviewSummary {
 }
 
 // TODO!: Refine the display of the review summary
-impl std::fmt::Display for ReviewSummary {
+impl std::fmt::Display for ReflectionSummary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut builder = Builder::new();
 

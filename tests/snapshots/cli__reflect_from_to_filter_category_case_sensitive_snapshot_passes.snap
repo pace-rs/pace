@@ -7,13 +7,13 @@ info:
     - tests/fixtures/configs/pace.toml
     - "--activity-log-file"
     - "./tests/fixtures/activity_tracker/activities.pace.toml"
-    - review
+    - reflect
     - "--from"
     - 2024-02-26
     - "--to"
     - 2024-02-28
     - "--category"
-    - Dev*
+    - "*Pace"
     - "--case-sensitive"
 ---
 success: true

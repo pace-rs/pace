@@ -4,7 +4,7 @@ use strum::EnumIter;
 use typed_builder::TypedBuilder;
 
 use crate::{
-    commands::review::ReviewCommandOptions,
+    commands::reflect::ReflectCommandOptions,
     domain::{activity::ActivityGuid, time::TimeRangeOptions},
 };
 
@@ -98,16 +98,16 @@ pub struct FilterOptions {
     case_sensitive: bool,
 }
 
-impl From<ReviewCommandOptions> for FilterOptions {
-    fn from(options: ReviewCommandOptions) -> Self {
+impl From<ReflectCommandOptions> for FilterOptions {
+    fn from(options: ReflectCommandOptions) -> Self {
         Self {
             category: options.category().clone(),
             case_sensitive: *options.case_sensitive(),
         }
     }
 }
-impl From<&ReviewCommandOptions> for FilterOptions {
-    fn from(options: &ReviewCommandOptions) -> Self {
+impl From<&ReflectCommandOptions> for FilterOptions {
+    fn from(options: &ReflectCommandOptions) -> Self {
         Self {
             category: options.category().clone(),
             case_sensitive: *options.case_sensitive(),

@@ -7,8 +7,7 @@ info:
     - tests/fixtures/configs/pace.toml
     - "--activity-log-file"
     - "./tests/fixtures/activity_tracker/activities.pace.toml"
-    - review
-    - "--current-week"
+    - reflect
 ---
 success: true
 exit_code: 0

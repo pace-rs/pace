@@ -10,7 +10,7 @@ use directories::ProjectDirs;
 use strum_macros::EnumString;
 
 use crate::{
-    domain::{priority::ItemPriorityKind, review::ReviewFormatKind},
+    domain::{priority::ItemPriorityKind, reflection::ReflectionsFormatKind},
     error::{PaceErrorKind, PaceResult},
 };
 
@@ -26,10 +26,10 @@ pub struct PaceConfig {
     #[getset(get = "pub", get_mut = "pub")]
     general: GeneralConfig,
 
-    /// Review configuration for the pace application
+    /// Reflections configuration for the pace application
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", get_mut = "pub")]
-    reviews: Option<ReviewConfig>,
+    reflections: Option<ReflectionsConfig>,
 
     /// Export configuration for the pace application
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -152,16 +152,16 @@ impl Default for GeneralConfig {
     }
 }
 
-/// The review configuration for the pace application
+/// The reflections configuration for the pace application
 #[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
 #[getset(get = "pub")]
 #[serde(rename_all = "kebab-case")]
-pub struct ReviewConfig {
-    /// The directory to store the review files
-    review_directory: PathBuf,
+pub struct ReflectionsConfig {
+    /// The directory to store the reflections
+    directory: PathBuf,
 
-    /// The format for the review
-    review_format: ReviewFormatKind,
+    /// The format for the reflections
+    format: ReflectionsFormatKind,
 }
 
 /// The export configuration for the pace application

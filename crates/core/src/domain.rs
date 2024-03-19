@@ -15,7 +15,7 @@ pub mod inbox;
 pub mod intermission;
 pub mod priority;
 pub mod project;
-pub mod review;
+pub mod reflection;
 pub mod status;
 pub mod tag;
 pub mod task;

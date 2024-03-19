@@ -20,7 +20,7 @@ use crate::{
         },
         category,
         filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
-        review::{SummaryActivityGroup, SummaryGroupByCategory},
+        reflection::{SummaryActivityGroup, SummaryGroupByCategory},
         status::ActivityStatus,
         time::{PaceDate, PaceDurationRange, TimeRangeOptions},
     },

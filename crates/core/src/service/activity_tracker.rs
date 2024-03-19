@@ -5,7 +5,7 @@ use tracing::debug;
 use crate::{
     domain::{
         filter::FilterOptions,
-        review::ReviewSummary,
+        reflection::ReflectionSummary,
         time::{PaceTimeFrame, TimeRangeOptions},
     },
     error::PaceOptResult,
@@ -29,13 +29,13 @@ impl ActivityTracker {
     // - [ ] implement the `comparative` flag
     // - [ ] implement the `recommendations` flag
 
-    /// Generate a review summary for the specified time frame.
+    /// Generate a reflection for the specified time frame.
     #[tracing::instrument(skip(self))]
-    pub fn generate_review_summary(
+    pub fn generate_reflection(
         &self,
         filter_opts: FilterOptions,
         time_frame: PaceTimeFrame,
-    ) -> PaceOptResult<ReviewSummary> {
+    ) -> PaceOptResult<ReflectionSummary> {
         let time_range_opts = TimeRangeOptions::try_from(time_frame)?;
 
         let Some(summary_groups) = self
@@ -45,9 +45,9 @@ impl ActivityTracker {
             return Ok(None);
         };
 
-        let summary = ReviewSummary::new(time_range_opts, summary_groups);
+        let summary = ReflectionSummary::new(time_range_opts, summary_groups);
 
-        debug!("Generated review summary: {:#?}", summary);
+        debug!("Generated reflection: {:#?}", summary);
 
         Ok(Some(summary))
     }

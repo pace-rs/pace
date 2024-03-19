@@ -16,8 +16,8 @@ pub mod docs;
 pub mod end;
 pub mod hold;
 pub mod now;
+pub mod reflect;
 pub mod resume;
-pub mod review;
 pub mod setup;
 
 use abscissa_core::{
@@ -61,8 +61,8 @@ pub enum PaceCmd {
     Resume(resume::ResumeCmd),
 
     /// 📈 Get sophisticated insights on your activities.
-    #[clap(visible_alias = "rev")]
-    Review(review::ReviewCmd),
+    #[clap(visible_alias = "ref")]
+    Reflect(reflect::ReflectCmd),
 
     /// 🛠️  Set up a pace configuration, a new project, or generate shell completions.
     #[clap(visible_alias = "s")]
@@ -71,12 +71,12 @@ pub enum PaceCmd {
     /// 📚 Open the online documentation for pace.
     #[clap(visible_alias = "d")]
     Docs(docs::DocsCmd),
-    // /// Exports your tracked data and reviews in JSON or CSV format, suitable for analysis or record-keeping.
+    // /// Exports your tracked data and reflections in JSON or CSV format, suitable for analysis or record-keeping.
     // Export(export::ExportCmd),
 
     // /// Starts a Pomodoro session for the specified task, integrating the Pomodoro technique directly with your tasks.
     // Pomo(pomo::PomoCmd),
-    // /// Sets various application configurations, including Pomodoro lengths and preferred review formats.
+    // /// Sets various application configurations, including Pomodoro lengths and preferred reflection formats.
     // Set(set::SetCmd),
 
     // /// Lists all tasks with optional filters. Use this to view active, completed, or today's tasks.

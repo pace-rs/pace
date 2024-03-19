@@ -694,6 +694,9 @@ mod tests {
             kind = "activity"
         "#;
 
+        // 2022-08-17T21:43:13+08:00
+        // Local::now().to_rfc3339()
+
         let activity: Activity = toml::from_str(toml)?;
 
         assert_eq!(activity.category.as_ref().ok_or("No category.")?, "Work");

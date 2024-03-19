@@ -17,7 +17,7 @@ use tracing::debug;
 use typed_builder::TypedBuilder;
 
 use crate::{
-    commands::review::{DateFlags, TimeFlags},
+    commands::reflect::{DateFlags, TimeFlags},
     error::{PaceError, PaceOptResult, PaceResult, PaceTimeErrorKind},
 };
 
@@ -993,6 +993,26 @@ pub fn get_local_time_zone_offset() -> i32 {
 /// Wrapper for the UTC date time to store in the database
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceStorageDateTime(DateTime<Utc>);
+
+impl std::ops::DerefMut for PaceStorageDateTime {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl std::ops::Deref for PaceStorageDateTime {
+    type Target = DateTime<Utc>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Default for PaceStorageDateTime {
+    fn default() -> Self {
+        Self(Local::now().to_utc())
+    }
+}
 
 impl From<DateTime<Utc>> for PaceStorageDateTime {
     fn from(time: DateTime<Utc>) -> Self {
