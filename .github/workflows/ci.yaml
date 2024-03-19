@@ -44,8 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Get early warning of new lints which are regularly introduced in beta channels.
-        toolchain: [stable, beta]
+        toolchain: [stable]
     steps:
       - uses: actions/checkout@v4 # v4
 
@@ -56,6 +55,33 @@ jobs:
           components: clippy
           
       - uses: Swatinem/rust-cache@v2
+      
+      - name: Run clippy
+        if: ${{ matrix.toolchain == 'stable' }}
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run clippy on beta but do not fail on us, we are just testing
+        if: ${{ matrix.toolchain == 'beta' }}
+        run: cargo clippy --all-targets
+
+  clippy-future:
+    name: Clippy
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Get early warning of new lints which are regularly introduced in beta/nightly channels.
+        toolchain: [beta, nightly]
+    steps:
+      - uses: actions/checkout@v4 # v4
+
+      - name: Install Rust ${{ matrix.toolchain }}
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy
+          
+      - uses: Swatinem/rust-cache@v2
+      
       - name: Run clippy
         run: cargo clippy --all-targets -- -D warnings
 
@@ -185,6 +211,7 @@ jobs:
       - docs
       - msrv
       - powerset
+      # - clippy-future # We intentionally don't use that here, as it's not a blocking check right now, but we want to see the results
     steps:
       - name: Mark the job as successful
         run: exit 0
