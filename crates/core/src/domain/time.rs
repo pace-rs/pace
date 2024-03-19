@@ -980,6 +980,16 @@ pub fn convert_naive_to_utc_date_time(
     Ok(date_time.into())
 }
 
+/// Get the local time zone offset to UTC to guess the time zones
+///
+/// # Returns
+///
+/// The local time zone offset
+#[must_use]
+pub fn get_local_time_zone_offset() -> i32 {
+    Local::now().offset().local_minus_utc()
+}
+
 /// Wrapper for the UTC date time to store in the database
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceStorageDateTime(DateTime<Utc>);
