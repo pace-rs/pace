@@ -3,8 +3,11 @@ use clap::Parser;
 use tracing::debug;
 
 use crate::{
-    get_storage_from_config, ActivityFilterKind, ActivityItem, ActivityQuerying, ActivityReadOps,
-    ActivityStore, PaceConfig, PaceResult, UserMessage,
+    config::PaceConfig,
+    domain::{activity::ActivityItem, filter::ActivityFilterKind},
+    error::{PaceResult, UserMessage},
+    service::activity_store::ActivityStore,
+    storage::{get_storage_from_config, ActivityQuerying, ActivityReadOps},
 };
 
 /// `now` subcommand options

@@ -5,8 +5,12 @@ use tracing::debug;
 use typed_builder::TypedBuilder;
 
 use crate::{
-    get_storage_from_config, parse_time_from_user_input, ActivityStateManagement, ActivityStore,
-    EndOptions, PaceConfig, PaceResult, SyncStorage, UserMessage,
+    commands::EndOptions,
+    config::PaceConfig,
+    domain::time::parse_time_from_user_input,
+    error::{PaceResult, UserMessage},
+    service::activity_store::ActivityStore,
+    storage::{get_storage_from_config, ActivityStateManagement, SyncStorage},
 };
 
 /// `end` subcommand options

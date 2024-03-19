@@ -5,7 +5,7 @@ use clap::Parser;
 
 use crate::prelude::PACE_APP;
 
-use pace_core::AdjustCommandOptions;
+use pace_core::prelude::AdjustCommandOptions;
 
 /// `adjust` subcommand
 #[derive(Command, Debug, Parser)]

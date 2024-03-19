@@ -7,7 +7,7 @@ use abscissa_core::{
     trace, Application, FrameworkError, StandardPaths,
 };
 
-use pace_core::PaceConfig;
+use pace_core::prelude::PaceConfig;
 
 /// Application state
 pub static PACE_APP: AppCell<PaceApp> = AppCell::new();

@@ -15,13 +15,15 @@ use tracing::{debug, info};
 use typed_builder::TypedBuilder;
 
 use pace_core::{
-    constants::PACE_ACTIVITY_LOG_FILENAME, constants::PACE_CONFIG_FILENAME, get_activity_log_paths,
-    get_config_paths, toml, ActivityLog, PaceConfig,
+    constants::PACE_ACTIVITY_LOG_FILENAME,
+    constants::PACE_CONFIG_FILENAME,
+    prelude::{get_activity_log_paths, get_config_paths, ActivityLog, PaceConfig},
+    toml,
 };
 
 use crate::{
     prompt::{prompt_activity_log_path, prompt_config_file_path},
-    PACE_ART,
+    prompt_time_zone, PACE_ART,
 };
 
 #[derive(Debug, TypedBuilder, Getters)]
@@ -337,6 +339,10 @@ pub fn setup_config(term: &Term, path_opts: &PathOptions) -> Result<()> {
     }
 
     print_intro(term)?;
+
+    term.clear_screen()?;
+
+    let _time_zone = prompt_time_zone()?;
 
     term.clear_screen()?;
 

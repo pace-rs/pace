@@ -17,9 +17,9 @@ review-format = "html"
 review-directory = "/path/to/your/reviews/"
 
 [export]
-export-include-tags = true
-export-include-descriptions = true
-export-time-format = "%Y-%m-%d %H:%M"
+include-tags = true
+include-descriptions = true
+time-format = "%Y-%m-%d %H:%M"
 
 [database]
 # Database configurations are used if storage-kind is set to "database"

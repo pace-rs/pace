@@ -10,7 +10,10 @@ pub mod review;
 use getset::Getters;
 use typed_builder::TypedBuilder;
 
-use crate::{commands::resume::ResumeOptions, HoldOptions, PaceNaiveDateTime};
+use crate::{
+    commands::{hold::HoldOptions, resume::ResumeOptions},
+    domain::time::PaceNaiveDateTime,
+};
 
 /// Options for ending an activity
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]

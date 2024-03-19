@@ -5,8 +5,14 @@ use clap::Parser;
 use tracing::debug;
 
 use crate::{
-    extract_time_or_now, get_storage_from_config, Activity, ActivityKind, ActivityStateManagement,
-    ActivityStore, PaceConfig, PaceResult, SyncStorage, UserMessage,
+    config::PaceConfig,
+    domain::{
+        activity::{Activity, ActivityKind},
+        time::extract_time_or_now,
+    },
+    error::{PaceResult, UserMessage},
+    service::activity_store::ActivityStore,
+    storage::{get_storage_from_config, ActivityStateManagement, SyncStorage},
 };
 
 /// `begin` subcommand options

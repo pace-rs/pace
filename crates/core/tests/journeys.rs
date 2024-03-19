@@ -1,4 +1,4 @@
-use pace_core::{
+use pace_core::prelude::{
     Activity, ActivityQuerying, ActivityReadOps, ActivityStateManagement, HoldOptions,
     InMemoryActivityStorage, PaceNaiveDateTime, ResumeOptions, TestResult,
 };

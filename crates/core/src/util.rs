@@ -13,7 +13,7 @@ pub fn overwrite_left_with_right<T>(left: &mut T, right: T) {
 #[cfg(test)]
 mod tests {
 
-    use crate::Activity;
+    use crate::domain::activity::Activity;
 
     use super::*;
 

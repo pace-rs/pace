@@ -12,13 +12,12 @@ use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
 use crate::{
-    calculate_duration,
+    domain::time::calculate_duration,
     domain::{
         status::ActivityStatus,
         time::{duration_to_str, PaceDuration, PaceNaiveDateTime},
     },
-    error::ActivityLogErrorKind,
-    PaceResult,
+    error::{ActivityLogErrorKind, PaceResult},
 };
 
 #[derive(
@@ -103,6 +102,7 @@ pub enum ActivityKind {
     PomodoroIntermission,
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 impl ActivityKind {
     /// Returns `true` if the activity kind is [`Activity`].
     ///
@@ -146,7 +146,7 @@ impl ActivityKind {
 
     /// Returns the symbol for the activity kind
     #[must_use]
-    pub const fn to_symbol(&self) -> &'static str {
+    pub const fn as_symbol(&self) -> &'static str {
         match self {
             Self::Activity => "📆",
             Self::Task => "📋",
@@ -193,6 +193,7 @@ enum PomodoroCycle {
 // TODO: We had it as a struct before with an ID, but it's questionable if we should go for this
 // TODO: Reconsider when we implement the project management part
 // category: Category,
+#[allow(clippy::struct_field_names)]
 pub struct Activity {
     #[builder(default, setter(into))]
     #[getset(get = "pub", get_mut = "pub")]
@@ -332,7 +333,7 @@ impl Display for Activity {
         write!(
             f,
             "{}  Activity: \"{}\" ({}) started {}",
-            self.kind.to_symbol(),
+            self.kind.as_symbol(),
             self.description(),
             self.category().as_ref().unwrap_or(&nop_cat),
             rel_time,
@@ -678,7 +679,7 @@ mod tests {
 
     use chrono::NaiveDateTime;
 
-    use crate::TestResult;
+    use crate::error::TestResult;
 
     use super::*;
 

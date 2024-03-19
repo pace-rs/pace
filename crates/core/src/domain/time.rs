@@ -4,21 +4,22 @@ use std::{
     time::Duration,
 };
 
-use crate::{
-    commands::review::{DateFlags, TimeFlags},
-    error::{PaceOptResult, PaceResult, PaceTimeErrorKind},
-    PaceError,
-};
 use chrono::{
     DateTime, Datelike, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound,
     TimeZone, Utc,
 };
+
 use displaydoc::Display;
 use getset::Getters;
 use humantime::format_duration;
 use serde_derive::{Deserialize, Serialize};
 use tracing::debug;
 use typed_builder::TypedBuilder;
+
+use crate::{
+    commands::review::{DateFlags, TimeFlags},
+    error::{PaceError, PaceOptResult, PaceResult, PaceTimeErrorKind},
+};
 
 /// `TimeRangeOptions` represents the start and end time of a time range
 #[derive(
@@ -561,6 +562,7 @@ impl Display for PaceDuration {
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 impl PaceDuration {
     #[must_use]
     pub const fn zero() -> Self {
@@ -704,6 +706,7 @@ pub struct PaceDate(pub NaiveDate);
 
 impl PaceDate {
     #[must_use]
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn is_future(&self) -> bool {
         self.0 > Local::now().naive_local().date()
     }
@@ -992,7 +995,7 @@ mod tests {
 
     use chrono::NaiveDate;
 
-    use crate::TestResult;
+    use crate::error::TestResult;
 
     use super::*;
 

@@ -28,6 +28,7 @@ pub enum ActivityStatus {
     Unarchived, // TODO: Do we need this or can be unarchiving done without it?
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 impl ActivityStatus {
     /// Returns `true` if the activity status is [`Active`].
     ///

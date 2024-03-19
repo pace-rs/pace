@@ -6,18 +6,22 @@ use std::{
 };
 
 use crate::{
-    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
+    commands::{
+        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
+        UpdateOptions,
+    },
     domain::{
-        activity::{Activity, ActivityGuid, ActivityItem},
+        activity::{Activity, ActivityGuid, ActivityItem, ActivityKind},
         activity_log::ActivityLog,
         filter::{ActivityFilterKind, FilteredActivities},
+        status::ActivityStatus,
+        time::{PaceDate, PaceDurationRange, TimeRangeOptions},
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::{
         in_memory::InMemoryActivityStorage, ActivityQuerying, ActivityReadOps,
         ActivityStateManagement, ActivityStorage, ActivityWriteOps, SyncStorage,
     },
-    ActivityStatus, EndOptions, HoldOptions,
 };
 
 /// In-memory backed TOML activity storage
@@ -94,7 +98,7 @@ impl TomlActivityStorage {
     /// Returns `Ok(())` if the cache is written successfully
     #[tracing::instrument(skip(self))]
     pub fn sync_to_file(&self) -> PaceResult<()> {
-        let data = toml::to_string(&self.cache.get_activity_log()?)?;
+        let data = toml::to_string(&self.cache.get_activity_log())?;
         std::fs::write(&self.path, data)?;
         Ok(())
     }
@@ -238,14 +242,14 @@ impl ActivityQuerying for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_duration_range(
         &self,
-    ) -> PaceOptResult<BTreeMap<crate::PaceDurationRange, Vec<ActivityItem>>> {
+    ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
         self.cache.group_activities_by_duration_range()
     }
 
     #[tracing::instrument(skip(self))]
     fn group_activities_by_start_date(
         &self,
-    ) -> PaceOptResult<BTreeMap<crate::PaceDate, Vec<ActivityItem>>> {
+    ) -> PaceOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
         self.cache.group_activities_by_start_date()
     }
 
@@ -259,22 +263,20 @@ impl ActivityQuerying for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_keywords(
         &self,
-        keyword_opts: crate::KeywordOptions,
+        keyword_opts: KeywordOptions,
     ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>> {
         self.cache.group_activities_by_keywords(keyword_opts)
     }
 
     #[tracing::instrument(skip(self))]
-    fn group_activities_by_kind(
-        &self,
-    ) -> PaceOptResult<BTreeMap<crate::ActivityKind, Vec<ActivityItem>>> {
+    fn group_activities_by_kind(&self) -> PaceOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
         self.cache.group_activities_by_kind()
     }
 
     #[tracing::instrument(skip(self))]
     fn list_activities_by_time_range(
         &self,
-        time_range_opts: crate::TimeRangeOptions,
+        time_range_opts: TimeRangeOptions,
     ) -> PaceOptResult<Vec<ActivityGuid>> {
         self.cache.list_activities_by_time_range(time_range_opts)
     }

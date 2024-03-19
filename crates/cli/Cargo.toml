@@ -19,13 +19,14 @@ include = [
 ]
 
 [dependencies]
-chrono = "0.4.35"
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
 dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
-eyre = "0.6.12"
-getset = "0.1.2"
+eyre = { workspace = true }
+getset = { workspace = true }
 pace_core = { workspace = true }
-tracing = { version = "0.1.40", features = ["log"] }
-typed-builder = "0.18.1"
+tracing = { workspace = true }
+typed-builder = { workspace = true }
 
 [lints]
 workspace = true

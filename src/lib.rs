@@ -18,8 +18,19 @@
 pub mod application;
 pub mod commands;
 pub mod error;
-pub mod prelude;
 
 // Re-export pace libraries
 pub use pace_cli;
 pub use pace_core;
+
+pub mod prelude {
+    //! Application-local prelude: conveniently import types/functions/macros
+    //! which are generally useful and should be available in every module with
+    //! `use crate::prelude::*;`
+
+    /// Abscissa core prelude
+    pub use abscissa_core::prelude::*;
+
+    /// Application state
+    pub use crate::application::PACE_APP;
+}

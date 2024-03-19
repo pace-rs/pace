@@ -1,7 +1,8 @@
 use std::{collections::HashSet, path::Path, sync::Arc};
 
 use chrono::{DateTime, Local, NaiveDateTime};
-use pace_core::{
+
+use pace_core::prelude::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
     ActivityStatus, ActivityStore, InMemoryActivityStorage, PaceNaiveDateTime, TestResult,
     TomlActivityStorage,

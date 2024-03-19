@@ -9,9 +9,14 @@ use typed_builder::TypedBuilder;
 use clap::Parser;
 
 use crate::{
-    domain::review::ReviewFormatKind, get_storage_from_config, get_time_frame_from_flags,
-    ActivityKind, ActivityStore, ActivityTracker, FilterOptions, PaceConfig, PaceResult,
-    UserMessage,
+    config::PaceConfig,
+    domain::{
+        activity::ActivityKind, filter::FilterOptions, review::ReviewFormatKind,
+        time::get_time_frame_from_flags,
+    },
+    error::{PaceResult, UserMessage},
+    service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
+    storage::get_storage_from_config,
 };
 
 /// `review` subcommand options

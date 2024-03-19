@@ -12,18 +12,20 @@ use crate::{
         UpdateOptions,
     },
     domain::{
-        activity::{Activity, ActivityEndOptions, ActivityGuid, ActivityItem},
+        activity::{
+            Activity, ActivityEndOptions, ActivityGuid, ActivityItem, ActivityKind,
+            ActivityKindOptions,
+        },
         activity_log::ActivityLog,
         filter::{ActivityFilterKind, FilteredActivities},
-        time::calculate_duration,
+        status::ActivityStatus,
+        time::{calculate_duration, PaceDate, PaceDurationRange, TimeRangeOptions},
     },
     error::{ActivityLogErrorKind, PaceOptResult, PaceResult},
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
     },
-    ActivityKind, ActivityKindOptions, ActivityStatus, PaceDate, PaceDurationRange,
-    TimeRangeOptions,
 };
 
 /// Type for shared `ActivityLog`
@@ -67,16 +69,12 @@ impl InMemoryActivityStorage {
     }
 
     /// Try to convert the `InMemoryActivityStorage` into an `ActivityLog`
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the mutex has been poisoned
-    pub fn get_activity_log(&self) -> PaceResult<ActivityLog> {
+    pub fn get_activity_log(&self) -> ActivityLog {
         let activity_log = self.log.read();
 
         debug!("Got activity log");
 
-        Ok(activity_log.clone())
+        activity_log.clone()
     }
 }
 
@@ -796,35 +794,34 @@ mod tests {
 
     use chrono::Local;
 
-    use crate::{PaceDate, PaceNaiveDateTime, TestResult};
+    use crate::{
+        domain::time::{PaceDate, PaceNaiveDateTime},
+        error::TestResult,
+    };
 
     use super::*;
 
     #[test]
-    fn test_in_memory_activity_storage_passes() -> TestResult<()> {
+    fn test_in_memory_activity_storage_passes() {
         let storage = InMemoryActivityStorage::new();
 
         assert_eq!(
-            storage.get_activity_log()?.activities().len(),
+            storage.get_activity_log().activities().len(),
             0,
             "Activity log is not empty."
         );
-
-        Ok(())
     }
 
     #[test]
-    fn test_in_memory_activity_storage_from_activity_log_passes() -> TestResult<()> {
+    fn test_in_memory_activity_storage_from_activity_log_passes() {
         let activity_log = ActivityLog::default();
         let storage = InMemoryActivityStorage::from(activity_log);
 
         assert_eq!(
-            storage.get_activity_log()?.activities().len(),
+            storage.get_activity_log().activities().len(),
             0,
             "Activity log is not empty."
         );
-
-        Ok(())
     }
 
     #[test]
@@ -848,7 +845,7 @@ mod tests {
         let item = storage.create_activity(activity.clone())?;
 
         assert_eq!(
-            storage.get_activity_log()?.activities().len(),
+            storage.get_activity_log().activities().len(),
             1,
             "Activity was not created."
         );
@@ -1023,7 +1020,7 @@ mod tests {
             .build();
 
         assert_eq!(
-            storage.get_activity_log()?.activities().len(),
+            storage.get_activity_log().activities().len(),
             0,
             "Activity log is not empty."
         );
@@ -1031,7 +1028,7 @@ mod tests {
         let activity_item = storage.begin_activity(activity.clone())?;
 
         assert_eq!(
-            storage.get_activity_log()?.activities().len(),
+            storage.get_activity_log().activities().len(),
             1,
             "Activity was not created."
         );
@@ -1114,7 +1111,7 @@ mod tests {
             storage.delete_activity(*activity_item.guid(), DeleteOptions::default())?;
 
         assert_eq!(
-            storage.get_activity_log()?.activities().len(),
+            storage.get_activity_log().activities().len(),
             0,
             "Activity was not deleted."
         );

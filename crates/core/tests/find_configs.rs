@@ -1,4 +1,4 @@
-use pace_core::{find_root_config_file_path, TestResult};
+use pace_core::prelude::{find_root_config_file_path, TestResult};
 use similar_asserts::assert_eq;
 use std::env;
 

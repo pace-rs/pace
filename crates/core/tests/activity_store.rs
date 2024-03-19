@@ -2,7 +2,7 @@
 
 use std::{collections::HashSet, sync::Arc};
 
-use pace_core::{
+use pace_core::prelude::{
     Activity, ActivityFilterKind, ActivityGuid, ActivityReadOps, ActivityStateManagement,
     ActivityStatus, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
     InMemoryActivityStorage, ResumeOptions, TestResult, UpdateOptions,

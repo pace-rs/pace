@@ -2,7 +2,7 @@
 
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 use clap::Args;
-use pace_core::DocsCommandOptions;
+use pace_core::prelude::DocsCommandOptions;
 
 use crate::application::PACE_APP;
 

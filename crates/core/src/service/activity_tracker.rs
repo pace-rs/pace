@@ -3,7 +3,13 @@
 use tracing::debug;
 
 use crate::{
-    ActivityStore, FilterOptions, PaceOptResult, PaceTimeFrame, ReviewSummary, TimeRangeOptions,
+    domain::{
+        filter::FilterOptions,
+        review::ReviewSummary,
+        time::{PaceTimeFrame, TimeRangeOptions},
+    },
+    error::PaceOptResult,
+    service::activity_store::ActivityStore,
 };
 
 // This struct represents the overall structure for tracking activities and their intermissions.

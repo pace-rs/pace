@@ -5,7 +5,7 @@ use clap::Parser;
 
 use crate::prelude::PACE_APP;
 
-use pace_core::NowCommandOptions;
+use pace_core::prelude::NowCommandOptions;
 
 /// `now` subcommand
 #[derive(Command, Debug, Parser)]

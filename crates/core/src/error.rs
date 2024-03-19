@@ -5,7 +5,10 @@ use miette::Diagnostic;
 use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
-use crate::{domain::activity::ActivityGuid, Activity, PaceNaiveDateTime};
+use crate::domain::{
+    activity::{Activity, ActivityGuid},
+    time::PaceNaiveDateTime,
+};
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;

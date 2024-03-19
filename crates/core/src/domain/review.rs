@@ -9,8 +9,9 @@ use tabled::{
 
 use typed_builder::TypedBuilder;
 
-use crate::{
-    ActivityGroup, ActivityItem, ActivityKind, PaceDuration, PaceNaiveDateTime, TimeRangeOptions,
+use crate::domain::{
+    activity::{ActivityGroup, ActivityItem, ActivityKind},
+    time::{PaceDuration, PaceNaiveDateTime, TimeRangeOptions},
 };
 
 /// The kind of review format
@@ -220,6 +221,7 @@ impl SummaryActivityGroup {
     Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
 )]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
+#[allow(clippy::struct_field_names)]
 pub struct Highlights {
     /// The day with the highest productive hours.
     pub most_productive_day: PaceNaiveDateTime,

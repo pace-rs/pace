@@ -24,51 +24,54 @@ pub mod constants {
 pub use merge;
 pub use toml;
 
-// Public API
-pub use crate::{
-    commands::{
-        adjust::AdjustCommandOptions,
-        begin::BeginCommandOptions,
-        docs::DocsCommandOptions,
-        end::EndCommandOptions,
-        hold::{HoldCommandOptions, HoldOptions},
-        now::NowCommandOptions,
-        resume::{ResumeCommandOptions, ResumeOptions},
-        review::{DateFlags, ExpensiveFlags, ReviewCommandOptions, TimeFlags},
-        DeleteOptions, EndOptions, KeywordOptions, UpdateOptions,
-    },
-    config::{
-        find_root_config_file_path, find_root_project_file, get_activity_log_paths,
-        get_config_paths, get_home_activity_log_path, get_home_config_path, ActivityLogFormatKind,
-        ActivityLogStorageKind, AutoArchivalConfig, DatabaseConfig, ExportConfig, GeneralConfig,
-        InboxConfig, PaceConfig, PomodoroConfig, ReviewConfig,
-    },
-    domain::{
-        activity::{
-            Activity, ActivityEndOptions, ActivityGroup, ActivityGuid, ActivityItem, ActivityKind,
-            ActivityKindOptions, ActivitySession,
+pub mod prelude {
+    // Public Prelude API
+    pub use crate::{
+        commands::{
+            adjust::AdjustCommandOptions,
+            begin::BeginCommandOptions,
+            docs::DocsCommandOptions,
+            end::EndCommandOptions,
+            hold::{HoldCommandOptions, HoldOptions},
+            now::NowCommandOptions,
+            resume::{ResumeCommandOptions, ResumeOptions},
+            review::{DateFlags, ExpensiveFlags, ReviewCommandOptions, TimeFlags},
+            DeleteOptions, EndOptions, KeywordOptions, UpdateOptions,
         },
-        activity_log::ActivityLog,
-        category::split_category_by_category_separator,
-        filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
-        intermission::IntermissionAction,
-        review::{
-            Highlights, ReviewSummary, SummaryActivityGroup, SummaryCategories,
-            SummaryGroupByCategory,
+        config::{
+            find_root_config_file_path, find_root_project_file, get_activity_log_paths,
+            get_config_paths, get_home_activity_log_path, get_home_config_path,
+            ActivityLogFormatKind, ActivityLogStorageKind, AutoArchivalConfig, DatabaseConfig,
+            ExportConfig, GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig, ReviewConfig,
         },
-        status::ActivityStatus,
-        time::{
-            calculate_duration, duration_to_str, extract_time_or_now, get_time_frame_from_flags,
-            parse_time_from_user_input, PaceDate, PaceDuration, PaceDurationRange,
-            PaceNaiveDateTime, PaceTime, PaceTimeFrame, TimeRangeOptions,
+        domain::{
+            activity::{
+                Activity, ActivityEndOptions, ActivityGroup, ActivityGuid, ActivityItem,
+                ActivityKind, ActivityKindOptions, ActivitySession,
+            },
+            activity_log::ActivityLog,
+            category::split_category_by_category_separator,
+            filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
+            intermission::IntermissionAction,
+            review::{
+                Highlights, ReviewFormatKind, ReviewSummary, SummaryActivityGroup,
+                SummaryCategories, SummaryGroupByCategory,
+            },
+            status::ActivityStatus,
+            time::{
+                calculate_duration, duration_to_str, extract_time_or_now,
+                get_local_time_zone_offset, get_time_frame_from_flags, parse_time_from_user_input,
+                PaceDate, PaceDuration, PaceDurationRange, PaceNaiveDateTime, PaceTime,
+                PaceTimeFrame, TimeRangeOptions,
+            },
         },
-    },
-    error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult, UserMessage},
-    service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
-    storage::{
-        file::TomlActivityStorage, get_storage_from_config, in_memory::InMemoryActivityStorage,
-        ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
-        ActivityWriteOps, StorageKind, SyncStorage,
-    },
-    util::overwrite_left_with_right,
-};
+        error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult, UserMessage},
+        service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
+        storage::{
+            file::TomlActivityStorage, get_storage_from_config, in_memory::InMemoryActivityStorage,
+            ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
+            ActivityWriteOps, StorageKind, SyncStorage,
+        },
+        util::overwrite_left_with_right,
+    };
+}

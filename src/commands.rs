@@ -28,7 +28,8 @@ use human_panic::setup_panic;
 use std::path::PathBuf;
 
 use pace_core::{
-    constants::PACE_CONFIG_FILENAME, get_config_paths, ActivityLogFormatKind, PaceConfig,
+    constants::PACE_CONFIG_FILENAME,
+    prelude::{get_config_paths, ActivityLogFormatKind, PaceConfig},
 };
 
 /// Pace Subcommands

@@ -4,7 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
-use crate::GeneralConfig;
+use crate::config::GeneralConfig;
 
 /// The category entity
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, Clone)]

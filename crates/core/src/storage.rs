@@ -5,17 +5,20 @@ use itertools::Itertools;
 use tracing::debug;
 
 use crate::{
-    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
+    commands::{
+        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
+        UpdateOptions,
+    },
     config::{ActivityLogStorageKind, PaceConfig},
     domain::{
-        activity::{Activity, ActivityGuid, ActivityItem},
+        activity::{Activity, ActivityGuid, ActivityItem, ActivityKind},
         filter::{ActivityFilterKind, FilteredActivities},
+        status::ActivityStatus,
+        time::{PaceDate, PaceDurationRange, TimeRangeOptions},
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     service::activity_store::ActivityStore,
     storage::{file::TomlActivityStorage, in_memory::InMemoryActivityStorage},
-    ActivityKind, ActivityStatus, EndOptions, HoldOptions, KeywordOptions, PaceDate,
-    PaceDurationRange, TimeRangeOptions,
 };
 
 /// A type of storage that can be synced to a persistent medium - a file

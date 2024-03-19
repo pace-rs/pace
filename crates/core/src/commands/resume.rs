@@ -4,7 +4,7 @@ use clap::Parser;
 use getset::Getters;
 use typed_builder::TypedBuilder;
 
-use crate::PaceNaiveDateTime;
+use crate::domain::time::PaceNaiveDateTime;
 
 /// `resume` subcommand options
 #[derive(Debug, Getters, TypedBuilder, Clone, PartialEq, Eq, Hash, Default)]

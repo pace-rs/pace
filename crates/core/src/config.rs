@@ -170,13 +170,13 @@ pub struct ReviewConfig {
 #[serde(rename_all = "kebab-case")]
 pub struct ExportConfig {
     /// If the export should include descriptions
-    export_include_descriptions: bool,
+    include_descriptions: bool,
 
     /// If the export should include tags
-    export_include_tags: bool,
+    include_tags: bool,
 
     /// The time format within the export
-    export_time_format: String,
+    time_format: String,
 }
 
 /// The kind of database engine

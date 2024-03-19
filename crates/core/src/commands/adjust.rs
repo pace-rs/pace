@@ -8,9 +8,12 @@ use tracing::debug;
 use typed_builder::TypedBuilder;
 
 use crate::{
-    error::{ActivityLogErrorKind, PaceTimeErrorKind},
-    get_storage_from_config, ActivityQuerying, ActivityStore, ActivityWriteOps, PaceConfig,
-    PaceNaiveDateTime, PaceResult, SyncStorage, UpdateOptions, UserMessage,
+    commands::UpdateOptions,
+    config::PaceConfig,
+    domain::time::PaceNaiveDateTime,
+    error::{ActivityLogErrorKind, PaceResult, PaceTimeErrorKind, UserMessage},
+    service::activity_store::ActivityStore,
+    storage::{get_storage_from_config, ActivityQuerying, ActivityWriteOps, SyncStorage},
 };
 
 /// `adjust` subcommand options

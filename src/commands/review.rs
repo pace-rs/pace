@@ -6,7 +6,7 @@ use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 
 use clap::Parser;
 
-use pace_core::ReviewCommandOptions;
+use pace_core::prelude::ReviewCommandOptions;
 
 use crate::prelude::PACE_APP;
 

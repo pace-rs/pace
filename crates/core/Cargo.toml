@@ -28,13 +28,13 @@ clap = ["dep:clap"]
 
 [dependencies]
 chrono = { workspace = true }
-chrono-tz = { version = "0.8.6", features = ["serde"] }
+chrono-tz = { workspace = true }
 clap = { workspace = true, optional = true }
 diesel = { version = "2.1.4", features = ["sqlite", "chrono"], optional = true }
 directories = "5.0.1"
 displaydoc = "0.2.4"
 enum_dispatch = "0.3.12"
-getset = "0.1.2"
+getset = { workspace = true }
 humantime = "2.1.0"
 itertools = "0.12.1"
 libsqlite3-sys = { version = "0.27", features = ["bundled"], optional = true }
@@ -51,8 +51,8 @@ strum_macros = "0.26.2"
 tabled = "0.15.0"
 thiserror = "1.0.58"
 toml = { version = "0.8.11", features = ["indexmap", "preserve_order"] }
-tracing = { version = "0.1.40" }
-typed-builder = "0.18.1"
+tracing = { workspace = true }
+typed-builder = { workspace = true }
 ulid = { version = "1.1.2", features = ["serde"] }
 wildmatch = "2.3.2"
 

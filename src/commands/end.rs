@@ -5,7 +5,7 @@ use clap::Parser;
 
 use crate::prelude::PACE_APP;
 
-use pace_core::EndCommandOptions;
+use pace_core::prelude::EndCommandOptions;
 
 /// `end` subcommand
 #[derive(Command, Debug, Parser)]

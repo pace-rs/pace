@@ -143,3 +143,32 @@ pub fn prompt_resume_activity(string_repr: &[String]) -> Result<usize, dialoguer
         .items(string_repr)
         .interact()
 }
+
+/// Prompts the user to select a time zone
+///
+/// # Errors
+///
+/// Returns an error if the prompt fails
+///
+/// # Returns
+///
+/// Returns the selected time zone
+pub fn prompt_time_zone() -> Result<chrono_tz::Tz> {
+    let time_zones_iter = chrono_tz::TZ_VARIANTS.into_iter();
+
+    let time_zones_lookup = time_zones_iter.clone().collect::<Vec<chrono_tz::Tz>>();
+
+    let time_zones = time_zones_iter
+        .map(|tz| format!("{tz}"))
+        .collect::<Vec<String>>();
+
+    // TODO: Search through timezones and mark the one we determined to be the first in the current range as the default
+
+    let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
+        .with_prompt("Please select your time zone:")
+        .clear(true)
+        .items(&time_zones)
+        .interact()?;
+
+    Ok(time_zones_lookup[selection])
+}

@@ -10,20 +10,25 @@ use typed_builder::TypedBuilder;
 use wildmatch::WildMatch;
 
 use crate::{
-    commands::{resume::ResumeOptions, DeleteOptions, UpdateOptions},
+    commands::{
+        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
+        UpdateOptions,
+    },
     domain::{
-        activity::{Activity, ActivityGuid, ActivityItem, ActivitySession},
+        activity::{
+            Activity, ActivityGroup, ActivityGuid, ActivityItem, ActivityKind, ActivitySession,
+        },
         category,
-        filter::{ActivityFilterKind, FilteredActivities},
-        review::SummaryGroupByCategory,
+        filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
+        review::{SummaryActivityGroup, SummaryGroupByCategory},
+        status::ActivityStatus,
+        time::{PaceDate, PaceDurationRange, TimeRangeOptions},
     },
     error::{ActivityStoreErrorKind, PaceOptResult, PaceResult},
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, StorageKind, SyncStorage,
     },
-    ActivityGroup, ActivityStatus, EndOptions, FilterOptions, HoldOptions, PaceDate,
-    SummaryActivityGroup, TimeRangeOptions,
 };
 
 /// The activity store entity
@@ -333,7 +338,7 @@ impl ActivityQuerying for ActivityStore {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_duration_range(
         &self,
-    ) -> PaceOptResult<BTreeMap<crate::PaceDurationRange, Vec<ActivityItem>>> {
+    ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
         self.storage.group_activities_by_duration_range()
     }
 
@@ -354,15 +359,13 @@ impl ActivityQuerying for ActivityStore {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_keywords(
         &self,
-        keyword_opts: crate::KeywordOptions,
+        keyword_opts: KeywordOptions,
     ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>> {
         self.storage.group_activities_by_keywords(keyword_opts)
     }
 
     #[tracing::instrument(skip(self))]
-    fn group_activities_by_kind(
-        &self,
-    ) -> PaceOptResult<BTreeMap<crate::ActivityKind, Vec<ActivityItem>>> {
+    fn group_activities_by_kind(&self) -> PaceOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
         self.storage.group_activities_by_kind()
     }
 

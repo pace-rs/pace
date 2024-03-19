@@ -9,6 +9,6 @@ pub(crate) static PACE_ART: &str = include_str!("pace.art");
 
 // Public API
 pub use crate::{
-    prompt::{confirmation_or_break, prompt_resume_activity},
+    prompt::{confirmation_or_break, prompt_resume_activity, prompt_time_zone},
     setup::{setup_config, PathOptions},
 };

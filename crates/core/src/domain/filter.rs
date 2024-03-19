@@ -1,8 +1,12 @@
-use crate::{ActivityGuid, ReviewCommandOptions, TimeRangeOptions};
 use getset::{Getters, MutGetters, Setters};
 use serde_derive::Serialize;
 use strum::EnumIter;
 use typed_builder::TypedBuilder;
+
+use crate::{
+    commands::review::ReviewCommandOptions,
+    domain::{activity::ActivityGuid, time::TimeRangeOptions},
+};
 
 /// Filter for activities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumIter)]

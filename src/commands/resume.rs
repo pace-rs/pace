@@ -6,7 +6,7 @@ use clap::Parser;
 use eyre::Result;
 
 use pace_cli::{confirmation_or_break, prompt_resume_activity};
-use pace_core::{
+use pace_core::prelude::{
     extract_time_or_now, get_storage_from_config, ActivityQuerying, ActivityReadOps,
     ActivityStateManagement, ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage,
     UserMessage,
