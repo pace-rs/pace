@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::{fmt::Display, fs};
 
+use chrono_tz::Tz;
 use getset::{Getters, MutGetters};
 use serde_derive::{Deserialize, Serialize};
 
@@ -67,6 +68,10 @@ impl PaceConfig {
         *self.general_mut().activity_log_options_mut().path_mut() =
             activity_log.as_ref().to_path_buf();
     }
+
+    pub fn add_time_zone(&mut self, time_zone: Tz) {
+        *self.general_mut().default_time_zone_mut() = Some(time_zone);
+    }
 }
 
 /// The general configuration for the pace application
@@ -92,6 +97,12 @@ pub struct GeneralConfig {
     /// Default: `9`
     #[serde(default, skip_serializing_if = "Option::is_none")]
     most_recent_count: Option<u8>,
+
+    /// The default time zone
+    /// Default: `UTC`
+    #[getset(get = "pub", get_mut = "pub")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    default_time_zone: Option<Tz>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Getters, MutGetters, Clone, Default)]
@@ -148,6 +159,7 @@ impl Default for GeneralConfig {
             category_separator: Some("::".to_string()),
             default_priority: Some(ItemPriorityKind::default()),
             most_recent_count: Some(9),
+            default_time_zone: Some(Tz::UTC),
         }
     }
 }

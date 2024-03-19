@@ -342,13 +342,14 @@ pub fn setup_config(term: &Term, path_opts: &PathOptions) -> Result<()> {
 
     term.clear_screen()?;
 
-    let _time_zone = prompt_time_zone()?;
+    let time_zone = prompt_time_zone()?;
 
     term.clear_screen()?;
 
     let final_paths = prompt_activity_log_path(&activity_log_paths)?;
 
     config.add_activity_log_path(final_paths.activity_log_path());
+    config.add_time_zone(time_zone);
 
     let final_paths = prompt_config_file_path(final_paths, config_paths.as_slice())?;
 
