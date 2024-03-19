@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use chrono::{NaiveDateTime, NaiveTime};
+use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::Getters;
@@ -23,6 +24,8 @@ use crate::{
 #[cfg_attr(feature = "clap", derive(Parser))]
 #[cfg_attr(
         feature = "clap", clap(group = clap::ArgGroup::new("adjust").multiple(true).required(true)))]
+#[cfg_attr(
+        feature = "clap", clap(group = clap::ArgGroup::new("tz").multiple(false).required(false)))]
 pub struct AdjustCommandOptions {
     /// The category for the activity
     #[cfg_attr(
@@ -91,6 +94,30 @@ pub struct AdjustCommandOptions {
         )
     )]
     override_tags: bool,
+
+    /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
+    #[cfg_attr(
+        feature = "clap",
+        clap(
+            long,
+            group = "tz",
+            value_name = "Time Zone",
+            visible_alias = "tz"
+        )
+    )]
+    time_zone: Option<Tz>,
+
+    /// Time zone offset to use for the activity, e.g., "+0200" or "-0500". Format: ±HHMM
+    #[cfg_attr(
+        feature = "clap",
+        clap(
+            long,
+            group = "tz",
+            value_name = "Time Zone Offset",
+            visible_alias = "tzo"
+        )
+    )]
+    time_zone_offset: Option<i32>,
 }
 
 impl AdjustCommandOptions {

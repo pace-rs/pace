@@ -19,6 +19,8 @@ use crate::{
 #[getset(get = "pub")]
 #[non_exhaustive]
 #[cfg_attr(feature = "clap", derive(Parser))]
+#[cfg_attr(
+        feature = "clap", clap(group = clap::ArgGroup::new("tz").multiple(false).required(false)))]
 pub struct EndCommandOptions {
     /// The time the activity has ended (defaults to the current time if not provided). Format: HH:MM
     #[cfg_attr(
@@ -31,14 +33,19 @@ pub struct EndCommandOptions {
     /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
     #[cfg_attr(
         feature = "clap",
-        clap(long, value_name = "Time Zone", visible_alias = "tz")
+        clap(long, value_name = "Time Zone", group = "tz", visible_alias = "tz")
     )]
     time_zone: Option<Tz>,
 
     /// Time zone offset to use for the activity, e.g., "+0200" or "-0500". Format: ±HHMM
     #[cfg_attr(
         feature = "clap",
-        clap(long, value_name = "Time Zone Offset", visible_alias = "tzo")
+        clap(
+            long,
+            value_name = "Time Zone Offset",
+            group = "tz",
+            visible_alias = "tzo"
+        )
     )]
     time_zone_offset: Option<i32>,
 }
