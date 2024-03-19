@@ -54,7 +54,7 @@ toml = { version = "0.8.11", features = ["indexmap", "preserve_order"] }
 tracing = { workspace = true }
 typed-builder = { workspace = true }
 ulid = { version = "1.1.2", features = ["serde"] }
-wildmatch = "2.3.2"
+wildmatch = "2.3.3"
 
 [dev-dependencies]
 insta = { version = "1.36.1", features = ["toml", "redactions"] }
