@@ -7,7 +7,7 @@ use typed_builder::TypedBuilder;
 
 use crate::{
     get_storage_from_config, parse_time_from_user_input, ActivityStateManagement, ActivityStore,
-    IntermissionAction, PaceConfig, PaceDateTime, PaceResult, SyncStorage, UserMessage,
+    IntermissionAction, PaceConfig, PaceNaiveDateTime, PaceResult, SyncStorage, UserMessage,
 };
 
 /// `hold` subcommand options
@@ -16,7 +16,7 @@ use crate::{
 pub struct HoldCommandOptions {
     /// The time the activity has been holded (defaults to the current time if not provided). Format: HH:MM
     #[cfg_attr(feature = "clap", clap(long, name = "Pause Time", alias = "at"))]
-    // FIXME: We should directly parse that into PaceTime or PaceDateTime
+    // FIXME: We should directly parse that into PaceTime or PaceNaiveDateTime
     pause_at: Option<String>,
 
     /// The reason for the intermission, if this is not set, the description of the activity to be held will be used
@@ -92,7 +92,7 @@ pub struct HoldOptions {
 
     /// The start time of the intermission
     #[builder(default, setter(into))]
-    begin_time: PaceDateTime,
+    begin_time: PaceNaiveDateTime,
 
     /// The reason for holding the activity
     #[builder(default, setter(into))]

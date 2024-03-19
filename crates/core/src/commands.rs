@@ -10,7 +10,7 @@ pub mod review;
 use getset::Getters;
 use typed_builder::TypedBuilder;
 
-use crate::{commands::resume::ResumeOptions, HoldOptions, PaceDateTime};
+use crate::{commands::resume::ResumeOptions, HoldOptions, PaceNaiveDateTime};
 
 /// Options for ending an activity
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
@@ -19,7 +19,7 @@ use crate::{commands::resume::ResumeOptions, HoldOptions, PaceDateTime};
 pub struct EndOptions {
     /// The end time
     #[builder(default, setter(into))]
-    end_time: PaceDateTime,
+    end_time: PaceNaiveDateTime,
 }
 
 impl From<HoldOptions> for EndOptions {
@@ -33,7 +33,9 @@ impl From<HoldOptions> for EndOptions {
 impl From<ResumeOptions> for EndOptions {
     fn from(resume_opts: ResumeOptions) -> Self {
         Self {
-            end_time: resume_opts.resume_time().unwrap_or_else(PaceDateTime::now),
+            end_time: resume_opts
+                .resume_time()
+                .unwrap_or_else(PaceNaiveDateTime::now),
         }
     }
 }

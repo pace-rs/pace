@@ -4,7 +4,7 @@ use clap::Parser;
 use getset::Getters;
 use typed_builder::TypedBuilder;
 
-use crate::PaceDateTime;
+use crate::PaceNaiveDateTime;
 
 /// `resume` subcommand options
 #[derive(Debug, Getters, TypedBuilder, Clone, PartialEq, Eq, Hash, Default)]
@@ -36,5 +36,5 @@ impl ResumeCommandOptions {
 pub struct ResumeOptions {
     /// The resume time of the intermission
     #[builder(default, setter(into))]
-    resume_time: Option<PaceDateTime>,
+    resume_time: Option<PaceNaiveDateTime>,
 }

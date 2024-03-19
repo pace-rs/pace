@@ -20,7 +20,7 @@ pub struct EndCommandOptions {
         feature = "clap",
         clap(short, long, name = "Finishing Time", alias = "end")
     )]
-    // FIXME: We should directly parse that into PaceTime or PaceDateTime
+    // FIXME: We should directly parse that into PaceTime or PaceNaiveDateTime
     at: Option<String>,
 }
 

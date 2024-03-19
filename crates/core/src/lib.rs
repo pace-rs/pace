@@ -59,8 +59,8 @@ pub use crate::{
         status::ActivityStatus,
         time::{
             calculate_duration, duration_to_str, extract_time_or_now, get_time_frame_from_flags,
-            parse_time_from_user_input, PaceDate, PaceDateTime, PaceDuration, PaceDurationRange,
-            PaceTime, PaceTimeFrame, TimeRangeOptions,
+            parse_time_from_user_input, PaceDate, PaceDuration, PaceDurationRange,
+            PaceNaiveDateTime, PaceTime, PaceTimeFrame, TimeRangeOptions,
         },
     },
     error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult, UserMessage},

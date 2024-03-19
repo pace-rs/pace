@@ -15,7 +15,7 @@ use crate::{
     calculate_duration,
     domain::{
         status::ActivityStatus,
-        time::{duration_to_str, PaceDateTime, PaceDuration},
+        time::{duration_to_str, PaceDuration, PaceNaiveDateTime},
     },
     error::ActivityLogErrorKind,
     PaceResult,
@@ -211,7 +211,7 @@ pub struct Activity {
     #[builder(default, setter(into))]
     #[getset(get = "pub")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    begin: PaceDateTime,
+    begin: PaceNaiveDateTime,
 
     #[builder(default)]
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
@@ -256,7 +256,7 @@ pub struct ActivityEndOptions {
     /// The end date and time of the activity
     #[builder(default)]
     #[getset(get = "pub")]
-    end: PaceDateTime,
+    end: PaceNaiveDateTime,
 
     /// The duration of the activity
     #[builder(default)]
@@ -266,7 +266,7 @@ pub struct ActivityEndOptions {
 
 impl ActivityEndOptions {
     #[must_use]
-    pub const fn new(end: PaceDateTime, duration: PaceDuration) -> Self {
+    pub const fn new(end: PaceNaiveDateTime, duration: PaceDuration) -> Self {
         Self { end, duration }
     }
 }
@@ -481,8 +481,8 @@ impl Activity {
     /// Returns `Ok(())` if the activity is ended successfully
     pub fn end_activity_with_duration_calc(
         &mut self,
-        begin: PaceDateTime,
-        end: PaceDateTime,
+        begin: PaceNaiveDateTime,
+        end: PaceNaiveDateTime,
     ) -> PaceResult<()> {
         let end_opts = ActivityEndOptions::new(end, calculate_duration(&begin, end)?);
 
@@ -706,7 +706,7 @@ mod tests {
 
         assert_eq!(
             end,
-            PaceDateTime::from(NaiveDateTime::parse_from_str(
+            PaceNaiveDateTime::from(NaiveDateTime::parse_from_str(
                 "2021-08-01T12:00:00",
                 "%Y-%m-%dT%H:%M:%S"
             )?)
@@ -714,7 +714,7 @@ mod tests {
 
         assert_eq!(
             activity.begin,
-            PaceDateTime::from(NaiveDateTime::parse_from_str(
+            PaceNaiveDateTime::from(NaiveDateTime::parse_from_str(
                 "2021-08-01T10:00:00",
                 "%Y-%m-%dT%H:%M:%S"
             )?)
@@ -747,7 +747,7 @@ mod tests {
 
         assert_eq!(
             end,
-            PaceDateTime::from(NaiveDateTime::parse_from_str(
+            PaceNaiveDateTime::from(NaiveDateTime::parse_from_str(
                 "2021-08-01T12:00:00",
                 "%Y-%m-%dT%H:%M:%S"
             )?)
@@ -757,7 +757,7 @@ mod tests {
 
         assert_eq!(
             activity.begin,
-            PaceDateTime::from(NaiveDateTime::parse_from_str(
+            PaceNaiveDateTime::from(NaiveDateTime::parse_from_str(
                 "2021-08-01T10:00:00",
                 "%Y-%m-%dT%H:%M:%S"
             )?)

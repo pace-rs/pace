@@ -796,7 +796,7 @@ mod tests {
 
     use chrono::Local;
 
-    use crate::{PaceDate, PaceDateTime, TestResult};
+    use crate::{PaceDate, PaceNaiveDateTime, TestResult};
 
     use super::*;
 
@@ -940,7 +940,7 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceDateTime::new(
+        let new_begin = PaceNaiveDateTime::new(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
         );
         let updated_activity = Activity::builder()
@@ -1061,7 +1061,7 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceDateTime::new(
+        let new_begin = PaceNaiveDateTime::new(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
         );
         let updated_activity = Activity::builder()
@@ -1192,7 +1192,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceDateTime::new(end_time),
+            &PaceNaiveDateTime::new(end_time),
             "End time was not set."
         );
 
@@ -1251,7 +1251,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceDateTime::new(now),
+            &PaceNaiveDateTime::new(now),
             "End time was not set."
         );
 
@@ -1307,7 +1307,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceDateTime::new(now),
+            &PaceNaiveDateTime::new(now),
             "End time was not set."
         );
 
@@ -1534,7 +1534,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceDateTime::new(end_time),
+            &PaceNaiveDateTime::new(end_time),
             "End time was not set."
         );
 

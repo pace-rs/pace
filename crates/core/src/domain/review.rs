@@ -10,7 +10,7 @@ use tabled::{
 use typed_builder::TypedBuilder;
 
 use crate::{
-    ActivityGroup, ActivityItem, ActivityKind, PaceDateTime, PaceDuration, TimeRangeOptions,
+    ActivityGroup, ActivityItem, ActivityKind, PaceDuration, PaceNaiveDateTime, TimeRangeOptions,
 };
 
 /// The kind of review format
@@ -222,7 +222,7 @@ impl SummaryActivityGroup {
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Highlights {
     /// The day with the highest productive hours.
-    pub most_productive_day: PaceDateTime,
+    pub most_productive_day: PaceNaiveDateTime,
 
     /// The kind of activity most frequently logged.
     pub most_frequent_activity_kind: ActivityKind,

@@ -10,7 +10,7 @@ use typed_builder::TypedBuilder;
 use crate::{
     error::{ActivityLogErrorKind, PaceTimeErrorKind},
     get_storage_from_config, ActivityQuerying, ActivityStore, ActivityWriteOps, PaceConfig,
-    PaceDateTime, PaceResult, SyncStorage, UpdateOptions, UserMessage,
+    PaceNaiveDateTime, PaceResult, SyncStorage, UpdateOptions, UserMessage,
 };
 
 /// `adjust` subcommand options
@@ -112,12 +112,12 @@ impl AdjustCommandOptions {
         }
 
         if let Some(start) = &self.start {
-            // Test if PaceDateTime actually lies in the future
+            // Test if PaceNaiveDateTime actually lies in the future
             let start_time =
-                PaceDateTime::new(NaiveDateTime::new(*activity.begin().date(), *start));
+                PaceNaiveDateTime::new(NaiveDateTime::new(*activity.begin().date(), *start));
 
-            // Test if PaceDateTime actually lies in the future
-            if start_time > PaceDateTime::now() {
+            // Test if PaceNaiveDateTime actually lies in the future
+            if start_time > PaceNaiveDateTime::now() {
                 return Err(PaceTimeErrorKind::StartTimeInFuture(start_time).into());
             };
 

@@ -21,7 +21,7 @@ pub struct BeginCommandOptions {
     category: Option<String>,
 
     /// The time the activity has been started at. Format: HH:MM
-    // FIXME: We should directly parse that into PaceTime or PaceDateTime
+    // FIXME: We should directly parse that into PaceTime or PaceNaiveDateTime
     #[cfg_attr(
         feature = "clap",
         clap(short, long, name = "Starting Time", alias = "start")

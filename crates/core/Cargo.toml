@@ -28,6 +28,7 @@ clap = ["dep:clap"]
 
 [dependencies]
 chrono = { workspace = true }
+chrono-tz = { version = "0.8.6", features = ["serde"] }
 clap = { workspace = true, optional = true }
 diesel = { version = "2.1.4", features = ["sqlite", "chrono"], optional = true }
 directories = "5.0.1"

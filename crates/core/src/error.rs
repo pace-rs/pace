@@ -5,7 +5,7 @@ use miette::Diagnostic;
 use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
-use crate::{domain::activity::ActivityGuid, Activity, PaceDateTime};
+use crate::{domain::activity::ActivityGuid, Activity, PaceNaiveDateTime};
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
@@ -132,11 +132,10 @@ pub enum PaceErrorKind {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
-    /// SQLite error: {0}
-    #[error(transparent)]
-    #[cfg(feature = "sqlite")]
-    SQLite(#[from] diesel::ConnectionError),
-
+    // /// SQLite error: {0}
+    // #[error(transparent)]
+    // #[cfg(feature = "sqlite")]
+    // SQLite(#[from] diesel::ConnectionError),
     /// Chrono parse error: {0}
     #[error(transparent)]
     ChronoParse(#[from] chrono::ParseError),
@@ -255,7 +254,7 @@ pub enum PaceTimeErrorKind {
     ParsingTimeFromUserInputFailed(String),
 
     /// The start time cannot be in the future: {0}
-    StartTimeInFuture(PaceDateTime),
+    StartTimeInFuture(PaceNaiveDateTime),
 
     /// Failed to parse duration '{0}' from activity log, please use only numbers >= 0
     ParsingDurationFailed(String),
@@ -270,6 +269,9 @@ pub enum PaceTimeErrorKind {
 
     /// Invalid time range: Start {0} - End {1}
     InvalidTimeRange(String, String),
+
+    /// Invalid time zone: {0}
+    InvalidTimeZone(String),
 }
 
 /// [`PaceTimeErrorKind`] describes the errors that can happen while dealing with time.

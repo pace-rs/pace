@@ -3,7 +3,7 @@ use std::{collections::HashSet, path::Path, sync::Arc};
 use chrono::{DateTime, Local, NaiveDateTime};
 use pace_core::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityStatus, ActivityStore, InMemoryActivityStorage, PaceDateTime, TestResult,
+    ActivityStatus, ActivityStore, InMemoryActivityStorage, PaceNaiveDateTime, TestResult,
     TomlActivityStorage,
 };
 
@@ -52,7 +52,7 @@ pub fn activity_store_no_intermissions() -> TestResult<TestData> {
 // We need to use `#[cfg(not(tarpaulin_include))]` to exclude this from coverage reports
 #[cfg(not(tarpaulin_include))]
 pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
-    let begin_time = PaceDateTime::new(NaiveDateTime::new(
+    let begin_time = PaceNaiveDateTime::new(NaiveDateTime::new(
         DateTime::from_timestamp(0, 0)
             .ok_or("Should have date time.")?
             .naive_local()
@@ -73,7 +73,7 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
         .status(ActivityStatus::Ended)
         .tags(tags.clone())
         .build();
-    ended_activity.end_activity_with_duration_calc(begin_time, PaceDateTime::now())?;
+    ended_activity.end_activity_with_duration_calc(begin_time, PaceNaiveDateTime::now())?;
 
     let ended_activity = ActivityItem::from((ActivityGuid::default(), ended_activity));
 
@@ -83,15 +83,15 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
         .status(ActivityStatus::Archived)
         .tags(tags.clone())
         .build();
-    archived_activity.end_activity_with_duration_calc(begin_time, PaceDateTime::now())?;
+    archived_activity.end_activity_with_duration_calc(begin_time, PaceNaiveDateTime::now())?;
     archived_activity.archive();
 
     let archived_activity = ActivityItem::from((ActivityGuid::default(), archived_activity));
 
     let time_30_min_ago = Local::now().naive_local()
         - chrono::TimeDelta::try_minutes(30).ok_or("Should have time delta.")?;
-    let begin_time = PaceDateTime::new(time_30_min_ago);
-    let intermission_begin_time = PaceDateTime::new(
+    let begin_time = PaceNaiveDateTime::new(time_30_min_ago);
+    let intermission_begin_time = PaceNaiveDateTime::new(
         time_30_min_ago + chrono::TimeDelta::try_minutes(15).ok_or("Should have time delta.")?,
     );
     let desc = "Activity with Intermission".to_string();
