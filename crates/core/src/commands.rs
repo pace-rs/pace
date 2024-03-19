@@ -6,6 +6,7 @@ pub mod hold;
 pub mod now;
 pub mod reflect;
 pub mod resume;
+pub mod settings;
 
 use getset::Getters;
 use typed_builder::TypedBuilder;

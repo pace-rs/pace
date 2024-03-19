@@ -18,6 +18,7 @@ pub mod hold;
 pub mod now;
 pub mod reflect;
 pub mod resume;
+pub mod settings;
 pub mod setup;
 
 use abscissa_core::{
@@ -36,7 +37,7 @@ use pace_core::{
 /// Subcommands need to be listed in an enum.
 #[derive(clap::Parser, Command, Debug, Runnable)]
 pub enum PaceCmd {
-    /// 📝 Adjust the details of an activity, such as its category, description, or tags.
+    /// 📝 Adjust the details of the current activity, such as its category, description, or tags.
     #[clap(visible_alias = "a")]
     Adjust(adjust::AdjustCmd),
 
@@ -65,8 +66,11 @@ pub enum PaceCmd {
     Reflect(reflect::ReflectCmd),
 
     /// 🛠️  Set up a pace configuration, a new project, or generate shell completions.
-    #[clap(visible_alias = "s")]
     Setup(setup::SetupCmd),
+
+    /// ⚙️  Changes various application settings, including Pomodoro lengths, time zone, and reflection format.
+    #[clap(visible_alias = "s", visible_alias = "set")]
+    Settings(settings::SettingsCmd),
 
     /// 📚 Open the online documentation for pace.
     #[clap(visible_alias = "d")]
@@ -76,9 +80,7 @@ pub enum PaceCmd {
 
     // /// Starts a Pomodoro session for the specified task, integrating the Pomodoro technique directly with your tasks.
     // Pomo(pomo::PomoCmd),
-    // /// Sets various application configurations, including Pomodoro lengths and preferred reflection formats.
-    // Set(set::SetCmd),
-
+    //
     // /// Lists all tasks with optional filters. Use this to view active, completed, or today's tasks.
     // Tasks(tasks::TasksCmd),
 }
