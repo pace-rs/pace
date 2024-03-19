@@ -27,29 +27,32 @@ pub struct ReflectCommandOptions {
     /// Filter by activity kind (e.g., activity, task)
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, name = "Activity Kind", alias = "kind")
+        clap(short, long, value_name = "Activity Kind", visible_alias = "kind")
     )]
     activity_kind: Option<ActivityKind>,
 
     /// Filter by category name, wildcard supported
-    #[cfg_attr(feature = "clap", clap(short, long, name = "Category", alias = "cat"))]
+    #[cfg_attr(
+        feature = "clap",
+        clap(short, long, value_name = "Category", visible_alias = "cat")
+    )]
     category: Option<String>,
 
     /// Case sensitive category filter
-    #[cfg_attr(feature = "clap", clap(long, name = "Case Sensitive"))]
+    #[cfg_attr(feature = "clap", clap(long, value_name = "Case Sensitive"))]
     case_sensitive: bool,
 
     /// Specify output format (e.g., text, markdown, pdf)
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, name = "Output Format", alias = "format")
+        clap(short, long, value_name = "Output Format", visible_alias = "format")
     )]
     output_format: Option<ReflectionsFormatKind>,
 
     /// Export the reflections to a specified file
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, name = "Export File", alias = "export")
+        clap(short, long, value_name = "Export File", visible_alias = "export")
     )]
     export_file: Option<PathBuf>,
 
@@ -141,18 +144,29 @@ pub struct DateFlags {
     /// Show the reflection for a specific date, mutually exclusive with `from` and `to`. Format: YYYY-MM-DD
     #[cfg_attr(
         feature = "clap",
-        clap(long, group = "date-flag", name = "Specific Date", exclusive = true)
+        clap(
+            long,
+            group = "date-flag",
+            value_name = "Specific Date",
+            exclusive = true
+        )
     )]
     #[builder(setter(strip_option))]
     date: Option<NaiveDate>,
 
     /// Start date for the reflection period. Format: YYYY-MM-DD
-    #[cfg_attr(feature = "clap", clap(long, group = "date-flag", name = "Start Date"))]
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, group = "date-flag", value_name = "Start Date")
+    )]
     #[builder(setter(strip_option))]
     from: Option<NaiveDate>,
 
     /// End date for the reflection period. Format: YYYY-MM-DD
-    #[cfg_attr(feature = "clap", clap(long, group = "date-flag", name = "End Date"))]
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, group = "date-flag", value_name = "End Date")
+    )]
     #[builder(setter(strip_option))]
     to: Option<NaiveDate>,
 }

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 use tracing::debug;
@@ -30,18 +31,24 @@ pub struct BeginCommandOptions {
     // FIXME: We should directly parse that into PaceTime or PaceNaiveDateTime
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, name = "Starting Time", alias = "start")
+        clap(short, long, value_name = "Starting Time", visible_alias = "start")
     )]
     at: Option<String>,
 
     /// The description of the activity you want to start
-    #[cfg_attr(feature = "clap", clap(name = "Activity Description"))]
+    #[cfg_attr(feature = "clap", clap(value_name = "Activity Description"))]
     description: String,
 
     /// The tags you want to associate with the activity, separated by a comma
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, name = "Tags", alias = "tag", value_delimiter = ',')
+        clap(
+            short,
+            long,
+            value_name = "Tags",
+            visible_alias = "tag",
+            value_delimiter = ','
+        )
     )]
     tags: Option<Vec<String>>,
 
@@ -49,6 +56,20 @@ pub struct BeginCommandOptions {
     /// FIXME: involves parsing the project configuration first
     #[cfg_attr(feature = "clap", clap(skip))]
     _projects: Option<Vec<String>>,
+
+    /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, value_name = "Time Zone", visible_alias = "tz")
+    )]
+    time_zone: Option<Tz>,
+
+    /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, value_name = "Time Zone Offset", visible_alias = "tzo")
+    )]
+    time_zone_offset: Option<i32>,
 }
 
 impl BeginCommandOptions {

@@ -22,7 +22,7 @@ pub struct EndCommandOptions {
     /// The time the activity has ended (defaults to the current time if not provided). Format: HH:MM
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, name = "Finishing Time", alias = "end")
+        clap(short, long, value_name = "Finishing Time", visible_alias = "end")
     )]
     // FIXME: We should directly parse that into PaceTime or PaceNaiveDateTime
     at: Option<String>,

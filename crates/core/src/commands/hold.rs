@@ -21,18 +21,21 @@ use crate::{
 #[cfg_attr(feature = "clap", derive(Parser))]
 pub struct HoldCommandOptions {
     /// The time the activity has been holded (defaults to the current time if not provided). Format: HH:MM
-    #[cfg_attr(feature = "clap", clap(long, name = "Pause Time", alias = "at"))]
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, value_name = "Pause Time", visible_alias = "at")
+    )]
     // FIXME: We should directly parse that into PaceTime or PaceNaiveDateTime
     pause_at: Option<String>,
 
     /// The reason for the intermission, if this is not set, the description of the activity to be held will be used
-    #[cfg_attr(feature = "clap", clap(short, long, name = "Reason"))]
+    #[cfg_attr(feature = "clap", clap(short, long, value_name = "Reason"))]
     reason: Option<String>,
 
     /// If there are existing intermissions, they will be finished and a new one is being created
     ///
     /// This is useful, if you want to also track the purpose of an interruption to an activity.
-    #[cfg_attr(feature = "clap", clap(long))]
+    #[cfg_attr(feature = "clap", clap(long, visible_alias = "new"))]
     new_if_exists: bool,
 }
 

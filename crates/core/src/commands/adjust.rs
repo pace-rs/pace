@@ -27,21 +27,40 @@ pub struct AdjustCommandOptions {
     /// The category for the activity
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, group = "adjust", name = "Category", alias = "at")
+        clap(
+            short,
+            long,
+            group = "adjust",
+            value_name = "Category",
+            visible_alias = "cat"
+        )
     )]
     category: Option<String>,
 
     /// The description of the activity
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, group = "adjust", name = "Description", alias = "desc")
+        clap(
+            short,
+            long,
+            group = "adjust",
+            value_name = "Description",
+            visible_alias = "desc"
+        )
     )]
     description: Option<String>,
 
     /// The start time of the activity. Format: HH:MM
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, group = "adjust", name = "Start Time", alias = "begin")
+        clap(
+            short,
+            long,
+            group = "adjust",
+            value_name = "Starting Time",
+            visible_alias = "begin",
+            visible_alias = "at"
+        )
     )]
     start: Option<NaiveTime>,
 
@@ -53,7 +72,8 @@ pub struct AdjustCommandOptions {
             long,
             group = "adjust",
             name = "Tags",
-            alias = "tag",
+            value_name = "Tags",
+            visible_alias = "tag",
             value_delimiter = ','
         )
     )]
@@ -67,8 +87,7 @@ pub struct AdjustCommandOptions {
             long,
             group = "adjust",
             requires = "Tags",
-            name = "Override Tags",
-            alias = "otag"
+            value_name = "Override Tags",
         )
     )]
     override_tags: bool,

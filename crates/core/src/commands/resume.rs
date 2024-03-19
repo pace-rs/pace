@@ -14,7 +14,7 @@ pub struct ResumeCommandOptions {
     /// The time the activity has been resumed at. Format: HH:MM
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, name = "Resumed Time", alias = "resumed")
+        clap(short, long, value_name = "Resumed Time", visible_alias = "resumed")
     )]
     at: Option<String>,
 
