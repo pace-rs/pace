@@ -8,3 +8,6 @@ tests/generated/
 data/data.json
 .env
 logs/*
+
+# Cargo files
+.cargo/config.toml
