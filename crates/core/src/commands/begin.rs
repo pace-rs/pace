@@ -64,7 +64,7 @@ pub struct BeginCommandOptions {
     )]
     time_zone: Option<Tz>,
 
-    /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
+    /// Time zone offset to use for the activity, e.g., "+0200" or "-0500". Format: ±HHMM
     #[cfg_attr(
         feature = "clap",
         clap(long, value_name = "Time Zone Offset", visible_alias = "tzo")

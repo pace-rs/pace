@@ -1,3 +1,4 @@
+use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 
@@ -37,6 +38,20 @@ pub struct HoldCommandOptions {
     /// This is useful, if you want to also track the purpose of an interruption to an activity.
     #[cfg_attr(feature = "clap", clap(long, visible_alias = "new"))]
     new_if_exists: bool,
+
+    /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, value_name = "Time Zone", visible_alias = "tz")
+    )]
+    time_zone: Option<Tz>,
+
+    /// Time zone offset to use for the activity, e.g., "+0200" or "-0500". Format: ±HHMM
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, value_name = "Time Zone Offset", visible_alias = "tzo")
+    )]
+    time_zone_offset: Option<i32>,
 }
 
 impl HoldCommandOptions {
