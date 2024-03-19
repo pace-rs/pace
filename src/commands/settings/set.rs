@@ -10,6 +10,7 @@ use crate::prelude::PACE_APP;
 #[derive(Subcommand, Command, Debug, Runnable)]
 pub enum SetChoiceSubCmd {
     /// Set the time zone
+    #[clap(visible_alias = "tz")]
     Timezone(SetTimezoneSubCmd),
 }
 

@@ -69,7 +69,7 @@ pub enum PaceCmd {
     Setup(setup::SetupCmd),
 
     /// ⚙️  Changes various application settings, including Pomodoro lengths, time zone, and reflection format.
-    #[clap(visible_alias = "s", visible_alias = "set")]
+    #[clap(visible_alias = "s")]
     Settings(settings::SettingsCmd),
 
     /// 📚 Open the online documentation for pace.

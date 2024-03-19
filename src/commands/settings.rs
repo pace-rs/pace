@@ -12,9 +12,11 @@ use clap::{Parser, Subcommand};
 #[derive(Subcommand, Command, Debug, Runnable)]
 pub enum SettingsSubCmd {
     /// Set values in the pace configuration
+    #[clap(visible_alias = "s")]
     Set(set::SetChoiceCmd),
 
     /// Get values from the pace configuration
+    #[clap(visible_alias = "g")]
     Get(get::GetChoiceCmd),
 }
 
