@@ -30,7 +30,7 @@ clap = ["dep:clap"]
 chrono = { workspace = true }
 chrono-tz = { workspace = true }
 clap = { workspace = true, optional = true }
-diesel = { version = "2.1.4", features = ["sqlite", "chrono"], optional = true }
+diesel = { version = "2.1.5", features = ["sqlite", "chrono"], optional = true }
 directories = "5.0.1"
 displaydoc = "0.2.4"
 enum_dispatch = "0.3.12"
