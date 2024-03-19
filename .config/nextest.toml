@@ -1,0 +1,12 @@
+[profile.default]
+leak-timeout = "500ms"
+test-threads = 10 # we use this, because otherwise we get a lot of 'leaked' threads false-positives
+status-level = "slow" # we are not interested in passing tests, we are interested in slow and failed tests
+fail-fast = false
+
+[profile.ci]
+# Print out output for failing tests as soon as they fail, and also at the end
+# of the run (for easy scrollability).
+failure-output = "immediate-final"
+# Do not cancel the test run on the first failure.
+fail-fast = false
