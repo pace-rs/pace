@@ -23,6 +23,7 @@ pub enum SetupSubCmd {
 
     /// Show the current pace configuration
     Show(show::ShowSubCmd),
+
     /// Generate shell completions for the specified shell
     #[clap(alias = "comp")]
     Completions(completions::CompletionsCmd),

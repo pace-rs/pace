@@ -1,10 +1,12 @@
 //! Pace Abscissa Application
 
+use std::path::{Path, PathBuf};
+
 use crate::commands::EntryPoint;
 use abscissa_core::{
     application::{self, AppCell},
     config::{self, CfgCell},
-    trace, Application, FrameworkError, StandardPaths,
+    trace, Application, Configurable, FrameworkError, StandardPaths,
 };
 
 use pace_core::prelude::PaceConfig;
@@ -20,6 +22,9 @@ pub struct PaceApp {
 
     /// Application state.
     state: application::State<Self>,
+
+    /// Config file path
+    config_path: PathBuf,
 }
 
 /// Initialize a new application instance.
@@ -31,6 +36,7 @@ impl Default for PaceApp {
         Self {
             config: CfgCell::default(),
             state: application::State::default(),
+            config_path: PathBuf::default(),
         }
     }
 }
@@ -86,5 +92,41 @@ impl Application for PaceApp {
         } else {
             trace::Config::default()
         }
+    }
+
+    fn init(&mut self, command: &Self::Cmd) -> Result<(), FrameworkError> {
+        // Create and register components with the application.
+        // We do this first to calculate a proper dependency ordering before
+        // application configuration is processed
+        self.register_components(command)?;
+
+        // Load configuration
+        let config = command
+            .config_path()
+            .map(|path| self.load_config(&path))
+            .transpose()?
+            .unwrap_or_default();
+
+        // Set the config file path that was used to load the config
+        // in the current application state
+        self.set_config_path(command.config_path().unwrap_or_default());
+
+        // Fire callback regardless of whether any config was loaded to
+        // in order to signal state in the application lifecycle
+        self.after_config(command.process_config(config)?)?;
+
+        Ok(())
+    }
+}
+
+impl PaceApp {
+    /// Get the config file path
+    pub fn config_path(&self) -> &Path {
+        &self.config_path
+    }
+
+    /// Set the config file path
+    pub fn set_config_path(&mut self, config_path: PathBuf) {
+        self.config_path = config_path;
     }
 }

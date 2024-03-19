@@ -94,7 +94,8 @@ const fn cli_colour_styles() -> Styles {
         .placeholder(AnsiColor::Magenta.on_default())
 }
 
-/// Entry point for the application. It needs to be a struct to allow using subcommands!
+/// Entry point for the application.
+// It needs to be a struct to allow using subcommands!
 #[derive(clap::Parser, Command, Debug)]
 #[command(name="pace", author, about, styles=cli_colour_styles(), version, arg_required_else_help = true, propagate_version = true, )]
 pub struct EntryPoint {

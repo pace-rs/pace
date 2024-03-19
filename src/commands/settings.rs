@@ -1,26 +1,28 @@
 //! `settings` subcommand
 
-use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
-use clap::Parser;
-use pace_core::prelude::SettingsCommandOptions;
+/// Getters for the `settings` subcommand
+pub mod get;
+/// Setters for the `settings` subcommand
+pub mod set;
 
-use crate::prelude::PACE_APP;
+use abscissa_core::{Command, Runnable};
+use clap::{Parser, Subcommand};
+
+/// `settings` (sub-) subcommand
+#[derive(Subcommand, Command, Debug, Runnable)]
+pub enum SettingsSubCmd {
+    /// Set values in the pace configuration
+    Set(set::SetChoiceCmd),
+
+    /// Get values from the pace configuration
+    Get(get::GetChoiceCmd),
+}
 
 /// `settings` subcommand
-#[derive(Command, Debug, Parser)]
+#[derive(Command, Debug, Parser, Runnable)]
 pub struct SettingsCmd {
-    #[clap(flatten)]
-    settings_opts: SettingsCommandOptions,
+    #[clap(subcommand)]
+    commands: SettingsSubCmd,
 }
 
-impl Runnable for SettingsCmd {
-    fn run(&self) {
-        match self.settings_opts.handle_settings(&PACE_APP.config()) {
-            Ok(user_message) => user_message.display(),
-            Err(err) => {
-                status_err!("{}", err);
-                PACE_APP.shutdown(Shutdown::Crash);
-            }
-        };
-    }
-}
+// `pace settings`

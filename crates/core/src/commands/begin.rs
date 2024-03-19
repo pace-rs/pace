@@ -76,7 +76,7 @@ pub struct BeginCommandOptions {
             visible_alias = "tzo"
         )
     )]
-    time_zone_offset: Option<i32>,
+    time_zone_offset: Option<String>,
 }
 
 impl BeginCommandOptions {

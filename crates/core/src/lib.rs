@@ -36,7 +36,6 @@ pub mod prelude {
             now::NowCommandOptions,
             reflect::{DateFlags, ExpensiveFlags, ReflectCommandOptions, TimeFlags},
             resume::{ResumeCommandOptions, ResumeOptions},
-            settings::SettingsCommandOptions,
             DeleteOptions, EndOptions, KeywordOptions, UpdateOptions,
         },
         config::{

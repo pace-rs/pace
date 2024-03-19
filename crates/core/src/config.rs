@@ -64,12 +64,12 @@ impl PaceConfig {
     /// # Arguments
     ///
     /// `activity_log` - The path to the activity log file
-    pub fn add_activity_log_path(&mut self, activity_log: impl AsRef<Path>) {
+    pub fn set_activity_log_path(&mut self, activity_log: impl AsRef<Path>) {
         *self.general_mut().activity_log_options_mut().path_mut() =
             activity_log.as_ref().to_path_buf();
     }
 
-    pub fn add_time_zone(&mut self, time_zone: Tz) {
+    pub fn set_time_zone(&mut self, time_zone: Tz) {
         *self.general_mut().default_time_zone_mut() = Some(time_zone);
     }
 }
@@ -100,7 +100,7 @@ pub struct GeneralConfig {
 
     /// The default time zone
     /// Default: `UTC`
-    #[getset(get = "pub", get_mut = "pub")]
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     default_time_zone: Option<Tz>,
 }
@@ -112,12 +112,12 @@ pub struct ActivityLogOptions {
     /// The path to the activity log file
     /// Default is operating system dependent
     /// Use `pace setup config` to set this value initially
-    #[getset(get = "pub", get_mut = "pub")]
+    #[getset(get_mut = "pub")]
     path: PathBuf,
 
     /// The format for the activity log
     /// Default: `toml`
-    #[getset(get = "pub", get_mut = "pub")]
+    #[getset(get_mut = "pub")]
     format_kind: Option<ActivityLogFormatKind>,
 
     /// The storage type for the activity log
@@ -517,7 +517,7 @@ mod tests {
     fn test_add_activity_log_path_passes() {
         let mut config = PaceConfig::default();
         let activity_log = "activity.log";
-        config.add_activity_log_path(activity_log);
+        config.set_activity_log_path(activity_log);
 
         assert_eq!(
             config.general().activity_log_options().path(),

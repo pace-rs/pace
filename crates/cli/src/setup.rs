@@ -348,8 +348,8 @@ pub fn setup_config(term: &Term, path_opts: &PathOptions) -> Result<()> {
 
     let final_paths = prompt_activity_log_path(&activity_log_paths)?;
 
-    config.add_activity_log_path(final_paths.activity_log_path());
-    config.add_time_zone(time_zone);
+    config.set_activity_log_path(final_paths.activity_log_path());
+    config.set_time_zone(time_zone);
 
     let final_paths = prompt_config_file_path(final_paths, config_paths.as_slice())?;
 
