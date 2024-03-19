@@ -12,9 +12,8 @@ changelog_update = true
 # release-plz doesn't work well with cargo-dist, so we deactivate releases here
 # and let cargo-dist handle the release
 git_release_enable = false
-# same applies to git-tag WRT to cargo-dist
-git_tag_enable = false
-# but we want to publish the crate to crates.io
+# but we want a tag and to publish to crates.io
+git_tag_enable = true
 publish = true
 
 [changelog]
