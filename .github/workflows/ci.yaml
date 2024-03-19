@@ -65,7 +65,7 @@ jobs:
         run: cargo clippy --all-targets
 
   clippy-future:
-    name: Clippy
+    name: Clippy (Future)
     runs-on: ubuntu-latest
     strategy:
       matrix:
