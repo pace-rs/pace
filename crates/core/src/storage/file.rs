@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeMap,
-    fs::{self, OpenOptions},
+    fs::{create_dir_all, write, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
 };
@@ -99,7 +99,7 @@ impl TomlActivityStorage {
     #[tracing::instrument(skip(self))]
     pub fn sync_to_file(&self) -> PaceResult<()> {
         let data = toml::to_string(&self.cache.get_activity_log())?;
-        std::fs::write(&self.path, data)?;
+        write(&self.path, data)?;
         Ok(())
     }
 }
@@ -108,7 +108,7 @@ impl ActivityStorage for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
     fn setup_storage(&self) -> PaceResult<()> {
         if !self.path.exists() {
-            fs::create_dir_all(
+            create_dir_all(
                 self.path
                     .parent()
                     .ok_or(PaceErrorKind::ParentDirNotFound(self.path.clone()))?,

@@ -111,27 +111,27 @@ pub enum PaceErrorKind {
     #[error(transparent)]
     StdIo(#[from] std::io::Error),
 
-    /// Serialization to TOML failed: {0}
+    /// Serialization to TOML failed: `{0}`
     #[error(transparent)]
     SerializationToTomlFailed(#[from] toml::ser::Error),
 
-    /// Deserialization from TOML failed: {0}
+    /// Deserialization from TOML failed: `{0}`
     #[error(transparent)]
     DeserializationFromTomlFailed(#[from] toml::de::Error),
 
-    /// Activity store error: {0}
+    /// Activity store error: `{0}`
     #[error(transparent)]
     ActivityStore(#[from] ActivityStoreErrorKind),
 
-    /// Activity log error: {0}
+    /// Activity log error: `{0}`
     #[error(transparent)]
     ActivityLog(#[from] ActivityLogErrorKind),
 
-    /// Time related error: {0}
+    /// Time related error: `{0}`
     #[error(transparent)]
     PaceTime(#[from] PaceTimeErrorKind),
 
-    /// JSON error: {0}
+    /// JSON error: `{0}`
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
@@ -139,11 +139,11 @@ pub enum PaceErrorKind {
     // #[error(transparent)]
     // #[cfg(feature = "sqlite")]
     // SQLite(#[from] diesel::ConnectionError),
-    /// Chrono parse error: {0}
+    /// Chrono parse error: `{0}`
     #[error(transparent)]
     ChronoParse(#[from] chrono::ParseError),
 
-    /// Time chosen is not valid, because it lays before the current activity's beginning: {0}
+    /// Time chosen is not valid, because it lays before the current activity's beginning: `{0}`
     #[error(transparent)]
     ChronoDurationIsNegative(#[from] chrono::OutOfRangeError),
 
@@ -194,22 +194,22 @@ pub enum ActivityLogErrorKind {
     /// Cache not available
     CacheNotAvailable,
 
-    /// Activity with id '{0}' not found
+    /// `Activity` with id '{0}' not found
     ActivityNotFound(ActivityGuid),
 
-    /// Activity with id '{0}' can't be removed from the activity log
+    /// `Activity` with id '{0}' can't be removed from the activity log
     ActivityCantBeRemoved(usize),
 
     /// This activity has no id
     ActivityIdNotSet,
 
-    /// Activity with id '{0}' already in use, can't create a new activity with the same id
+    /// `Activity` with id '{0}' already in use, can't create a new activity with the same id
     ActivityIdAlreadyInUse(ActivityGuid),
 
-    /// Activity in the ActivityLog has a different id than the one provided: {0} != {1}
+    /// `Activity` in the `ActivityLog` has a different id than the one provided: {0} != {1}
     ActivityIdMismatch(ActivityGuid, ActivityGuid),
 
-    /// Activity already has an intermission: {0}
+    /// `Activity` already has an intermission: {0}
     ActivityAlreadyHasIntermission(Box<Activity>),
 
     /// There have been some activities that have not been ended
@@ -218,7 +218,7 @@ pub enum ActivityLogErrorKind {
     /// No active activity found with id '{0}'
     NoActiveActivityFound(ActivityGuid),
 
-    /// Activity with id '{0}' already ended
+    /// `Activity` with id '{0}' already ended
     ActivityAlreadyEnded(ActivityGuid),
 
     /// Activity with id '{0}' already has been archived
@@ -233,7 +233,7 @@ pub enum ActivityLogErrorKind {
     /// No activity kind options found for activity with id '{0}'
     ActivityKindOptionsNotFound(ActivityGuid),
 
-    /// ParentId not set for activity with id '{0}'
+    /// `ParentId` not set for activity with id '{0}'
     ParentIdNotSet(ActivityGuid),
 
     /// Category not set for activity with id '{0}'
