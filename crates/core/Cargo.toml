@@ -50,7 +50,7 @@ strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
 tabled = "0.15.0"
 thiserror = "1.0.58"
-toml = { version = "0.8.11", features = ["indexmap", "preserve_order"] }
+toml = { version = "0.8.12", features = ["indexmap", "preserve_order"] }
 tracing = { workspace = true }
 typed-builder = { workspace = true }
 ulid = { version = "1.1.2", features = ["serde"] }
