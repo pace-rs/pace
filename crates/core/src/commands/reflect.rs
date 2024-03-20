@@ -1,20 +1,18 @@
 use chrono::NaiveDate;
+use chrono_tz::Tz;
+#[cfg(feature = "clap")]
+use clap::Parser;
 use getset::{Getters, MutGetters, Setters};
 use serde_derive::Serialize;
 use std::path::PathBuf;
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-#[cfg(feature = "clap")]
-use clap::Parser;
-
 use crate::{
     config::PaceConfig,
-    domain::{
-        activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind,
-        time::get_time_frame_from_flags,
-    },
+    domain::{activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind},
     error::{PaceResult, UserMessage},
+    prelude::PaceTimeFrame,
     service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
     storage::get_storage_from_config,
 };
@@ -23,6 +21,8 @@ use crate::{
 #[derive(Debug, Getters)]
 #[getset(get = "pub")]
 #[cfg_attr(feature = "clap", derive(Parser))]
+#[cfg_attr(
+        feature = "clap", clap(group = clap::ArgGroup::new("tz").multiple(false).required(false)))]
 pub struct ReflectCommandOptions {
     /// Filter by activity kind (e.g., activity, task)
     #[cfg_attr(
@@ -73,6 +73,25 @@ pub struct ReflectCommandOptions {
     )]
     date_flags: DateFlags,
 
+    /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, value_name = "Time Zone", group = "tz", visible_alias = "tz")
+    )]
+    time_zone: Option<Tz>,
+
+    /// Time zone offset to use for the activity, e.g., "+0200" or "-0500". Format: ±HHMM
+    #[cfg_attr(
+        feature = "clap",
+        clap(
+            long,
+            value_name = "Time Zone Offset",
+            group = "tz",
+            visible_alias = "tzo"
+        )
+    )]
+    time_zone_offset: Option<String>,
+
     /// Expensive flags
     /// These flags are expensive to compute and may take longer to generate
     #[cfg_attr(
@@ -85,11 +104,28 @@ pub struct ReflectCommandOptions {
 impl ReflectCommandOptions {
     #[tracing::instrument(skip(self))]
     pub fn handle_reflect(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+        let Self {
+            export_file,
+            time_flags,
+            date_flags,
+            time_zone,
+            time_zone_offset,
+            .. // TODO: ignore the rest of the fields for now,
+        } = self;
+
+        // Validate the time and time zone as early as possible
+        let time_frame = PaceTimeFrame::try_from((
+            time_flags,
+            date_flags,
+            time_zone
+                .as_ref()
+                .or_else(|| config.general().default_time_zone().as_ref()),
+            time_zone_offset.as_ref(),
+        ))?;
+
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let activity_tracker = ActivityTracker::with_activity_store(activity_store);
-
-        let time_frame = get_time_frame_from_flags(self.time_flags(), self.date_flags())?;
 
         debug!("Displaying reflection for time frame: {}", time_frame);
 
@@ -111,7 +147,7 @@ impl ReflectCommandOptions {
                 debug!("Reflection: {}", json);
 
                 // write to file if export file is specified
-                if let Some(export_file) = self.export_file() {
+                if let Some(export_file) = export_file {
                     std::fs::write(export_file, json)?;
 
                     return Ok(UserMessage::new(format!(
@@ -152,7 +188,7 @@ pub struct DateFlags {
         )
     )]
     #[builder(setter(strip_option))]
-    date: Option<NaiveDate>,
+    pub(crate) date: Option<NaiveDate>,
 
     /// Start date for the reflection period. Format: YYYY-MM-DD
     #[cfg_attr(
@@ -160,7 +196,7 @@ pub struct DateFlags {
         clap(long, group = "date-flag", value_name = "Start Date")
     )]
     #[builder(setter(strip_option))]
-    from: Option<NaiveDate>,
+    pub(crate) from: Option<NaiveDate>,
 
     /// End date for the reflection period. Format: YYYY-MM-DD
     #[cfg_attr(
@@ -168,7 +204,7 @@ pub struct DateFlags {
         clap(long, group = "date-flag", value_name = "End Date")
     )]
     #[builder(setter(strip_option))]
-    to: Option<NaiveDate>,
+    pub(crate) to: Option<NaiveDate>,
 }
 
 #[derive(

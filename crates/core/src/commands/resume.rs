@@ -1,3 +1,4 @@
+use chrono::NaiveTime;
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
@@ -5,7 +6,7 @@ use clap::Parser;
 use getset::Getters;
 use typed_builder::TypedBuilder;
 
-use crate::domain::time::PaceNaiveDateTime;
+use crate::domain::time::PaceDateTime;
 
 /// `resume` subcommand options
 #[derive(Debug, Getters, TypedBuilder, Clone, PartialEq, Eq, Hash, Default)]
@@ -19,7 +20,7 @@ pub struct ResumeCommandOptions {
         feature = "clap",
         clap(short, long, value_name = "Resumed Time", visible_alias = "resumed")
     )]
-    at: Option<String>,
+    at: Option<NaiveTime>,
 
     /// Show a list of all recent activities to continue
     #[cfg_attr(feature = "clap", clap(short, long))]
@@ -58,5 +59,5 @@ impl ResumeCommandOptions {
 pub struct ResumeOptions {
     /// The resume time of the intermission
     #[builder(default, setter(into))]
-    resume_time: Option<PaceNaiveDateTime>,
+    resume_time: Option<PaceDateTime>,
 }

@@ -596,7 +596,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         Some(activities.activities().iter().try_fold(
             BTreeMap::new(),
             |mut acc: BTreeMap<PaceDate, Vec<ActivityItem>>, (activity_id, activity)| {
-                let begin_date = activity.begin().date();
+                let begin_date = activity.begin().date_naive();
 
                 debug!("Begin date: {:?}", begin_date);
 
@@ -795,7 +795,7 @@ mod tests {
     use chrono::Local;
 
     use crate::{
-        domain::time::{PaceDate, PaceNaiveDateTime},
+        domain::time::{PaceDate, PaceDateTime},
         error::TestResult,
     };
 
@@ -937,7 +937,7 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceNaiveDateTime::new(
+        let new_begin = PaceDateTime::new(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
         );
         let updated_activity = Activity::builder()
@@ -1058,7 +1058,7 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceNaiveDateTime::new(
+        let new_begin = PaceDateTime::new(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
         );
         let updated_activity = Activity::builder()
@@ -1189,7 +1189,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceNaiveDateTime::new(end_time),
+            &PaceDateTime::new(end_time),
             "End time was not set."
         );
 
@@ -1248,7 +1248,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceNaiveDateTime::new(now),
+            &PaceDateTime::new(now),
             "End time was not set."
         );
 
@@ -1304,7 +1304,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceNaiveDateTime::new(now),
+            &PaceDateTime::new(now),
             "End time was not set."
         );
 
@@ -1531,7 +1531,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceNaiveDateTime::new(end_time),
+            &PaceDateTime::new(end_time),
             "End time was not set."
         );
 
@@ -1741,7 +1741,7 @@ mod tests {
         );
 
         assert_eq!(
-            grouped_activity.activity().begin().date(),
+            grouped_activity.activity().begin().date_naive(),
             PaceDate(begin_time.date()),
             "Grouped activity date is not the same as the original activity date."
         );

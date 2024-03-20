@@ -1,15 +1,17 @@
 use std::collections::HashSet;
 
+use chrono::NaiveTime;
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
+use getset::Getters;
 use tracing::debug;
 
 use crate::{
     config::PaceConfig,
     domain::{
         activity::{Activity, ActivityKind},
-        time::extract_time_or_now,
+        time::PaceDateTime,
     },
     error::{PaceResult, UserMessage},
     service::activity_store::ActivityStore,
@@ -17,10 +19,11 @@ use crate::{
 };
 
 /// `begin` subcommand options
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Getters)]
 #[cfg_attr(feature = "clap", derive(Parser))]
 #[cfg_attr(
         feature = "clap", clap(group = clap::ArgGroup::new("tz").multiple(false).required(false)))]
+#[getset(get = "pub")]
 pub struct BeginCommandOptions {
     /// The Category of the activity you want to start
     ///
@@ -30,12 +33,11 @@ pub struct BeginCommandOptions {
     category: Option<String>,
 
     /// The time the activity has been started at. Format: HH:MM
-    // FIXME: We should directly parse that into PaceTime or PaceNaiveDateTime
     #[cfg_attr(
         feature = "clap",
         clap(short, long, value_name = "Starting Time", visible_alias = "start")
     )]
-    at: Option<String>,
+    at: Option<NaiveTime>,
 
     /// The description of the activity you want to start
     #[cfg_attr(feature = "clap", clap(value_name = "Activity Description"))]
@@ -98,43 +100,32 @@ impl BeginCommandOptions {
     pub fn handle_begin(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
         let Self {
             category,
-            at: start,
+            at,
             description,
             tags,
+            time_zone,
+            time_zone_offset,
             .. // TODO: exclude projects for now
         } = self;
+
+        let date_time = PaceDateTime::try_from((
+            at.as_ref(),
+            time_zone
+                .as_ref()
+                .or_else(|| config.general().default_time_zone().as_ref()),
+            time_zone_offset.as_ref(),
+        ))?;
+
+        debug!("Parsed time: {date_time:?}");
 
         // parse tags from string or get an empty set
         let tags = tags
             .as_ref()
             .map(|tags| tags.iter().cloned().collect::<HashSet<String>>());
 
-        debug!("Parsed tags: {:?}", tags);
-
-        // parse time from string or get now
-        let date_time = extract_time_or_now(start)?.validate_future()?;
-
-        debug!("Parsed date time: {:?}", date_time);
+        debug!("Parsed tags: {tags:?}");
 
         // TODO: Parse categories and subcategories from string
-        // let (category, subcategory) = if let Some(ref category) = category {
-        //     let separator = config.general().category_separator();
-        //     extract_categories(category.as_str(), separator.as_str())
-        // } else {
-        //     // if no category is given, use the default category
-        //     // FIXME: This should be the default category from the project configuration
-        //     // but for now, we'll just use category defaults
-        //     //
-        //     // FIXME: We might also want to merge the project configuration with the general configuration first to have precedence
-        //     //
-        //     // let category = if let Some(category) = PACE_APP.config().general().default_category() {
-        //     //     category
-        //     // } else {
-        //     // &Category::default()
-        //     // };
-
-        //     (Category::default(), None)
-        // };
 
         let activity = Activity::builder()
             .description(description.clone())

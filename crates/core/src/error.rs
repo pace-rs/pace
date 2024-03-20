@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::domain::{
     activity::{Activity, ActivityGuid},
-    time::PaceNaiveDateTime,
+    time::PaceDateTime,
 };
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
@@ -256,8 +256,8 @@ pub enum PaceTimeErrorKind {
     /// Failed to parse time '{0}' from user input, please use the format HH:MM
     ParsingTimeFromUserInputFailed(String),
 
-    /// The start time cannot be in the future: {0}
-    StartTimeInFuture(PaceNaiveDateTime),
+    /// The start time cannot be in the future, please use a time in the past: '{0}'
+    StartTimeInFuture(PaceDateTime),
 
     /// Failed to parse duration '{0}' from activity log, please use only numbers >= 0
     ParsingDurationFailed(String),
@@ -275,6 +275,18 @@ pub enum PaceTimeErrorKind {
 
     /// Invalid time zone: {0}
     InvalidTimeZone(String),
+
+    /// Both time zone and time zone offset are defined, please use only one
+    TzAndTzOffsetDefined,
+
+    /// Failed to parse fixed offset '{0}' from user input, please use the format ±HHMM
+    ParsingFixedOffsetFailed(String),
+
+    /// Failed to create PaceDateTime from user input, please use the format HH:MM and ±HHMM
+    InvalidUserInput,
+
+    /// Time zone not found
+    UndefinedTimeZone,
 }
 
 /// [`PaceTimeErrorKind`] describes the errors that can happen while dealing with time.

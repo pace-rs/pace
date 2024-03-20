@@ -7,9 +7,9 @@ use eyre::Result;
 
 use pace_cli::{confirmation_or_break, prompt_resume_activity};
 use pace_core::prelude::{
-    extract_time_or_now, get_storage_from_config, ActivityQuerying, ActivityReadOps,
-    ActivityStateManagement, ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage,
-    UserMessage,
+    get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
+    ActivityStore, PaceDateTime, ResumeCommandOptions, ResumeOptions, SyncStorage, UserMessage,
+    Validate,
 };
 
 use crate::prelude::PACE_APP;
@@ -49,11 +49,23 @@ impl Runnable for ResumeCmd {
 impl ResumeCmd {
     /// Inner run implementation for the resume command
     pub fn inner_run(&self) -> Result<UserMessage> {
+        let config = &PACE_APP.config();
+
+        // Validate the time and time zone as early as possible
+        let date_time = PaceDateTime::try_from((
+            self.resume_opts.at().as_ref(),
+            self.resume_opts
+                .time_zone()
+                .as_ref()
+                .or_else(|| config.general().default_time_zone().as_ref()),
+            self.resume_opts.time_zone_offset().as_ref(),
+        ))?
+        .validate()?;
+
+        debug!("Parsed time: {date_time:?}");
+
         let activity_store =
             ActivityStore::with_storage(get_storage_from_config(&PACE_APP.config())?)?;
-
-        // parse time from string or get now
-        let date_time = extract_time_or_now(self.resume_opts.at())?.validate_future()?;
 
         let (msg, resumed) = if let Some(resumed_activity) = activity_store
             .resume_most_recent_activity(ResumeOptions::builder().resume_time(date_time).build())?
@@ -71,6 +83,7 @@ impl ResumeCmd {
                     .config()
                     .general()
                     .most_recent_count()
+                    // Default to '9' if the most recent count is not set
                     .unwrap_or_else(|| 9u8),
             ))?
             else {

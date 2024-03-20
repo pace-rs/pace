@@ -11,7 +11,7 @@ use typed_builder::TypedBuilder;
 
 use crate::domain::{
     activity::{ActivityGroup, ActivityItem, ActivityKind},
-    time::{PaceDuration, PaceNaiveDateTime, TimeRangeOptions},
+    time::{PaceDateTime, PaceDuration, TimeRangeOptions},
 };
 
 /// The kind of review format
@@ -224,7 +224,7 @@ impl SummaryActivityGroup {
 #[allow(clippy::struct_field_names)]
 pub struct Highlights {
     /// The day with the highest productive hours.
-    pub most_productive_day: PaceNaiveDateTime,
+    pub most_productive_day: PaceDateTime,
 
     /// The kind of activity most frequently logged.
     pub most_frequent_activity_kind: ActivityKind,

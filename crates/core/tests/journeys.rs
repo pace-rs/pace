@@ -1,13 +1,13 @@
 use pace_core::prelude::{
     Activity, ActivityQuerying, ActivityReadOps, ActivityStateManagement, HoldOptions,
-    InMemoryActivityStorage, PaceNaiveDateTime, ResumeOptions, TestResult,
+    InMemoryActivityStorage, PaceDateTime, ResumeOptions, TestResult,
 };
 
 #[test]
 #[allow(clippy::too_many_lines)]
 fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
     let storage = InMemoryActivityStorage::new();
-    let _now = PaceNaiveDateTime::now();
+    let _now = PaceDateTime::now();
 
     let first_og_activity = Activity::builder().description("Test activity").build();
 

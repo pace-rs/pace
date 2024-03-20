@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use chrono::{NaiveDateTime, NaiveTime};
+use chrono::NaiveTime;
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
@@ -11,8 +11,8 @@ use typed_builder::TypedBuilder;
 use crate::{
     commands::UpdateOptions,
     config::PaceConfig,
-    domain::time::PaceNaiveDateTime,
-    error::{ActivityLogErrorKind, PaceResult, PaceTimeErrorKind, UserMessage},
+    domain::time::{PaceDateTime, Validate},
+    error::{ActivityLogErrorKind, PaceResult, UserMessage},
     service::activity_store::ActivityStore,
     storage::{get_storage_from_config, ActivityQuerying, ActivityWriteOps, SyncStorage},
 };
@@ -132,6 +132,29 @@ impl AdjustCommandOptions {
     /// some additional information
     #[tracing::instrument(skip(self))]
     pub fn handle_adjust(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+        let Self {
+            category,
+            description,
+            start,
+            tags,
+            override_tags,
+            time_zone,
+            time_zone_offset,
+            ..
+        } = self;
+
+        // Validate the time and time zone as early as possible
+        let date_time = PaceDateTime::try_from((
+            start.as_ref(),
+            time_zone
+                .as_ref()
+                .or_else(|| config.general().default_time_zone().as_ref()),
+            time_zone_offset.as_ref(),
+        ))?
+        .validate()?;
+
+        debug!("Parsed time: {date_time:?}");
+
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let activity_item = activity_store
@@ -143,37 +166,28 @@ impl AdjustCommandOptions {
         let guid = *activity_item.guid();
         let mut activity = activity_item.activity().clone();
 
-        if let Some(category) = &self.category {
+        if let Some(category) = category {
             debug!("Setting category to: {:?}", category);
 
             _ = activity.set_category(category.clone().into());
         }
 
-        if let Some(description) = &self.description {
+        if let Some(description) = description {
             debug!("Setting description to: {:?}", description);
 
             _ = activity.set_description(description.clone());
         }
 
-        if let Some(start) = &self.start {
-            // Test if PaceNaiveDateTime actually lies in the future
-            let start_time =
-                PaceNaiveDateTime::new(NaiveDateTime::new(*activity.begin().date(), *start));
+        if start.is_some() {
+            debug!("Setting start time to: {:?}", date_time);
 
-            // Test if PaceNaiveDateTime actually lies in the future
-            if start_time > PaceNaiveDateTime::now() {
-                return Err(PaceTimeErrorKind::StartTimeInFuture(start_time).into());
-            };
-
-            debug!("Setting start time to: {:?}", start_time);
-
-            _ = activity.set_begin(start_time);
+            _ = activity.set_begin(date_time);
         }
 
-        if let Some(tags) = &self.tags {
+        if let Some(tags) = tags {
             let tags = tags.iter().cloned().collect::<HashSet<String>>();
 
-            if self.override_tags {
+            if *override_tags {
                 debug!("Overriding tags with: {:?}", tags);
                 _ = activity.set_tags(Some(tags));
             } else {

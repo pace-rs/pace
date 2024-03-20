@@ -1,3 +1,4 @@
+use chrono::NaiveTime;
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
@@ -8,7 +9,7 @@ use typed_builder::TypedBuilder;
 use crate::{
     commands::EndOptions,
     config::PaceConfig,
-    domain::time::parse_time_from_user_input,
+    domain::time::{PaceDateTime, Validate},
     error::{PaceResult, UserMessage},
     service::activity_store::ActivityStore,
     storage::{get_storage_from_config, ActivityStateManagement, SyncStorage},
@@ -27,8 +28,7 @@ pub struct EndCommandOptions {
         feature = "clap",
         clap(short, long, value_name = "Finishing Time", visible_alias = "end")
     )]
-    // FIXME: We should directly parse that into PaceTime or PaceNaiveDateTime
-    at: Option<String>,
+    at: Option<NaiveTime>,
 
     /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
     #[cfg_attr(
@@ -67,7 +67,22 @@ impl EndCommandOptions {
     /// that can be displayed to the user
     #[tracing::instrument(skip(self))]
     pub fn handle_end(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
-        let date_time = parse_time_from_user_input(&self.at)?;
+        let Self {
+            at,
+            time_zone,
+            time_zone_offset,
+            ..
+        } = self;
+
+        // Validate the time and time zone as early as possible
+        let date_time = PaceDateTime::try_from((
+            at.as_ref(),
+            time_zone
+                .as_ref()
+                .or_else(|| config.general().default_time_zone().as_ref()),
+            time_zone_offset.as_ref(),
+        ))?
+        .validate()?;
 
         debug!("Parsed date time: {:?}", date_time);
 

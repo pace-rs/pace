@@ -60,10 +60,9 @@ pub mod prelude {
             },
             status::ActivityStatus,
             time::{
-                calculate_duration, duration_to_str, extract_time_or_now,
-                get_local_time_zone_offset, get_time_frame_from_flags, parse_time_from_user_input,
-                PaceDate, PaceDuration, PaceDurationRange, PaceNaiveDateTime, PaceTime,
-                PaceTimeFrame, TimeRangeOptions,
+                calculate_duration, duration_to_str, get_local_time_zone_offset, PaceDate,
+                PaceDateTime, PaceDuration, PaceDurationRange, PaceTime, PaceTimeFrame,
+                TimeRangeOptions, Validate,
             },
         },
         error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult, UserMessage},

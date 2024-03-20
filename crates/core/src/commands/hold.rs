@@ -1,3 +1,4 @@
+use chrono::NaiveTime;
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
@@ -10,7 +11,7 @@ use crate::{
     config::PaceConfig,
     domain::{
         intermission::IntermissionAction,
-        time::{parse_time_from_user_input, PaceNaiveDateTime},
+        time::{PaceDateTime, Validate},
     },
     error::{PaceResult, UserMessage},
     service::activity_store::ActivityStore,
@@ -28,8 +29,7 @@ pub struct HoldCommandOptions {
         feature = "clap",
         clap(long, value_name = "Pause Time", visible_alias = "at")
     )]
-    // FIXME: We should directly parse that into PaceTime or PaceNaiveDateTime
-    pause_at: Option<String>,
+    pause_at: Option<NaiveTime>,
 
     /// The reason for the intermission, if this is not set, the description of the activity to be held will be used
     #[cfg_attr(feature = "clap", clap(short, long, value_name = "Reason"))]
@@ -77,23 +77,37 @@ impl HoldCommandOptions {
     /// A `UserMessage` with the information about the held activity that can be displayed to the user
     #[tracing::instrument(skip(self))]
     pub fn handle_hold(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
-        let action = if self.new_if_exists {
-            IntermissionAction::New
-        } else {
-            IntermissionAction::Extend
-        };
+        let Self {
+            pause_at,
+            reason,
+            new_if_exists,
+            time_zone,
+            time_zone_offset,
+        } = self;
 
-        let date_time = parse_time_from_user_input(&self.pause_at)?;
+        // Validate the time and time zone as early as possible
+        let date_time = PaceDateTime::try_from((
+            pause_at.as_ref(),
+            time_zone
+                .as_ref()
+                .or_else(|| config.general().default_time_zone().as_ref()),
+            time_zone_offset.as_ref(),
+        ))?
+        .validate()?;
 
-        debug!("Parsed date time: {:?}", date_time);
+        debug!("Parsed date time: {date_time:?}");
+
+        let action = IntermissionAction::from(*new_if_exists);
+
+        debug!("Intermission action: {action}");
 
         let hold_opts = HoldOptions::builder()
             .action(action)
-            .reason(self.reason.clone())
+            .reason(reason.as_ref().cloned())
             .begin_time(date_time)
             .build();
 
-        debug!("Hold options: {:?}", hold_opts);
+        debug!("Hold options: {hold_opts:?}");
 
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
@@ -123,7 +137,7 @@ pub struct HoldOptions {
 
     /// The start time of the intermission
     #[builder(default, setter(into))]
-    begin_time: PaceNaiveDateTime,
+    begin_time: PaceDateTime,
 
     /// The reason for holding the activity
     #[builder(default, setter(into))]

@@ -15,7 +15,7 @@ use crate::{
     domain::time::calculate_duration,
     domain::{
         status::ActivityStatus,
-        time::{duration_to_str, PaceDuration, PaceNaiveDateTime},
+        time::{duration_to_str, PaceDateTime, PaceDuration},
     },
     error::{ActivityLogErrorKind, PaceResult},
 };
@@ -212,7 +212,7 @@ pub struct Activity {
     #[builder(default, setter(into))]
     #[getset(get = "pub")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    begin: PaceNaiveDateTime,
+    begin: PaceDateTime,
 
     #[builder(default)]
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
@@ -257,7 +257,7 @@ pub struct ActivityEndOptions {
     /// The end date and time of the activity
     #[builder(default)]
     #[getset(get = "pub")]
-    end: PaceNaiveDateTime,
+    end: PaceDateTime,
 
     /// The duration of the activity
     #[builder(default)]
@@ -267,7 +267,7 @@ pub struct ActivityEndOptions {
 
 impl ActivityEndOptions {
     #[must_use]
-    pub const fn new(end: PaceNaiveDateTime, duration: PaceDuration) -> Self {
+    pub const fn new(end: PaceDateTime, duration: PaceDuration) -> Self {
         Self { end, duration }
     }
 }
@@ -321,12 +321,9 @@ impl Default for ActivityGuid {
 
 impl Display for Activity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let rel_time = match self.begin.and_local_timezone(Local) {
-            chrono::LocalResult::Single(time) => duration_to_str(time),
-            chrono::LocalResult::None | chrono::LocalResult::Ambiguous(_, _) => {
-                format!("at {}", self.begin)
-            }
-        };
+        let time = self.begin.and_local_timezone(&Local);
+
+        let rel_time = duration_to_str(time);
 
         let nop_cat = "Uncategorized".to_string();
 
@@ -482,8 +479,8 @@ impl Activity {
     /// Returns `Ok(())` if the activity is ended successfully
     pub fn end_activity_with_duration_calc(
         &mut self,
-        begin: PaceNaiveDateTime,
-        end: PaceNaiveDateTime,
+        begin: PaceDateTime,
+        end: PaceDateTime,
     ) -> PaceResult<()> {
         let end_opts = ActivityEndOptions::new(end, calculate_duration(&begin, end)?);
 
@@ -710,7 +707,7 @@ mod tests {
 
         assert_eq!(
             end,
-            PaceNaiveDateTime::from(NaiveDateTime::parse_from_str(
+            PaceDateTime::from(NaiveDateTime::parse_from_str(
                 "2021-08-01T12:00:00",
                 "%Y-%m-%dT%H:%M:%S"
             )?)
@@ -718,7 +715,7 @@ mod tests {
 
         assert_eq!(
             activity.begin,
-            PaceNaiveDateTime::from(NaiveDateTime::parse_from_str(
+            PaceDateTime::from(NaiveDateTime::parse_from_str(
                 "2021-08-01T10:00:00",
                 "%Y-%m-%dT%H:%M:%S"
             )?)
@@ -751,7 +748,7 @@ mod tests {
 
         assert_eq!(
             end,
-            PaceNaiveDateTime::from(NaiveDateTime::parse_from_str(
+            PaceDateTime::from(NaiveDateTime::parse_from_str(
                 "2021-08-01T12:00:00",
                 "%Y-%m-%dT%H:%M:%S"
             )?)
@@ -761,7 +758,7 @@ mod tests {
 
         assert_eq!(
             activity.begin,
-            PaceNaiveDateTime::from(NaiveDateTime::parse_from_str(
+            PaceDateTime::from(NaiveDateTime::parse_from_str(
                 "2021-08-01T10:00:00",
                 "%Y-%m-%dT%H:%M:%S"
             )?)
