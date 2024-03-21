@@ -794,16 +794,10 @@ impl ActivityQuerying for InMemoryActivityStorage {
 #[cfg(test)]
 mod tests {
 
-    use std::collections::HashSet;
-
-    use chrono::Local;
-
-    use crate::{
-        domain::time::{PaceDate, PaceDateTime},
-        error::TestResult,
-    };
-
     use super::*;
+    use crate::error::TestResult;
+    use chrono::Local;
+    use std::collections::HashSet;
 
     #[test]
     fn test_in_memory_activity_storage_passes() {

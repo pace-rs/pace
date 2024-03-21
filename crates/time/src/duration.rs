@@ -210,3 +210,148 @@ pub fn calculate_duration(begin: &PaceDateTime, end: PaceDateTime) -> PaceTimeRe
 
     Ok(duration.into())
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    use chrono::{NaiveDate, NaiveTime};
+    use eyre::{eyre, Result};
+
+    #[test]
+    fn test_duration_to_str_passes() {
+        let initial_time = Local::now();
+        let result = duration_to_str(initial_time);
+        assert_eq!(result, "just now");
+    }
+
+    #[test]
+    fn test_calculate_duration_passes() -> Result<()> {
+        let begin = PaceDateTime::with_date_time_fixed_offset(DateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+        ));
+
+        let end = PaceDateTime::with_date_time_fixed_offset(DateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
+            NaiveTime::from_hms_opt(0, 0, 1).ok_or(eyre!("Invalid date."))?,
+        ));
+
+        let duration = calculate_duration(&begin, end.into())?;
+        assert_eq!(duration, Duration::from_secs(1).into());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_calculate_duration_fails() -> Result<()> {
+        let begin = PaceDateTime::with_date_time_fixed_offset(DateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
+            NaiveTime::from_hms_opt(0, 0, 1).ok_or(eyre!("Invalid date."))?,
+        ));
+
+        let end = PaceDateTime::with_date_time_fixed_offset(DateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+        ));
+
+        let duration = calculate_duration(&begin, end.into());
+
+        assert!(duration.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_from_duration_passes() {
+        let duration = Duration::from_secs(1);
+        let result = PaceDuration::from(duration);
+        assert_eq!(result, PaceDuration::new(1));
+    }
+
+    #[test]
+    fn test_pace_duration_from_chrono_duration_passes() -> Result<()> {
+        let duration = chrono::TimeDelta::try_seconds(1).ok_or(eyre!("Invalid time delta."))?;
+        let result = PaceDuration::try_from(duration)?;
+        assert_eq!(result, PaceDuration::new(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_default_passes() {
+        let result = PaceDuration::default();
+
+        assert_eq!(result, PaceDuration::new(0));
+    }
+
+    #[test]
+    fn test_pace_duration_zero_passes() {
+        let result = PaceDuration::zero();
+
+        assert_eq!(result, PaceDuration::new(0));
+    }
+
+    #[test]
+    fn test_pace_duration_add_assign_passes() {
+        let mut duration = PaceDuration::new(1);
+        duration += PaceDuration::new(1);
+
+        assert_eq!(duration, PaceDuration::new(2));
+    }
+
+    #[test]
+    fn test_pace_duration_sub_passes() {
+        let duration = PaceDuration::new(2) - PaceDuration::new(1);
+
+        assert_eq!(duration, PaceDuration::new(1));
+    }
+
+    #[test]
+    fn test_pace_duration_sub_assign_passes() {
+        let mut duration = PaceDuration::new(2);
+        duration -= PaceDuration::new(1);
+
+        assert_eq!(duration, PaceDuration::new(1));
+    }
+
+    #[test]
+    fn test_pace_duration_sub_assign_with_u64_passes() {
+        let mut duration = PaceDuration::new(2);
+        duration -= 1;
+
+        assert_eq!(duration, PaceDuration::new(1));
+    }
+
+    #[test]
+    fn test_pace_duration_sub_assign_below_zero_passes() {
+        let mut duration = PaceDuration::new(2);
+        duration -= PaceDuration::new(3);
+
+        assert_eq!(duration, PaceDuration::new(0));
+    }
+
+    #[test]
+    fn test_pace_duration_add_passes() {
+        let duration = PaceDuration::new(1) + PaceDuration::new(1);
+
+        assert_eq!(duration, PaceDuration::new(2));
+    }
+
+    #[test]
+    fn test_pace_duration_from_str_passes() -> Result<()> {
+        let duration = "1".parse::<PaceDuration>()?;
+
+        assert_eq!(duration, PaceDuration::new(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_duration_from_str_fails() {
+        let duration = "a".parse::<PaceDuration>();
+
+        assert!(duration.is_err());
+    }
+}

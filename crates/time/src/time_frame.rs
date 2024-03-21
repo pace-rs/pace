@@ -36,3 +36,25 @@ pub enum PaceTimeFrame {
     /// Yesterday
     Yesterday,
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::flags::{DateFlags, TimeFlags};
+
+    use super::*;
+
+    use eyre::Result;
+
+    #[test]
+    fn test_get_time_frame_from_flags_today_passes() -> Result<()> {
+        let time_flags = TimeFlags::builder().today().build();
+        let date_flags = DateFlags::default();
+
+        let result = PaceTimeFrame::try_from((&time_flags, &date_flags))?;
+
+        assert_eq!(result, PaceTimeFrame::Today);
+
+        Ok(())
+    }
+}

@@ -1,8 +1,7 @@
 //! Test the `ActivityStore` implementation with a `InMemoryStorage` backend.
 
-use pace_core::prelude::{
-    ActivityStore, ActivityTracker, FilterOptions, PaceDuration, TestResult, TimeRangeOptions,
-};
+use pace_core::prelude::{ActivityStore, ActivityTracker, FilterOptions, TestResult};
+use pace_time::{duration::PaceDuration, time_range::TimeRangeOptions};
 use rstest::rstest;
 use similar_asserts::assert_eq;
 

@@ -1257,6 +1257,7 @@ version = "0.1.3"
 dependencies = [
  "chrono",
  "pace_core",
+ "pace_time",
  "rstest",
  "similar-asserts",
 ]
@@ -1824,6 +1825,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e041bb827d1bfca18f213411d51b665309f1afb37a04a5d1464530e13779fc0f"
 dependencies = [
  "console",
+ "serde",
  "similar",
 ]
 

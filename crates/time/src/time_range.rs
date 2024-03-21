@@ -384,3 +384,210 @@ impl TryFrom<(PaceDate, PaceDate)> for TimeRangeOptions {
             .build())
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    use chrono::{DateTime, NaiveTime};
+    use eyre::{eyre, Result};
+
+    #[test]
+    fn test_pace_date_time_is_in_range_options_passes() -> Result<()> {
+        let activity_date_time = PaceDateTime::from(DateTime::new(
+            NaiveDate::from_ymd_opt(2021, 2, 3).ok_or(eyre!("Invalid date."))?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+        ));
+
+        let time_range = TimeRangeOptions::builder()
+            .start(PaceDateTime::from(DateTime::new(
+                NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
+                NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+            )))
+            .end(PaceDateTime::from(DateTime::new(
+                NaiveDate::from_ymd_opt(2021, 2, 4).ok_or(eyre!("Invalid date."))?,
+                NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+            )))
+            .build();
+
+        assert!(time_range.is_in_range(activity_date_time));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_time_is_in_range_options_fails() -> Result<()> {
+        assert!(TimeRangeOptions::builder()
+            .start(PaceDateTime::from(DateTime<Utc>::new(
+                NaiveDate::from_ymd_opt(2021, 2, 4).ok_or(eyre!("Invalid date."))?,
+                NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+            )))
+            .end(PaceDateTime::from(DateTime<Utc>::new(
+                NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
+                NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+            )))
+            .build()
+            .validate()
+            .is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_date_range_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::DateRange(
+            TimeRangeOptions::builder()
+                .start(PaceDateTime::from(
+                    Local::new(
+                        NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
+                        NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+                    )
+                    .with_timezone(&Utc),
+                ))
+                .end(PaceDateTime::from(
+                    Local::new(
+                        NaiveDate::from_ymd_opt(2021, 2, 4).ok_or(eyre!("Invalid date."))?,
+                        NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+                    )
+                    .with_timezone(&Utc),
+                ))
+                .build(),
+        );
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::builder()
+                .start(PaceDateTime::from(DateTime<Utc>::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
+                    NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+                )))
+                .end(PaceDateTime::from(DateTime<Utc>::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 4).ok_or(eyre!("Invalid date."))?,
+                    NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+                )))
+                .build()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_specific_date_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::SpecificDate(PaceDate::new(
+            NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
+        ));
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::builder()
+                .start(PaceDateTime::from(DateTime<Utc>::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
+                    NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+                )))
+                .end(PaceDateTime::from(DateTime<Utc>::new(
+                    NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
+                    NaiveTime::from_hms_opt(23, 59, 59).ok_or(eyre!("Invalid date."))?,
+                )))
+                .build()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_current_month_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::CurrentMonth;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::current_month()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_current_week_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::CurrentWeek;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::current_week()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_current_year_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::CurrentYear;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::current_year()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_last_month_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::LastMonth;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::last_month()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_last_week_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::LastWeek;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::last_week()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_last_year_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::LastYear;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::last_year()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_today_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::Today;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::today()?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_pace_time_frame_yesterday_to_time_range_options_passes() -> Result<()> {
+        let time_frame = PaceTimeFrame::Yesterday;
+
+        assert_eq!(
+            TimeRangeOptions::try_from(time_frame)?,
+            TimeRangeOptions::yesterday()?
+        );
+
+        Ok(())
+    }
+}

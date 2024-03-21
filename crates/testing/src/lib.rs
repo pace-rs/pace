@@ -4,8 +4,7 @@ use chrono::Local;
 
 use pace_core::prelude::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityStatus, ActivityStore, InMemoryActivityStorage, PaceDateTime, TestResult,
-    TomlActivityStorage,
+    ActivityStatus, ActivityStore, InMemoryActivityStorage, TestResult, TomlActivityStorage,
 };
 
 use rstest::fixture;
@@ -53,6 +52,8 @@ pub fn activity_store_no_intermissions() -> TestResult<TestData> {
 // We need to use `#[cfg(not(tarpaulin_include))]` to exclude this from coverage reports
 #[cfg(not(tarpaulin_include))]
 pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
+    use pace_time::date_time::PaceDateTime;
+
     let begin_time = PaceDateTime::default();
 
     let tags = vec!["test".to_string(), "activity".to_string()]
@@ -83,9 +84,9 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
     let time_30_min_ago = Local::now().with_timezone(&chrono::Utc).fixed_offset()
         - chrono::TimeDelta::try_minutes(30).ok_or("Should have time delta.")?;
 
-    let begin_time = PaceDateTime::new(time_30_min_ago);
+    let begin_time = PaceDateTime::with_date_time_fixed_offset(time_30_min_ago);
 
-    let intermission_begin_time = PaceDateTime::new(
+    let intermission_begin_time = PaceDateTime::with_date_time_fixed_offset(
         time_30_min_ago + chrono::TimeDelta::try_minutes(15).ok_or("Should have time delta.")?,
     );
 

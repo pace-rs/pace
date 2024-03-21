@@ -389,3 +389,92 @@ where
 
     Ok(datetime)
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    use eyre::{eyre, Result};
+
+    #[test]
+    fn test_pace_date_time_is_future_fails() -> Result<()> {
+        let future =
+            Local::now() + chrono::TimeDelta::try_days(1).ok_or(eyre!("Invalid time delta."))?;
+        let time = PaceDateTime::with_date_time_fixed_offset(future.naive_local());
+
+        let result = time.validate();
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    // TODO: Rewrite to PaceDateTime
+    // #[test]
+    // fn test_parse_time_from_user_input_passes() -> PaceTimeResult<()> {
+    //     let time = Some("12:00".to_string());
+
+    //     let result = parse_time_from_user_input(&time)?.ok_or("No time.")?;
+
+    //     assert_eq!(
+    //         result,
+    //         DateTime<Utc>::new(
+    //             Local::now().date_naive(),
+    //             NaiveTime::from_hms_opt(12, 0, 0).ok_or(eyre!("Invalid date."))?,
+    //         )
+    //     );
+
+    //     Ok(())
+    // }
+
+    #[test]
+    fn test_begin_date_time_new_passes() -> Result<()> {
+        let time = DateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+        );
+        let result = PaceDateTime::with_date_time_fixed_offset(time);
+        assert_eq!(result, PaceDateTime(time));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_begin_date_time_naive_date_time_passes() -> Result<()> {
+        let time = DateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+        );
+        let begin_date_time = PaceDateTime::with_date_time_fixed_offset(time);
+
+        let result = begin_date_time.date_time_naive();
+
+        assert_eq!(result, time);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_begin_date_time_default_passes() {
+        let result = PaceDateTime::default();
+
+        assert_eq!(
+            result,
+            PaceDateTime(Local::now().round_subsecs(0).fixed_offset())
+        );
+    }
+
+    #[test]
+    fn test_begin_date_time_from_naive_date_time_passes() -> Result<()> {
+        let time = DateTime::new(
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
+        );
+
+        let result = PaceDateTime::from(time);
+
+        assert_eq!(result, PaceDateTime(time));
+
+        Ok(())
+    }
+}

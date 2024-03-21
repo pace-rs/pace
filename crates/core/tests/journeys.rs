@@ -1,7 +1,8 @@
 use pace_core::prelude::{
     Activity, ActivityQuerying, ActivityReadOps, ActivityStateManagement, HoldOptions,
-    InMemoryActivityStorage, PaceDateTime, ResumeOptions, TestResult,
+    InMemoryActivityStorage, ResumeOptions, TestResult,
 };
+use pace_time::date_time::PaceDateTime;
 
 #[test]
 #[allow(clippy::too_many_lines)]
@@ -195,3 +196,8 @@ fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
 
     Ok(())
 }
+
+// #[test]
+// fn test_begin_and_end_activity_in_different_time_zones_passes() -> TestResult<()> {
+//     todo!("Implement this test.")
+// }
