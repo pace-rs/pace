@@ -1,5 +1,10 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use pace_time::{
+    date::PaceDate,
+    duration::{calculate_duration, PaceDurationRange},
+    time_range::TimeRangeOptions,
+};
 use parking_lot::RwLock;
 
 use merge::Merge;
@@ -19,7 +24,6 @@ use crate::{
         activity_log::ActivityLog,
         filter::{ActivityFilterKind, FilteredActivities},
         status::ActivityStatus,
-        time::{calculate_duration, PaceDate, PaceDurationRange, TimeRangeOptions},
     },
     error::{ActivityLogErrorKind, PaceOptResult, PaceResult},
     storage::{

@@ -8,12 +8,10 @@ pub mod reflect;
 pub mod resume;
 
 use getset::Getters;
+use pace_time::date_time::PaceDateTime;
 use typed_builder::TypedBuilder;
 
-use crate::{
-    commands::{hold::HoldOptions, resume::ResumeOptions},
-    domain::time::PaceDateTime,
-};
+use crate::commands::{hold::HoldOptions, resume::ResumeOptions};
 
 /// Options for ending an activity
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]

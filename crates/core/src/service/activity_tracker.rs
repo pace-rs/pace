@@ -1,13 +1,10 @@
 //! This module contains the domain logic for tracking activities and their intermissions.
 
+use pace_time::{time_frame::PaceTimeFrame, time_range::TimeRangeOptions};
 use tracing::debug;
 
 use crate::{
-    domain::{
-        filter::FilterOptions,
-        reflection::ReflectionSummary,
-        time::{PaceTimeFrame, TimeRangeOptions},
-    },
+    domain::{filter::FilterOptions, reflection::ReflectionSummary},
     error::PaceOptResult,
     service::activity_store::ActivityStore,
 };

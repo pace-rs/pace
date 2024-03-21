@@ -1216,13 +1216,11 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "clap",
- "derive_more",
  "diesel",
  "directories",
  "displaydoc",
  "enum_dispatch",
  "getset",
- "humantime",
  "insta",
  "itertools",
  "libsqlite3-sys",
@@ -1230,6 +1228,7 @@ dependencies = [
  "miette",
  "open",
  "pace_testing",
+ "pace_time",
  "parking_lot",
  "rayon",
  "rstest",
@@ -1260,6 +1259,25 @@ dependencies = [
  "pace_core",
  "rstest",
  "similar-asserts",
+]
+
+[[package]]
+name = "pace_time"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "chrono-tz",
+ "clap",
+ "derive_more",
+ "displaydoc",
+ "eyre",
+ "getset",
+ "humantime",
+ "serde",
+ "serde_derive",
+ "thiserror",
+ "tracing",
+ "typed-builder",
 ]
 
 [[package]]

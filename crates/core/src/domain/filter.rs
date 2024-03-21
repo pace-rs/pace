@@ -1,12 +1,10 @@
 use getset::{Getters, MutGetters, Setters};
+use pace_time::time_range::TimeRangeOptions;
 use serde_derive::Serialize;
 use strum::EnumIter;
 use typed_builder::TypedBuilder;
 
-use crate::{
-    commands::reflect::ReflectCommandOptions,
-    domain::{activity::ActivityGuid, time::TimeRangeOptions},
-};
+use crate::{commands::reflect::ReflectCommandOptions, domain::activity::ActivityGuid};
 
 /// Filter for activities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumIter)]

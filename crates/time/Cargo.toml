@@ -1,0 +1,34 @@
+[package]
+name = "pace_time"
+version = "0.1.0"
+authors = { workspace = true }
+categories = { workspace = true }
+edition = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[features]
+default = []
+cli = ["clap"]
+clap = ["dep:clap"]
+
+[dependencies]
+chrono = { workspace = true, features = ["serde"] }
+chrono-tz = { workspace = true, features = ["serde"] }
+clap = { workspace = true, optional = true }
+derive_more = { workspace = true, features = ["add", "add_assign"] }
+displaydoc = { workspace = true }
+getset = { workspace = true }
+humantime = { workspace = true }
+serde = { workspace = true }
+serde_derive = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+typed-builder = { workspace = true }
+
+[dev-dependencies]
+eyre = { workspace = true }
+
+[lints]
+workspace = true

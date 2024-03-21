@@ -4,6 +4,7 @@ members = [
   "crates/core",
   "crates/server",
   "crates/testing",
+  "crates/time",
 ]
 
 [workspace.package]
@@ -42,6 +43,7 @@ open = "5.1.2"
 pace_cli = { path = "crates/cli" }
 pace_core = { path = "crates/core" }
 pace_testing = { path = "crates/testing" }
+pace_time = { path = "crates/time" }
 parking_lot = "0.12.1"
 predicates = "3.1.0"
 rayon = "1.9.0"

@@ -2,11 +2,9 @@ use chrono::NaiveTime;
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
-
 use getset::Getters;
+use pace_time::date_time::PaceDateTime;
 use typed_builder::TypedBuilder;
-
-use crate::domain::time::PaceDateTime;
 
 /// `resume` subcommand options
 #[derive(Debug, Getters, TypedBuilder, Clone, PartialEq, Eq, Hash, Default)]

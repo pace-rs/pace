@@ -20,9 +20,6 @@ pub mod status;
 pub mod tag;
 pub mod task;
 
-/// Time utilities
-pub mod time;
-
 struct Session {
     id: usize,
     task_id: usize,

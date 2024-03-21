@@ -22,7 +22,7 @@ include = [
 [features]
 default = []
 cli = ["clap"]
-sqlite = ["dep:diesel", "libsqlite3-sys"]
+sqlite = ["dep:diesel", "dep:libsqlite3-sys"]
 clap = ["dep:clap"]
 # testing = ["dep:arbitrary"]
 
@@ -30,18 +30,17 @@ clap = ["dep:clap"]
 chrono = { workspace = true, features = ["serde"] }
 chrono-tz = { workspace = true, features = ["serde"] }
 clap = { workspace = true, optional = true }
-derive_more = { workspace = true, features = ["add", "add_assign"] }
 diesel = { workspace = true, features = ["sqlite", "chrono"], optional = true }
 directories = { workspace = true }
 displaydoc = { workspace = true }
 enum_dispatch = { workspace = true }
 getset = { workspace = true }
-humantime = { workspace = true }
 itertools = { workspace = true }
 libsqlite3-sys = { workspace = true, features = ["bundled"], optional = true }
 merge = { workspace = true }
 miette = { workspace = true, features = ["fancy"] }
 open = { workspace = true }
+pace_time = { workspace = true }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
 serde = { workspace = true }

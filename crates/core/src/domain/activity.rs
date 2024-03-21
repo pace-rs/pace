@@ -4,6 +4,10 @@ use chrono::Local;
 use core::fmt::Formatter;
 use getset::{Getters, MutGetters, Setters};
 use merge::Merge;
+use pace_time::{
+    date_time::PaceDateTime,
+    duration::{calculate_duration, duration_to_str, PaceDuration},
+};
 use serde_derive::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt::Display};
 use strum_macros::EnumString;
@@ -12,11 +16,7 @@ use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
 use crate::{
-    domain::time::calculate_duration,
-    domain::{
-        status::ActivityStatus,
-        time::{duration_to_str, PaceDateTime, PaceDuration},
-    },
+    domain::status::ActivityStatus,
     error::{ActivityLogErrorKind, PaceResult},
 };
 

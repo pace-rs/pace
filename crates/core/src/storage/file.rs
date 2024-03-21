@@ -5,6 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
+
 use crate::{
     commands::{
         hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
@@ -15,7 +17,6 @@ use crate::{
         activity_log::ActivityLog,
         filter::{ActivityFilterKind, FilteredActivities},
         status::ActivityStatus,
-        time::{PaceDate, PaceDurationRange, TimeRangeOptions},
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::{

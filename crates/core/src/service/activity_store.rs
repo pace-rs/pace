@@ -4,6 +4,7 @@ use std::{
 };
 
 use getset::{Getters, MutGetters, Setters};
+use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
@@ -22,7 +23,6 @@ use crate::{
         filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
         reflection::{SummaryActivityGroup, SummaryGroupByCategory},
         status::ActivityStatus,
-        time::{PaceDate, PaceDurationRange, TimeRangeOptions},
     },
     error::{ActivityStoreErrorKind, PaceOptResult, PaceResult},
     storage::{

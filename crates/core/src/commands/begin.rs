@@ -5,14 +5,12 @@ use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::Getters;
+use pace_time::date_time::PaceDateTime;
 use tracing::debug;
 
 use crate::{
     config::PaceConfig,
-    domain::{
-        activity::{Activity, ActivityKind},
-        time::PaceDateTime,
-    },
+    domain::activity::{Activity, ActivityKind},
     error::{PaceResult, UserMessage},
     service::activity_store::ActivityStore,
     storage::{get_storage_from_config, ActivityStateManagement, SyncStorage},

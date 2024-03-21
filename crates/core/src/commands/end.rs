@@ -3,13 +3,13 @@ use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::Getters;
+use pace_time::{date_time::PaceDateTime, Validate};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
 use crate::{
     commands::EndOptions,
     config::PaceConfig,
-    domain::time::{PaceDateTime, Validate},
     error::{PaceResult, UserMessage},
     service::activity_store::ActivityStore,
     storage::{get_storage_from_config, ActivityStateManagement, SyncStorage},

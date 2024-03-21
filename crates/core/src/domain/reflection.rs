@@ -1,4 +1,5 @@
 use getset::{Getters, MutGetters, Setters};
+use pace_time::{date_time::PaceDateTime, duration::PaceDuration, time_range::TimeRangeOptions};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use strum_macros::EnumString;
@@ -9,10 +10,7 @@ use tabled::{
 
 use typed_builder::TypedBuilder;
 
-use crate::domain::{
-    activity::{ActivityGroup, ActivityItem, ActivityKind},
-    time::{PaceDateTime, PaceDuration, TimeRangeOptions},
-};
+use crate::domain::activity::{ActivityGroup, ActivityItem, ActivityKind};
 
 /// The kind of review format
 /// Default: `console`
