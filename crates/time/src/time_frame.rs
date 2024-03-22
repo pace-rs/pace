@@ -237,7 +237,7 @@ pub(crate) fn time_frame_from_date_and_time_flags_with_time_zone_kind(
             // We have a from date, but no end date
             PaceTimeFrame::DateRange(
                 TimeRangeOptions::builder()
-                    .start(PaceDateTime::try_from((from.to_owned(), time_zone))?)
+                    .start(PaceDateTime::try_from((from.to_owned(), time_zone))?.start_of_day()?)
                     .build(),
             )
         }
@@ -252,7 +252,7 @@ pub(crate) fn time_frame_from_date_and_time_flags_with_time_zone_kind(
             // We have an end date, but no start date
             PaceTimeFrame::DateRange(
                 TimeRangeOptions::builder()
-                    .end(PaceDateTime::try_from((to.to_owned(), time_zone))?)
+                    .end(PaceDateTime::try_from((to.to_owned(), time_zone))?.end_of_day()?)
                     .build(),
             )
         }
@@ -267,8 +267,8 @@ pub(crate) fn time_frame_from_date_and_time_flags_with_time_zone_kind(
             // We have a date range
             PaceTimeFrame::DateRange(
                 TimeRangeOptions::builder()
-                    .start(PaceDateTime::try_from((from.to_owned(), time_zone))?)
-                    .end(PaceDateTime::try_from((to.to_owned(), time_zone))?)
+                    .start(PaceDateTime::try_from((from.to_owned(), time_zone))?.start_of_day()?)
+                    .end(PaceDateTime::try_from((to.to_owned(), time_zone))?.end_of_day()?)
                     .build(),
             )
         }

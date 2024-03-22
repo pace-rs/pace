@@ -156,6 +156,49 @@ impl PaceDateTime {
     //     ))
     // }
 
+    /// Set the time to the start of the day
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the time can't be set to the start of the day
+    /// and the time is ambiguous
+    pub fn start_of_day(mut self) -> PaceTimeResult<Self> {
+        let time_zone = self.0.offset();
+        let time = self.0.date_naive().and_time(
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or(PaceTimeErrorKind::SettingStartOfDayFailed)?,
+        );
+
+        if let LocalResult::Single(datetime) = time_zone.from_local_datetime(&time) {
+            self.0 = datetime;
+        } else {
+            return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+        }
+
+        Ok(self)
+    }
+
+    /// Set the time to the end of the day
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the time can't be set to the end of the day
+    /// and the time is ambiguous
+    pub fn end_of_day(mut self) -> PaceTimeResult<Self> {
+        let time_zone = self.0.offset();
+        let time = self.0.date_naive().and_time(
+            NaiveTime::from_hms_opt(23, 59, 59)
+                .ok_or(PaceTimeErrorKind::SettingStartOfDayFailed)?,
+        );
+
+        if let LocalResult::Single(datetime) = time_zone.from_local_datetime(&time) {
+            self.0 = datetime;
+        } else {
+            return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+        }
+
+        Ok(self)
+    }
+
     /// Inner time
     #[must_use]
     pub const fn inner(&self) -> DateTime<FixedOffset> {

@@ -60,4 +60,7 @@ pub enum PaceTimeErrorKind {
 
     /// Failed to parse time '{0}', please use rfc3339 format
     ParseError(String),
+
+    /// Setting start of day failed
+    SettingStartOfDayFailed,
 }
