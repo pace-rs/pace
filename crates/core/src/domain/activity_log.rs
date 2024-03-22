@@ -108,8 +108,8 @@ mod tests {
             [01HPY70577H375FDKT9XXAT7VB]
             category = "development::pace"
             description = "Implemented the login feature."
-            end = "2024-02-04T10:30:00"
-            begin = "2024-02-04T09:00:00"
+            end = "2024-02-04T10:30:00+01:00"
+            begin = "2024-02-04T09:00:00+01:00"
             duration = 5400
             kind = "activity"
         "#;
@@ -124,16 +124,16 @@ mod tests {
             [01HQH12254TEXQ16WCR95YZ1SN]
             category = "development::pace"
             description = "Implemented the login feature."
-            end = "2024-02-04T10:30:00"
-            begin = "2024-02-04T09:00:00"
+            end = "2024-02-04T10:30:00+00:00"
+            begin = "2024-02-04T09:00:00+00:00"
             duration = 5400
             kind = "activity"
 
             [01HQH129DHAWRKQG6NM13NH6MH]
             category = "development::pace"
             description = "Implemented the login feature."
-            end = "2024-02-04T10:30:00"
-            begin = "2024-02-04T09:00:00"
+            end = "2024-02-04T10:30:00+00:00"
+            begin = "2024-02-04T09:00:00+00:00"
             duration = 5400
             kind = "activity"
         "#;
@@ -148,16 +148,16 @@ mod tests {
             [01HPY70577H375FDKT9XXAT7VB]
             category = "development::pace"
             description = "Implemented the login feature."
-            end = "2024-02-04T10:30:00"
-            begin = "2024-02-04T09:00:00"
+            end = "2024-02-04T10:30:00+00:00"
+            begin = "2024-02-04T09:00:00+00:00"
             duration = 5400
             kind = "activity"
 
             [01HPY70577H375FDKT9XXAT7VB]
             category = "development::pace"
             description = "Implemented the login feature."
-            end = "2024-02-04T10:30:00"
-            begin = "2024-02-04T09:00:00"
+            end = "2024-02-04T10:30:00+00:00"
+            begin = "2024-02-04T09:00:00+00:00"
             duration = 5400
             kind = "activity"
         "#;

@@ -278,7 +278,7 @@ fn test_reflect_current_week_snapshot_passes() -> TestResult<()> {
         "--activity-log-file",
         &activities,
         "reflect",
-        "--current-week",
+        "current-week",
     ]));
 
     Ok(())
@@ -295,7 +295,7 @@ fn test_reflect_current_month_snapshot_passes() -> TestResult<()> {
         "--activity-log-file",
         &activities,
         "reflect",
-        "--current-month",
+        "current-month",
     ]));
 
     Ok(())

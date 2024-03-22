@@ -1,5 +1,6 @@
 //! Test the `ActivityStore` implementation with a `InMemoryStorage` backend.
 
+use chrono::NaiveDate;
 use pace_core::prelude::{ActivityStore, ActivityTracker, FilterOptions, TestResult};
 use pace_time::{duration::PaceDuration, time_range::TimeRangeOptions};
 use rstest::rstest;
@@ -20,7 +21,8 @@ fn test_activity_tracker(
         "Should have 2 start dates."
     );
 
-    let time_range_opts = TimeRangeOptions::specific_date("2024-02-26".parse()?)?;
+    let time_range_opts =
+        TimeRangeOptions::specific_date("2024-02-26".parse::<NaiveDate>()?.into())?;
 
     let summary_groups_by_category = activity_tracker
         .store

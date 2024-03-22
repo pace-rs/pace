@@ -6,7 +6,7 @@ use std::{
 
 use chrono::{DateTime, Local};
 
-use derive_more::{Add, AddAssign, Sub, SubAssign};
+use derive_more::{Add, AddAssign};
 use humantime::format_duration;
 use serde_derive::{Deserialize, Serialize};
 use tracing::debug;
@@ -78,8 +78,6 @@ pub enum PaceDurationRange {
     Default,
     Add,
     AddAssign,
-    Sub,
-    SubAssign,
 )]
 pub struct PaceDuration(u64);
 
@@ -186,6 +184,23 @@ impl std::ops::AddAssign<u64> for PaceDuration {
 impl std::ops::SubAssign<u64> for PaceDuration {
     fn sub_assign(&mut self, rhs: u64) {
         self.0 -= rhs;
+    }
+}
+
+impl std::ops::Sub for PaceDuration {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.0.checked_sub(rhs.0).map_or(Self(0), Self)
+    }
+}
+
+impl std::ops::SubAssign for PaceDuration {
+    fn sub_assign(&mut self, rhs: Self) {
+        match self.0.checked_sub(rhs.0) {
+            Some(result) => self.0 = result,
+            None => self.0 = 0,
+        }
     }
 }
 

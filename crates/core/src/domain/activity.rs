@@ -674,7 +674,9 @@ mod tests {
 
     use std::str::FromStr;
 
-    use chrono::NaiveDateTime;
+    use chrono::{FixedOffset, NaiveDate};
+    use eyre::{eyre, OptionExt};
+    use pace_time::time_zone::PaceTimeZoneKind;
 
     use crate::error::TestResult;
 
@@ -685,14 +687,11 @@ mod tests {
         let toml = r#"
             category = "Work"
             description = "This is an example activity"
-            end = "2021-08-01T12:00:00"
-            begin = "2021-08-01T10:00:00"
-            duration = 5
+            begin = "2024-03-22T14:05:14+01:00"
+            end = "2024-03-22T14:05:33+01:00"
+            duration = 19
             kind = "activity"
         "#;
-
-        // 2022-08-17T21:43:13+08:00
-        // Local::now().to_rfc3339()
 
         let activity: Activity = toml::from_str(toml)?;
 
@@ -705,23 +704,31 @@ mod tests {
             .clone()
             .ok_or("No end options")?;
 
-        assert_eq!(
-            end,
-            PaceDateTime::from(NaiveDateTime::parse_from_str(
-                "2021-08-01T12:00:00",
-                "%Y-%m-%dT%H:%M:%S"
-            )?)
-        );
+        let begin_time = PaceDateTime::try_from((
+            NaiveDate::from_ymd_opt(2024, 3, 22)
+                .ok_or_eyre("Constructing from ymd failed.")?
+                .and_hms_opt(14, 5, 14)
+                .ok_or_eyre("Constructing from hms failed.")?,
+            PaceTimeZoneKind::TimeZoneOffset(
+                FixedOffset::east_opt(3600).ok_or(eyre!("Constructing Fixed Offset failed."))?,
+            ),
+        ))?;
 
-        assert_eq!(
-            activity.begin,
-            PaceDateTime::from(NaiveDateTime::parse_from_str(
-                "2021-08-01T10:00:00",
-                "%Y-%m-%dT%H:%M:%S"
-            )?)
-        );
+        let end_time = PaceDateTime::try_from((
+            NaiveDate::from_ymd_opt(2024, 3, 22)
+                .ok_or_eyre("Constructing from ymd failed.")?
+                .and_hms_opt(14, 5, 33)
+                .ok_or_eyre("Constructing from hms failed.")?,
+            PaceTimeZoneKind::TimeZoneOffset(
+                FixedOffset::east_opt(3600).ok_or_eyre("Constructing Fixed Offset failed.")?,
+            ),
+        ))?;
 
-        assert_eq!(duration, PaceDuration::from_str("5")?);
+        assert_eq!(activity.begin, begin_time);
+
+        assert_eq!(end, end_time);
+
+        assert_eq!(duration, PaceDuration::from_str("19")?);
 
         assert_eq!(activity.kind, ActivityKind::Activity);
 
@@ -731,8 +738,8 @@ mod tests {
     #[test]
     fn test_parse_single_toml_intermission_passes() -> TestResult<()> {
         let toml = r#"
-            end = "2021-08-01T12:00:00"
-            begin = "2021-08-01T10:00:00"
+            end = "2021-08-01T12:00:00+01:00"
+            begin = "2021-08-01T10:00:00+01:00"
             description = "This is an example activity"
             duration = 50
             kind = "intermission"
@@ -746,23 +753,31 @@ mod tests {
             .clone()
             .ok_or("No end options")?;
 
-        assert_eq!(
-            end,
-            PaceDateTime::from(NaiveDateTime::parse_from_str(
-                "2021-08-01T12:00:00",
-                "%Y-%m-%dT%H:%M:%S"
-            )?)
-        );
+        let begin_time = PaceDateTime::try_from((
+            NaiveDate::from_ymd_opt(2021, 8, 1)
+                .ok_or_eyre("Constructing from ymd failed.")?
+                .and_hms_opt(10, 0, 0)
+                .ok_or_eyre("Constructing from hms failed.")?,
+            PaceTimeZoneKind::TimeZoneOffset(
+                FixedOffset::east_opt(3600).ok_or(eyre!("Constructing Fixed Offset failed."))?,
+            ),
+        ))?;
 
-        assert_eq!(duration, PaceDuration::from_str("50")?);
+        let end_time = PaceDateTime::try_from((
+            NaiveDate::from_ymd_opt(2021, 8, 1)
+                .ok_or_eyre("Constructing from ymd failed.")?
+                .and_hms_opt(12, 0, 0)
+                .ok_or_eyre("Constructing from hms failed.")?,
+            PaceTimeZoneKind::TimeZoneOffset(
+                FixedOffset::east_opt(3600).ok_or_eyre("Constructing Fixed Offset failed.")?,
+            ),
+        ))?;
 
-        assert_eq!(
-            activity.begin,
-            PaceDateTime::from(NaiveDateTime::parse_from_str(
-                "2021-08-01T10:00:00",
-                "%Y-%m-%dT%H:%M:%S"
-            )?)
-        );
+        assert_eq!(end, end_time);
+
+        assert_eq!(activity.begin, begin_time);
+
+        assert_eq!(duration, PaceDuration::new(50));
 
         assert_eq!(activity.kind, ActivityKind::Intermission);
 

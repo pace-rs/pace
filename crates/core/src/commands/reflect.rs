@@ -65,6 +65,7 @@ pub struct ReflectCommandOptions {
         feature = "clap",
         clap(
             rename_all = "kebab-case",
+            value_name = "Time Flags",
             next_help_heading = "Flags for specifying time periods"
         )
     )]

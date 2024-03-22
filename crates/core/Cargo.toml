@@ -57,6 +57,7 @@ ulid = { workspace = true, features = ["serde"] }
 wildmatch = { workspace = true }
 
 [dev-dependencies]
+eyre = { workspace = true }
 insta = { workspace = true, features = ["toml", "redactions"] }
 pace_testing = { workspace = true }
 rstest = { workspace = true }

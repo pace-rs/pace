@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+};
 
 use chrono::{
     DateTime, FixedOffset, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound,
@@ -31,6 +34,29 @@ impl TryFrom<PaceDate> for PaceDateTime {
 /// Wrapper for the start and end time of an activity to implement default
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceDateTime(DateTime<FixedOffset>);
+
+impl FromStr for PaceDateTime {
+    type Err = PaceTimeErrorKind;
+
+    /// Parse a `PaceDateTime` from a string
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The string to parse
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the string can't be parsed
+    ///
+    /// # Returns
+    ///
+    /// Returns the parsed `PaceDateTime`
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(DateTime::parse_from_rfc3339(s).map_err(|e| {
+            PaceTimeErrorKind::ParseError(format!("{e:?}"))
+        })?))
+    }
+}
 
 impl TryFrom<(Option<&NaiveTime>, PaceTimeZoneKind, PaceTimeZoneKind)> for PaceDateTime {
     type Error = PaceTimeErrorKind;
@@ -219,9 +245,20 @@ impl From<Option<DateTime<FixedOffset>>> for PaceDateTime {
     }
 }
 
-impl From<NaiveDateTime> for PaceDateTime {
-    fn from(_time: NaiveDateTime) -> Self {
-        unimplemented!("convert from NaiveDateTime to DateTime<FixedOffset>")
+impl TryFrom<NaiveDateTime> for PaceDateTime {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from(time: NaiveDateTime) -> PaceTimeResult<Self> {
+        // get local time zone
+        let local = Local::now();
+        let local = local.offset();
+
+        // combine NaiveDateTime with local time zone
+        let LocalResult::Single(datetime) = local.from_local_datetime(&time) else {
+            Err(PaceTimeErrorKind::AmbiguousConversionResult)?
+        };
+
+        Ok(Self::from(datetime.round_subsecs(0).fixed_offset()))
     }
 }
 
@@ -345,6 +382,14 @@ impl TryFrom<(NaiveDate, NaiveTime)> for PaceDateTime {
     }
 }
 
+impl TryFrom<(NaiveDateTime, PaceTimeZoneKind)> for PaceDateTime {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from((date_time, tz): (NaiveDateTime, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
+        pace_date_time_from_date_and_time_and_tz(date_time.date(), date_time.time(), tz)?.validate()
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -354,11 +399,12 @@ mod tests {
 
     #[test]
     fn test_pace_date_time_is_future_fails() -> Result<()> {
-        let future =
-            Local::now() + chrono::TimeDelta::try_days(1).ok_or(eyre!("Invalid time delta."))?;
-        let time = PaceDateTime::with_date_time_fixed_offset(future.fixed_offset());
+        let future = PaceDateTime::from(
+            Local::now().fixed_offset()
+                + chrono::TimeDelta::try_days(1).ok_or(eyre!("Invalid time delta."))?,
+        );
 
-        _ = time.validate()?;
+        assert!(future.validate().is_err());
 
         Ok(())
     }

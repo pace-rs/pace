@@ -57,4 +57,7 @@ pub enum PaceTimeErrorKind {
 
     /// Failed to parse time '{0}', please use the format HH:MM
     InvalidTime(String),
+
+    /// Failed to parse time '{0}', please use rfc3339 format
+    ParseError(String),
 }
