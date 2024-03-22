@@ -1,4 +1,5 @@
 use getset::{Getters, MutGetters, Setters};
+use pace_time::{date_time::PaceDateTime, duration::PaceDuration, time_range::TimeRangeOptions};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use strum_macros::EnumString;
@@ -9,10 +10,7 @@ use tabled::{
 
 use typed_builder::TypedBuilder;
 
-use crate::domain::{
-    activity::{ActivityGroup, ActivityItem, ActivityKind},
-    time::{PaceDuration, PaceNaiveDateTime, TimeRangeOptions},
-};
+use crate::domain::activity::{ActivityGroup, ActivityItem, ActivityKind};
 
 /// The kind of review format
 /// Default: `console`
@@ -224,7 +222,7 @@ impl SummaryActivityGroup {
 #[allow(clippy::struct_field_names)]
 pub struct Highlights {
     /// The day with the highest productive hours.
-    pub most_productive_day: PaceNaiveDateTime,
+    pub most_productive_day: PaceDateTime,
 
     /// The kind of activity most frequently logged.
     pub most_frequent_activity_kind: ActivityKind,

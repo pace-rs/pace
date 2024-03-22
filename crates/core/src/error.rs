@@ -2,13 +2,11 @@
 
 use displaydoc::Display;
 use miette::Diagnostic;
+use pace_time::error::PaceTimeErrorKind;
 use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
-use crate::domain::{
-    activity::{Activity, ActivityGuid},
-    time::PaceNaiveDateTime,
-};
+use crate::domain::activity::{Activity, ActivityGuid};
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
@@ -247,34 +245,6 @@ pub enum ActivityLogErrorKind {
 
     /// No end options found for activity
     NoEndOptionsFound,
-}
-
-/// [`PaceTimeErrorKind`] describes the errors that can happen while dealing with time.
-#[non_exhaustive]
-#[derive(Error, Debug, Display)]
-pub enum PaceTimeErrorKind {
-    /// Failed to parse time '{0}' from user input, please use the format HH:MM
-    ParsingTimeFromUserInputFailed(String),
-
-    /// The start time cannot be in the future: {0}
-    StartTimeInFuture(PaceNaiveDateTime),
-
-    /// Failed to parse duration '{0}' from activity log, please use only numbers >= 0
-    ParsingDurationFailed(String),
-
-    /// Failed to parse date '{0}' from activity log, please use the format YYYY-MM-DD
-    InvalidDate(String),
-    /// Date is not present!
-    DateShouldBePresent,
-
-    /// Failed to parse date '{0}'
-    ParsingDateFailed(String),
-
-    /// Invalid time range: Start {0} - End {1}
-    InvalidTimeRange(String, String),
-
-    /// Invalid time zone: {0}
-    InvalidTimeZone(String),
 }
 
 /// [`PaceTimeErrorKind`] describes the errors that can happen while dealing with time.

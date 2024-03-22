@@ -6,6 +6,7 @@ dependencies_update = true
 name = "pace-rs"
 changelog_include = [
   "pace_cli",
+  "pace_time",
   "pace_core",
 ] # include commits from these package in the changelog
 changelog_update = true

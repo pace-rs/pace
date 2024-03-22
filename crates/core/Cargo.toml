@@ -22,45 +22,46 @@ include = [
 [features]
 default = []
 cli = ["clap"]
-sqlite = ["dep:diesel", "libsqlite3-sys"]
+sqlite = ["dep:diesel", "dep:libsqlite3-sys"]
 clap = ["dep:clap"]
 # testing = ["dep:arbitrary"]
 
 [dependencies]
-chrono = { workspace = true }
-chrono-tz = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+chrono-tz = { workspace = true, features = ["serde"] }
 clap = { workspace = true, optional = true }
-diesel = { version = "2.1.5", features = ["sqlite", "chrono"], optional = true }
-directories = "5.0.1"
-displaydoc = "0.2.4"
-enum_dispatch = "0.3.12"
+diesel = { workspace = true, features = ["sqlite", "chrono"], optional = true }
+directories = { workspace = true }
+displaydoc = { workspace = true }
+enum_dispatch = { workspace = true }
 getset = { workspace = true }
-humantime = "2.1.0"
-itertools = "0.12.1"
-libsqlite3-sys = { version = "0.27", features = ["bundled"], optional = true }
-merge = "0.1.0"
-miette = { version = "7.2.0", features = ["fancy"] }
-open = "5.1.2"
-parking_lot = { version = "0.12.1", features = ["deadlock_detection"] }
-rayon = "1.9.0"
-serde = "1.0.197"
-serde_derive = "1.0.197"
-serde_json = "1.0.114"
-strum = { version = "0.26.2", features = ["derive"] }
-strum_macros = "0.26.2"
-tabled = "0.15.0"
-thiserror = "1.0.58"
-toml = { version = "0.8.12", features = ["indexmap", "preserve_order"] }
+itertools = { workspace = true }
+libsqlite3-sys = { workspace = true, features = ["bundled"], optional = true }
+merge = { workspace = true }
+miette = { workspace = true, features = ["fancy"] }
+open = { workspace = true }
+pace_time = { workspace = true }
+parking_lot = { workspace = true, features = ["deadlock_detection"] }
+rayon = { workspace = true }
+serde = { workspace = true }
+serde_derive = { workspace = true }
+serde_json = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
+strum_macros = { workspace = true }
+tabled = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true, features = ["indexmap", "preserve_order"] }
 tracing = { workspace = true }
 typed-builder = { workspace = true }
-ulid = { version = "1.1.2", features = ["serde"] }
-wildmatch = "2.3.3"
+ulid = { workspace = true, features = ["serde"] }
+wildmatch = { workspace = true }
 
 [dev-dependencies]
-insta = { version = "1.36.1", features = ["toml", "redactions"] }
+eyre = { workspace = true }
+insta = { workspace = true, features = ["toml", "redactions"] }
 pace_testing = { workspace = true }
-rstest = "0.18.2"
-similar-asserts = { workspace = true }
+rstest = { workspace = true }
+similar-asserts = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true

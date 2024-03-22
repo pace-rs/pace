@@ -1,5 +1,10 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use pace_time::{
+    date::PaceDate,
+    duration::{calculate_duration, PaceDurationRange},
+    time_range::TimeRangeOptions,
+};
 use parking_lot::RwLock;
 
 use merge::Merge;
@@ -19,7 +24,6 @@ use crate::{
         activity_log::ActivityLog,
         filter::{ActivityFilterKind, FilteredActivities},
         status::ActivityStatus,
-        time::{calculate_duration, PaceDate, PaceDurationRange, TimeRangeOptions},
     },
     error::{ActivityLogErrorKind, PaceOptResult, PaceResult},
     storage::{
@@ -596,7 +600,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
         Some(activities.activities().iter().try_fold(
             BTreeMap::new(),
             |mut acc: BTreeMap<PaceDate, Vec<ActivityItem>>, (activity_id, activity)| {
-                let begin_date = activity.begin().date();
+                let begin_date = activity.begin().date_naive();
 
                 debug!("Begin date: {:?}", begin_date);
 
@@ -790,16 +794,11 @@ impl ActivityQuerying for InMemoryActivityStorage {
 #[cfg(test)]
 mod tests {
 
-    use std::collections::HashSet;
-
-    use chrono::Local;
-
-    use crate::{
-        domain::time::{PaceDate, PaceNaiveDateTime},
-        error::TestResult,
-    };
-
     use super::*;
+    use crate::error::TestResult;
+    use chrono::Local;
+    use pace_time::date_time::PaceDateTime;
+    use std::collections::HashSet;
 
     #[test]
     fn test_in_memory_activity_storage_passes() {
@@ -828,7 +827,7 @@ mod tests {
     fn test_create_read_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
 
-        let begin = Local::now().naive_local();
+        let begin = Local::now().fixed_offset();
         let kind = ActivityKind::Activity;
         let description = "Test activity";
         let tags = vec!["test".to_string(), "activity".to_string()]
@@ -865,7 +864,7 @@ mod tests {
     fn test_list_activities_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
 
-        let begin = Local::now().naive_local();
+        let begin = Local::now().fixed_offset();
         let kind = ActivityKind::Activity;
         let description = "Test activity";
         let tags = vec!["test".to_string(), "activity".to_string()]
@@ -907,7 +906,7 @@ mod tests {
     fn test_update_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
 
-        let begin = Local::now().naive_local();
+        let begin = Local::now().fixed_offset();
         let kind = ActivityKind::Activity;
         let description = "Test activity";
         let tags = vec!["test".to_string(), "activity".to_string()]
@@ -937,9 +936,10 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceNaiveDateTime::new(
+        let new_begin = PaceDateTime::from(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
         );
+
         let updated_activity = Activity::builder()
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
@@ -1005,7 +1005,7 @@ mod tests {
         let storage = InMemoryActivityStorage::new();
 
         // Create activity
-        let begin = Local::now().naive_local();
+        let begin = Local::now().fixed_offset();
         let kind = ActivityKind::Activity;
         let description = "Test activity";
         let tags = vec!["test".to_string(), "activity".to_string()]
@@ -1058,9 +1058,10 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceNaiveDateTime::new(
+        let new_begin = PaceDateTime::from(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
         );
+
         let updated_activity = Activity::builder()
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
@@ -1136,7 +1137,7 @@ mod tests {
     #[test]
     fn test_end_single_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let end_time = now + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
@@ -1189,7 +1190,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceNaiveDateTime::new(end_time),
+            &PaceDateTime::from(end_time),
             "End time was not set."
         );
 
@@ -1199,7 +1200,7 @@ mod tests {
     #[test]
     fn test_end_last_unfinished_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
@@ -1248,7 +1249,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceNaiveDateTime::new(now),
+            &PaceDateTime::from(now),
             "End time was not set."
         );
 
@@ -1258,7 +1259,7 @@ mod tests {
     #[test]
     fn test_begin_and_auto_end_for_multiple_activities_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
@@ -1304,7 +1305,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceNaiveDateTime::new(now),
+            &PaceDateTime::from(now),
             "End time was not set."
         );
 
@@ -1326,7 +1327,7 @@ mod tests {
     #[test]
     fn test_hold_most_recent_active_activity_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
@@ -1400,7 +1401,7 @@ mod tests {
     fn test_hold_last_unfinished_activity_with_existing_intermission_does_nothing_passes(
     ) -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
@@ -1479,7 +1480,7 @@ mod tests {
     #[test]
     fn test_end_all_active_intermissions_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let end_time = now + chrono::TimeDelta::try_seconds(60).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
@@ -1531,7 +1532,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceNaiveDateTime::new(end_time),
+            &PaceDateTime::from(end_time),
             "End time was not set."
         );
 
@@ -1541,7 +1542,7 @@ mod tests {
     #[test]
     fn test_group_activities_by_keywords_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
@@ -1587,7 +1588,7 @@ mod tests {
     #[test]
     fn test_group_activities_by_kind_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
@@ -1642,7 +1643,7 @@ mod tests {
     #[test]
     fn test_group_activities_by_status_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
@@ -1703,7 +1704,7 @@ mod tests {
     #[test]
     fn test_group_activities_by_start_date_passes() -> TestResult<()> {
         let storage = InMemoryActivityStorage::new();
-        let now = Local::now().naive_local();
+        let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
         let description = "Test activity";
@@ -1741,8 +1742,8 @@ mod tests {
         );
 
         assert_eq!(
-            grouped_activity.activity().begin().date(),
-            PaceDate(begin_time.date()),
+            grouped_activity.activity().begin().date_naive(),
+            PaceDate::new(begin_time.date_naive()),
             "Grouped activity date is not the same as the original activity date."
         );
 

@@ -7,10 +7,10 @@ use eyre::Result;
 
 use pace_cli::{confirmation_or_break, prompt_resume_activity};
 use pace_core::prelude::{
-    extract_time_or_now, get_storage_from_config, ActivityQuerying, ActivityReadOps,
-    ActivityStateManagement, ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage,
-    UserMessage,
+    get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
+    ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage, UserMessage,
 };
+use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 
 use crate::prelude::PACE_APP;
 
@@ -33,27 +33,28 @@ impl Runnable for ResumeCmd {
     }
 }
 
-// TODO! Implement the resume functionality
-//
-// Possible branches for resume:
-//
-
-// [ ] Resume a specific, ended activity => prompt _create new activity with the same contents_ (should be made clear for user), but changes the begin time, remove end time
-// [ ] Resume from an active activity to another activity => prompt/warn if this is really, what someone wants, ends the currently active activity, adds flexibility, it might also encourage a less focused work approach
-// [ ] Resume a specific archived activity => prompt, _create new activity with the same contents_ (should be made clear for user), but changes the begin time, remove the end time, and remove the archived status
-
-// [ ] Resume from an active intermission, but there are no unfinished activities available (someone forgot something?) => end the intermission, check parent_id resume that??? or what we do?
-
 // TODO!: Move the inner_run implementation to the pace-core crate
 // TODO: Factor out cli related stuff to pace-cli
 impl ResumeCmd {
     /// Inner run implementation for the resume command
     pub fn inner_run(&self) -> Result<UserMessage> {
+        let config = &PACE_APP.config();
+
+        // Validate the time and time zone as early as possible
+        let date_time = PaceDateTime::try_from((
+            self.resume_opts.at().as_ref(),
+            PaceTimeZoneKind::try_from((
+                self.resume_opts.time_zone().as_ref(),
+                self.resume_opts.time_zone_offset().as_ref(),
+            ))?,
+            PaceTimeZoneKind::from(config.general().default_time_zone().as_ref()),
+        ))?
+        .validate()?;
+
+        debug!("Parsed time: {date_time:?}");
+
         let activity_store =
             ActivityStore::with_storage(get_storage_from_config(&PACE_APP.config())?)?;
-
-        // parse time from string or get now
-        let date_time = extract_time_or_now(self.resume_opts.at())?.validate_future()?;
 
         let (msg, resumed) = if let Some(resumed_activity) = activity_store
             .resume_most_recent_activity(ResumeOptions::builder().resume_time(date_time).build())?
@@ -71,6 +72,7 @@ impl ResumeCmd {
                     .config()
                     .general()
                     .most_recent_count()
+                    // Default to '9' if the most recent count is not set
                     .unwrap_or_else(|| 9u8),
             ))?
             else {

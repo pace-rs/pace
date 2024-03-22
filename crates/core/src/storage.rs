@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, fmt::Display, sync::Arc};
 
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
+use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 use tracing::debug;
 
 use crate::{
@@ -14,7 +15,6 @@ use crate::{
         activity::{Activity, ActivityGuid, ActivityItem, ActivityKind},
         filter::{ActivityFilterKind, FilteredActivities},
         status::ActivityStatus,
-        time::{PaceDate, PaceDurationRange, TimeRangeOptions},
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     service::activity_store::ActivityStore,

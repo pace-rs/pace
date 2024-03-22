@@ -2,14 +2,26 @@
 
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default, displaydoc::Display,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum IntermissionAction {
-    /// Extends the ongoing intermission
+    /// Extend the current intermission
     #[default]
     Extend,
-    /// Starts a new intermission
+    /// Start a new intermission
     New,
+}
+
+impl From<bool> for IntermissionAction {
+    fn from(new: bool) -> Self {
+        if new {
+            Self::New
+        } else {
+            Self::Extend
+        }
+    }
 }
 
 impl IntermissionAction {

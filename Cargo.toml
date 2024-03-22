@@ -4,6 +4,7 @@ members = [
   "crates/core",
   "crates/server",
   "crates/testing",
+  "crates/time",
 ]
 
 [workspace.package]
@@ -15,17 +16,52 @@ license = "AGPL-3.0-or-later"
 repository = "https://github.com/pace-rs/pace"
 
 [workspace.dependencies]
-chrono = { version = "0.4.35", features = ["serde"] }
-chrono-tz = { version = "0.8.6", features = ["serde"] }
-clap = { version = "4", features = ["env", "wrap_help", "derive"] }
-eyre = { version = "0.6.12" }
-getset = { version = "0.1.2" }
-pace_cli = { path = "crates/cli", version = "0" }
-pace_core = { path = "crates/core", version = "0" }
-pace_testing = { path = "crates/testing", version = "0" }
-similar-asserts = { version = "1.5.0", features = ["serde"] }
-tracing = { version = "0.1.40" }
-typed-builder = { version = "0.18.1" }
+abscissa_core = "0.7.0"
+assert_cmd = "2.0.14"
+chrono = "0.4.35"
+chrono-tz = "0.8.6"
+clap = "4"
+clap_complete = "4.5.1"
+derive_more = { version = "0.99.17", default-features = false }
+dialoguer = "0.11.0"
+diesel = "2.1.5"
+directories = "5.0.1"
+displaydoc = "0.2.4"
+enum_dispatch = "0.3.12"
+eyre = "0.6.12"
+getset = "0.1.2"
+human-panic = "1.2.3"
+humantime = "2.1.0"
+insta = "1.36.1"
+insta-cmd = "0.5.0"
+itertools = "0.12.1"
+libsqlite3-sys = "0.27"
+merge = "0.1.0"
+miette = "7.2.0"
+once_cell = "1.19"
+open = "5.1.2"
+pace_cli = { path = "crates/cli" }
+pace_core = { path = "crates/core" }
+pace_testing = { path = "crates/testing" }
+pace_time = { path = "crates/time" }
+parking_lot = "0.12.1"
+predicates = "3.1.0"
+rayon = "1.9.0"
+rstest = "0.18.2"
+serde = "1.0.197"
+serde_derive = "1.0.197"
+serde_json = "1.0.114"
+similar-asserts = "1.5.0"
+strum = "0.26.2"
+strum_macros = "0.26.2"
+tabled = "0.15.0"
+tempfile = "3.10.1"
+thiserror = "1.0.58"
+toml = "0.8.12"
+tracing = "0.1.40"
+typed-builder = "0.18.1"
+ulid = "1.1.2"
+wildmatch = "2.3.3"
 
 [package]
 name = "pace-rs"
@@ -54,40 +90,39 @@ license = false
 eula = false
 
 [dependencies]
-chrono = { version = "0.4.35", features = ["serde"] }
-clap = { workspace = true }
-clap_complete = "4.5.1"
-dialoguer = { version = "0.11.0", features = ["history", "fuzzy-select"] }
-diesel = { version = "2.1.5", features = ["sqlite"] }
-directories = "5.0.1"
+chrono = { workspace = true, features = ["serde"] }
+clap = { workspace = true, features = ["env", "wrap_help", "derive"] }
+clap_complete = { workspace = true }
+dialoguer = { workspace = true, features = ["history", "fuzzy-select"] }
+diesel = { workspace = true, features = ["sqlite"] }
+directories = { workspace = true }
 eyre = { workspace = true }
-human-panic = "1.2.3"
+human-panic = { workspace = true }
 pace_cli = { workspace = true }
 pace_core = { workspace = true, features = ["cli"] }
-serde = "1"
-serde_derive = "1"
+pace_time = { workspace = true, features = ["cli"] }
+serde = { workspace = true }
+serde_derive = { workspace = true }
 
 # Better error messages for Serde
 # serde_path_to_error = "0.1.15"
 
-thiserror = "1.0.58"
-toml = { version = "0.8.12", features = ["preserve_order"] }
-
-[dependencies.abscissa_core]
-version = "0.7.0"
+abscissa_core = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true, features = ["preserve_order"] }
 # optional: use `gimli` to capture backtraces
 # see https://github.com/rust-lang/backtrace-rs/issues/189
 # features = ["gimli-backtrace"]
 
 [dev-dependencies]
-abscissa_core = { version = "0.7.0", features = ["testing"] }
-assert_cmd = "2.0.14"
-insta = { version = "1.36.1", features = ["toml"] }
-insta-cmd = "0.5.0"
-once_cell = "1.19"
-predicates = "3.1.0"
+abscissa_core = { workspace = true, features = ["testing"] }
+assert_cmd = { workspace = true }
+insta = { workspace = true, features = ["toml"] }
+insta-cmd = { workspace = true }
+once_cell = { workspace = true }
+predicates = { workspace = true }
 similar-asserts = { workspace = true }
-tempfile = "3.10.1"
+tempfile = { workspace = true }
 
 # The profile that 'cargo dist' will build with
 [profile.dist]

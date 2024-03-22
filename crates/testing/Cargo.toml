@@ -15,7 +15,8 @@ description = "pace-testing - Testing for the pace ecosystem"
 [dependencies]
 chrono = { workspace = true }
 pace_core = { workspace = true }
-rstest = "0.18.2"
+pace_time = { workspace = true }
+rstest = { workspace = true }
 similar-asserts = { workspace = true }
 
 [lints]

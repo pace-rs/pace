@@ -1,19 +1,21 @@
-use chrono::NaiveDate;
+use chrono::FixedOffset;
+use chrono_tz::Tz;
+#[cfg(feature = "clap")]
+use clap::Parser;
 use getset::{Getters, MutGetters, Setters};
+use pace_time::{
+    flags::{DateFlags, TimeFlags},
+    time_frame::PaceTimeFrame,
+    time_zone::PaceTimeZoneKind,
+};
 use serde_derive::Serialize;
 use std::path::PathBuf;
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-#[cfg(feature = "clap")]
-use clap::Parser;
-
 use crate::{
     config::PaceConfig,
-    domain::{
-        activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind,
-        time::get_time_frame_from_flags,
-    },
+    domain::{activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind},
     error::{PaceResult, UserMessage},
     service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
     storage::get_storage_from_config,
@@ -23,6 +25,8 @@ use crate::{
 #[derive(Debug, Getters)]
 #[getset(get = "pub")]
 #[cfg_attr(feature = "clap", derive(Parser))]
+#[cfg_attr(
+        feature = "clap", clap(group = clap::ArgGroup::new("tz").multiple(false).required(false)))]
 pub struct ReflectCommandOptions {
     /// Filter by activity kind (e.g., activity, task)
     #[cfg_attr(
@@ -59,9 +63,13 @@ pub struct ReflectCommandOptions {
     /// Time flags
     #[cfg_attr(
         feature = "clap",
-        clap(flatten, next_help_heading = "Flags for specifying time periods")
+        clap(
+            rename_all = "kebab-case",
+            value_name = "Time Flags",
+            next_help_heading = "Flags for specifying time periods"
+        )
     )]
-    time_flags: TimeFlags,
+    time_flags: Option<TimeFlags>,
 
     /// Date flags
     #[cfg_attr(
@@ -71,7 +79,26 @@ pub struct ReflectCommandOptions {
             next_help_heading = "Date flags for specifying custom date ranges or specific dates"
         )
     )]
-    date_flags: DateFlags,
+    date_flags: Option<DateFlags>,
+
+    /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, value_name = "Time Zone", group = "tz", visible_alias = "tz")
+    )]
+    time_zone: Option<Tz>,
+
+    /// Time zone offset to use for the activity, e.g., "+0200" or "-0500". Format: ±HHMM
+    #[cfg_attr(
+        feature = "clap",
+        clap(
+            long,
+            value_name = "Time Zone Offset",
+            group = "tz",
+            visible_alias = "tzo"
+        )
+    )]
+    time_zone_offset: Option<FixedOffset>,
 
     /// Expensive flags
     /// These flags are expensive to compute and may take longer to generate
@@ -85,11 +112,26 @@ pub struct ReflectCommandOptions {
 impl ReflectCommandOptions {
     #[tracing::instrument(skip(self))]
     pub fn handle_reflect(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+        let Self {
+            export_file,
+            time_flags,
+            date_flags,
+            time_zone,
+            time_zone_offset,
+            .. // TODO: ignore the rest of the fields for now,
+        } = self;
+
+        // Validate the time and time zone as early as possible
+        let time_frame = PaceTimeFrame::try_from((
+            time_flags.as_ref(),
+            date_flags.as_ref(),
+            PaceTimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
+            PaceTimeZoneKind::from(config.general().default_time_zone().as_ref()),
+        ))?;
+
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 
         let activity_tracker = ActivityTracker::with_activity_store(activity_store);
-
-        let time_frame = get_time_frame_from_flags(self.time_flags(), self.date_flags())?;
 
         debug!("Displaying reflection for time frame: {}", time_frame);
 
@@ -111,7 +153,7 @@ impl ReflectCommandOptions {
                 debug!("Reflection: {}", json);
 
                 // write to file if export file is specified
-                if let Some(export_file) = self.export_file() {
+                if let Some(export_file) = export_file {
                     std::fs::write(export_file, json)?;
 
                     return Ok(UserMessage::new(format!(
@@ -135,42 +177,6 @@ impl ReflectCommandOptions {
     }
 }
 
-#[derive(Debug, Getters, Default, TypedBuilder, Setters, MutGetters, Clone, Eq, PartialEq)]
-#[getset(get = "pub")]
-#[cfg_attr(feature = "clap", derive(Parser))]
-#[cfg_attr(
-        feature = "clap", clap(group = clap::ArgGroup::new("date-flag").multiple(true)))]
-pub struct DateFlags {
-    /// Show the reflection for a specific date, mutually exclusive with `from` and `to`. Format: YYYY-MM-DD
-    #[cfg_attr(
-        feature = "clap",
-        clap(
-            long,
-            group = "date-flag",
-            value_name = "Specific Date",
-            exclusive = true
-        )
-    )]
-    #[builder(setter(strip_option))]
-    date: Option<NaiveDate>,
-
-    /// Start date for the reflection period. Format: YYYY-MM-DD
-    #[cfg_attr(
-        feature = "clap",
-        clap(long, group = "date-flag", value_name = "Start Date")
-    )]
-    #[builder(setter(strip_option))]
-    from: Option<NaiveDate>,
-
-    /// End date for the reflection period. Format: YYYY-MM-DD
-    #[cfg_attr(
-        feature = "clap",
-        clap(long, group = "date-flag", value_name = "End Date")
-    )]
-    #[builder(setter(strip_option))]
-    to: Option<NaiveDate>,
-}
-
 #[derive(
     Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
 )]
@@ -187,43 +193,4 @@ pub struct ExpensiveFlags {
     /// Enable personalized recommendations based on reflection data
     #[cfg_attr(feature = "clap", clap(long))]
     recommendations: bool,
-}
-
-#[derive(Debug, Getters, TypedBuilder, Setters, MutGetters, Clone, Eq, PartialEq, Default)]
-#[getset(get = "pub")]
-#[cfg_attr(feature = "clap", derive(Parser))]
-#[cfg_attr(feature = "clap", clap(group = clap::ArgGroup::new("time-flag").multiple(false)))]
-// We allow this here, because it's convenient to have all the flags in one place for the cli
-// and because it's easier to deal with clap in this way.
-#[allow(clippy::struct_excessive_bools)]
-pub struct TimeFlags {
-    /// Show the reflection for the current day
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    today: bool,
-
-    /// Show the reflection for the previous day
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    yesterday: bool,
-
-    /// Show the reflection for the current week
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    current_week: bool,
-
-    /// Show the reflection for the previous week
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    last_week: bool,
-
-    /// Show the reflection for the current month
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    current_month: bool,
-
-    /// Show the reflection for the previous month
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    last_month: bool,
 }

@@ -1,8 +1,8 @@
 [01HQKEJTPFPY2WPBYT8NG6W2HY]
 category = "development::pace"
 description = "Implementing Reflection"
-begin = "2024-02-26T20:34:33"
-end = "2024-02-26T20:41:59"
+begin = "2024-02-26T20:34:33+01:00"
+end = "2024-02-26T20:41:59+01:00"
 duration = 446
 kind = "activity"
 status = "ended"
@@ -10,8 +10,8 @@ status = "ended"
 [01HQKEKX9PA24T5GB17PNW0N9K]
 category = "development::pace"
 description = "Implementing Reflection"
-begin = "2024-02-26T20:35:09"
-end = "2024-02-26T20:39:13"
+begin = "2024-02-26T20:35:09+01:00"
+end = "2024-02-26T20:39:13+01:00"
 duration = 244
 kind = "intermission"
 parent-id = "01HQKEJTPFPY2WPBYT8NG6W2HY"
@@ -20,8 +20,8 @@ status = "ended"
 [01HQN2WK1WSJ6Q7R43F49QFPDG]
 category = "development::rustic"
 description = "More Testing"
-begin = "2024-02-27T11:48:39"
-end = "2024-02-27T11:48:56"
+begin = "2024-02-27T11:48:39+01:00"
+end = "2024-02-27T11:48:56+01:00"
 duration = 17
 kind = "activity"
 status = "ended"
@@ -29,8 +29,8 @@ status = "ended"
 [01HQN2X30PCBZXMV6EQ74D4GWZ]
 category = "development::rustic"
 description = "More Testing"
-begin = "2024-02-27T11:48:56"
-end = "2024-02-27T11:49:40"
+begin = "2024-02-27T11:48:56+01:00"
+end = "2024-02-27T11:49:40+01:00"
 duration = 44
 kind = "activity"
 status = "ended"
@@ -38,8 +38,8 @@ status = "ended"
 [01HQN2XMM43HA5W3RSGWFQ3KWZ]
 category = "development::rustic"
 description = "More Testing"
-begin = "2024-02-27T11:49:14"
-end = "2024-02-27T11:49:24"
+begin = "2024-02-27T11:49:14+01:00"
+end = "2024-02-27T11:49:24+01:00"
 duration = 10
 kind = "intermission"
 parent-id = "01HQN2X30PCBZXMV6EQ74D4GWZ"

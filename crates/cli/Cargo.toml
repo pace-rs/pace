@@ -21,7 +21,7 @@ include = [
 [dependencies]
 chrono = { workspace = true }
 chrono-tz = { workspace = true }
-dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
+dialoguer = { workspace = true, features = ["fuzzy-select"] }
 eyre = { workspace = true }
 getset = { workspace = true }
 pace_core = { workspace = true }
