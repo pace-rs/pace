@@ -116,8 +116,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Run Cargo Test
         id: run_tests
-        # run: cargo test -r --all-targets --features ${{ matrix.feature }} --workspace
-        run: cargo test -r --all-targets --workspace
+        # run: cargo test --all-targets --features ${{ matrix.feature }} --workspace
+        run: cargo test --all-targets --workspace -- --ignored
         env:
           INSTA_UPDATE: new
       - name: Upload snapshots of failed tests

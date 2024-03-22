@@ -214,6 +214,7 @@ fn test_adjust_activity_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_reflect_from_to_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
@@ -234,6 +235,7 @@ fn test_reflect_from_to_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_reflect_date_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
@@ -302,6 +304,7 @@ fn test_reflect_current_month_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_reflect_from_to_filter_category_glob_front_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
@@ -324,6 +327,7 @@ fn test_reflect_from_to_filter_category_glob_front_snapshot_passes() -> TestResu
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_reflect_from_to_filter_category_case_sensitive_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
@@ -347,6 +351,7 @@ fn test_reflect_from_to_filter_category_case_sensitive_snapshot_passes() -> Test
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_reflect_from_to_filter_category_full_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
@@ -369,6 +374,7 @@ fn test_reflect_from_to_filter_category_full_snapshot_passes() -> TestResult<()>
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_reflect_from_to_filter_category_glob_back_snapshot_passes() -> TestResult<()> {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
     let activities = path.to_str().ok_or("Could not convert path to string")?;
@@ -391,6 +397,7 @@ fn test_reflect_from_to_filter_category_glob_back_snapshot_passes() -> TestResul
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_reflect_from_to_filter_category_glob_back_case_sensitive_snapshot_passes() -> TestResult<()>
 {
     let path = PathBuf::from("./tests/fixtures/activity_tracker/activities.pace.toml");
