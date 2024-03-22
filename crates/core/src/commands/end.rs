@@ -47,7 +47,7 @@ pub struct EndCommandOptions {
             visible_alias = "tzo"
         )
     )]
-    time_zone_offset: Option<String>,
+    time_zone_offset: Option<FixedOffset>,
 }
 
 impl EndCommandOptions {
@@ -77,10 +77,8 @@ impl EndCommandOptions {
         // Validate the time and time zone as early as possible
         let date_time = PaceDateTime::try_from((
             at.as_ref(),
-            time_zone
-                .as_ref()
-                .or_else(|| config.general().default_time_zone().as_ref()),
-            time_zone_offset.as_ref(),
+            TimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
+            TimeZoneKind::try_from(config.general().default_time_zone().as_ref())?,
         ))?
         .validate()?;
 

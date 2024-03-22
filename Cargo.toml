@@ -100,6 +100,7 @@ eyre = { workspace = true }
 human-panic = { workspace = true }
 pace_cli = { workspace = true }
 pace_core = { workspace = true, features = ["cli"] }
+pace_time = { workspace = true, features = ["cli"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 

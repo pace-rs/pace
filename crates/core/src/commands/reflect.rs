@@ -61,9 +61,12 @@ pub struct ReflectCommandOptions {
     /// Time flags
     #[cfg_attr(
         feature = "clap",
-        clap(flatten, next_help_heading = "Flags for specifying time periods")
+        clap(
+            rename_all = "kebab-case",
+            next_help_heading = "Flags for specifying time periods"
+        )
     )]
-    time_flags: TimeFlags,
+    time_flags: Option<TimeFlags>,
 
     /// Date flags
     #[cfg_attr(
@@ -92,7 +95,7 @@ pub struct ReflectCommandOptions {
             visible_alias = "tzo"
         )
     )]
-    time_zone_offset: Option<String>,
+    time_zone_offset: Option<FixedOffset>,
 
     /// Expensive flags
     /// These flags are expensive to compute and may take longer to generate
@@ -119,11 +122,10 @@ impl ReflectCommandOptions {
         let time_frame = PaceTimeFrame::try_from((
             time_flags,
             date_flags,
-            time_zone
-                .as_ref()
-                .or_else(|| config.general().default_time_zone().as_ref()),
-            time_zone_offset.as_ref(),
-        ))?;
+            TimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
+            TimeZoneKind::try_from(config.general().default_time_zone().as_ref())?,
+        ))?
+        .validate()?;
 
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 

@@ -1186,6 +1186,7 @@ dependencies = [
  "once_cell",
  "pace_cli",
  "pace_core",
+ "pace_time",
  "predicates",
  "serde",
  "serde_derive",

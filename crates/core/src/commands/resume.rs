@@ -42,7 +42,7 @@ pub struct ResumeCommandOptions {
             visible_alias = "tzo"
         )
     )]
-    time_zone_offset: Option<String>,
+    time_zone_offset: Option<FixedOffset>,
 }
 
 impl ResumeCommandOptions {

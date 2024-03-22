@@ -11,10 +11,8 @@ use tracing::debug;
 use crate::{
     date::PaceDate,
     error::{PaceTimeErrorKind, PaceTimeResult},
-    flags::{DateFlags, TimeFlags},
     time::PaceTime,
-    time_frame::PaceTimeFrame,
-    time_range::TimeRangeOptions,
+    time_zone::TimeZoneKind,
     Validate,
 };
 
@@ -34,57 +32,50 @@ impl TryFrom<PaceDate> for PaceDateTime {
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceDateTime(DateTime<FixedOffset>);
 
-impl<Tz: TimeZone> TryFrom<(Option<&NaiveTime>, Option<&Tz>, Option<&String>)> for PaceDateTime {
+impl TryFrom<(Option<&NaiveTime>, TimeZoneKind, TimeZoneKind)> for PaceDateTime {
     type Error = PaceTimeErrorKind;
 
+    /// Try to convert from a tuple of optional naive time, time zone and time zone offset
+    ///
+    /// # Arguments
+    ///
+    /// * `0` - The naive time
+    /// * `1` - The time zone
+    /// * `2` - The time zone offset
+    /// * `3` - The time zone from the config
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the time zone and time zone offset are both defined,
+    /// or if the time zone offset can't be parsed
+    ///
+    /// # Returns
+    ///
+    /// Returns the time with the user defined time zone or the default time zone
+    /// if no time zone is defined. If no time zone is defined, the time is converted
+    /// to Utc.
     fn try_from(
-        (naive_time, tz, tz_offset): (Option<&NaiveTime>, Option<&Tz>, Option<&String>),
+        (naive_time, tz, tz_config): (Option<&NaiveTime>, TimeZoneKind, TimeZoneKind),
     ) -> Result<Self, Self::Error> {
-        match (naive_time, tz, tz_offset) {
-            (None, None, Some(fixed_offset)) => {
-                // Now with user defined tz offset
-                let offset = fixed_offset.parse::<FixedOffset>().map_err(|_| {
-                    PaceTimeErrorKind::ParsingFixedOffsetFailed(fixed_offset.clone())
-                })?;
-
-                Ok(Utc::now().with_timezone(&offset).round_subsecs(0).into())
-            }
-            (None, Some(tz), None) => {
-                // Now with user defined tz or default tz from config
-                Ok(Utc::now()
-                    .with_timezone(tz)
-                    .round_subsecs(0)
-                    .fixed_offset()
-                    .into())
-            }
-            (Some(time), Some(tz), None) => {
-                let date = Utc::now().naive_local().date();
-
-                // construct datetime from time and time zone
-                let date_time = construct_date_time_tz(tz, date, time.to_owned())?;
-
-                Ok(date_time.round_subsecs(0).fixed_offset().into())
-            }
-            (Some(time), None, Some(fixed_offset)) => {
-                // User time with tz offset
-                let offset = fixed_offset.parse::<FixedOffset>().map_err(|_| {
-                    PaceTimeErrorKind::ParsingFixedOffsetFailed(fixed_offset.clone())
-                })?;
-
-                let date = Utc::now().naive_local().date();
-
-                // construct date time from time and time zone
-                let date_time: DateTime<_> =
-                    construct_date_time_tz(&offset, date, time.to_owned())?;
-
-                Ok(date_time.round_subsecs(0).fixed_offset().into())
-            }
+        match (naive_time, tz.as_tz(), tz_config.as_tz()) {
             (None, None, None) => Ok(Self::now()),
-            (Some(_), None, None) => {
-                // User time with Utc as default tz
-                Ok(Utc::now().round_subsecs(0).fixed_offset().into())
+            (None, None, Some(tz)) | (None, Some(tz), None | Some(_)) => Ok(Utc::now()
+                .with_timezone(&tz)
+                .round_subsecs(0)
+                .fixed_offset()
+                .into()),
+            (Some(time), None, None) => pace_date_time_from_date_and_time_and_tz(
+                &Local,
+                Utc::now().naive_local().date(),
+                time.to_owned(),
+            ),
+            (Some(time), Some(tz), None | Some(_)) | (Some(time), None, Some(tz)) => {
+                pace_date_time_from_date_and_time_and_tz(
+                    tz,
+                    Utc::now().naive_local().date(),
+                    time.to_owned(),
+                )
             }
-            (Some(_) | None, Some(_), Some(_)) => Err(PaceTimeErrorKind::TzAndTzOffsetDefined),
         }
     }
 }
@@ -132,7 +123,7 @@ impl PaceDateTime {
         self.inner().with_timezone(tz)
     }
 
-    /// Alias for `Local::now()` and used by `Self::default()`
+    /// Alias for `Utc::now()` with `FixedOffset` and used by `Self::default()`
     #[must_use]
     pub fn now() -> Self {
         Self(Local::now().round_subsecs(0).fixed_offset())
@@ -192,130 +183,6 @@ impl From<NaiveDateTime> for PaceDateTime {
     }
 }
 
-impl<Tz: TimeZone> TryFrom<(&TimeFlags, &DateFlags, Option<&Tz>, Option<&String>)>
-    for PaceTimeFrame
-{
-    type Error = PaceTimeErrorKind;
-
-    fn try_from(
-        (time_flags, date_flags, time_zone, time_zone_offset): (
-            &TimeFlags,
-            &DateFlags,
-            Option<&Tz>,
-            Option<&String>,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let fixed_offset = time_zone_offset
-            .map(|offset| {
-                offset
-                    .parse::<FixedOffset>()
-                    .map_err(|_| PaceTimeErrorKind::ParsingFixedOffsetFailed(offset.clone()))
-            })
-            .transpose()?;
-
-        let construct_with_tz_offset = |date: &NaiveDate| -> PaceTimeResult<PaceDateTime> {
-            let Some(fixed_offset) = fixed_offset else {
-                return Err(PaceTimeErrorKind::UndefinedTimeZone);
-            };
-
-            Ok(PaceDateTime::from(
-                fixed_offset.from_utc_datetime(
-                    &date
-                        .and_hms_opt(0, 0, 0)
-                        .ok_or_else(|| PaceTimeErrorKind::InvalidDate(date.to_string()))?,
-                ),
-            ))
-        };
-
-        // TODO!: Implement conversion from NaiveDate to PaceDateTime
-        let construct_with_utc = |_date: &NaiveDate| -> PaceTimeResult<PaceDateTime> {
-            unimplemented!("Implement conversion from NaiveDate to PaceDateTime")
-        };
-
-        let construct_with_tz = |date: &NaiveDate| -> PaceTimeResult<PaceDateTime> {
-            construct_pace_date_time(time_zone, date.to_owned())
-        };
-
-        #[allow(clippy::type_complexity)]
-        let date_time_fn: Box<
-            dyn Fn(&NaiveDate) -> Result<PaceDateTime, PaceTimeErrorKind>,
-        > = if time_zone_offset.is_some() {
-            Box::new(construct_with_tz_offset)
-        } else if time_zone.is_some() {
-            Box::new(construct_with_tz)
-        } else {
-            Box::new(construct_with_utc)
-        };
-
-        let time_frame = match (time_flags, date_flags) {
-            (val, _) if *val.today() => Self::Today,
-            (val, _) if *val.yesterday() => Self::Yesterday,
-            (val, _) if *val.current_week() => Self::CurrentWeek,
-            (val, _) if *val.last_week() => Self::LastWeek,
-            (val, _) if *val.current_month() => Self::CurrentMonth,
-            (val, _) if *val.last_month() => Self::LastMonth,
-            (
-                _,
-                DateFlags {
-                    date: Some(specific_date),
-                    from: None,
-                    to: None,
-                },
-            ) => {
-                // We have a specific date, but no date range
-                Self::SpecificDate(PaceDate::from(specific_date.to_owned()))
-            }
-            (
-                _,
-                DateFlags {
-                    date: None,
-                    from: Some(from),
-                    to: None,
-                },
-            ) => {
-                // We have a from date, but no end date
-                Self::DateRange(
-                    TimeRangeOptions::builder()
-                        .start(date_time_fn(from)?)
-                        .build(),
-                )
-            }
-            (
-                _,
-                DateFlags {
-                    date: None,
-                    from: None,
-                    to: Some(to),
-                },
-            ) => {
-                // We have an end date, but no start date
-                Self::DateRange(TimeRangeOptions::builder().end(date_time_fn(to)?).build())
-            }
-            (
-                _,
-                DateFlags {
-                    date: None,
-                    from: Some(from),
-                    to: Some(to),
-                },
-            ) => {
-                // We have a date range
-                Self::DateRange(
-                    TimeRangeOptions::builder()
-                        .start(date_time_fn(from)?)
-                        .end(date_time_fn(to)?)
-                        .build(),
-                )
-            }
-            _ => Self::default(),
-        };
-
-        debug!("Time frame: {:?}", time_frame);
-
-        Ok(time_frame)
-    }
-}
-
 /// Construct a `PaceDateTime` from a date and a time zone
 ///
 /// # Type Parameters
@@ -334,30 +201,24 @@ impl<Tz: TimeZone> TryFrom<(&TimeFlags, &DateFlags, Option<&Tz>, Option<&String>
 /// # Returns
 ///
 /// Returns the date time with a time zone implementation
-fn construct_pace_date_time<Tz: TimeZone>(
-    time_zone: Option<&Tz>,
+pub(crate) fn pace_date_time_from_date_and_tz_with_zero_hms(
+    time_zone: TimeZoneKind,
     date: NaiveDate,
 ) -> PaceTimeResult<PaceDateTime> {
-    Ok(PaceDateTime::from(
-        construct_date_time_tz(
-            time_zone.ok_or(PaceTimeErrorKind::UndefinedTimeZone)?,
-            date,
-            NaiveTime::from_hms_opt(0, 0, 0)
-                .ok_or_else(|| PaceTimeErrorKind::InvalidDate(date.to_string()))?,
-        )?
-        .fixed_offset(),
-    ))
+    pace_date_time_from_date_and_time_and_tz(
+        time_zone,
+        date,
+        NaiveTime::from_hms_opt(0, 0, 0)
+            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+    )?
+    .validate()
 }
 
 /// Construct a date time with a time zone
 ///
-/// # Type Parameters
-///
-/// * `Tz` - A type implementing [`TimeZone`]
-///
 /// # Arguments
 ///
-/// * `tz` - A type implementing [`TimeZone`]
+/// * `tz` - The time zone kind
 /// * `date` - The date
 /// * `time` - The time
 ///
@@ -368,26 +229,89 @@ fn construct_pace_date_time<Tz: TimeZone>(
 /// # Returns
 ///
 /// Returns the date time with a time zone implementation
-pub fn construct_date_time_tz<Tz>(
-    tz: &Tz,
+pub fn pace_date_time_from_date_and_time_and_tz(
+    tz: TimeZoneKind,
     date: NaiveDate,
     time: NaiveTime,
-) -> PaceTimeResult<DateTime<Tz>>
-where
-    Tz: TimeZone,
-{
-    let LocalResult::Single(datetime) = tz.with_ymd_and_hms(
-        date.year(),
-        date.month(),
-        date.day(),
-        time.hour(),
-        time.minute(),
-        time.second(), // This is 0 essentially
-    ) else {
-        return Err(PaceTimeErrorKind::InvalidUserInput);
+) -> PaceTimeResult<PaceDateTime> {
+    let date_time = match tz {
+        TimeZoneKind::TimeZone(ref tz) => {
+            let LocalResult::Single(datetime) = tz.with_ymd_and_hms(
+                date.year(),
+                date.month(),
+                date.day(),
+                time.hour(),
+                time.minute(),
+                time.second(),
+            ) else {
+                return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+            };
+
+            PaceDateTime::from(datetime.round_subsecs(0).fixed_offset())
+        }
+        TimeZoneKind::TimeZoneOffset(ref tz) => {
+            let LocalResult::Single(datetime) = tz.from_local_datetime(&date.and_time(time)) else {
+                return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+            };
+
+            PaceDateTime::from(datetime.round_subsecs(0).fixed_offset())
+        }
+        TimeZoneKind::NotSet => {
+            let LocalResult::Single(datetime) = Local.with_ymd_and_hms(
+                date.year(),
+                date.month(),
+                date.day(),
+                time.hour(),
+                time.minute(),
+                time.second(),
+            ) else {
+                return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+            };
+
+            PaceDateTime::from(datetime.round_subsecs(0).fixed_offset())
+        }
     };
 
-    Ok(datetime)
+    debug!("Constructed date time: {date_time}");
+
+    Ok(date_time.validate()?)
+}
+
+impl<Tz: TimeZone> TryFrom<(NaiveDate, NaiveTime, &Tz)> for PaceDateTime {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from((date, time, tz): (NaiveDate, NaiveTime, &Tz)) -> Result<Self, Self::Error> {
+        pace_date_time_from_date_and_time_and_tz(tz, date, time)?.validate()
+    }
+}
+
+impl<Tz: TimeZone> TryFrom<(NaiveDate, &Tz)> for PaceDateTime {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from((date, tz): (NaiveDate, &Tz)) -> Result<Self, Self::Error> {
+        pace_date_time_from_date_and_time_and_tz(tz, date, Local::now().time())?.validate()
+    }
+}
+
+impl<Tz: TimeZone> TryFrom<(NaiveTime, &Tz)> for PaceDateTime {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from((time, tz): (NaiveTime, &Tz)) -> Result<Self, Self::Error> {
+        pace_date_time_from_date_and_time_and_tz(tz, Local::now().date_naive(), time)?.validate()
+    }
+}
+
+impl TryFrom<(NaiveDate, NaiveTime)> for PaceDateTime {
+    type Error = PaceTimeErrorKind;
+
+    fn try_from((date, time): (NaiveDate, NaiveTime)) -> Result<Self, Self::Error> {
+        pace_date_time_from_date_and_time_and_tz(
+            Local::now().offset(),
+            Local::now().date_naive(),
+            Local::now().time(),
+        )?
+        .validate()
+    }
 }
 
 #[cfg(test)]
@@ -466,10 +390,10 @@ mod tests {
 
     #[test]
     fn test_begin_date_time_from_naive_date_time_passes() -> Result<()> {
-        let time = DateTime::new(
+        let time = PaceDateTime::from((
             NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
             NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
-        );
+        ));
 
         let result = PaceDateTime::from(time);
 

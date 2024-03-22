@@ -390,22 +390,22 @@ mod tests {
 
     use super::*;
 
-    use chrono::{DateTime, NaiveTime};
+    use chrono::NaiveTime;
     use eyre::{eyre, Result};
 
     #[test]
     fn test_pace_date_time_is_in_range_options_passes() -> Result<()> {
-        let activity_date_time = PaceDateTime::from(DateTime::new(
+        let activity_date_time = PaceDateTime::from((
             NaiveDate::from_ymd_opt(2021, 2, 3).ok_or(eyre!("Invalid date."))?,
             NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
         ));
 
         let time_range = TimeRangeOptions::builder()
-            .start(PaceDateTime::from(DateTime::new(
+            .start(PaceDateTime::from((
                 NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
                 NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
             )))
-            .end(PaceDateTime::from(DateTime::new(
+            .end(PaceDateTime::from((
                 NaiveDate::from_ymd_opt(2021, 2, 4).ok_or(eyre!("Invalid date."))?,
                 NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
             )))
@@ -419,11 +419,11 @@ mod tests {
     #[test]
     fn test_pace_date_time_is_in_range_options_fails() -> Result<()> {
         assert!(TimeRangeOptions::builder()
-            .start(PaceDateTime::from(DateTime<Utc>::new(
+            .start(PaceDateTime::from((
                 NaiveDate::from_ymd_opt(2021, 2, 4).ok_or(eyre!("Invalid date."))?,
                 NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
             )))
-            .end(PaceDateTime::from(DateTime<Utc>::new(
+            .end(PaceDateTime::from((
                 NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
                 NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
             )))

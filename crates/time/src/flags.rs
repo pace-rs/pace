@@ -1,46 +1,30 @@
 use chrono::NaiveDate;
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use getset::{Getters, MutGetters, Setters};
 use typed_builder::TypedBuilder;
 
-#[derive(Debug, Getters, TypedBuilder, Setters, MutGetters, Clone, Eq, PartialEq, Default)]
-#[getset(get = "pub")]
-#[cfg_attr(feature = "clap", derive(Parser))]
-#[cfg_attr(feature = "clap", clap(group = clap::ArgGroup::new("time-flag").multiple(false)))]
-// We allow this here, because it's convenient to have all the flags in one place for the cli
-// and because it's easier to deal with clap in this way.
-#[allow(clippy::struct_excessive_bools)]
-pub struct TimeFlags {
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "clap", derive(ValueEnum))]
+pub enum TimeFlags {
     /// Show the reflection for the current day
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    today: bool,
+    #[default]
+    Today,
 
     /// Show the reflection for the previous day
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    yesterday: bool,
+    Yesterday,
 
     /// Show the reflection for the current week
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    current_week: bool,
+    CurrentWeek,
 
     /// Show the reflection for the previous week
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    last_week: bool,
+    LastWeek,
 
     /// Show the reflection for the current month
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    current_month: bool,
+    CurrentMonth,
 
     /// Show the reflection for the previous month
-    #[cfg_attr(feature = "clap", clap(long, group = "time-flag"))]
-    #[builder(setter(strip_bool))]
-    last_month: bool,
+    LastMonth,
 }
 
 #[derive(Debug, Getters, Default, TypedBuilder, Setters, MutGetters, Clone, Eq, PartialEq)]

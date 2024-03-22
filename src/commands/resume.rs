@@ -8,9 +8,9 @@ use eyre::Result;
 use pace_cli::{confirmation_or_break, prompt_resume_activity};
 use pace_core::prelude::{
     get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
-    ActivityStore, PaceDateTime, ResumeCommandOptions, ResumeOptions, SyncStorage, UserMessage,
-    Validate,
+    ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage, UserMessage,
 };
+use pace_time::{date_time::PaceDateTime, time_zone::TimeZoneKind, Validate};
 
 use crate::prelude::PACE_APP;
 
@@ -33,17 +33,6 @@ impl Runnable for ResumeCmd {
     }
 }
 
-// TODO! Implement the resume functionality
-//
-// Possible branches for resume:
-//
-
-// [ ] Resume a specific, ended activity => prompt _create new activity with the same contents_ (should be made clear for user), but changes the begin time, remove end time
-// [ ] Resume from an active activity to another activity => prompt/warn if this is really, what someone wants, ends the currently active activity, adds flexibility, it might also encourage a less focused work approach
-// [ ] Resume a specific archived activity => prompt, _create new activity with the same contents_ (should be made clear for user), but changes the begin time, remove the end time, and remove the archived status
-
-// [ ] Resume from an active intermission, but there are no unfinished activities available (someone forgot something?) => end the intermission, check parent_id resume that??? or what we do?
-
 // TODO!: Move the inner_run implementation to the pace-core crate
 // TODO: Factor out cli related stuff to pace-cli
 impl ResumeCmd {
@@ -54,11 +43,11 @@ impl ResumeCmd {
         // Validate the time and time zone as early as possible
         let date_time = PaceDateTime::try_from((
             self.resume_opts.at().as_ref(),
-            self.resume_opts
-                .time_zone()
-                .as_ref()
-                .or_else(|| config.general().default_time_zone().as_ref()),
-            self.resume_opts.time_zone_offset().as_ref(),
+            TimeZoneKind::try_from((
+                self.resume_opts.time_zone().as_ref(),
+                self.resume_opts.time_zone_offset().as_ref(),
+            ))?,
+            TimeZoneKind::try_from(config.general().default_time_zone().as_ref())?,
         ))?
         .validate()?;
 

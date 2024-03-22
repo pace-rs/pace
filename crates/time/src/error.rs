@@ -37,9 +37,6 @@ pub enum PaceTimeErrorKind {
     /// Invalid time zone: {0}
     InvalidTimeZone(String),
 
-    /// Both time zone and time zone offset are defined, please use only one
-    TzAndTzOffsetDefined,
-
     /// Failed to parse fixed offset '{0}' from user input, please use the format ±HHMM
     ParsingFixedOffsetFailed(String),
 
@@ -48,4 +45,10 @@ pub enum PaceTimeErrorKind {
 
     /// Time zone not found
     UndefinedTimeZone,
+
+    /// Both time zone and time zone offset are defined, please use only one
+    AmbiguousTimeZones,
+
+    /// Ambiguous conversion result
+    AmbiguousConversionResult,
 }

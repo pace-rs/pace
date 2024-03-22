@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use chrono::NaiveTime;
+use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::Getters;
-use pace_time::date_time::PaceDateTime;
+use pace_time::{date_time::PaceDateTime, time_zone::TimeZoneKind, Validate};
 use tracing::debug;
 
 use crate::{
@@ -76,7 +76,7 @@ pub struct BeginCommandOptions {
             visible_alias = "tzo"
         )
     )]
-    time_zone_offset: Option<String>,
+    time_zone_offset: Option<FixedOffset>,
 }
 
 impl BeginCommandOptions {
@@ -108,11 +108,10 @@ impl BeginCommandOptions {
 
         let date_time = PaceDateTime::try_from((
             at.as_ref(),
-            time_zone
-                .as_ref()
-                .or_else(|| config.general().default_time_zone().as_ref()),
-            time_zone_offset.as_ref(),
-        ))?;
+            TimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
+            TimeZoneKind::try_from(config.general().default_time_zone().as_ref())?,
+        ))?
+        .validate()?;
 
         debug!("Parsed time: {date_time:?}");
 

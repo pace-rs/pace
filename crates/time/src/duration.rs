@@ -228,15 +228,15 @@ mod tests {
 
     #[test]
     fn test_calculate_duration_passes() -> Result<()> {
-        let begin = PaceDateTime::with_date_time_fixed_offset(DateTime::new(
+        let begin = PaceDateTime::try_from((
             NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
             NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
-        ));
+        ))?;
 
-        let end = PaceDateTime::with_date_time_fixed_offset(DateTime::new(
+        let end = PaceDateTime::try_from((
             NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
             NaiveTime::from_hms_opt(0, 0, 1).ok_or(eyre!("Invalid date."))?,
-        ));
+        ))?;
 
         let duration = calculate_duration(&begin, end.into())?;
         assert_eq!(duration, Duration::from_secs(1).into());
@@ -246,15 +246,15 @@ mod tests {
 
     #[test]
     fn test_calculate_duration_fails() -> Result<()> {
-        let begin = PaceDateTime::with_date_time_fixed_offset(DateTime::new(
+        let begin = PaceDateTime::try_from((
             NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
             NaiveTime::from_hms_opt(0, 0, 1).ok_or(eyre!("Invalid date."))?,
-        ));
+        ))?;
 
-        let end = PaceDateTime::with_date_time_fixed_offset(DateTime::new(
+        let end = PaceDateTime::try_from((
             NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
             NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
-        ));
+        ))?;
 
         let duration = calculate_duration(&begin, end.into());
 

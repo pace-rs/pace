@@ -56,7 +56,7 @@ pub struct HoldCommandOptions {
             visible_alias = "tzo"
         )
     )]
-    time_zone_offset: Option<String>,
+    time_zone_offset: Option<FixedOffset>,
 }
 
 impl HoldCommandOptions {
@@ -86,10 +86,8 @@ impl HoldCommandOptions {
         // Validate the time and time zone as early as possible
         let date_time = PaceDateTime::try_from((
             pause_at.as_ref(),
-            time_zone
-                .as_ref()
-                .or_else(|| config.general().default_time_zone().as_ref()),
-            time_zone_offset.as_ref(),
+            TimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
+            TimeZoneKind::try_from(config.general().default_time_zone().as_ref())?,
         ))?
         .validate()?;
 
@@ -101,7 +99,7 @@ impl HoldCommandOptions {
 
         let hold_opts = HoldOptions::builder()
             .action(action)
-            .reason(reason.as_ref().cloned())
+            .reason(reason.clone())
             .begin_time(date_time)
             .build();
 
