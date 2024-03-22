@@ -1,5 +1,6 @@
 use chrono::NaiveDate;
 
+#[cfg(feature = "clap")]
 use clap::{Parser, ValueEnum};
 use getset::{Getters, MutGetters, Setters};
 use typed_builder::TypedBuilder;
