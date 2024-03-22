@@ -231,8 +231,8 @@ mod tests {
 
     use super::*;
 
-    use chrono::{NaiveDate, NaiveTime};
-    use eyre::{eyre, Result};
+    use chrono::{NaiveDate, NaiveTime, TimeDelta};
+    use eyre::{eyre, OptionExt, Result};
 
     #[test]
     fn test_duration_to_str_passes() {
@@ -368,5 +368,69 @@ mod tests {
         let duration = "a".parse::<PaceDuration>();
 
         assert!(duration.is_err());
+    }
+
+    #[test]
+    fn test_pace_duration_as_secs_passes() {
+        let duration = PaceDuration::new(1);
+
+        assert_eq!(duration.as_secs(), 1);
+    }
+
+    #[test]
+    fn test_pace_duration_as_duration_passes() {
+        let duration = PaceDuration::new(1);
+
+        assert_eq!(duration.as_duration(), Duration::from_secs(1));
+    }
+
+    #[test]
+    fn test_pace_duration_as_minutes_passes() {
+        let error_margin = f64::EPSILON;
+        let duration = PaceDuration::new(60);
+
+        assert!((duration.as_minutes() - 1.0).abs() < error_margin);
+    }
+
+    #[test]
+    fn test_pace_duration_as_hours_passes() {
+        let error_margin = f64::EPSILON;
+        let duration = PaceDuration::new(3600);
+
+        assert!((duration.as_hours() - 1.0).abs() < error_margin);
+    }
+
+    #[test]
+    fn test_pace_duration_as_days_passes() {
+        let error_margin = f64::EPSILON;
+
+        let duration = PaceDuration::new(86_400);
+
+        assert!((duration.as_days() - 1.0).abs() < error_margin);
+    }
+
+    #[test]
+    fn test_pace_duration_as_weeks_passes() {
+        let error_margin = f64::EPSILON;
+        let duration = PaceDuration::new(604_800);
+
+        assert!((duration.as_weeks() - 1.0).abs() < error_margin);
+    }
+
+    #[test]
+    fn test_pace_duration_from_seconds_passes() {
+        let duration = PaceDuration::from_seconds(1);
+
+        assert_eq!(duration, PaceDuration::new(1));
+    }
+
+    #[test]
+    fn test_pace_duration_try_from_passes() -> Result<()> {
+        let duration = TimeDelta::try_seconds(1).ok_or_eyre("Invalid time delta.")?;
+        let result = PaceDuration::try_from(duration)?;
+
+        assert_eq!(result, PaceDuration::new(1));
+
+        Ok(())
     }
 }

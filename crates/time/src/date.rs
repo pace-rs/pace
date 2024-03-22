@@ -6,7 +6,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::{date_time::PaceDateTime, error::PaceTimeErrorKind};
 
-/// `PaceDate`: {0}
+/// {0}
 #[derive(
     Debug,
     Serialize,
@@ -102,5 +102,145 @@ impl std::ops::Deref for PaceDate {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use chrono::NaiveTime;
+    use eyre::{OptionExt, Result};
+
+    use super::*;
+
+    #[test]
+    fn test_pace_date_from_str_passes() -> Result<()> {
+        let date = PaceDate::from_str("2021-01-01")?;
+        assert_eq!(
+            date.0,
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_from_str_fails() {
+        let date = PaceDate::from_str("2021-01-32");
+        assert!(date.is_err());
+    }
+
+    #[test]
+    fn test_pace_date_try_from_ymd_passes() -> Result<()> {
+        let date = PaceDate::try_from((2021, 1, 1))?;
+        assert_eq!(
+            date.0,
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_try_from_fails() {
+        let date = PaceDate::try_from((2021, 1, 32));
+        assert!(date.is_err());
+    }
+
+    #[test]
+    fn test_pace_date_is_future_is_false_passes() -> Result<()> {
+        let date = PaceDate::new(NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?);
+        assert!(!date.is_future());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_is_future_is_true_passes() -> Result<()> {
+        let date = PaceDate::new(NaiveDate::from_ymd_opt(2079, 1, 2).ok_or_eyre("Invalid date")?);
+        assert!(date.is_future());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_with_start_passes() {
+        let date = PaceDate::with_start();
+        assert_eq!(date.0, NaiveDate::default());
+    }
+
+    #[test]
+    fn test_pace_date_default_passes() {
+        let date = PaceDate::default();
+        assert_eq!(date.0, Local::now().naive_local().date());
+    }
+
+    #[test]
+    fn test_pace_date_from_pace_date_time_passes() -> Result<()> {
+        let date_time = PaceDateTime::try_from((
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or_eyre("Invalid time")?,
+        ))?;
+
+        let date = PaceDate::from(date_time);
+        assert_eq!(
+            date.0,
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_from_pace_date_time_ref_passes() -> Result<()> {
+        let date_time = PaceDateTime::try_from((
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or_eyre("Invalid time")?,
+        ))?;
+
+        let date = PaceDate::from(&date_time);
+        assert_eq!(
+            date.0,
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_deref_passes() -> Result<()> {
+        let date = PaceDate::new(NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?);
+        assert_eq!(
+            *date,
+            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_display_passes() -> Result<()> {
+        let date = PaceDate::new(NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?);
+        assert_eq!(format!("{date}"), "2021-01-01");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_eq_passes() -> Result<()> {
+        let date1 = PaceDate::new(NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?);
+        let date2 = PaceDate::new(NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?);
+        assert_eq!(date1, date2);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pace_date_ne_passes() -> Result<()> {
+        let date1 = PaceDate::new(NaiveDate::from_ymd_opt(2021, 1, 1).ok_or_eyre("Invalid date")?);
+        let date2 = PaceDate::new(NaiveDate::from_ymd_opt(2021, 1, 2).ok_or_eyre("Invalid date")?);
+        assert_ne!(date1, date2);
+
+        Ok(())
     }
 }
