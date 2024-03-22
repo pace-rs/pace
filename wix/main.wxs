@@ -173,7 +173,7 @@
         <!--<Icon Id='ProductICO' SourceFile='wix\Product.ico'/>-->
         <!--<Property Id='ARPPRODUCTICON' Value='ProductICO' />-->
 
-        <Property Id='ARPHELPLINK' Value='https://github.com/pace-rs/pace'/>
+        <Property Id='ARPHELPLINK' Value='https://pace.cli.rs'/>
         
         <UI>
             <UIRef Id='WixUI_FeatureTree'/>

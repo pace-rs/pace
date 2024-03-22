@@ -4,10 +4,11 @@ version = "0.16.1"
 authors = { workspace = true }
 categories = { workspace = true }
 edition = { workspace = true }
+homepage = { workspace = true }
 keywords = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-rust-version = "1.74.1"
+rust-version = { workspace = true }
 description = "pace-core - library to support timetracking on the command line"
 
 include = [

@@ -4,9 +4,12 @@ version = "0.1.0"
 authors = { workspace = true }
 categories = { workspace = true }
 edition = { workspace = true }
+homepage = { workspace = true }
 keywords = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
+rust-version = { workspace = true }
+description = "pace-time - a library for handling date times, ranges, and durations for pace"
 
 [features]
 default = []
