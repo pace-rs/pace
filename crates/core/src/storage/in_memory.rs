@@ -797,6 +797,7 @@ mod tests {
     use super::*;
     use crate::error::TestResult;
     use chrono::Local;
+    use pace_time::date_time::PaceDateTime;
     use std::collections::HashSet;
 
     #[test]
@@ -935,9 +936,10 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceDateTime::new(
+        let new_begin = PaceDateTime::from(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
         );
+
         let updated_activity = Activity::builder()
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
@@ -1056,9 +1058,10 @@ mod tests {
             .into_iter()
             .collect::<HashSet<String>>();
 
-        let new_begin = PaceDateTime::new(
+        let new_begin = PaceDateTime::from(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
         );
+
         let updated_activity = Activity::builder()
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
@@ -1187,7 +1190,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceDateTime::new(end_time),
+            &PaceDateTime::from(end_time),
             "End time was not set."
         );
 
@@ -1246,7 +1249,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceDateTime::new(now),
+            &PaceDateTime::from(now),
             "End time was not set."
         );
 
@@ -1302,7 +1305,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceDateTime::new(now),
+            &PaceDateTime::from(now),
             "End time was not set."
         );
 
@@ -1529,7 +1532,7 @@ mod tests {
                 .as_ref()
                 .ok_or("End options not set.")?
                 .end(),
-            &PaceDateTime::new(end_time),
+            &PaceDateTime::from(end_time),
             "End time was not set."
         );
 
@@ -1740,7 +1743,7 @@ mod tests {
 
         assert_eq!(
             grouped_activity.activity().begin().date_naive(),
-            PaceDate(begin_time.date()),
+            PaceDate::new(begin_time.date()),
             "Grouped activity date is not the same as the original activity date."
         );
 

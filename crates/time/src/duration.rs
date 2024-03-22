@@ -238,7 +238,7 @@ mod tests {
             NaiveTime::from_hms_opt(0, 0, 1).ok_or(eyre!("Invalid date."))?,
         ))?;
 
-        let duration = calculate_duration(&begin, end.into())?;
+        let duration = calculate_duration(&begin, end)?;
         assert_eq!(duration, Duration::from_secs(1).into());
 
         Ok(())
@@ -256,7 +256,7 @@ mod tests {
             NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
         ))?;
 
-        let duration = calculate_duration(&begin, end.into());
+        let duration = calculate_duration(&begin, end);
 
         assert!(duration.is_err());
 

@@ -1,4 +1,4 @@
-use chrono::{FixedOffset, Local, TimeZone};
+use chrono::{FixedOffset, Local};
 
 use crate::error::PaceTimeErrorKind;
 
@@ -13,14 +13,15 @@ pub fn get_local_time_zone_offset() -> i32 {
 }
 
 /// The time zone kind
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TimeZoneKind {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PaceTimeZoneKind {
     TimeZone(chrono_tz::Tz),
     TimeZoneOffset(FixedOffset),
+    #[default]
     NotSet,
 }
 
-impl TimeZoneKind {
+impl PaceTimeZoneKind {
     /// Returns `true` if the time zone kind is [`TimeZoneOffset`].
     ///
     /// [`TimeZoneOffset`]: TimeZoneKind::TimeZoneOffset
@@ -60,7 +61,7 @@ impl TimeZoneKind {
     /// # Errors
     ///
     /// Returns the time zone kind if it is not a time zone offset
-    pub fn try_into_time_zone_offset(self) -> Result<FixedOffset, Self> {
+    pub const fn try_into_time_zone_offset(self) -> Result<FixedOffset, Self> {
         if let Self::TimeZoneOffset(v) = self {
             Ok(v)
         } else {
@@ -73,7 +74,7 @@ impl TimeZoneKind {
     /// # Errors
     ///
     /// Returns the time zone kind if it is not a time zone
-    pub fn try_into_time_zone(self) -> Result<chrono_tz::Tz, Self> {
+    pub const fn try_into_time_zone(self) -> Result<chrono_tz::Tz, Self> {
         if let Self::TimeZone(v) = self {
             Ok(v)
         } else {
@@ -85,24 +86,12 @@ impl TimeZoneKind {
     ///
     /// [`NotSet`]: TimeZoneKind::NotSet
     #[must_use]
-    pub fn is_not_set(&self) -> bool {
+    pub const fn is_not_set(&self) -> bool {
         matches!(self, Self::NotSet)
-    }
-
-    /// Returns the time zone kind as a time zone trait object
-    pub fn as_tz<Tz>(&self) -> Option<Tz>
-    where
-        Tz: TimeZone,
-    {
-        match self {
-            Self::TimeZone(tz) => Some(tz),
-            Self::TimeZoneOffset(tz) => Some(tz),
-            Self::NotSet => None,
-        }
     }
 }
 
-impl TryFrom<(Option<&chrono_tz::Tz>, Option<&FixedOffset>)> for TimeZoneKind {
+impl TryFrom<(Option<&chrono_tz::Tz>, Option<&FixedOffset>)> for PaceTimeZoneKind {
     type Error = PaceTimeErrorKind;
 
     fn try_from(
@@ -117,11 +106,8 @@ impl TryFrom<(Option<&chrono_tz::Tz>, Option<&FixedOffset>)> for TimeZoneKind {
     }
 }
 
-impl From<Option<&chrono_tz::Tz>> for TimeZoneKind {
+impl From<Option<&chrono_tz::Tz>> for PaceTimeZoneKind {
     fn from(tz: Option<&chrono_tz::Tz>) -> Self {
-        match tz {
-            Some(tz) => Self::TimeZone(tz.to_owned()),
-            None => Self::NotSet,
-        }
+        tz.map_or(Self::NotSet, |tz| Self::TimeZone(tz.to_owned()))
     }
 }

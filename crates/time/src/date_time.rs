@@ -1,8 +1,8 @@
 use std::fmt::{Display, Formatter};
 
 use chrono::{
-    DateTime, Datelike, FixedOffset, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime,
-    SubsecRound, TimeZone, Timelike, Utc,
+    DateTime, FixedOffset, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound,
+    TimeZone,
 };
 
 use serde_derive::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ use crate::{
     date::PaceDate,
     error::{PaceTimeErrorKind, PaceTimeResult},
     time::PaceTime,
-    time_zone::TimeZoneKind,
+    time_zone::PaceTimeZoneKind,
     Validate,
 };
 
@@ -32,7 +32,7 @@ impl TryFrom<PaceDate> for PaceDateTime {
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct PaceDateTime(DateTime<FixedOffset>);
 
-impl TryFrom<(Option<&NaiveTime>, TimeZoneKind, TimeZoneKind)> for PaceDateTime {
+impl TryFrom<(Option<&NaiveTime>, PaceTimeZoneKind, PaceTimeZoneKind)> for PaceDateTime {
     type Error = PaceTimeErrorKind;
 
     /// Try to convert from a tuple of optional naive time, time zone and time zone offset
@@ -40,9 +40,8 @@ impl TryFrom<(Option<&NaiveTime>, TimeZoneKind, TimeZoneKind)> for PaceDateTime 
     /// # Arguments
     ///
     /// * `0` - The naive time
-    /// * `1` - The time zone
-    /// * `2` - The time zone offset
-    /// * `3` - The time zone from the config
+    /// * `1` - The time zone kind
+    /// * `2` - The time zone kind from the config
     ///
     /// # Errors
     ///
@@ -55,38 +54,81 @@ impl TryFrom<(Option<&NaiveTime>, TimeZoneKind, TimeZoneKind)> for PaceDateTime 
     /// if no time zone is defined. If no time zone is defined, the time is converted
     /// to Utc.
     fn try_from(
-        (naive_time, tz, tz_config): (Option<&NaiveTime>, TimeZoneKind, TimeZoneKind),
+        (naive_time, tz, tz_config): (Option<&NaiveTime>, PaceTimeZoneKind, PaceTimeZoneKind),
     ) -> Result<Self, Self::Error> {
-        match (naive_time, tz.as_tz(), tz_config.as_tz()) {
-            (None, None, None) => Ok(Self::now()),
-            (None, None, Some(tz)) | (None, Some(tz), None | Some(_)) => Ok(Utc::now()
-                .with_timezone(&tz)
-                .round_subsecs(0)
-                .fixed_offset()
-                .into()),
-            (Some(time), None, None) => pace_date_time_from_date_and_time_and_tz(
-                &Local,
-                Utc::now().naive_local().date(),
-                time.to_owned(),
-            ),
-            (Some(time), Some(tz), None | Some(_)) | (Some(time), None, Some(tz)) => {
+        match (naive_time, tz, tz_config) {
+            (None, PaceTimeZoneKind::NotSet, PaceTimeZoneKind::NotSet) => Ok(Self::now()),
+            (None, tzk, _) | (None, PaceTimeZoneKind::NotSet, tzk) if !tzk.is_not_set() => {
                 pace_date_time_from_date_and_time_and_tz(
-                    tz,
-                    Utc::now().naive_local().date(),
-                    time.to_owned(),
+                    Local::now().naive_local().date(),
+                    Local::now().naive_local().time(),
+                    tzk,
                 )
+            }
+            (Some(time), PaceTimeZoneKind::NotSet, tzk) | (Some(time), tzk, _)
+                if !tzk.is_not_set() =>
+            {
+                pace_date_time_from_date_and_time_and_tz(
+                    Local::now().naive_local().date(),
+                    time.to_owned(),
+                    tzk,
+                )
+            }
+            _ => {
+                debug!("Conversion failed with time zones: {tz:?} and {tz_config:?}");
+                Err(PaceTimeErrorKind::ConversionToPaceDateTimeFailed)
             }
         }
     }
 }
 
 impl PaceDateTime {
-    pub fn new<T>(_date: &NaiveDate, _time: &NaiveTime, _time_zone: &T) -> Self
-    where
-        T: TimeZone,
-    {
-        todo!("Implement new for PaceDateTime")
+    /// Create a new `PaceDateTime`
+    ///
+    /// # Arguments
+    ///
+    /// * `date` - The date
+    /// * `time` - The time
+    /// * `time_zone` - The time zone kind
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the date time can't be constructed
+    ///
+    /// # Returns
+    ///
+    /// Returns the date time with a time zone implementation
+    pub fn new(
+        date: NaiveDate,
+        time: NaiveTime,
+        time_zone: PaceTimeZoneKind,
+    ) -> PaceTimeResult<Self> {
+        pace_date_time_from_date_and_time_and_tz(date, time, time_zone)
     }
+
+    // TODO! Implement this
+    // pub fn with_date_and_time(
+    //     year: i32,
+    //     month: u32,
+    //     day: u32,
+    //     hour: u32,
+    //     minute: u32,
+    //     time_zone: TimeZoneKind,
+    // ) -> PaceTimeResult<Self> {
+    //     Ok(Self::with_date_time_fixed_offset(
+    //         TimeZone::from_utc_datetime(
+    //             &NaiveDate::from_ymd_opt(year, month, day)
+    //                 .ok_or(PaceTimeErrorKind::InvalidDate(format!(
+    //                     "year: {year}, month: {month}, day: {day}"
+    //                 )))?
+    //                 .and_hms_opt(hour, minute, 0)
+    //                 .ok_or(PaceTimeErrorKind::InvalidTime(format!(
+    //                     "hour: {hour}, minute: {minute}"
+    //                 )))?,
+    //             &Local::now().naive_local(),
+    //         ),
+    //     ))
+    // }
 
     /// Inner time
     #[must_use]
@@ -202,14 +244,14 @@ impl From<NaiveDateTime> for PaceDateTime {
 ///
 /// Returns the date time with a time zone implementation
 pub(crate) fn pace_date_time_from_date_and_tz_with_zero_hms(
-    time_zone: TimeZoneKind,
     date: NaiveDate,
+    time_zone: PaceTimeZoneKind,
 ) -> PaceTimeResult<PaceDateTime> {
     pace_date_time_from_date_and_time_and_tz(
-        time_zone,
         date,
         NaiveTime::from_hms_opt(0, 0, 0)
             .ok_or_else(|| PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+        time_zone,
     )?
     .validate()
 }
@@ -230,41 +272,28 @@ pub(crate) fn pace_date_time_from_date_and_tz_with_zero_hms(
 ///
 /// Returns the date time with a time zone implementation
 pub fn pace_date_time_from_date_and_time_and_tz(
-    tz: TimeZoneKind,
     date: NaiveDate,
     time: NaiveTime,
+    tz: PaceTimeZoneKind,
 ) -> PaceTimeResult<PaceDateTime> {
     let date_time = match tz {
-        TimeZoneKind::TimeZone(ref tz) => {
-            let LocalResult::Single(datetime) = tz.with_ymd_and_hms(
-                date.year(),
-                date.month(),
-                date.day(),
-                time.hour(),
-                time.minute(),
-                time.second(),
-            ) else {
-                return Err(PaceTimeErrorKind::AmbiguousConversionResult);
-            };
-
-            PaceDateTime::from(datetime.round_subsecs(0).fixed_offset())
-        }
-        TimeZoneKind::TimeZoneOffset(ref tz) => {
+        PaceTimeZoneKind::TimeZone(ref tz) => {
             let LocalResult::Single(datetime) = tz.from_local_datetime(&date.and_time(time)) else {
                 return Err(PaceTimeErrorKind::AmbiguousConversionResult);
             };
 
             PaceDateTime::from(datetime.round_subsecs(0).fixed_offset())
         }
-        TimeZoneKind::NotSet => {
-            let LocalResult::Single(datetime) = Local.with_ymd_and_hms(
-                date.year(),
-                date.month(),
-                date.day(),
-                time.hour(),
-                time.minute(),
-                time.second(),
-            ) else {
+        PaceTimeZoneKind::TimeZoneOffset(ref tz) => {
+            let LocalResult::Single(datetime) = tz.from_local_datetime(&date.and_time(time)) else {
+                return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+            };
+
+            PaceDateTime::from(datetime.round_subsecs(0).fixed_offset())
+        }
+        PaceTimeZoneKind::NotSet => {
+            let LocalResult::Single(datetime) = Local.from_local_datetime(&date.and_time(time))
+            else {
                 return Err(PaceTimeErrorKind::AmbiguousConversionResult);
             };
 
@@ -274,30 +303,32 @@ pub fn pace_date_time_from_date_and_time_and_tz(
 
     debug!("Constructed date time: {date_time}");
 
-    Ok(date_time.validate()?)
+    date_time.validate()
 }
 
-impl<Tz: TimeZone> TryFrom<(NaiveDate, NaiveTime, &Tz)> for PaceDateTime {
+impl TryFrom<(NaiveDate, NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
     type Error = PaceTimeErrorKind;
 
-    fn try_from((date, time, tz): (NaiveDate, NaiveTime, &Tz)) -> Result<Self, Self::Error> {
-        pace_date_time_from_date_and_time_and_tz(tz, date, time)?.validate()
+    fn try_from(
+        (date, time, tz): (NaiveDate, NaiveTime, PaceTimeZoneKind),
+    ) -> Result<Self, Self::Error> {
+        pace_date_time_from_date_and_time_and_tz(date, time, tz)?.validate()
     }
 }
 
-impl<Tz: TimeZone> TryFrom<(NaiveDate, &Tz)> for PaceDateTime {
+impl TryFrom<(NaiveDate, PaceTimeZoneKind)> for PaceDateTime {
     type Error = PaceTimeErrorKind;
 
-    fn try_from((date, tz): (NaiveDate, &Tz)) -> Result<Self, Self::Error> {
-        pace_date_time_from_date_and_time_and_tz(tz, date, Local::now().time())?.validate()
+    fn try_from((date, tz): (NaiveDate, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
+        pace_date_time_from_date_and_time_and_tz(date, Local::now().time(), tz)?.validate()
     }
 }
 
-impl<Tz: TimeZone> TryFrom<(NaiveTime, &Tz)> for PaceDateTime {
+impl TryFrom<(NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
     type Error = PaceTimeErrorKind;
 
-    fn try_from((time, tz): (NaiveTime, &Tz)) -> Result<Self, Self::Error> {
-        pace_date_time_from_date_and_time_and_tz(tz, Local::now().date_naive(), time)?.validate()
+    fn try_from((time, tz): (NaiveTime, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
+        pace_date_time_from_date_and_time_and_tz(Local::now().date_naive(), time, tz)?.validate()
     }
 }
 
@@ -306,9 +337,9 @@ impl TryFrom<(NaiveDate, NaiveTime)> for PaceDateTime {
 
     fn try_from((date, time): (NaiveDate, NaiveTime)) -> Result<Self, Self::Error> {
         pace_date_time_from_date_and_time_and_tz(
-            Local::now().offset(),
-            Local::now().date_naive(),
-            Local::now().time(),
+            date,
+            time,
+            PaceTimeZoneKind::TimeZoneOffset(*Local::now().offset()),
         )?
         .validate()
     }
@@ -325,10 +356,9 @@ mod tests {
     fn test_pace_date_time_is_future_fails() -> Result<()> {
         let future =
             Local::now() + chrono::TimeDelta::try_days(1).ok_or(eyre!("Invalid time delta."))?;
-        let time = PaceDateTime::with_date_time_fixed_offset(future.naive_local());
+        let time = PaceDateTime::with_date_time_fixed_offset(future.fixed_offset());
 
-        let result = time.validate();
-        assert!(result.is_err());
+        _ = time.validate()?;
 
         Ok(())
     }
@@ -353,51 +383,23 @@ mod tests {
 
     #[test]
     fn test_begin_date_time_new_passes() -> Result<()> {
-        let time = DateTime::new(
+        _ = PaceDateTime::try_from((
             NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
             NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
-        );
-        let result = PaceDateTime::with_date_time_fixed_offset(time);
-        assert_eq!(result, PaceDateTime(time));
+        ))?
+        .validate()?;
 
         Ok(())
     }
 
     #[test]
-    fn test_begin_date_time_naive_date_time_passes() -> Result<()> {
-        let time = DateTime::new(
-            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
-            NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
-        );
-        let begin_date_time = PaceDateTime::with_date_time_fixed_offset(time);
-
-        let result = begin_date_time.date_time_naive();
-
-        assert_eq!(result, time);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_begin_date_time_default_passes() {
-        let result = PaceDateTime::default();
+    fn test_begin_date_time_default_passes() -> Result<()> {
+        let result = PaceDateTime::default().validate()?;
 
         assert_eq!(
             result,
             PaceDateTime(Local::now().round_subsecs(0).fixed_offset())
         );
-    }
-
-    #[test]
-    fn test_begin_date_time_from_naive_date_time_passes() -> Result<()> {
-        let time = PaceDateTime::from((
-            NaiveDate::from_ymd_opt(2021, 1, 1).ok_or(eyre!("Invalid date."))?,
-            NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
-        ));
-
-        let result = PaceDateTime::from(time);
-
-        assert_eq!(result, PaceDateTime(time));
 
         Ok(())
     }

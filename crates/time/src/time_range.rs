@@ -388,6 +388,8 @@ impl TryFrom<(PaceDate, PaceDate)> for TimeRangeOptions {
 #[cfg(test)]
 mod tests {
 
+    use crate::time_zone::PaceTimeZoneKind;
+
     use super::*;
 
     use chrono::NaiveTime;
@@ -441,12 +443,12 @@ mod tests {
                 .start(PaceDateTime::try_from((
                     NaiveDate::from_ymd_opt(2021, 2, 2).ok_or(eyre!("Invalid date."))?,
                     NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
-                    &Local,
+                    PaceTimeZoneKind::NotSet,
                 ))?)
                 .end(PaceDateTime::try_from((
                     NaiveDate::from_ymd_opt(2021, 2, 4).ok_or(eyre!("Invalid date."))?,
                     NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
-                    &Local,
+                    PaceTimeZoneKind::NotSet,
                 ))?)
                 .build(),
         );

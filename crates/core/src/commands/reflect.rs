@@ -1,3 +1,4 @@
+use chrono::FixedOffset;
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
@@ -5,6 +6,7 @@ use getset::{Getters, MutGetters, Setters};
 use pace_time::{
     flags::{DateFlags, TimeFlags},
     time_frame::PaceTimeFrame,
+    time_zone::PaceTimeZoneKind,
 };
 use serde_derive::Serialize;
 use std::path::PathBuf;
@@ -76,7 +78,7 @@ pub struct ReflectCommandOptions {
             next_help_heading = "Date flags for specifying custom date ranges or specific dates"
         )
     )]
-    date_flags: DateFlags,
+    date_flags: Option<DateFlags>,
 
     /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
     #[cfg_attr(
@@ -120,12 +122,11 @@ impl ReflectCommandOptions {
 
         // Validate the time and time zone as early as possible
         let time_frame = PaceTimeFrame::try_from((
-            time_flags,
-            date_flags,
-            TimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
-            TimeZoneKind::try_from(config.general().default_time_zone().as_ref())?,
-        ))?
-        .validate()?;
+            time_flags.as_ref(),
+            date_flags.as_ref(),
+            PaceTimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
+            PaceTimeZoneKind::from(config.general().default_time_zone().as_ref()),
+        ))?;
 
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
 

@@ -20,10 +20,10 @@ pub enum PaceTimeErrorKind {
     /// The start time cannot be in the future, please use a time in the past: '{0}'
     StartTimeInFuture(PaceDateTime),
 
-    /// Failed to parse duration '{0}' from activity log, please use only numbers >= 0
+    /// Failed to parse duration '{0}', please use only numbers >= 0
     ParsingDurationFailed(String),
 
-    /// Failed to parse date '{0}' from activity log, please use the format YYYY-MM-DD
+    /// Failed to parse date '{0}', please use the format YYYY-MM-DD
     InvalidDate(String),
     /// Date is not present!
     DateShouldBePresent,
@@ -51,4 +51,10 @@ pub enum PaceTimeErrorKind {
 
     /// Ambiguous conversion result
     AmbiguousConversionResult,
+
+    /// Conversion to PaceDateTime failed
+    ConversionToPaceDateTimeFailed,
+
+    /// Failed to parse time '{0}', please use the format HH:MM
+    InvalidTime(String),
 }

@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use chrono::NaiveTime;
+use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::Getters;
-use pace_time::{date_time::PaceDateTime, Validate};
+use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
@@ -146,8 +146,8 @@ impl AdjustCommandOptions {
         // Validate the time and time zone as early as possible
         let date_time = PaceDateTime::try_from((
             start.as_ref(),
-            TimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
-            TimeZoneKind::try_from(config.general().default_time_zone().as_ref())?,
+            PaceTimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
+            PaceTimeZoneKind::from(config.general().default_time_zone().as_ref()),
         ))?
         .validate()?;
 

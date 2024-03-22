@@ -10,7 +10,7 @@ use pace_core::prelude::{
     get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
     ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage, UserMessage,
 };
-use pace_time::{date_time::PaceDateTime, time_zone::TimeZoneKind, Validate};
+use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 
 use crate::prelude::PACE_APP;
 
@@ -43,11 +43,11 @@ impl ResumeCmd {
         // Validate the time and time zone as early as possible
         let date_time = PaceDateTime::try_from((
             self.resume_opts.at().as_ref(),
-            TimeZoneKind::try_from((
+            PaceTimeZoneKind::try_from((
                 self.resume_opts.time_zone().as_ref(),
                 self.resume_opts.time_zone_offset().as_ref(),
             ))?,
-            TimeZoneKind::try_from(config.general().default_time_zone().as_ref())?,
+            PaceTimeZoneKind::from(config.general().default_time_zone().as_ref()),
         ))?
         .validate()?;
 
