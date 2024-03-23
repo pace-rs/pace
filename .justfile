@@ -192,3 +192,7 @@ install-dev-deps:
 # use `html` or `json` as ARGS
 timings *ARGS:
 	cargo +nightly build --release --timings={{ARGS}} -Z unstable-options
+
+update-docs:
+	xh get https://pace.cli.rs/docs/pace-user-docs.pdf -o docs/pace-user-docs.pdf
+	xh get https://pace.cli.rs/dev-docs/pace-dev-docs.pdf -o docs/pace-dev-docs.pdf

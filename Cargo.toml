@@ -157,6 +157,11 @@ tap = "pace-rs/homebrew-tap"
 publish-jobs = ["homebrew"]
 # Whether to install an updater program
 install-updater = true
+# Include files in the dist package
+include = [
+  "./config/",
+  "./docs/",
+]
 
 # see: https://nnethercote.github.io/perf-book/build-configuration.html
 [profile.dev]
