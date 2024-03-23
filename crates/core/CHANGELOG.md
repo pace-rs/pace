@@ -8,6 +8,38 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.17.0](https://github.com/pace-rs/pace/compare/pace_core-v0.16.1...pace_core-v0.17.0) - 2024-03-23
+
+### Added
+- *(display)* implement time zone display for activity ([#103](https://github.com/pace-rs/pace/pull/103))
+- *(timezone)* improve ux and time zone handling ([#100](https://github.com/pace-rs/pace/pull/100))
+- *(commands)* impl getters and setters for config values
+- *(commands)* add rather bare bones settings command for now
+- add arg-group to make tz args mutually exclusive
+- add timezone args also to other commands
+- set visible aliases
+- *(setup)* implement time zone prompt for setup config
+- *(commands)* rename review to reflect
+- get local time offset
+- *(timezone)* [**breaking**] improves how pace handles timezones
+
+### Fixed
+- *(deps)* update rust crate toml to 0.8.12 ([#99](https://github.com/pace-rs/pace/pull/99))
+- *(deps)* update rust crate diesel to 2.1.5 ([#98](https://github.com/pace-rs/pace/pull/98))
+- *(deps)* update rust crate wildmatch to 2.3.3 ([#95](https://github.com/pace-rs/pace/pull/95))
+- clippy lints
+- *(deps)* update rust crate wildmatch to 2.3.2 ([#94](https://github.com/pace-rs/pace/pull/94))
+- *(deps)* update rust crate thiserror to 1.0.58 ([#93](https://github.com/pace-rs/pace/pull/93))
+- *(deps)* update rust crate wildmatch to 2.3.1 ([#92](https://github.com/pace-rs/pace/pull/92))
+- *(deps)* update rust crate toml to 0.8.11 ([#91](https://github.com/pace-rs/pace/pull/91))
+- *(deps)* update rust crate strum_macros to 0.26.2 ([#86](https://github.com/pace-rs/pace/pull/86))
+- *(deps)* update rust crate strum to 0.26.2 ([#85](https://github.com/pace-rs/pace/pull/85))
+
+### Other
+- add more tests including journey test ([#102](https://github.com/pace-rs/pace/pull/102))
+- update manifests
+- cleanup imports
+
 ## [0.16.1](https://github.com/pace-rs/pace/compare/pace_core-v0.16.0...pace_core-v0.16.1) - 2024-03-09
 
 ### Other
