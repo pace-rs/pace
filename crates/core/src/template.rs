@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
-use tera::Tera;
+use pace_time::duration::PaceDuration;
+use tera::{Function, Tera};
 
 use crate::prelude::{ReflectionSummary, SummaryActivityGroup};
 
@@ -13,7 +14,6 @@ lazy_static! {
             }
         };
         tera.autoescape_on(vec![".html", ".sql"]);
-        // tera.register_filter("do_nothing", do_nothing_filter);
         tera
     };
 }
@@ -35,8 +35,14 @@ impl From<ReflectionSummary> for PaceReflectionTemplate {
         context.insert("time_range_start", &value.time_range().start());
         context.insert("time_range_end", &value.time_range().end());
 
-        context.insert("total_time_spent", &value.total_time_spent());
-        context.insert("total_break_duration", &value.total_break_duration());
+        context.insert(
+            "total_time_spent",
+            &value.total_time_spent().human_readable(),
+        );
+        context.insert(
+            "total_break_duration",
+            &value.total_break_duration().human_readable(),
+        );
 
         // key must be a string, because of the way tera works with nested objects
         // we need to convert the key to a string
