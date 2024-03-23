@@ -98,7 +98,13 @@ pub struct AdjustCommandOptions {
     /// Time zone to use for the activity, e.g., "Europe/Amsterdam"
     #[cfg_attr(
         feature = "clap",
-        clap(long, group = "tz", value_name = "Time Zone", visible_alias = "tz")
+        clap(
+            short = 'z',
+            long,
+            group = "tz",
+            value_name = "Time Zone",
+            visible_alias = "tz"
+        )
     )]
     time_zone: Option<Tz>,
 
@@ -106,6 +112,7 @@ pub struct AdjustCommandOptions {
     #[cfg_attr(
         feature = "clap",
         clap(
+            short = 'Z',
             long,
             group = "tz",
             value_name = "Time Zone Offset",

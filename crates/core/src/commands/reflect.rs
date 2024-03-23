@@ -41,7 +41,10 @@ pub struct ReflectCommandOptions {
     category: Option<String>,
 
     /// Case sensitive category filter
-    #[cfg_attr(feature = "clap", clap(long, value_name = "Case Sensitive"))]
+    #[cfg_attr(
+        feature = "clap",
+        clap(short = 'i', long, value_name = "Case Sensitive")
+    )]
     case_sensitive: bool,
 
     /// Specify output format (e.g., text, markdown, pdf)
