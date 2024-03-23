@@ -6,12 +6,12 @@ info:
     - "--config"
     - tests/fixtures/configs/pace.toml
     - "--activity-log-file"
-    - "C:\\Users\\dailyuse\\backup\\PARA\\Personal\\2 Areas\\Developer\\Maintenance\\pace\\pace-rs\\pace\\./tests/generated\\.tmpLKmMYT\\activities.pace.toml"
+    - "D:\\a\\pace\\pace\\./tests/generated\\.tmpzdxfi8\\activities.pace.toml"
     - now
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-📆  Activity: "NewDescription" (NewCategory::SubCategory) started just now in UTC+01:00
+📆  Activity: "NewDescription" (NewCategory::SubCategory) started just now in UTC+00:00
 
 ----- stderr -----
