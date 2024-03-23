@@ -8,15 +8,17 @@ use pace_time::{
 };
 use serde_derive::Serialize;
 use std::path::PathBuf;
+use tera::Context;
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
 use crate::{
     config::PaceConfig,
     domain::{activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind},
-    error::{PaceResult, UserMessage},
+    error::{PaceResult, TemplatingErrorKind, UserMessage},
     service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
     storage::get_storage_from_config,
+    template::TEMPLATES,
 };
 
 /// `reflect` subcommand options
@@ -138,7 +140,7 @@ impl ReflectCommandOptions {
 
         debug!("Displaying reflection for time frame: {}", time_frame);
 
-        let Some(reflections) =
+        let Some(reflection) =
             activity_tracker.generate_reflection(FilterOptions::from(self), time_frame)?
         else {
             return Ok(UserMessage::new(
@@ -148,10 +150,10 @@ impl ReflectCommandOptions {
 
         match self.output_format() {
             Some(ReflectionsFormatKind::Console) | None => {
-                return Ok(UserMessage::new(reflections.to_string()));
+                return Ok(UserMessage::new(reflection.to_string()));
             }
             Some(ReflectionsFormatKind::Json) => {
-                let json = serde_json::to_string_pretty(&reflections)?;
+                let json = serde_json::to_string_pretty(&reflection)?;
 
                 debug!("Reflection: {}", json);
 
@@ -168,7 +170,28 @@ impl ReflectCommandOptions {
                 return Ok(UserMessage::new(json));
             }
 
-            Some(ReflectionsFormatKind::Html) => unimplemented!("HTML format not yet supported"),
+            Some(ReflectionsFormatKind::Html) => {
+                let context = Context::from_serialize(reflection)
+                    .map_err(TemplatingErrorKind::FailedToGenerateContextFromSerialize)?;
+
+                let html = TEMPLATES
+                    .render("base.html", &context)
+                    .map_err(TemplatingErrorKind::RenderingToTemplateFailed)?;
+
+                debug!("Reflection: {}", html);
+
+                // write to file if export file is specified
+                if let Some(export_file) = export_file {
+                    std::fs::write(export_file, html)?;
+
+                    return Ok(UserMessage::new(format!(
+                        "Reflection generated: {}",
+                        export_file.display()
+                    )));
+                }
+
+                return Ok(UserMessage::new(html));
+            }
             Some(ReflectionsFormatKind::Csv) => unimplemented!("CSV format not yet supported"),
             Some(ReflectionsFormatKind::Markdown) => {
                 unimplemented!("Markdown format not yet supported")
