@@ -1,3 +1,5 @@
+use std::num::TryFromIntError;
+
 use chrono::OutOfRangeError;
 use displaydoc::Display;
 use thiserror::Error;
@@ -31,10 +33,10 @@ pub enum PaceTimeErrorKind {
     /// Failed to parse date '{0}'
     ParsingDateFailed(String),
 
-    /// Invalid time range: Start {0} - End {1}
+    /// Invalid time range: Start '{0}' - End '{1}'
     InvalidTimeRange(String, String),
 
-    /// Invalid time zone: {0}
+    /// Invalid time zone: '{0}'
     InvalidTimeZone(String),
 
     /// Failed to parse fixed offset '{0}' from user input, please use the format ±HHMM
@@ -63,4 +65,13 @@ pub enum PaceTimeErrorKind {
 
     /// Setting start of day failed
     SettingStartOfDayFailed,
+
+    /// Adding time delta failed: '{0}'
+    AddingTimeDeltaFailed(String),
+
+    /// Failed to convert duration to i64: '{0}'
+    FailedToConvertDurationToI64(TryFromIntError),
+
+    /// Failed to convert PaceDuration to Standard Duration: '{0}'
+    ConversionToDurationFailed(String),
 }

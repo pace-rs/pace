@@ -64,6 +64,7 @@ tracing = "0.1.40"
 typed-builder = "0.18.1"
 ulid = "1.1.2"
 wildmatch = "2.3.3"
+simplelog = "0.12.2"
 
 [package]
 name = "pace-rs"

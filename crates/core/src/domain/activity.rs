@@ -482,7 +482,7 @@ impl Activity {
         begin: PaceDateTime,
         end: PaceDateTime,
     ) -> PaceResult<()> {
-        let end_opts = ActivityEndOptions::new(end, calculate_duration(&begin, end)?);
+        let end_opts = ActivityEndOptions::new(end, calculate_duration(&begin, &end)?);
 
         debug!(
             "Ending activity {} with duration calculations end_opts: {:?}",

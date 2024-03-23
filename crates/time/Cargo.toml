@@ -27,11 +27,12 @@ humantime = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
 typed-builder = { workspace = true }
 
 [dev-dependencies]
 eyre = { workspace = true }
+rstest = { workspace = true }
 
 [lints]
 workspace = true

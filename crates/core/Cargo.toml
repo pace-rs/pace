@@ -63,6 +63,7 @@ insta = { workspace = true, features = ["toml", "redactions"] }
 pace_testing = { workspace = true }
 rstest = { workspace = true }
 similar-asserts = { workspace = true, features = ["serde"] }
+simplelog = { workspace = true }
 
 [lints]
 workspace = true
