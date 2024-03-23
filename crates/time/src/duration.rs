@@ -83,7 +83,7 @@ pub struct PaceDuration(u64);
 
 impl Display for PaceDuration {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", format_duration(Duration::from_secs(self.0)))
+        write!(f, "{}", self.human_readable())
     }
 }
 
@@ -92,6 +92,11 @@ impl PaceDuration {
     #[must_use]
     pub const fn inner(&self) -> u64 {
         self.0
+    }
+
+    #[must_use]
+    pub fn human_readable(&self) -> String {
+        format_duration(Duration::from_secs(self.0)).to_string()
     }
 
     #[must_use]
