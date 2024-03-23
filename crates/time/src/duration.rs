@@ -227,11 +227,7 @@ pub fn calculate_duration(
     begin: &PaceDateTime,
     end: &PaceDateTime,
 ) -> PaceTimeResult<PaceDuration> {
-    let duration = end
-        .inner()
-        .signed_duration_since(begin.inner())
-        .abs()
-        .to_std()?;
+    let duration = end.inner().signed_duration_since(begin.inner()).to_std()?;
 
     debug!("Duration: {duration:?}");
 
@@ -300,6 +296,8 @@ mod tests {
         ))?;
 
         let duration = calculate_duration(&begin, &end);
+
+        dbg!(&duration);
 
         assert!(duration.is_err());
 
