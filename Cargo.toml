@@ -42,10 +42,10 @@ merge = "0.1.0"
 miette = "7.2.0"
 once_cell = "1.19"
 open = "5.1.2"
-pace_cli = { path = "crates/cli" }
-pace_core = { path = "crates/core" }
-pace_testing = { path = "crates/testing" }
-pace_time = { path = "crates/time" }
+pace_cli = { path = "crates/cli", version = "*" }
+pace_core = { path = "crates/core", version = "*" }
+pace_testing = { path = "crates/testing", version = "*" }
+pace_time = { path = "crates/time", version = "*" }
 parking_lot = "0.12.1"
 predicates = "3.1.0"
 rayon = "1.9.0"
