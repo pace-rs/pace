@@ -322,18 +322,16 @@ impl Default for ActivityGuid {
 impl Display for Activity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let time = self.begin.and_local_timezone(&Local);
-
-        let rel_time = duration_to_str(time);
-
+        let utc_offset = time.offset();
+        let symbol = self.kind.as_symbol();
         let nop_cat = "Uncategorized".to_string();
+        let description = self.description();
+        let category = self.category().as_ref().unwrap_or(&nop_cat);
+        let started_at = duration_to_str(time);
 
         write!(
             f,
-            "{}  Activity: \"{}\" ({}) started {}",
-            self.kind.as_symbol(),
-            self.description(),
-            self.category().as_ref().unwrap_or(&nop_cat),
-            rel_time,
+            "{symbol}  Activity: \"{description}\" ({category}) started {started_at} in UTC{utc_offset}",
         )
     }
 }

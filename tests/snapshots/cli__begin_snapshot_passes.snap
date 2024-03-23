@@ -3,8 +3,10 @@ source: tests/cli.rs
 info:
   program: pace
   args:
+    - "--config"
+    - tests/fixtures/configs/pace.toml
     - "--activity-log-file"
-    - "C:\\Users\\dailyuse\\backup\\PARA\\Personal\\2 Areas\\Developer\\Maintenance\\pace\\pace-rs\\pace\\./tests/generated\\.tmpbKS7dL\\activities.pace.toml"
+    - "D:\\a\\pace\\pace\\./tests/generated\\.tmpwF7i1d\\activities.pace.toml"
     - begin
     - MyActivity
     - "--tags"
@@ -15,6 +17,6 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-📆  Activity: "MyActivity" (MyCategory::SubCategory) started just now
+📆  Activity: "MyActivity" (MyCategory::SubCategory) started just now in UTC+00:00
 
 ----- stderr -----
