@@ -52,9 +52,18 @@ pub struct ReflectCommandOptions {
     /// Specify output format (e.g., text, markdown, pdf)
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, value_name = "Output Format", visible_alias = "format")
+        clap(short, long, value_name = "Output Format", visible_alias = "format",)
     )]
     output_format: Option<ReflectionsFormatKind>,
+
+    /// Use this template for rendering the reflection, overrides the default template
+    /// Used in conjunction with the `html` output format
+    // TODO: Make it dependent on the `output_format` argument
+    #[cfg_attr(
+        feature = "clap",
+        clap(short, long, value_name = "Template File", visible_alias = "template")
+    )]
+    template_file: Option<PathBuf>,
 
     /// Export the reflections to a specified file
     #[cfg_attr(
@@ -121,6 +130,8 @@ impl ReflectCommandOptions {
             export_file,
             time_flags,
             date_flags,
+            template_file,
+            output_format,
             // time_zone,
             // time_zone_offset,
             .. // TODO: ignore the rest of the fields for now,
@@ -148,7 +159,7 @@ impl ReflectCommandOptions {
             ));
         };
 
-        match self.output_format() {
+        match output_format {
             Some(ReflectionsFormatKind::Console) | None => {
                 return Ok(UserMessage::new(reflection.to_string()));
             }
@@ -174,9 +185,21 @@ impl ReflectCommandOptions {
                 let context = Context::from_serialize(reflection)
                     .map_err(TemplatingErrorKind::FailedToGenerateContextFromSerialize)?;
 
-                let html = TEMPLATES
-                    .render("base.html", &context)
-                    .map_err(TemplatingErrorKind::RenderingToTemplateFailed)?;
+                let html = if template_file.is_none() {
+                    TEMPLATES
+                        .render("base.html", &context)
+                        .map_err(TemplatingErrorKind::RenderingToTemplateFailed)?
+                } else {
+                    let Some(user_tpl) = template_file.as_ref() else {
+                        return Err(TemplatingErrorKind::TemplateFileNotSpecified.into());
+                    };
+
+                    let user_tpl = std::fs::read_to_string(user_tpl)
+                        .map_err(TemplatingErrorKind::FailedToReadTemplateFile)?;
+
+                    tera::Tera::one_off(&user_tpl, &context, true)
+                        .map_err(TemplatingErrorKind::RenderingToTemplateFailed)?
+                };
 
                 debug!("Reflection: {}", html);
 

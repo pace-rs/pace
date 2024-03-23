@@ -3,7 +3,7 @@
 use displaydoc::Display;
 use miette::Diagnostic;
 use pace_time::error::PaceTimeErrorKind;
-use std::{error::Error, path::PathBuf};
+use std::{error::Error, io, path::PathBuf};
 use thiserror::Error;
 
 use crate::domain::activity::{Activity, ActivityGuid};
@@ -260,6 +260,12 @@ pub enum TemplatingErrorKind {
 
     /// Failed to render template: {0}
     RenderingToTemplateFailed(tera::Error),
+
+    /// Failed to read template file: {0}
+    FailedToReadTemplateFile(io::Error),
+
+    /// Template file not specified
+    TemplateFileNotSpecified,
 }
 
 /// [`ActivityStoreErrorKind`] describes the errors that can happen while dealing with time.

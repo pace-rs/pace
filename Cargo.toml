@@ -96,6 +96,7 @@ license = false
 eula = false
 
 [dependencies]
+abscissa_core = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["env", "wrap_help", "derive"] }
 clap_complete = { workspace = true }
@@ -109,16 +110,15 @@ pace_core = { workspace = true, features = ["cli"] }
 pace_time = { workspace = true, features = ["cli"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
-
-# Better error messages for Serde
-# serde_path_to_error = "0.1.15"
-
-abscissa_core = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true, features = ["preserve_order"] }
+
 # optional: use `gimli` to capture backtraces
 # see https://github.com/rust-lang/backtrace-rs/issues/189
 # features = ["gimli-backtrace"]
+
+# Better error messages for Serde
+# serde_path_to_error = "0.1.15"
 
 [dev-dependencies]
 abscissa_core = { workspace = true, features = ["testing"] }
