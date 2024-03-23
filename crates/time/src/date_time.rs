@@ -4,8 +4,8 @@ use std::{
 };
 
 use chrono::{
-    DateTime, FixedOffset, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound,
-    TimeZone,
+    DateTime, Duration, FixedOffset, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime,
+    SubsecRound, TimeZone,
 };
 
 use serde_derive::{Deserialize, Serialize};
@@ -13,6 +13,7 @@ use tracing::debug;
 
 use crate::{
     date::PaceDate,
+    duration::PaceDuration,
     error::{PaceTimeErrorKind, PaceTimeResult},
     time::PaceTime,
     time_zone::PaceTimeZoneKind,
@@ -132,6 +133,38 @@ impl PaceDateTime {
         pace_date_time_from_date_and_time_and_tz(date, time, time_zone)
     }
 
+    /// Add a [`TimeDelta`] to the [`PaceDateTime`] and return a new [`PaceDateTime`]
+    ///
+    /// # Arguments
+    ///
+    /// * `rhs` - The [`TimeDelta`] to add
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the addition fails
+    ///
+    /// # Returns
+    ///
+    /// Returns the new [`PaceDateTime`] with the added [`TimeDelta`]
+    pub fn add_duration(self, rhs: PaceDuration) -> PaceTimeResult<Self> {
+        Ok(Self(
+            self.0
+                .checked_add_signed(
+                    Duration::new(
+                        i64::try_from(rhs.inner())
+                            .map_err(PaceTimeErrorKind::FailedToConvertDurationToI64)?,
+                        0,
+                    )
+                    .ok_or_else(|| {
+                        PaceTimeErrorKind::ConversionToDurationFailed(format!("{rhs:?}"))
+                    })?,
+                )
+                .ok_or_else(|| {
+                    PaceTimeErrorKind::AddingTimeDeltaFailed(format!("{self} + {rhs:?}"))
+                })?,
+        ))
+    }
+
     // TODO! Implement this
     // pub fn with_date_and_time(
     //     year: i32,
@@ -238,6 +271,20 @@ impl PaceDateTime {
     #[must_use]
     pub fn now() -> Self {
         Self(Local::now().round_subsecs(0).fixed_offset())
+    }
+
+    /// Create a new `PaceDateTime` with a [`FixedOffset`]
+    ///
+    /// # Arguments
+    ///
+    /// * `offset` - The [`FixedOffset`] to use
+    ///
+    /// # Returns
+    ///
+    /// Returns the new `PaceDateTime` with the given offset
+    #[must_use]
+    pub fn now_with_offset(offset: FixedOffset) -> Self {
+        Self(Local::now().round_subsecs(0).with_timezone(&offset))
     }
 }
 

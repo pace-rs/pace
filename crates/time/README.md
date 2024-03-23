@@ -1,21 +1,21 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header_core.png" style="max-width:500px; width:100%; height: auto" />
+<img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header_time.png" style="max-width:500px; width:100%; height: auto" />
 </p>
-<p align="center"><b>pace-core - library to support timetracking on the command line</b></p>
+<p align="center"><b>pace-time - time library to support timetracking on the command line</b></p>
 
 <p align="center">
-<a href="https://crates.io/crates/pace_core"><img src="https://img.shields.io/crates/v/pace_core.svg" /></a>
-<a href="https://docs.rs/pace_core/"><img src="https://img.shields.io/docsrs/pace_core?style=flat&amp;labelColor=1c1d42&amp;color=4f396a&amp;logo=Rust&amp;logoColor=white" /></a>
-<a href="https://raw.githubusercontent.com/pace-rs/pace/main/crates/core/LICENSE"><img src="https://img.shields.io/badge/license-AGPLv3+-red.svg" /></a>
-<a href="https://crates.io/crates/pace_core"><img src="https://img.shields.io/crates/d/pace_core.svg" /></a>
+<a href="https://crates.io/crates/pace_time"><img src="https://img.shields.io/crates/v/pace_time.svg" /></a>
+<a href="https://docs.rs/pace_time/"><img src="https://img.shields.io/docsrs/pace_time?style=flat&amp;labelColor=1c1d42&amp;color=4f396a&amp;logo=Rust&amp;logoColor=white" /></a>
+<a href="https://raw.githubusercontent.com/pace-rs/pace/main/crates/time/LICENSE"><img src="https://img.shields.io/badge/license-AGPLv3+-red.svg" /></a>
+<a href="https://crates.io/crates/pace_time"><img src="https://img.shields.io/crates/d/pace_time.svg" /></a>
 <p>
 
 ## About
 
-`pace-core` is a library to support timetracking on the command line. It is the
-core library for the `pace` timetracking application.
+`pace-time` is a library to support timetracking on the command line. It is the
+time library for the `pace` timetracking application.
 
-⚠️ **Note:** `pace-core` is currently in active development and is not yet ready
+⚠️ **Note:** `pace-time` is currently in active development and is not yet ready
 for production use. Expect breaking changes and incomplete features. We
 encourage you to try it out and provide feedback, but please be aware that it is
 not yet stable.
@@ -41,10 +41,6 @@ This crate exposes a few features for controlling dependency usage:
 
 - **cli** - Enables support for CLI features by enabling `merge` and `clap`
   features. *This feature is enabled by default*.
-
-- **sqlite** - Enables a dependency on the `rusqlite` crate and enables
-  persistence to a SQLite database. *This feature is disabled by default as it's
-  not yet implemented*.
 
 ## Examples
 

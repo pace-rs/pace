@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 
 #[cfg(feature = "clap")]
-use clap::{Parser, ValueEnum};
+use clap::{Args, ValueEnum};
 
 use getset::{Getters, MutGetters, Setters};
 use typed_builder::TypedBuilder;
@@ -31,7 +31,7 @@ pub enum TimeFlags {
 
 #[derive(Debug, Getters, Default, TypedBuilder, Setters, MutGetters, Clone, Eq, PartialEq)]
 #[getset(get = "pub")]
-#[cfg_attr(feature = "clap", derive(Parser))]
+#[cfg_attr(feature = "clap", derive(Args))]
 #[cfg_attr(
         feature = "clap", clap(group = clap::ArgGroup::new("date-flag").multiple(true)))]
 pub struct DateFlags {

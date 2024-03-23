@@ -21,7 +21,7 @@ include = [
 
 # TODO!: Use features for adding optional dependencies for testing and merging etc.
 [features]
-default = []
+default = ["cli"]
 cli = ["clap"]
 sqlite = ["dep:diesel", "dep:libsqlite3-sys"]
 clap = ["dep:clap"]
@@ -30,7 +30,7 @@ clap = ["dep:clap"]
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 chrono-tz = { workspace = true, features = ["serde"] }
-clap = { workspace = true, optional = true }
+clap = { workspace = true, optional = true, features = ["env", "wrap_help", "derive"] }
 diesel = { workspace = true, features = ["sqlite", "chrono"], optional = true }
 directories = { workspace = true }
 displaydoc = { workspace = true }
@@ -63,6 +63,7 @@ insta = { workspace = true, features = ["toml", "redactions"] }
 pace_testing = { workspace = true }
 rstest = { workspace = true }
 similar-asserts = { workspace = true, features = ["serde"] }
+simplelog = { workspace = true }
 
 [lints]
 workspace = true

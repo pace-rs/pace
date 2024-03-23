@@ -272,7 +272,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let end_opts = ActivityEndOptions::new(
             *end_opts.end_time(),
-            calculate_duration(&begin_time, *end_opts.end_time())?,
+            calculate_duration(&begin_time, end_opts.end_time())?,
         );
 
         debug!("End options: {:?}", end_opts);

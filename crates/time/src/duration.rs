@@ -90,6 +90,11 @@ impl Display for PaceDuration {
 #[allow(clippy::trivially_copy_pass_by_ref)]
 impl PaceDuration {
     #[must_use]
+    pub const fn inner(&self) -> u64 {
+        self.0
+    }
+
+    #[must_use]
     pub const fn new(duration: u64) -> Self {
         Self(duration)
     }
@@ -218,10 +223,13 @@ impl std::ops::SubAssign for PaceDuration {
 ///
 /// Returns the duration of the activity
 #[tracing::instrument]
-pub fn calculate_duration(begin: &PaceDateTime, end: PaceDateTime) -> PaceTimeResult<PaceDuration> {
+pub fn calculate_duration(
+    begin: &PaceDateTime,
+    end: &PaceDateTime,
+) -> PaceTimeResult<PaceDuration> {
     let duration = end.inner().signed_duration_since(begin.inner()).to_std()?;
 
-    debug!("Duration: {:?}", duration);
+    debug!("Duration: {duration:?}");
 
     Ok(duration.into())
 }
@@ -233,6 +241,22 @@ mod tests {
 
     use chrono::{NaiveDate, NaiveTime, TimeDelta};
     use eyre::{eyre, OptionExt, Result};
+
+    use rstest::rstest;
+
+    #[rstest]
+    #[case("2024-03-23T11:34:31+01:00".parse::<PaceDateTime>()?, "2024-03-23T08:34:31-02:00".parse::<PaceDateTime>()?, PaceDuration::new(0))]
+    #[case("2024-03-23T10:00:00+03:00".parse::<PaceDateTime>()?, "2024-03-23T10:00:00+01:00".parse::<PaceDateTime>()?, PaceDuration::new(7200))]
+    #[case("2024-03-23T10:00:00+01:00".parse::<PaceDateTime>()?, "2024-03-23T10:00:00-03:00".parse::<PaceDateTime>()?, PaceDuration::new(14400))]
+    fn calculate_duration_with_time_zone(
+        #[case] begin: PaceDateTime,
+        #[case] end: PaceDateTime,
+        #[case] expected: PaceDuration,
+    ) -> Result<()> {
+        assert_eq!(calculate_duration(&begin, &end)?, expected);
+
+        Ok(())
+    }
 
     #[test]
     fn test_duration_to_str_passes() {
@@ -253,7 +277,7 @@ mod tests {
             NaiveTime::from_hms_opt(0, 0, 1).ok_or(eyre!("Invalid date."))?,
         ))?;
 
-        let duration = calculate_duration(&begin, end)?;
+        let duration = calculate_duration(&begin, &end)?;
         assert_eq!(duration, Duration::from_secs(1).into());
 
         Ok(())
@@ -271,7 +295,9 @@ mod tests {
             NaiveTime::from_hms_opt(0, 0, 0).ok_or(eyre!("Invalid date."))?,
         ))?;
 
-        let duration = calculate_duration(&begin, end);
+        let duration = calculate_duration(&begin, &end);
+
+        dbg!(&duration);
 
         assert!(duration.is_err());
 
