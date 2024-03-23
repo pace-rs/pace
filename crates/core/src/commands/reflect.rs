@@ -1,5 +1,3 @@
-use chrono::FixedOffset;
-use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::{Getters, MutGetters, Setters};
@@ -81,25 +79,27 @@ pub struct ReflectCommandOptions {
     )]
     date_flags: Option<DateFlags>,
 
-    /// Time zone to use for displaying the reflections, e.g., "Europe/Amsterdam"
-    #[cfg_attr(
-        feature = "clap",
-        clap(long, value_name = "Time Zone", group = "tz", visible_alias = "tz")
-    )]
-    time_zone: Option<Tz>,
+    // TODO! Implement time zone and time zone offset support, does it make sense?
+    // - [ ] Determine how we should implement it, how does a potential user want to use this?
+    // - [ ] for now showing the reflection in the local time zone is good enough
+    // /// Time zone to use for displaying the reflections, e.g., "Europe/Amsterdam"
+    // #[cfg_attr(
+    //     feature = "clap",
+    //     clap(long, value_name = "Time Zone", group = "tz", visible_alias = "tz")
+    // )]
+    // time_zone: Option<Tz>,
 
-    /// Time zone offset to use to display the reflections, e.g., "+0200" or "-0500". Format: ±HHMM
-    #[cfg_attr(
-        feature = "clap",
-        clap(
-            long,
-            value_name = "Time Zone Offset",
-            group = "tz",
-            visible_alias = "tzo"
-        )
-    )]
-    time_zone_offset: Option<FixedOffset>,
-
+    // /// Time zone offset to use to display the reflections, e.g., "+0200" or "-0500". Format: ±HHMM
+    // #[cfg_attr(
+    //     feature = "clap",
+    //     clap(
+    //         long,
+    //         value_name = "Time Zone Offset",
+    //         group = "tz",
+    //         visible_alias = "tzo"
+    //     )
+    // )]
+    // time_zone_offset: Option<FixedOffset>,
     /// Expensive flags
     /// These flags are expensive to compute and may take longer to generate
     #[cfg_attr(
@@ -116,8 +116,8 @@ impl ReflectCommandOptions {
             export_file,
             time_flags,
             date_flags,
-            time_zone,
-            time_zone_offset,
+            // time_zone,
+            // time_zone_offset,
             .. // TODO: ignore the rest of the fields for now,
         } = self;
 
@@ -125,8 +125,8 @@ impl ReflectCommandOptions {
         let time_frame = PaceTimeFrame::try_from((
             time_flags.as_ref(),
             date_flags.as_ref(),
-            PaceTimeZoneKind::try_from((time_zone.as_ref(), time_zone_offset.as_ref()))?,
-            PaceTimeZoneKind::from(config.general().default_time_zone().as_ref()),
+            PaceTimeZoneKind::NotSet,
+            PaceTimeZoneKind::NotSet,
         ))?;
 
         let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;

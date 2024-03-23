@@ -3,13 +3,15 @@ source: tests/cli.rs
 info:
   program: pace
   args:
+    - "--config"
+    - tests/fixtures/configs/pace.toml
     - "--activity-log-file"
-    - "C:\\Users\\dailyuse\\backup\\PARA\\Personal\\2 Areas\\Developer\\Maintenance\\pace\\pace-rs\\pace\\./tests/generated\\.tmp7YyuFZ\\activities.pace.toml"
+    - "C:\\Users\\dailyuse\\backup\\PARA\\Personal\\2 Areas\\Developer\\Maintenance\\pace\\pace-rs\\pace\\./tests/generated\\.tmpqoWNqT\\activities.pace.toml"
     - hold
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-Held 📆  Activity: "MyActivity" (MyCategory::SubCategory) started just now
+Held 📆  Activity: "MyActivity" (MyCategory::SubCategory) started just now in UTC+01:00
 
 ----- stderr -----
