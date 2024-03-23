@@ -117,7 +117,7 @@ jobs:
       - name: Run Cargo Test
         id: run_tests
         # run: cargo test --all-targets --features ${{ matrix.feature }} --workspace
-        run: cargo test --all-targets --workspace -- --ignored
+        run: cargo test --all-targets --workspace -- --include-ignored
         env:
           INSTA_UPDATE: new
       - name: Upload snapshots of failed tests
