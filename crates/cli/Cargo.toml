@@ -1,6 +1,6 @@
 [package]
 name = "pace_cli"
-version = "0.4.4"
+version = "0.4.5"
 authors = { workspace = true }
 categories = { workspace = true }
 edition = { workspace = true }

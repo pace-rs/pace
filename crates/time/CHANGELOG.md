@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/pace-rs/pace/compare/pace_time-v0.1.0...pace_time-v0.1.1) - 2024-03-23
+
+### Other
+- add more tests including journey test ([#102](https://github.com/pace-rs/pace/pull/102))
+
 ## [0.1.0](https://github.com/pace-rs/pace/releases/tag/pace_time-v0.1.0) - 2024-03-22
 
 ### Added

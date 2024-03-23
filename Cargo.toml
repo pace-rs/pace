@@ -68,7 +68,7 @@ wildmatch = "2.3.3"
 
 [package]
 name = "pace-rs"
-version = "0.14.1"
+version = "0.15.0"
 authors = { workspace = true }
 categories = { workspace = true }
 edition = { workspace = true }

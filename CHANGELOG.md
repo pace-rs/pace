@@ -8,6 +8,55 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.15.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.14.1...pace-rs-v0.15.0) - 2024-03-23
+
+### Added
+- *(display)* implement time zone display for activity ([#103](https://github.com/pace-rs/pace/pull/103))
+- *(timezone)* improve ux and time zone handling ([#100](https://github.com/pace-rs/pace/pull/100))
+- *(commands)* add visible aliases to settings subcommands and remove visible aliases where applicable
+- *(commands)* impl getters and setters for config values
+- *(commands)* add rather bare bones settings command for now
+- add arg-group to make tz args mutually exclusive
+- add timezone args also to other commands
+- set visible aliases
+- *(setup)* implement time zone prompt for setup config
+- *(commands)* rename review to reflect
+- get local time offset
+- *(timezone)* [**breaking**] improves how pace handles timezones
+
+### Fixed
+- *(deps)* update rust crate toml to 0.8.12 ([#99](https://github.com/pace-rs/pace/pull/99))
+- *(deps)* update rust crate diesel to 2.1.5 ([#98](https://github.com/pace-rs/pace/pull/98))
+- *(deps)* update rust crate wildmatch to 2.3.3 ([#95](https://github.com/pace-rs/pace/pull/95))
+- clippy lints
+- *(deps)* update rust crate wildmatch to 2.3.2 ([#94](https://github.com/pace-rs/pace/pull/94))
+- *(deps)* update rust crate thiserror to 1.0.58 ([#93](https://github.com/pace-rs/pace/pull/93))
+- *(deps)* update rust crate wildmatch to 2.3.1 ([#92](https://github.com/pace-rs/pace/pull/92))
+- *(deps)* update rust crate toml to 0.8.11 ([#91](https://github.com/pace-rs/pace/pull/91))
+- *(deps)* update rust crate strum_macros to 0.26.2 ([#86](https://github.com/pace-rs/pace/pull/86))
+- *(deps)* update rust crate strum to 0.26.2 ([#85](https://github.com/pace-rs/pace/pull/85))
+
+### Other
+- add more tests including journey test ([#102](https://github.com/pace-rs/pace/pull/102))
+- fmt
+- *(release)* commit pace_time changelog
+- update manifests
+- time unit tests
+- date and duration unit tests
+- update cargo-dist
+- let release-plz handle the tags
+- don't run nightly and beta clippy with deny warnings, so we don't fail ci
+- cleanup imports
+- make the future obvious in clippy's name ... :)
+- run clippy-future, but do not fail on us
+- use nextest profiles
+- remove config.toml
+- use msrv to run check
+- remove unneeded paragraph from readme
+- update readme and link to documentation where applicable
+- run valgrind on test suite
+- update cargo install args to use `--locked` to make sure, they build
+
 ## [0.14.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.14.0...pace-rs-v0.14.1) - 2024-03-09
 
 ### Added

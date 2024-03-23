@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/pace-rs/pace/compare/pace_testing-v0.1.3...pace_testing-v0.2.0) - 2024-03-23
+
+### Added
+- *(timezone)* improve ux and time zone handling ([#100](https://github.com/pace-rs/pace/pull/100))
+- *(timezone)* [**breaking**] improves how pace handles timezones
+
+### Other
+- update manifests
+- cleanup imports
+
 ## [0.1.3](https://github.com/pace-rs/pace/compare/pace_testing-v0.1.2...pace_testing-v0.1.3) - 2024-03-09
 
 ### Other

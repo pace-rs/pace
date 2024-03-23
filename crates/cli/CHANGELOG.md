@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.4.5](https://github.com/pace-rs/pace/compare/pace_cli-v0.4.4...pace_cli-v0.4.5) - 2024-03-23
+
+### Added
+- *(timezone)* improve ux and time zone handling ([#100](https://github.com/pace-rs/pace/pull/100))
+- *(commands)* impl getters and setters for config values
+- *(setup)* implement time zone prompt for setup config
+
+### Other
+- update manifests
+- cleanup imports
+
 ## [0.4.4](https://github.com/pace-rs/pace/compare/pace_cli-v0.4.3...pace_cli-v0.4.4) - 2024-03-09
 
 ### Added
