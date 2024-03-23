@@ -29,11 +29,14 @@
     <h1>Activity Report</h1>
 
     <h2>Time Range</h2>
-    <p>Start: <span id="start"></span></p>
-    <p>End: <span id="end"></span></p>
+    <p>Start: <span id="start">{{ time_range_start }}</span></p>
+    <p>End: <span id="end">{{ time_range_end }}</span></p>
 
     <h2>Total Time Spent</h2>
-    <p><span id="total_time"></span> seconds</p>
+    <p><span id="total_time">{{ total_time_spent }}</span> seconds</p>
+
+    <h2>Total Break Duration</h2>
+    <p><span id="total_time_break">{{ total_break_duration }}</span> seconds</p>
 
     <h2>Summary Groups by Category</h2>
 
@@ -44,32 +47,8 @@
             <th>Description</th>
             <th>Adjusted Duration</th>
         </tr>
+        {{ summary_groups_by_category }}
     </table>
-
-    <script>
-        import * as data from './data.json';
-
-        // Populate the time range
-        document.getElementById("start").innerText = data.time_range.start;
-        document.getElementById("end").innerText = data.time_range.end;
-
-        // Populate the total time spent
-        document.getElementById("total_time").innerText = data.total_time_spent;
-
-        // Populate the summary table
-        const summaryTable = document.getElementById("summary_table");
-        for (const category in data.summary_groups_by_category) {
-            const categoryData = data.summary_groups_by_category[category];
-            categoryData.activity_groups.forEach(activityGroup => {
-                const row = summaryTable.insertRow();
-                row.insertCell().innerText = category;
-                row.insertCell().innerText = categoryData.total_duration;
-                row.insertCell().innerText = activityGroup.description;
-                row.insertCell().innerText = activityGroup.adjusted_duration;
-            });
-        }
-    </script>
-
 </body>
 
 </html>

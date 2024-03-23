@@ -8,7 +8,6 @@ use pace_time::{
 };
 use serde_derive::Serialize;
 use std::path::PathBuf;
-use tera::Context;
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
@@ -18,7 +17,7 @@ use crate::{
     error::{PaceResult, TemplatingErrorKind, UserMessage},
     service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
     storage::get_storage_from_config,
-    template::TEMPLATES,
+    template::{PaceReflectionTemplate, TEMPLATES},
 };
 
 /// `reflect` subcommand options
@@ -182,8 +181,7 @@ impl ReflectCommandOptions {
             }
 
             Some(ReflectionsFormatKind::Html) => {
-                let context = Context::from_serialize(reflection)
-                    .map_err(TemplatingErrorKind::FailedToGenerateContextFromSerialize)?;
+                let context = PaceReflectionTemplate::from(reflection).into_context();
 
                 let html = if template_file.is_none() {
                     TEMPLATES
