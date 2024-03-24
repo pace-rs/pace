@@ -48,7 +48,7 @@ pace_testing = { path = "crates/testing", version = "0" }
 pace_time = { path = "crates/time", version = "0" }
 parking_lot = "0.12.1"
 predicates = "3.1.0"
-rayon = "1.9.0"
+rayon = "1.10.0"
 rstest = "0.18.2"
 serde = "1.0.197"
 serde_derive = "1.0.197"
