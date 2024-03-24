@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/pace-rs/pace/compare/pace_time-v0.1.1...pace_time-v0.1.2) - 2024-03-24
+
+### Added
+- *(template)* implement html and markdown templating for reflections ([#105](https://github.com/pace-rs/pace/pull/105))
+
 ## [0.1.1](https://github.com/pace-rs/pace/compare/pace_time-v0.1.0...pace_time-v0.1.1) - 2024-03-23
 
 ### Other
