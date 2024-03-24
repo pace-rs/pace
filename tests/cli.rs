@@ -70,6 +70,7 @@ fn test_help_command_passes() -> TestResult<()> {
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_begin_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
@@ -105,6 +106,7 @@ fn test_now_no_activities_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_now_with_active_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
@@ -122,6 +124,7 @@ fn test_now_with_active_activity_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_end_with_active_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
@@ -139,6 +142,7 @@ fn test_end_with_active_activity_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_hold_with_active_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
@@ -156,6 +160,7 @@ fn test_hold_with_active_activity_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_resume_with_held_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
@@ -183,6 +188,7 @@ fn test_resume_with_held_activity_snapshot_passes() -> TestResult<()> {
 }
 
 #[test]
+#[ignore = "Snapshot is only tested in CI, due to time zones being involved"]
 fn test_adjust_activity_snapshot_passes() -> TestResult<()> {
     let dir_str = temp_dir_with("activities.pace.toml")?;
 
