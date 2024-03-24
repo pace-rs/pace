@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.15.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.15.0...pace-rs-v0.15.1) - 2024-03-24
+
+### Added
+- *(template)* implement html and markdown templating for reflections ([#105](https://github.com/pace-rs/pace/pull/105))
+- *(commands)* set short version of time zone arguments and case-sensitive
+
+### Other
+- *(deps)* update rust crate rayon to 1.10.0 ([#106](https://github.com/pace-rs/pace/pull/106))
+- update user docs pdf
+- update readme for docs directory
+- add documentation and embed in dist package + add updater command in justfile
+
 ## [0.15.0](https://github.com/pace-rs/pace/compare/pace-rs-v0.14.1...pace-rs-v0.15.0) - 2024-03-23
 
 ### Added

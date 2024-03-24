@@ -8,6 +8,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.18.0](https://github.com/pace-rs/pace/compare/pace_core-v0.17.0...pace_core-v0.18.0) - 2024-03-24
+
+### Added
+- *(template)* implement html and markdown templating for reflections ([#105](https://github.com/pace-rs/pace/pull/105))
+- *(commands)* set short version of time zone arguments and case-sensitive
+
 ## [0.17.0](https://github.com/pace-rs/pace/compare/pace_core-v0.16.1...pace_core-v0.17.0) - 2024-03-23
 
 ### Added
