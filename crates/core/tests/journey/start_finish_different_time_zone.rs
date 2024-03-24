@@ -48,12 +48,12 @@ fn test_begin_and_end_activity_in_different_time_zones_passes() -> TestResult<()
         );
 
     assert!(
-        first_stored_activity.activity().status().is_active(),
+        first_stored_activity.activity().status().is_in_progress(),
         "Stored activity is not active."
     );
 
     assert!(
-        first_og_activity.status().is_inactive(),
+        first_og_activity.status().is_created(),
         "Original activity is not inactive."
     );
 
@@ -87,7 +87,7 @@ fn test_begin_and_end_activity_in_different_time_zones_passes() -> TestResult<()
     );
 
     assert!(
-        ended_activity.activity().status().is_ended(),
+        ended_activity.activity().status().is_completed(),
         "Activity is not ended."
     );
 

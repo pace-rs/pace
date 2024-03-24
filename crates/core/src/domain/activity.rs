@@ -16,7 +16,7 @@ use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
 use crate::{
-    domain::status::ActivityStatus,
+    domain::status::ActivityStatusKind,
     error::{ActivityLogErrorKind, PaceResult},
 };
 
@@ -246,7 +246,7 @@ pub struct Activity {
     #[serde(default)]
     #[builder(default)]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    status: ActivityStatus,
+    status: ActivityStatusKind,
 }
 
 #[derive(
@@ -357,40 +357,40 @@ impl Activity {
     }
 
     /// If the activity is held
-    pub fn is_held(&self) -> bool {
+    pub fn is_paused(&self) -> bool {
         debug!("Checking if activity is held: {:?}", self);
-        self.status.is_held()
+        self.status.is_paused()
     }
 
     /// If the activity is active, so if it is currently being tracked
     /// Intermissions are not considered active activities, please use
     /// [`is_active_intermission`] for that
     #[must_use]
-    pub fn is_active(&self) -> bool {
+    pub fn is_in_progress(&self) -> bool {
         debug!("Checking if activity is active: {:?}", self);
         self.activity_end_options().is_none()
             && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
-            && self.status.is_active()
+            && self.status.is_in_progress()
     }
 
     /// Make the activity active
     pub fn make_active(&mut self) {
         debug!("Making activity active: {:?}", self);
-        self.status = ActivityStatus::Active;
+        self.status = ActivityStatusKind::InProgress;
     }
 
     /// Make the activity inactive
     pub fn make_inactive(&mut self) {
         debug!("Making activity inactive: {:?}", self);
-        self.status = ActivityStatus::Inactive;
+        self.status = ActivityStatusKind::Created;
     }
 
     /// Archive the activity
     /// This is only possible if the activity is not active and has ended
     pub fn archive(&mut self) {
-        if !self.is_active() && self.has_ended() {
+        if !self.is_in_progress() && self.is_completed() {
             debug!("Archiving activity: {:?}", self);
-            self.status = ActivityStatus::Archived;
+            self.status = ActivityStatusKind::Archived;
         }
     }
 
@@ -399,14 +399,14 @@ impl Activity {
     pub fn unarchive(&mut self) {
         if self.is_archived() {
             debug!("Unarchiving activity: {:?}", self);
-            self.status = ActivityStatus::Unarchived;
+            self.status = ActivityStatusKind::Unarchived;
         }
     }
 
     /// If the activity is endable, meaning if it is active or held
-    pub fn is_endable(&self) -> bool {
+    pub fn is_completable(&self) -> bool {
         debug!("Checking if activity is endable: {:?}", self);
-        self.is_active() || self.is_held()
+        self.is_in_progress() || self.is_paused()
     }
 
     /// If the activity is an active intermission
@@ -415,7 +415,7 @@ impl Activity {
         debug!("Checking if activity is an active intermission: {:?}", self);
         self.activity_end_options().is_none()
             && (self.kind.is_intermission() || self.kind.is_pomodoro_intermission())
-            && self.status.is_active()
+            && self.status.is_in_progress()
     }
 
     /// If the activity is archived
@@ -429,24 +429,24 @@ impl Activity {
     #[must_use]
     pub fn is_inactive(&self) -> bool {
         debug!("Checking if activity is inactive: {:?}", self);
-        self.status.is_inactive()
+        self.status.is_created()
     }
 
     /// If the activity has ended and is not archived
     #[must_use]
-    pub fn has_ended(&self) -> bool {
+    pub fn is_completed(&self) -> bool {
         debug!("Checking if activity has ended: {:?}", self);
         self.activity_end_options().is_some()
             && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
             && !self.is_archived()
-            && self.status.is_ended()
+            && self.status.is_completed()
     }
 
     /// If the activity is resumable
     #[must_use]
     pub fn is_resumable(&self) -> bool {
         debug!("Checking if activity is resumable: {:?}", self);
-        self.is_inactive() || self.is_archived() || self.is_held() || self.has_ended()
+        self.is_inactive() || self.is_archived() || self.is_paused() || self.is_completed()
     }
 
     /// End the activity
@@ -458,7 +458,7 @@ impl Activity {
     pub fn end_activity(&mut self, end_opts: ActivityEndOptions) {
         debug!("Ending activity: {:?}", self);
         self.activity_end_options = Some(end_opts);
-        self.status = ActivityStatus::Ended;
+        self.status = ActivityStatusKind::Completed;
     }
 
     /// End the activity with a given end date and time

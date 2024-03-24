@@ -22,7 +22,7 @@ use crate::{
         category,
         filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
         reflection::{SummaryActivityGroup, SummaryGroupByCategory},
-        status::ActivityStatus,
+        status::ActivityStatusKind,
     },
     error::{ActivityStoreErrorKind, PaceOptResult, PaceResult},
     storage::{
@@ -380,7 +380,7 @@ impl ActivityQuerying for ActivityStore {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_status(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityStatus, Vec<ActivityItem>>> {
+    ) -> PaceOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>> {
         self.storage.group_activities_by_status()
     }
 }

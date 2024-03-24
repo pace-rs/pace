@@ -6,7 +6,7 @@ use pace_time::{duration::PaceDuration, time_range::TimeRangeOptions};
 use rstest::rstest;
 use similar_asserts::assert_eq;
 
-use pace_testing::setup_activity_store_for_activity_tracker;
+use crate::util::setup_activity_store_for_activity_tracker;
 
 #[rstest]
 fn test_activity_tracker(

@@ -1317,7 +1317,6 @@ dependencies = [
  "miette",
  "once_cell",
  "open",
- "pace_testing",
  "pace_time",
  "parking_lot",
  "rayon",
@@ -1342,17 +1341,6 @@ dependencies = [
 [[package]]
 name = "pace_server"
 version = "0.1.3"
-
-[[package]]
-name = "pace_testing"
-version = "0.2.0"
-dependencies = [
- "chrono",
- "pace_core",
- "pace_time",
- "rstest",
- "similar-asserts",
-]
 
 [[package]]
 name = "pace_time"
