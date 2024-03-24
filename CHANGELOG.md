@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.15.2](https://github.com/pace-rs/pace/compare/pace-rs-v0.15.1...pace-rs-v0.15.2) - 2024-03-24
+
+### Added
+- *(completions)* add nushell completions
+
+### Other
+- remove pace_testing crate and migrate it to integration test ([#108](https://github.com/pace-rs/pace/pull/108))
+- ignore tests that use utc locally and only run them in ci
+
 ## [0.15.1](https://github.com/pace-rs/pace/compare/pace-rs-v0.15.0...pace-rs-v0.15.1) - 2024-03-24
 
 ### Added

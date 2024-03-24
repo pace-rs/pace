@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.19.0](https://github.com/pace-rs/pace/compare/pace_core-v0.18.0...pace_core-v0.19.0) - 2024-03-24
+
+### Other
+- remove pace_testing crate and migrate it to integration test ([#108](https://github.com/pace-rs/pace/pull/108))
+
 ## [0.18.0](https://github.com/pace-rs/pace/compare/pace_core-v0.17.0...pace_core-v0.18.0) - 2024-03-24
 
 ### Added

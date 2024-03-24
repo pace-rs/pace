@@ -1255,7 +1255,7 @@ checksum = "caff54706df99d2a78a5a4e3455ff45448d81ef1bb63c22cd14052ca0e993a3f"
 
 [[package]]
 name = "pace-rs"
-version = "0.15.1"
+version = "0.15.2"
 dependencies = [
  "abscissa_core",
  "assert_cmd",
@@ -1299,7 +1299,7 @@ dependencies = [
 
 [[package]]
 name = "pace_core"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "chrono",
  "chrono-tz",
