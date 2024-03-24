@@ -48,19 +48,18 @@ pub struct ReflectCommandOptions {
     )]
     case_sensitive: bool,
 
-    /// Specify output format (e.g., text, markdown, pdf)
+    /// Specify output format for the reflection
     #[cfg_attr(
         feature = "clap",
         clap(short, long, value_name = "Output Format", visible_alias = "format",)
     )]
     output_format: Option<ReflectionsFormatKind>,
 
-    /// Use this template for rendering the reflection, overrides the default template
-    /// Used in conjunction with the `html` output format
+    /// Use this template for rendering the reflection
     // TODO: Make it dependent on the `output_format` argument
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, value_name = "Template File", visible_alias = "template")
+        clap(short, long, value_name = "Template File", visible_alias = "tpl")
     )]
     template_file: Option<PathBuf>,
 
@@ -180,10 +179,10 @@ impl ReflectCommandOptions {
                 return Ok(UserMessage::new(json));
             }
 
-            Some(ReflectionsFormatKind::Html) => {
+            Some(ReflectionsFormatKind::Template) => {
                 let context = PaceReflectionTemplate::from(reflection).into_context();
 
-                let html = if template_file.is_none() {
+                let templated = if template_file.is_none() {
                     TEMPLATES
                         .render("base.html", &context)
                         .map_err(TemplatingErrorKind::RenderingToTemplateFailed)?
@@ -199,11 +198,11 @@ impl ReflectCommandOptions {
                         .map_err(TemplatingErrorKind::RenderingToTemplateFailed)?
                 };
 
-                debug!("Reflection: {}", html);
+                debug!("Reflection: {}", templated);
 
                 // write to file if export file is specified
                 if let Some(export_file) = export_file {
-                    std::fs::write(export_file, html)?;
+                    std::fs::write(export_file, templated)?;
 
                     return Ok(UserMessage::new(format!(
                         "Reflection generated: {}",
@@ -211,15 +210,9 @@ impl ReflectCommandOptions {
                     )));
                 }
 
-                return Ok(UserMessage::new(html));
+                return Ok(UserMessage::new(templated));
             }
             Some(ReflectionsFormatKind::Csv) => unimplemented!("CSV format not yet supported"),
-            Some(ReflectionsFormatKind::Markdown) => {
-                unimplemented!("Markdown format not yet supported")
-            }
-            Some(ReflectionsFormatKind::PlainText) => {
-                unimplemented!("Plain text format not yet supported")
-            }
         }
     }
 }

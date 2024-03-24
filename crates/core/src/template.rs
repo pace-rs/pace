@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use lazy_static::lazy_static;
 use pace_time::duration::PaceDuration;
-use tera::{Function, Tera};
+use tera::{from_value, to_value, Error, Tera, Value};
 
-use crate::prelude::{ReflectionSummary, SummaryActivityGroup};
+use crate::domain::reflection::{ReflectionSummary, SummaryActivityGroup};
 
 lazy_static! {
     pub static ref TEMPLATES: Tera = {
@@ -14,8 +16,20 @@ lazy_static! {
             }
         };
         tera.autoescape_on(vec![".html", ".sql"]);
+        tera.register_filter("human_duration", human_duration);
         tera
     };
+}
+
+/// Returns the human duration of the argument.
+pub fn human_duration(value: &Value, _: &HashMap<String, Value>) -> Result<Value, Error> {
+    let Ok(duration) = from_value::<PaceDuration>(value.clone()) else {
+        return Err(Error::msg(format!(
+            "Function `human-duration` received an invalid argument: `{value:?}`"
+        )));
+    };
+
+    to_value(duration.human_readable()).map_err(Error::json)
 }
 
 #[derive(Debug)]
@@ -55,10 +69,27 @@ impl From<ReflectionSummary> for PaceReflectionTemplate {
                 let key = format!("{category}::{subcategory}");
                 (key, summary_group)
             })
-            .collect::<std::collections::HashMap<String, &SummaryActivityGroup>>();
+            .collect::<HashMap<String, &SummaryActivityGroup>>();
 
         context.insert("summary_groups_by_category", &summary_groups_by_category);
 
         Self { context }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_template_filter_human_duration_passes() -> Result<(), Error> {
+        let value = 31_651_469;
+
+        let print_duration = human_duration(&to_value(value)?, &HashMap::default())?;
+
+        assert_eq!(print_duration, to_value("1year 1day 2h 4m 29s")?);
+
+        Ok(())
     }
 }

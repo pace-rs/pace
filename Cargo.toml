@@ -163,6 +163,7 @@ install-updater = true
 include = [
   "./config/",
   "./docs/",
+  "./templates/",
 ]
 
 # see: https://nnethercote.github.io/perf-book/build-configuration.html
