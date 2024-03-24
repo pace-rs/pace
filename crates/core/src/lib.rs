@@ -6,6 +6,7 @@ pub(crate) mod domain;
 pub(crate) mod error;
 pub(crate) mod service;
 pub(crate) mod storage;
+pub(crate) mod template;
 pub(crate) mod util;
 
 // Constants

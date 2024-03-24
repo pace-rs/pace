@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Report</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Activity Report</h1>
+
+    <h2>Time Range</h2>
+    <p>Start: <span id="start">{{ time_range_start }}</span></p>
+    <p>End: <span id="end">{{ time_range_end }}</span></p>
+
+    <h2>Total Time Spent</h2>
+    <p><span id="total_time">{{ total_time_spent }}</span></p>
+
+    <h2>Total Break Duration</h2>
+    <p><span id="total_time_break">{{ total_break_duration }}</span></p>
+
+    <h2>Summary Groups by Category</h2>
+
+    <table id="summary_table">
+        <tr>
+            <th>Category</th>
+            <th>Total Duration</th>
+            <th>Description</th>
+            <th>Adjusted Duration</th>
+        </tr>
+        {{ summary_groups_by_category }}
+    </table>
+</body>
+
+</html>

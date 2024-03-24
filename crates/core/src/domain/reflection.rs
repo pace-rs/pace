@@ -23,15 +23,9 @@ use crate::domain::activity::{ActivityGroup, ActivityItem, ActivityKind};
 pub enum ReflectionsFormatKind {
     #[default]
     Console,
+    Template,
     Json,
-    Html,
     Csv,
-    #[cfg_attr(feature = "clap", clap(alias("md")))]
-    #[serde(rename = "md")]
-    Markdown,
-    #[cfg_attr(feature = "clap", clap(alias("txt")))]
-    #[serde(rename = "txt")]
-    PlainText,
 }
 
 /// Represents a category for summarizing activities.

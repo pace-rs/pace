@@ -14,9 +14,10 @@ use typed_builder::TypedBuilder;
 use crate::{
     config::PaceConfig,
     domain::{activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind},
-    error::{PaceResult, UserMessage},
+    error::{PaceResult, TemplatingErrorKind, UserMessage},
     service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
     storage::get_storage_from_config,
+    template::{PaceReflectionTemplate, TEMPLATES},
 };
 
 /// `reflect` subcommand options
@@ -47,12 +48,20 @@ pub struct ReflectCommandOptions {
     )]
     case_sensitive: bool,
 
-    /// Specify output format (e.g., text, markdown, pdf)
+    /// Specify output format for the reflection
     #[cfg_attr(
         feature = "clap",
-        clap(short, long, value_name = "Output Format", visible_alias = "format")
+        clap(short, long, value_name = "Output Format", visible_alias = "format",)
     )]
     output_format: Option<ReflectionsFormatKind>,
+
+    /// Use this template for rendering the reflection
+    // TODO: Make it dependent on the `output_format` argument
+    #[cfg_attr(
+        feature = "clap",
+        clap(short, long, value_name = "Template File", visible_alias = "tpl")
+    )]
+    template_file: Option<PathBuf>,
 
     /// Export the reflections to a specified file
     #[cfg_attr(
@@ -119,6 +128,8 @@ impl ReflectCommandOptions {
             export_file,
             time_flags,
             date_flags,
+            template_file,
+            output_format,
             // time_zone,
             // time_zone_offset,
             .. // TODO: ignore the rest of the fields for now,
@@ -138,7 +149,7 @@ impl ReflectCommandOptions {
 
         debug!("Displaying reflection for time frame: {}", time_frame);
 
-        let Some(reflections) =
+        let Some(reflection) =
             activity_tracker.generate_reflection(FilterOptions::from(self), time_frame)?
         else {
             return Ok(UserMessage::new(
@@ -146,12 +157,12 @@ impl ReflectCommandOptions {
             ));
         };
 
-        match self.output_format() {
+        match output_format {
             Some(ReflectionsFormatKind::Console) | None => {
-                return Ok(UserMessage::new(reflections.to_string()));
+                return Ok(UserMessage::new(reflection.to_string()));
             }
             Some(ReflectionsFormatKind::Json) => {
-                let json = serde_json::to_string_pretty(&reflections)?;
+                let json = serde_json::to_string_pretty(&reflection)?;
 
                 debug!("Reflection: {}", json);
 
@@ -168,14 +179,40 @@ impl ReflectCommandOptions {
                 return Ok(UserMessage::new(json));
             }
 
-            Some(ReflectionsFormatKind::Html) => unimplemented!("HTML format not yet supported"),
+            Some(ReflectionsFormatKind::Template) => {
+                let context = PaceReflectionTemplate::from(reflection).into_context();
+
+                let templated = if template_file.is_none() {
+                    TEMPLATES
+                        .render("base.html", &context)
+                        .map_err(TemplatingErrorKind::RenderingToTemplateFailed)?
+                } else {
+                    let Some(user_tpl) = template_file.as_ref() else {
+                        return Err(TemplatingErrorKind::TemplateFileNotSpecified.into());
+                    };
+
+                    let user_tpl = std::fs::read_to_string(user_tpl)
+                        .map_err(TemplatingErrorKind::FailedToReadTemplateFile)?;
+
+                    tera::Tera::one_off(&user_tpl, &context, true)
+                        .map_err(TemplatingErrorKind::RenderingToTemplateFailed)?
+                };
+
+                debug!("Reflection: {}", templated);
+
+                // write to file if export file is specified
+                if let Some(export_file) = export_file {
+                    std::fs::write(export_file, templated)?;
+
+                    return Ok(UserMessage::new(format!(
+                        "Reflection generated: {}",
+                        export_file.display()
+                    )));
+                }
+
+                return Ok(UserMessage::new(templated));
+            }
             Some(ReflectionsFormatKind::Csv) => unimplemented!("CSV format not yet supported"),
-            Some(ReflectionsFormatKind::Markdown) => {
-                unimplemented!("Markdown format not yet supported")
-            }
-            Some(ReflectionsFormatKind::PlainText) => {
-                unimplemented!("Plain text format not yet supported")
-            }
         }
     }
 }
