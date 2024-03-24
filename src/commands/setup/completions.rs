@@ -7,6 +7,7 @@ use std::io::Write;
 use clap::CommandFactory;
 
 use clap_complete::{generate, shells, Generator};
+use clap_complete_nushell::Nushell;
 
 /// `completions` subcommand
 #[derive(clap::Parser, Command, Debug)]
@@ -24,6 +25,9 @@ pub enum ShellVariant {
     /// Fish shell
     Fish,
 
+    // Nushell
+    Nushell,
+
     /// PowerShell
     Powershell,
 
@@ -40,6 +44,7 @@ impl Runnable for CompletionsCmd {
             ShellVariant::Powershell => {
                 generate_completion(shells::PowerShell, &mut std::io::stdout())
             }
+            ShellVariant::Nushell => generate_completion(Nushell, &mut std::io::stdout()),
         }
     }
 }
@@ -64,6 +69,7 @@ mod tests {
     fn test_completions() {
         generate_completion(shells::Bash, &mut std::io::sink());
         generate_completion(shells::Fish, &mut std::io::sink());
+        generate_completion(Nushell, &mut std::io::sink());
         generate_completion(shells::PowerShell, &mut std::io::sink());
         generate_completion(shells::Zsh, &mut std::io::sink());
     }

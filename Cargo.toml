@@ -24,6 +24,7 @@ chrono = "0.4.35"
 chrono-tz = "0.8.6"
 clap = "4"
 clap_complete = "4.5.1"
+clap_complete_nushell = "4.5.1"
 derive_more = { version = "0.99.17", default-features = false }
 dialoguer = "0.11.0"
 diesel = "2.1.5"
@@ -99,6 +100,7 @@ abscissa_core = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["env", "wrap_help", "derive"] }
 clap_complete = { workspace = true }
+clap_complete_nushell = { workspace = true }
 dialoguer = { workspace = true, features = ["history", "fuzzy-select"] }
 diesel = { workspace = true, features = ["sqlite"] }
 directories = { workspace = true }
