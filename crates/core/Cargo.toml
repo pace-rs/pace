@@ -37,10 +37,10 @@ displaydoc = { workspace = true }
 enum_dispatch = { workspace = true }
 getset = { workspace = true }
 itertools = { workspace = true }
-lazy_static = { workspace = true }
 libsqlite3-sys = { workspace = true, features = ["bundled"], optional = true }
 merge = { workspace = true }
 miette = { workspace = true, features = ["fancy"] }
+once_cell = { workspace = true }
 open = { workspace = true }
 pace_time = { workspace = true }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }

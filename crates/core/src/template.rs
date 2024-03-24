@@ -1,25 +1,23 @@
 use std::collections::HashMap;
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use pace_time::duration::PaceDuration;
-use tera::{from_value, to_value, Error, Tera, Value};
+use tera::{from_value, to_value, Context, Error, Tera, Value};
 
 use crate::domain::reflection::{ReflectionSummary, SummaryActivityGroup};
 
-lazy_static! {
-    pub static ref TEMPLATES: Tera = {
-        let mut tera = match Tera::new("templates/reflections/**") {
-            Ok(t) => t,
-            Err(e) => {
-                println!("Parsing error(s): {e}");
-                ::std::process::exit(1);
-            }
-        };
-        tera.autoescape_on(vec![".html", ".sql"]);
-        tera.register_filter("human_duration", human_duration);
-        tera
+pub static TEMPLATES: Lazy<Tera> = Lazy::new(|| {
+    let mut tera = match Tera::new("templates/reflections/**") {
+        Ok(t) => t,
+        Err(e) => {
+            println!("Parsing error(s): {e}");
+            ::std::process::exit(1);
+        }
     };
-}
+    tera.autoescape_on(vec![".html", ".sql"]);
+    tera.register_filter("human_duration", human_duration);
+    tera
+});
 
 /// Returns the human duration of the argument.
 pub fn human_duration(value: &Value, _: &HashMap<String, Value>) -> Result<Value, Error> {
@@ -34,18 +32,18 @@ pub fn human_duration(value: &Value, _: &HashMap<String, Value>) -> Result<Value
 
 #[derive(Debug)]
 pub struct PaceReflectionTemplate {
-    context: tera::Context,
+    context: Context,
 }
 
 impl PaceReflectionTemplate {
-    pub fn into_context(self) -> tera::Context {
+    pub fn into_context(self) -> Context {
         self.context
     }
 }
 
 impl From<ReflectionSummary> for PaceReflectionTemplate {
     fn from(value: ReflectionSummary) -> Self {
-        let mut context = tera::Context::new();
+        let mut context = Context::new();
         context.insert("time_range_start", &value.time_range().start());
         context.insert("time_range_end", &value.time_range().end());
 
