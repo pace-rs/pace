@@ -14,7 +14,7 @@ use crate::{
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem, ActivityKind},
         filter::{ActivityFilterKind, FilteredActivities},
-        status::ActivityStatus,
+        status::ActivityStatusKind,
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     service::activity_store::ActivityStore,
@@ -544,7 +544,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn group_activities_by_status(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityStatus, Vec<ActivityItem>>>;
+    ) -> PaceOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>>;
 
     /// List all current activities from the storage backend matching an `ActivityFilter`.
     ///
@@ -659,14 +659,14 @@ pub trait ActivityQuerying: ActivityReadOps {
         debug!(
             "Checking if Activity with id {:?} is active: {}",
             activity_id,
-            if activity.activity().is_active() {
+            if activity.activity().is_in_progress() {
                 "yes"
             } else {
                 "no"
             }
         );
 
-        Ok(activity.activity().is_active())
+        Ok(activity.activity().is_in_progress())
     }
 
     /// List all intermissions for an activity id from the storage backend.
@@ -794,7 +794,7 @@ pub trait ActivityQuerying: ActivityReadOps {
             .find(|activity_id| {
                 self.read_activity(*activity_id)
                     .map(|activity| {
-                        activity.activity().is_active()
+                        activity.activity().is_in_progress()
                             && activity.activity().kind().is_activity()
                             && !activity.activity().is_active_intermission()
                     })
@@ -829,7 +829,7 @@ pub trait ActivityQuerying: ActivityReadOps {
             .find(|activity_id| {
                 self.read_activity(*activity_id)
                     .map(|activity| {
-                        activity.activity().is_held()
+                        activity.activity().is_paused()
                             && activity.activity().kind().is_activity()
                             && !activity.activity().is_active_intermission()
                     })

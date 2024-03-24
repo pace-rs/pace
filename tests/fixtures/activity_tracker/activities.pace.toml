@@ -5,7 +5,7 @@ begin = "2024-02-26T20:34:33+01:00"
 end = "2024-02-26T20:41:59+01:00"
 duration = 446
 kind = "activity"
-status = "ended"
+status = "completed"
 
 [01HQKEKX9PA24T5GB17PNW0N9K]
 category = "development::pace"
@@ -15,7 +15,7 @@ end = "2024-02-26T20:39:13+01:00"
 duration = 244
 kind = "intermission"
 parent-id = "01HQKEJTPFPY2WPBYT8NG6W2HY"
-status = "ended"
+status = "completed"
 
 [01HQN2WK1WSJ6Q7R43F49QFPDG]
 category = "development::rustic"
@@ -24,7 +24,7 @@ begin = "2024-02-27T11:48:39+01:00"
 end = "2024-02-27T11:48:56+01:00"
 duration = 17
 kind = "activity"
-status = "ended"
+status = "completed"
 
 [01HQN2X30PCBZXMV6EQ74D4GWZ]
 category = "development::rustic"
@@ -33,7 +33,7 @@ begin = "2024-02-27T11:48:56+01:00"
 end = "2024-02-27T11:49:40+01:00"
 duration = 44
 kind = "activity"
-status = "ended"
+status = "completed"
 
 [01HQN2XMM43HA5W3RSGWFQ3KWZ]
 category = "development::rustic"
@@ -43,4 +43,4 @@ end = "2024-02-27T11:49:24+01:00"
 duration = 10
 kind = "intermission"
 parent-id = "01HQN2X30PCBZXMV6EQ74D4GWZ"
-status = "ended"
+status = "completed"

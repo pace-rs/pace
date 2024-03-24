@@ -16,7 +16,7 @@ use crate::{
         activity::{Activity, ActivityGuid, ActivityItem, ActivityKind},
         activity_log::ActivityLog,
         filter::{ActivityFilterKind, FilteredActivities},
-        status::ActivityStatus,
+        status::ActivityStatusKind,
     },
     error::{PaceErrorKind, PaceOptResult, PaceResult},
     storage::{
@@ -285,7 +285,7 @@ impl ActivityQuerying for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_status(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityStatus, Vec<ActivityItem>>> {
+    ) -> PaceOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>> {
         self.cache.group_activities_by_status()
     }
 }

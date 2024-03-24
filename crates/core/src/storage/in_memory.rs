@@ -23,7 +23,7 @@ use crate::{
         },
         activity_log::ActivityLog,
         filter::{ActivityFilterKind, FilteredActivities},
-        status::ActivityStatus,
+        status::ActivityStatusKind,
     },
     error::{ActivityLogErrorKind, PaceOptResult, PaceResult},
     storage::{
@@ -129,11 +129,11 @@ impl ActivityReadOps for InMemoryActivityStorage {
             .filter(|(_, activity)| match filter {
                 ActivityFilterKind::Everything => true,
                 ActivityFilterKind::OnlyActivities => activity.kind().is_activity(),
-                ActivityFilterKind::Active => activity.is_active(),
+                ActivityFilterKind::Active => activity.is_in_progress(),
                 ActivityFilterKind::ActiveIntermission => activity.is_active_intermission(),
-                ActivityFilterKind::Ended => activity.has_ended(),
+                ActivityFilterKind::Ended => activity.is_completed(),
                 ActivityFilterKind::Archived => activity.is_archived(),
-                ActivityFilterKind::Held => activity.is_held(),
+                ActivityFilterKind::Held => activity.is_paused(),
                 ActivityFilterKind::Intermission => activity.kind().is_intermission(),
                 ActivityFilterKind::TimeRange(time_range_opts) => {
                     // TODO: When adding Pomodoro support, we should also check for Pomodoro activities
@@ -309,7 +309,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let endable_activities = activities
             .par_iter()
             .filter_map(|(activity_id, activity)| {
-                if activity.is_endable() {
+                if activity.is_completable() {
                     Some(*activity_id)
                 } else {
                     None
@@ -405,16 +405,16 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         debug!("Resumable activity: {:?}", resumable_activity);
 
         // If the activity is active, return early with an error
-        if resumable_activity.activity().is_active() {
+        if resumable_activity.activity().is_in_progress() {
             debug!("Activity is already active.");
             return Err(ActivityLogErrorKind::ActiveActivityFound(activity_id).into());
-        } else if resumable_activity.activity().has_ended() {
+        } else if resumable_activity.activity().is_completed() {
             debug!("Activity has ended.");
             return Err(ActivityLogErrorKind::ActivityAlreadyEnded(activity_id).into());
         } else if resumable_activity.activity().is_archived() {
             debug!("Activity is archived.");
             return Err(ActivityLogErrorKind::ActivityAlreadyArchived(activity_id).into());
-        } else if !resumable_activity.activity().is_held() {
+        } else if !resumable_activity.activity().is_paused() {
             debug!("Activity is not held.");
             return Err(ActivityLogErrorKind::NoHeldActivityFound(activity_id).into());
         };
@@ -431,7 +431,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let updated_activity = editable_activity
             .activity_mut()
-            .set_status(ActivityStatus::Active)
+            .set_status(ActivityStatusKind::InProgress)
             .clone();
 
         debug!("Updated activity: {:?}", updated_activity);
@@ -457,10 +457,10 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         debug!("Active activity: {:?}", active_activity);
 
         // make sure, the activity is not already ended or archived
-        if !active_activity.activity().is_active() {
+        if !active_activity.activity().is_in_progress() {
             debug!("Activity is not active.");
             return Err(ActivityLogErrorKind::NoActiveActivityFound(activity_id).into());
-        } else if active_activity.activity().has_ended() {
+        } else if active_activity.activity().is_completed() {
             debug!("Activity has ended.");
             return Err(ActivityLogErrorKind::ActivityAlreadyEnded(activity_id).into());
         } else if active_activity.activity().is_archived() {
@@ -512,7 +512,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let intermission = Activity::builder()
             .begin(*hold_opts.begin_time())
             .kind(ActivityKind::Intermission)
-            .status(ActivityStatus::Active)
+            .status(ActivityStatusKind::InProgress)
             .description(description)
             .category(active_activity.activity().category().clone())
             .activity_kind_options(Some(activity_kind_opts))
@@ -527,7 +527,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let updated_activity = editable_activity
             .activity_mut()
-            .set_status(ActivityStatus::Held)
+            .set_status(ActivityStatusKind::Paused)
             .clone();
 
         debug!("Updated activity: {:?}", updated_activity);
@@ -736,12 +736,12 @@ impl ActivityQuerying for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_status(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityStatus, Vec<ActivityItem>>> {
+    ) -> PaceOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>> {
         let activities = self.log.read();
 
         Some(activities.activities().iter().try_fold(
             BTreeMap::new(),
-            |mut acc: BTreeMap<ActivityStatus, Vec<ActivityItem>>, (activity_id, activity)| {
+            |mut acc: BTreeMap<ActivityStatusKind, Vec<ActivityItem>>, (activity_id, activity)| {
                 debug!(
                     "Activity status: {:?} for item {:?} with id {:?}",
                     activity.status(),
@@ -943,7 +943,7 @@ mod tests {
         let updated_activity = Activity::builder()
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
-            .status(ActivityStatus::Active)
+            .status(ActivityStatusKind::InProgress)
             .description(new_description)
             .tags(tags.clone())
             .build();
@@ -993,7 +993,7 @@ mod tests {
         );
 
         assert!(
-            new_stored_activity.activity().is_active(),
+            new_stored_activity.activity().is_in_progress(),
             "Activity should be active now, but was not updated."
         );
 
@@ -1047,7 +1047,7 @@ mod tests {
 
         assert_eq!(
             *stored_activity.activity().status(),
-            ActivityStatus::Active,
+            ActivityStatusKind::InProgress,
             "Activity is not active."
         );
 
@@ -1065,7 +1065,7 @@ mod tests {
         let updated_activity = Activity::builder()
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
-            .status(ActivityStatus::Inactive)
+            .status(ActivityStatusKind::Created)
             .description(new_description)
             .tags(tags.clone())
             .build();
@@ -1169,7 +1169,7 @@ mod tests {
         let ended_activity = storage.read_activity(*activity_item.guid())?;
 
         assert!(
-            ended_activity.activity().has_ended(),
+            ended_activity.activity().is_completed(),
             "Activity has not ended, but should have."
         );
 
@@ -1228,7 +1228,7 @@ mod tests {
         );
 
         assert!(
-            ended_activity.activity().has_ended(),
+            ended_activity.activity().is_completed(),
             "Activity has not ended, but should have."
         );
 
@@ -1294,7 +1294,7 @@ mod tests {
         let ended_activity = storage.read_activity(*activity_item.guid())?;
 
         assert!(
-            ended_activity.activity().has_ended(),
+            ended_activity.activity().is_completed(),
             "Activity has not ended, but should have."
         );
 
@@ -1312,7 +1312,7 @@ mod tests {
         let ended_activity2 = storage.read_activity(*activity_item2.guid())?;
 
         assert!(
-            ended_activity2.activity().is_active(),
+            ended_activity2.activity().is_in_progress(),
             "Activity has not ended, but should have."
         );
 
@@ -1430,7 +1430,7 @@ mod tests {
 
         assert_eq!(
             *held_activity.activity().status(),
-            ActivityStatus::Held,
+            ActivityStatusKind::Paused,
             "Activity was not held."
         );
 
@@ -1521,7 +1521,7 @@ mod tests {
         let ended_intermission = storage.read_activity(intermission_guids[0])?;
 
         assert!(
-            ended_intermission.activity().has_ended(),
+            ended_intermission.activity().is_completed(),
             "Intermission has not ended, but should have."
         );
 
@@ -1682,7 +1682,7 @@ mod tests {
 
         assert_eq!(
             *grouped_activity.activity().status(),
-            ActivityStatus::Active,
+            ActivityStatusKind::InProgress,
             "Grouped activity status is not the same as the original activity status."
         );
 

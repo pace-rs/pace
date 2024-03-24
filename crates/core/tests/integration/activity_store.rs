@@ -4,11 +4,11 @@ use std::{collections::HashSet, sync::Arc};
 
 use pace_core::prelude::{
     Activity, ActivityFilterKind, ActivityGuid, ActivityReadOps, ActivityStateManagement,
-    ActivityStatus, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
+    ActivityStatusKind, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
     InMemoryActivityStorage, ResumeOptions, TestResult, UpdateOptions,
 };
 
-use pace_testing::{
+use crate::util::{
     activity_store, activity_store_empty, activity_store_no_intermissions, TestData,
 };
 
@@ -377,7 +377,7 @@ fn test_activity_store_begin_intermission_passes(
 
     let og_activity = activities
         .into_iter()
-        .find(|a| a.activity().is_active())
+        .find(|a| a.activity().is_in_progress())
         .ok_or("Should have an active activity.")?;
 
     let og_activity_id = og_activity.guid();
@@ -389,7 +389,7 @@ fn test_activity_store_begin_intermission_passes(
     let mut edited_activity = og_activity.clone();
     let edited_activity = edited_activity
         .activity_mut()
-        .set_status(ActivityStatus::Held)
+        .set_status(ActivityStatusKind::Paused)
         .clone();
 
     assert_eq!(
@@ -620,7 +620,7 @@ fn test_activity_store_resume_activity_passes(
     let resumed_activity = store.read_activity(*resumed_activity.guid())?;
 
     assert!(
-        resumed_activity.activity().status().is_active(),
+        resumed_activity.activity().status().is_in_progress(),
         "Activity should be active again."
     );
 
@@ -641,7 +641,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
     let read_activity = store.read_activity(*activity.guid())?;
 
     assert!(
-        read_activity.activity().status().is_active(),
+        read_activity.activity().status().is_in_progress(),
         "Activity should be active."
     );
 
@@ -651,7 +651,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
     let held_activity = store.read_activity(*read_activity.guid())?;
 
     assert!(
-        held_activity.activity().status().is_held(),
+        held_activity.activity().status().is_paused(),
         "Activity should be held."
     );
 
@@ -665,7 +665,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
     let new_activity = store.read_activity(*new_activity.guid())?;
 
     assert!(
-        new_activity.activity().status().is_active(),
+        new_activity.activity().status().is_in_progress(),
         "Activity should be active."
     );
 
@@ -674,7 +674,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
             .read_activity(*held_activity.guid())?
             .activity()
             .status()
-            .is_ended(),
+            .is_completed(),
         "Held activity should be ended."
     );
 

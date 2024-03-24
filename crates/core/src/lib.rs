@@ -59,7 +59,7 @@ pub mod prelude {
                 Highlights, ReflectionSummary, ReflectionsFormatKind, SummaryActivityGroup,
                 SummaryCategories, SummaryGroupByCategory,
             },
-            status::ActivityStatus,
+            status::ActivityStatusKind,
         },
         error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult, UserMessage},
         service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},

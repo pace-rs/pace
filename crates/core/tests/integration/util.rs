@@ -4,7 +4,7 @@ use chrono::Local;
 
 use pace_core::prelude::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityStatus, ActivityStore, InMemoryActivityStorage, TestResult, TomlActivityStorage,
+    ActivityStatusKind, ActivityStore, InMemoryActivityStorage, TestResult, TomlActivityStorage,
 };
 
 use rstest::fixture;
@@ -60,20 +60,20 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
         .into_iter()
         .collect::<HashSet<String>>();
 
-    let mut ended_activity = Activity::builder()
+    let mut completed = Activity::builder()
         .description("Activity with end".to_string())
         .begin(begin_time)
-        .status(ActivityStatus::Ended)
+        .status(ActivityStatusKind::Completed)
         .tags(tags.clone())
         .build();
-    ended_activity.end_activity_with_duration_calc(begin_time, PaceDateTime::now())?;
+    completed.end_activity_with_duration_calc(begin_time, PaceDateTime::now())?;
 
-    let ended_activity = ActivityItem::from((ActivityGuid::default(), ended_activity));
+    let completed = ActivityItem::from((ActivityGuid::default(), completed));
 
     let mut archived_activity = Activity::builder()
         .description("Activity with end".to_string())
         .begin(begin_time)
-        .status(ActivityStatus::Archived)
+        .status(ActivityStatusKind::Archived)
         .tags(tags.clone())
         .build();
     archived_activity.end_activity_with_duration_calc(begin_time, PaceDateTime::now())?;
@@ -94,49 +94,49 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
 
     let cat = "Test::Intermission".to_string();
 
-    let held = ActivityItem::from((
+    let paused = ActivityItem::from((
         ActivityGuid::default(),
         Activity::builder()
             .begin(begin_time)
             .description(desc.clone())
             .kind(ActivityKind::Activity)
-            .status(ActivityStatus::Held)
+            .status(ActivityStatusKind::Paused)
             .category(cat.clone())
             .tags(tags.clone())
             .build(),
     ));
 
-    let active = ActivityItem::from((
+    let in_progress = ActivityItem::from((
         ActivityGuid::default(),
         Activity::builder()
             .begin(begin_time)
             .description(desc.clone())
             .kind(ActivityKind::Activity)
-            .status(ActivityStatus::Active)
+            .status(ActivityStatusKind::InProgress)
             .category(cat.clone())
             .tags(tags.clone())
             .build(),
     ));
 
-    let guid = held.guid();
+    let guid = paused.guid();
 
     let active_intermission = ActivityItem::from((
         ActivityGuid::default(),
         Activity::builder()
             .begin(intermission_begin_time)
             .kind(ActivityKind::Intermission)
-            .status(ActivityStatus::Active)
+            .status(ActivityStatusKind::InProgress)
             .description(desc)
             .category(cat)
             .activity_kind_options(ActivityKindOptions::with_parent_id(*guid))
             .build(),
     ));
 
-    let inactive = ActivityItem::from((
+    let created = ActivityItem::from((
         ActivityGuid::default(),
         Activity::builder()
             .description("Default activity, but no end and not active.")
-            .status(ActivityStatus::Inactive)
+            .status(ActivityStatusKind::Created)
             .tags(tags)
             .build(),
     ));
@@ -146,17 +146,17 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
     match kind {
         ActivityStoreTestKind::Empty => (),
         ActivityStoreTestKind::WithActivitiesAndOpenIntermission => {
-            activities.push(inactive);
+            activities.push(created);
             activities.push(archived_activity);
-            activities.push(ended_activity);
-            activities.push(held);
+            activities.push(completed);
+            activities.push(paused);
             activities.push(active_intermission);
         }
         ActivityStoreTestKind::WithoutIntermissions => {
-            activities.push(inactive);
+            activities.push(created);
             activities.push(archived_activity);
-            activities.push(ended_activity);
-            activities.push(active);
+            activities.push(completed);
+            activities.push(in_progress);
         }
     }
 

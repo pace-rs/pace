@@ -39,12 +39,12 @@ fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
         );
 
     assert!(
-        first_stored_activity.activity().status().is_active(),
+        first_stored_activity.activity().status().is_in_progress(),
         "Stored activity is not active."
     );
 
     assert!(
-        first_og_activity.status().is_inactive(),
+        first_og_activity.status().is_created(),
         "Original activity is not inactive."
     );
 
@@ -59,7 +59,7 @@ fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
     let first_stored_activity = storage.read_activity(*first_begin_activity.guid())?;
 
     assert!(
-        first_stored_activity.activity().status().is_ended(),
+        first_stored_activity.activity().status().is_completed(),
         "First activity is not ended."
     );
 
@@ -88,12 +88,12 @@ fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
         );
 
     assert!(
-        second_stored_activity.activity().status().is_active(),
+        second_stored_activity.activity().status().is_in_progress(),
         "Stored activity is not active."
     );
 
     assert!(
-        second_og_activity.status().is_inactive(),
+        second_og_activity.status().is_created(),
         "Original activity is not inactive."
     );
 
@@ -106,7 +106,7 @@ fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
     let second_stored_activity = storage.read_activity(*second_begin_activity.guid())?;
 
     assert!(
-        second_stored_activity.activity().status().is_held(),
+        second_stored_activity.activity().status().is_paused(),
         "Second activity is not held."
     );
 
@@ -147,22 +147,25 @@ fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
     let second_stored_intermission = storage.read_activity(*second_activity_intermission_id)?;
 
     assert!(
-        resumed_stored_activity.activity().status().is_active(),
+        resumed_stored_activity.activity().status().is_in_progress(),
         "Resumed activity is not active."
     );
 
     assert!(
-        second_stored_intermission.activity().status().is_ended(),
+        second_stored_intermission
+            .activity()
+            .status()
+            .is_completed(),
         "Intermission has not ended."
     );
 
     assert!(
-        second_stored_intermission.activity().has_ended(),
+        second_stored_intermission.activity().is_completed(),
         "Intermission has not ended."
     );
 
     assert!(
-        resumed_stored_activity.activity().status().is_active(),
+        resumed_stored_activity.activity().status().is_in_progress(),
         "Resumed activity is not active."
     );
 
@@ -190,7 +193,7 @@ fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
         "Resumed activity has not the same kind as the second stored activity."
     );
 
-    assert!(!resumed_stored_activity.activity().has_ended());
+    assert!(!resumed_stored_activity.activity().is_completed());
 
     Ok(())
 }
