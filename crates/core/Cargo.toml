@@ -19,21 +19,19 @@ include = [
   "Cargo.toml",
 ]
 
-# TODO!: Use features for adding optional dependencies for testing and merging etc.
 [features]
 default = ["cli"]
 cli = ["clap"]
-sqlite = ["dep:diesel", "dep:libsqlite3-sys"]
+sqlite = ["dep:rusqlite", "dep:libsqlite3-sys"]
 clap = ["dep:clap"]
-# testing = ["dep:arbitrary"]
 
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 chrono-tz = { workspace = true, features = ["serde"] }
 clap = { workspace = true, optional = true, features = ["env", "wrap_help", "derive"] }
-diesel = { workspace = true, features = ["sqlite", "chrono"], optional = true }
 directories = { workspace = true }
 displaydoc = { workspace = true }
+dotenvy = { workspace = true }
 enum_dispatch = { workspace = true }
 getset = { workspace = true }
 itertools = { workspace = true }
@@ -45,6 +43,7 @@ open = { workspace = true }
 pace_time = { workspace = true }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
+rusqlite = { workspace = true, optional = true, features = ["bundled"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }

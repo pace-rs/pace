@@ -109,39 +109,35 @@ pub enum PaceErrorKind {
     #[error(transparent)]
     StdIo(#[from] std::io::Error),
 
-    /// Serialization to TOML failed: `{0}`
+    /// Serialization to TOML failed: {0}
     #[error(transparent)]
     SerializationToTomlFailed(#[from] toml::ser::Error),
 
-    /// Deserialization from TOML failed: `{0}`
+    /// Deserialization from TOML failed: {0}
     #[error(transparent)]
     DeserializationFromTomlFailed(#[from] toml::de::Error),
 
-    /// Activity store error: `{0}`
+    /// Activity store error: {0}
     #[error(transparent)]
     ActivityStore(#[from] ActivityStoreErrorKind),
 
-    /// Activity log error: `{0}`
+    /// Activity log error: {0}
     #[error(transparent)]
     ActivityLog(#[from] ActivityLogErrorKind),
 
-    /// Time related error: `{0}`
+    /// Time related error: {0}
     #[error(transparent)]
     PaceTime(#[from] PaceTimeErrorKind),
 
-    /// JSON error: `{0}`
+    /// JSON error: {0}
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
-    // /// SQLite error: {0}
-    // #[error(transparent)]
-    // #[cfg(feature = "sqlite")]
-    // SQLite(#[from] diesel::ConnectionError),
-    /// Chrono parse error: `{0}`
+    /// Chrono parse error: {0}
     #[error(transparent)]
     ChronoParse(#[from] chrono::ParseError),
 
-    /// Time chosen is not valid, because it lays before the current activity's beginning: `{0}`
+    /// Time chosen is not valid, because it lays before the current activity's beginning: {0}
     #[error(transparent)]
     ChronoDurationIsNegative(#[from] chrono::OutOfRangeError),
 
@@ -163,9 +159,14 @@ pub enum PaceErrorKind {
     /// There is no path available to store the activity log
     NoPathAvailable,
 
-    /// {0}
+    /// Templating error: {0}
     #[error(transparent)]
     Template(#[from] TemplatingErrorKind),
+
+    /// SQLite database error: {0}
+    #[error(transparent)]
+    #[cfg(feature = "sqlite")]
+    SQLite(#[from] SqliteDatabaseStoreErrorKind),
 }
 
 /// [`ActivityLogErrorKind`] describes the errors that can happen while dealing with the activity log.
@@ -303,19 +304,28 @@ pub enum ActivityStoreErrorKind {
     MissingCategoryForActivity(ActivityGuid),
 }
 
+/// [`SqliteDatabaseStoreErrorKind`] describes the errors that can happen while dealing with the SQLite database.
+#[non_exhaustive]
+#[cfg(feature = "sqlite")]
+#[derive(Error, Debug, Display)]
+pub enum SqliteDatabaseStoreErrorKind {
+    /// Error connecting to database: {0}
+    ConnectionFailed(String),
+}
+
 trait PaceErrorMarker: Error {}
 
 impl PaceErrorMarker for std::io::Error {}
 impl PaceErrorMarker for toml::de::Error {}
 impl PaceErrorMarker for toml::ser::Error {}
 impl PaceErrorMarker for serde_json::Error {}
-#[cfg(feature = "sqlite")]
-impl PaceErrorMarker for diesel::ConnectionError {}
 impl PaceErrorMarker for chrono::ParseError {}
 impl PaceErrorMarker for chrono::OutOfRangeError {}
 impl PaceErrorMarker for ActivityLogErrorKind {}
 impl PaceErrorMarker for PaceTimeErrorKind {}
 impl PaceErrorMarker for ActivityStoreErrorKind {}
+#[cfg(feature = "sqlite")]
+impl PaceErrorMarker for SqliteDatabaseStoreErrorKind {}
 impl PaceErrorMarker for TemplatingErrorKind {}
 
 impl<E> From<E> for PaceError
