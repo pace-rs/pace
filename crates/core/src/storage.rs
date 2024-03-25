@@ -33,7 +33,6 @@ pub mod in_memory;
 #[cfg(feature = "rusqlite")]
 pub mod sqlite;
 
-
 /// Get the storage backend from the configuration.
 ///
 /// # Arguments

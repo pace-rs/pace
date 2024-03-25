@@ -116,13 +116,14 @@ impl ActivityReadOps for SqliteActivityStorage {
 
 impl ActivityWriteOps for SqliteActivityStorage {
     fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
-        let mut stmt = self
-            .connection
-            .prepare(activity.to_sql_prepare_statement())?;
+        let tx = self.connection.transaction()?;
+
+        let mut stmt = tx.prepare(activity.to_sql_prepare_statement())?;
 
         let (guid, params) = activity.to_sql_execute_statement()?;
 
         if stmt.execute(params.as_slice())? > 0 {
+            tx.commit()?;
             return Ok(ActivityItem::from((guid, activity)));
         }
 
@@ -143,7 +144,17 @@ impl ActivityWriteOps for SqliteActivityStorage {
         activity_id: ActivityGuid,
         delete_opts: DeleteOptions,
     ) -> PaceResult<ActivityItem> {
-        todo!()
+        let activity = self.read_activity(activity_id)?;
+
+        let tx = self.connection.transaction()?;
+        let mut stmt = tx.prepare("DELETE FROM activities WHERE id = ?1 LIMIT = 1")?;
+
+        if stmt.execute(&[&activity_id])? == 1 {
+            tx.commit()?;
+            return Ok(activity);
+        }
+
+        Err(DatabaseErrorKind::ActivityDeletionFailed(activity_id).into())
     }
 }
 impl ActivityStateManagement for SqliteActivityStorage {

@@ -335,6 +335,9 @@ pub enum DatabaseErrorKind {
 
     /// Failed to create activity: {0}
     ActivityCreationFailed(Activity),
+
+    /// Failed to delete activity: {0}
+    ActivityDeletionFailed(ActivityGuid),
 }
 
 trait PaceErrorMarker: Error {}
