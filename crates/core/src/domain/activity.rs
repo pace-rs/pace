@@ -8,6 +8,7 @@ use pace_time::{
     date_time::PaceDateTime,
     duration::{calculate_duration, duration_to_str, PaceDuration},
 };
+
 use serde_derive::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt::Display};
 use strum_macros::EnumString;
@@ -81,8 +82,10 @@ impl From<(ActivityGuid, Activity)> for ActivityItem {
     PartialOrd,
     Ord,
     EnumString,
+    strum::Display,
 )]
 #[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 // #[serde(untagged)]
 pub enum ActivityKind {
     /// A generic activity
@@ -270,6 +273,10 @@ impl ActivityEndOptions {
     pub const fn new(end: PaceDateTime, duration: PaceDuration) -> Self {
         Self { end, duration }
     }
+
+    pub fn as_tuple(&self) -> (PaceDateTime, PaceDuration) {
+        (self.end, self.duration)
+    }
 }
 
 #[derive(
@@ -306,6 +313,18 @@ impl ActivityKindOptions {
 /// The unique identifier of an activity
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
 pub struct ActivityGuid(Ulid);
+
+impl ActivityGuid {
+    #[must_use]
+    pub fn new() -> Self {
+        Self(Ulid::new())
+    }
+
+    #[must_use]
+    pub fn with_id(id: Ulid) -> Self {
+        Self(id)
+    }
+}
 
 impl Display for ActivityGuid {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

@@ -10,15 +10,18 @@ use crate::{
         hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
         UpdateOptions,
     },
-    config::{ActivityLogStorageKind, PaceConfig},
+    config::{ActivityLogStorageKind, DatabaseEngineKind, PaceConfig},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem, ActivityKind},
         filter::{ActivityFilterKind, FilteredActivities},
         status::ActivityStatusKind,
     },
-    error::{PaceErrorKind, PaceOptResult, PaceResult},
+    error::{DatabaseErrorKind, PaceErrorKind, PaceOptResult, PaceResult},
     service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, in_memory::InMemoryActivityStorage},
+    storage::{
+        file::TomlActivityStorage, in_memory::InMemoryActivityStorage,
+        sqlite::SqliteActivityStorage,
+    },
 };
 
 /// A type of storage that can be synced to a persistent medium - a file
@@ -27,8 +30,9 @@ pub mod file;
 /// An in-memory storage backend for activities.
 pub mod in_memory;
 
-#[cfg(feature = "sqlite")]
+#[cfg(feature = "rusqlite")]
 pub mod sqlite;
+
 
 /// Get the storage backend from the configuration.
 ///
@@ -49,7 +53,35 @@ pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<StorageKin
             TomlActivityStorage::new(config.general().activity_log_options().path())?.into()
         }
         ActivityLogStorageKind::Database => {
-            return Err(PaceErrorKind::DatabaseStorageNotImplemented.into())
+            if config.database().is_some() {
+                let Some(db_config) = config.database() else {
+                    return Err(DatabaseErrorKind::NoConfigSettings.into());
+                };
+
+                match db_config.engine() {
+                    DatabaseEngineKind::Sqlite => {
+                        #[cfg(feature = "rusqlite")]
+                        {
+                            let connection_string = config
+                                .database()
+                                .as_ref()
+                                .ok_or(DatabaseErrorKind::NoConnectionString)?
+                                .connection_string();
+
+                            debug!("Connecting to database: {}", &connection_string);
+
+                            SqliteActivityStorage::new(connection_string.clone())?.into()
+                        }
+                        #[cfg(not(feature = "rusqlite"))]
+                        return Err(PaceErrorKind::DatabaseStorageNotImplemented.into());
+                    }
+                    engine => {
+                        return Err(DatabaseErrorKind::UnsupportedDatabaseEngine(*engine).into())
+                    }
+                }
+            }
+
+            return Err(PaceErrorKind::DatabaseStorageNotConfigured.into());
         }
         #[cfg(test)]
         ActivityLogStorageKind::InMemory => InMemoryActivityStorage::new().into(),
@@ -65,6 +97,7 @@ pub enum StorageKind {
     ActivityStore,
     InMemoryActivityStorage,
     TomlActivityStorage,
+    SqliteActivityStorage,
 }
 
 impl Display for StorageKind {
@@ -75,6 +108,7 @@ impl Display for StorageKind {
                 write!(f, "StorageKind: InMemoryActivityStorage")
             }
             Self::TomlActivityStorage(_) => write!(f, "StorageKind: TomlActivityStorage"),
+            Self::SqliteActivityStorage(_) => write!(f, "StorageKind: SqliteActivityStorage"),
         }
     }
 }

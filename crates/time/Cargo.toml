@@ -12,9 +12,11 @@ rust-version = { workspace = true }
 description = "pace-time - a library for handling date times, ranges, and durations for pace"
 
 [features]
-default = ["cli"]
+default = ["cli", "db"]
 cli = ["clap"]
+db = ["rusqlite"]
 clap = ["dep:clap"]
+rusqlite = ["dep:rusqlite"]
 
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
@@ -24,6 +26,7 @@ derive_more = { workspace = true, features = ["add", "add_assign"] }
 displaydoc = { workspace = true }
 getset = { workspace = true }
 humantime = { workspace = true }
+rusqlite = { workspace = true, optional = true, features = ["bundled", "chrono"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 thiserror = { workspace = true }

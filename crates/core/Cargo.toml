@@ -20,9 +20,10 @@ include = [
 ]
 
 [features]
-default = ["cli"]
+default = ["cli", "db"]
 cli = ["clap"]
-sqlite = ["dep:rusqlite", "dep:libsqlite3-sys"]
+db = ["rusqlite"]
+rusqlite = ["dep:rusqlite", "dep:libsqlite3-sys"]
 clap = ["dep:clap"]
 
 [dependencies]
@@ -40,10 +41,10 @@ merge = { workspace = true }
 miette = { workspace = true, features = ["fancy"] }
 once_cell = { workspace = true }
 open = { workspace = true }
-pace_time = { workspace = true }
+pace_time = { workspace = true, features = ["rusqlite"] }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
-rusqlite = { workspace = true, optional = true, features = ["bundled"] }
+rusqlite = { workspace = true, optional = true, features = ["bundled", "chrono"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }

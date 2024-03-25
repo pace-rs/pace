@@ -195,14 +195,21 @@ pub struct ExportConfig {
 /// Default: `sqlite`
 ///
 /// Options: `sqlite`, `postgres`, `mysql`, `sql-server`
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default, displaydoc::Display, EnumString)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
 pub enum DatabaseEngineKind {
     #[default]
+    /// SQLite
     Sqlite,
+
+    /// Postgres
     Postgres,
+
+    /// MySQL
     Mysql,
+
+    /// SQL Server
     SqlServer,
 }
 

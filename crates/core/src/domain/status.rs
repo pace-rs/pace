@@ -1,4 +1,5 @@
 use serde_derive::{Deserialize, Serialize};
+use strum::EnumString;
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
@@ -16,8 +17,22 @@ pub enum TaskStatus {
     Waiting,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    EnumString,
+    strum::Display,
+)]
 #[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 pub enum ActivityStatusKind {
     /// The initial state of an activity once it's created in the system but not yet started.
     #[default]

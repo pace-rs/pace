@@ -26,7 +26,6 @@ clap_complete = "4.5.1"
 clap_complete_nushell = "4.5.1"
 derive_more = { version = "0.99.17", default-features = false }
 dialoguer = "0.11.0"
-diesel = "2.1.5"
 directories = "5.0.1"
 displaydoc = "0.2.4"
 dotenvy = "0.15.7"
@@ -102,13 +101,12 @@ clap = { workspace = true, features = ["env", "wrap_help", "derive"] }
 clap_complete = { workspace = true }
 clap_complete_nushell = { workspace = true }
 dialoguer = { workspace = true, features = ["history", "fuzzy-select"] }
-diesel = { workspace = true, features = ["sqlite"] }
 directories = { workspace = true }
 eyre = { workspace = true }
 human-panic = { workspace = true }
 pace_cli = { workspace = true }
-pace_core = { workspace = true, features = ["cli"] }
-pace_time = { workspace = true, features = ["cli"] }
+pace_core = { workspace = true, features = ["cli", "db"] }
+pace_time = { workspace = true, features = ["cli", "db"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 thiserror = { workspace = true }

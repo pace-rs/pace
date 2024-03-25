@@ -491,38 +491,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diesel"
-version = "2.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03fc05c17098f21b89bc7d98fe1dd3cce2c11c2ad8e145f2a44fe08ed28eb559"
-dependencies = [
- "diesel_derives",
- "libsqlite3-sys",
- "time",
-]
-
-[[package]]
-name = "diesel_derives"
-version = "2.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d02eecb814ae714ffe61ddc2db2dd03e6c49a42e269b5001355500d431cce0c"
-dependencies = [
- "diesel_table_macro_syntax",
- "proc-macro2",
- "quote",
- "syn 2.0.55",
-]
-
-[[package]]
-name = "diesel_table_macro_syntax"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc5557efc453706fed5e4fa85006fe9817c224c3f480a34c7e5959fd700921c5"
-dependencies = [
- "syn 2.0.55",
-]
-
-[[package]]
 name = "difflib"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1312,7 +1280,6 @@ dependencies = [
  "clap_complete",
  "clap_complete_nushell",
  "dialoguer",
- "diesel",
  "directories",
  "eyre",
  "human-panic",
@@ -1404,6 +1371,7 @@ dependencies = [
  "getset",
  "humantime",
  "rstest",
+ "rusqlite",
  "serde",
  "serde_derive",
  "thiserror",
@@ -1820,6 +1788,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b838eba278d213a8beaf485bd313fd580ca4505a00d5871caeb1457c55322cae"
 dependencies = [
  "bitflags 2.5.0",
+ "chrono",
  "fallible-iterator",
  "fallible-streaming-iterator",
  "hashlink",

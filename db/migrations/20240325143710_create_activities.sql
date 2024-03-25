@@ -1,6 +1,6 @@
 -- migrate:up
 CREATE TABLE activities (
-    id TEXT PRIMARY KEY,
+    guid TEXT PRIMARY KEY,
     category TEXT NOT NULL,
     description TEXT NOT NULL,
     begin TEXT NOT NULL,
@@ -8,8 +8,9 @@ CREATE TABLE activities (
     duration INTEGER NULL,
     kind TEXT NOT NULL,
     status TEXT NOT NULL,
-    parent_id TEXT NULL,
-    FOREIGN KEY (parent_id) REFERENCES activities(id)
+    tags TEXT NULL,
+    parent_guid TEXT NULL,
+    FOREIGN KEY (parent_id) REFERENCES activities(guid)
 );
 
 -- migrate:down

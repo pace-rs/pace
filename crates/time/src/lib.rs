@@ -3,6 +3,8 @@ pub mod date_time;
 pub mod duration;
 pub mod error;
 pub mod flags;
+#[cfg(feature = "rusqlite")]
+pub mod rusqlite;
 pub mod time;
 pub mod time_frame;
 pub mod time_range;

@@ -6,7 +6,10 @@ use pace_time::error::PaceTimeErrorKind;
 use std::{error::Error, io, path::PathBuf};
 use thiserror::Error;
 
-use crate::domain::activity::{Activity, ActivityGuid};
+use crate::{
+    config::DatabaseEngineKind,
+    domain::activity::{Activity, ActivityGuid},
+};
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
@@ -163,10 +166,17 @@ pub enum PaceErrorKind {
     #[error(transparent)]
     Template(#[from] TemplatingErrorKind),
 
-    /// SQLite database error: {0}
+    /// SQLite error: {0}
     #[error(transparent)]
-    #[cfg(feature = "sqlite")]
-    SQLite(#[from] SqliteDatabaseStoreErrorKind),
+    #[cfg(feature = "rusqlite")]
+    SQLite(#[from] rusqlite::Error),
+
+    /// Database error: {0}
+    #[error(transparent)]
+    Database(#[from] DatabaseErrorKind),
+
+    /// Database storage not configured
+    DatabaseStorageNotConfigured,
 }
 
 /// [`ActivityLogErrorKind`] describes the errors that can happen while dealing with the activity log.
@@ -306,11 +316,25 @@ pub enum ActivityStoreErrorKind {
 
 /// [`SqliteDatabaseStoreErrorKind`] describes the errors that can happen while dealing with the SQLite database.
 #[non_exhaustive]
-#[cfg(feature = "sqlite")]
 #[derive(Error, Debug, Display)]
-pub enum SqliteDatabaseStoreErrorKind {
-    /// Error connecting to database: {0}
-    ConnectionFailed(String),
+pub enum DatabaseErrorKind {
+    /// Error connecting to database: {0} - {1}
+    ConnectionFailed(String, String),
+
+    /// No connection string provided
+    NoConnectionString,
+
+    /// No configuration settings provided in configuration file, please set them up with `pace setup config`
+    NoConfigSettings,
+
+    /// This database engine is currently not supported: {0}
+    UnsupportedDatabaseEngine(DatabaseEngineKind),
+
+    /// Activity with id {0} not found
+    ActivityNotFound(ActivityGuid),
+
+    /// Failed to create activity: {0}
+    ActivityCreationFailed(Activity),
 }
 
 trait PaceErrorMarker: Error {}
@@ -321,11 +345,12 @@ impl PaceErrorMarker for toml::ser::Error {}
 impl PaceErrorMarker for serde_json::Error {}
 impl PaceErrorMarker for chrono::ParseError {}
 impl PaceErrorMarker for chrono::OutOfRangeError {}
+#[cfg(feature = "rusqlite")]
+impl PaceErrorMarker for rusqlite::Error {}
 impl PaceErrorMarker for ActivityLogErrorKind {}
 impl PaceErrorMarker for PaceTimeErrorKind {}
 impl PaceErrorMarker for ActivityStoreErrorKind {}
-#[cfg(feature = "sqlite")]
-impl PaceErrorMarker for SqliteDatabaseStoreErrorKind {}
+impl PaceErrorMarker for DatabaseErrorKind {}
 impl PaceErrorMarker for TemplatingErrorKind {}
 
 impl<E> From<E> for PaceError
