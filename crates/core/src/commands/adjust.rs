@@ -13,7 +13,7 @@ use crate::{
     commands::UpdateOptions,
     config::PaceConfig,
     error::{ActivityLogErrorKind, PaceResult, UserMessage},
-    prelude::ActivityStorage,
+    prelude::{ActivityStorage, PaceErrorKind},
     service::activity_store::ActivityStore,
     storage::{ActivityQuerying, ActivityWriteOps, SyncStorage},
 };
@@ -165,10 +165,12 @@ impl AdjustCommandOptions {
 
         debug!("Parsed time: {date_time:?}");
 
-        let activity_store = ActivityStore::with_storage(storage)?;
+        let activity_store =
+            ActivityStore::with_storage(storage).map_err(PaceErrorKind::Storage)?;
 
         let activity_item = activity_store
-            .most_recent_active_activity()?
+            .most_recent_active_activity()
+            .map_err(PaceErrorKind::Storage)?
             .ok_or_else(|| ActivityLogErrorKind::NoActiveActivityToAdjust)?;
 
         debug!("Most recent active activity item: {:?}", activity_item);
@@ -212,10 +214,12 @@ impl AdjustCommandOptions {
             }
         }
 
-        _ = activity_store.update_activity(guid, activity.clone(), UpdateOptions::default())?;
+        _ = activity_store
+            .update_activity(guid, activity.clone(), UpdateOptions::default())
+            .map_err(PaceErrorKind::Storage)?;
 
         if activity_item.activity() != &activity {
-            activity_store.sync()?;
+            activity_store.sync().map_err(PaceErrorKind::Storage)?;
             return Ok(UserMessage::new(format!(
                 "{} has been adjusted.",
                 activity_item.activity()

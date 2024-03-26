@@ -1,12 +1,19 @@
 //! Error types and Result module.
 
 use displaydoc::Display;
+use eyre::Result as EyreResult;
 use miette::Diagnostic;
 use pace_time::error::PaceTimeErrorKind;
 use std::{error::Error, io, path::PathBuf};
 use thiserror::Error;
 
 use crate::domain::activity::{Activity, ActivityGuid};
+
+macro_rules! impl_pace_error_marker {
+    ($error:ty) => {
+        impl PaceErrorMarker for $error {}
+    };
+}
 
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
@@ -16,6 +23,9 @@ pub type PaceResult<T> = Result<T, PaceError>;
 
 /// Result type that is being returned from methods that have optional return values and can fail thus having [`PaceError`]s.
 pub type PaceOptResult<T> = PaceResult<Option<T>>;
+
+pub type PaceStorageResult<T> = EyreResult<T>;
+pub type PaceStorageOptResult<T> = EyreResult<Option<T>>;
 
 /// User message type that is being returned from methods that need to print a message to the user.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,9 +112,6 @@ impl PaceError {
 #[non_exhaustive]
 #[derive(Error, Debug, Display)]
 pub enum PaceErrorKind {
-    // /// [`CommandErrorKind`] describes the errors that can happen while executing a high-level command
-    // #[error(transparent)]
-    // Command(#[from] CommandErrorKind),
     /// [`std::io::Error`]
     #[error(transparent)]
     StdIo(#[from] std::io::Error),
@@ -153,15 +160,16 @@ pub enum PaceErrorKind {
     /// Configuration file not found, please run `pace setup config` to initialize `pace`
     ParentDirNotFound(PathBuf),
 
-    /// Database storage not implemented, yet!
-    DatabaseStorageNotImplemented,
-
     /// There is no path available to store the activity log
     NoPathAvailable,
 
     /// Templating error: {0}
     #[error(transparent)]
     Template(#[from] TemplatingErrorKind),
+
+    /// Storage error: {0}
+    #[error(transparent)]
+    Storage(#[from] eyre::Report),
 }
 
 /// [`ActivityLogErrorKind`] describes the errors that can happen while dealing with the activity log.
@@ -297,20 +305,23 @@ pub enum ActivityStoreErrorKind {
 
     /// Missing category for activity: {0}
     MissingCategoryForActivity(ActivityGuid),
+
+    /// Creating ActivityStore from storage failed
+    CreatingFromStorageFailed,
 }
 
 trait PaceErrorMarker: Error {}
 
-impl PaceErrorMarker for std::io::Error {}
-impl PaceErrorMarker for toml::de::Error {}
-impl PaceErrorMarker for toml::ser::Error {}
-impl PaceErrorMarker for serde_json::Error {}
-impl PaceErrorMarker for chrono::ParseError {}
-impl PaceErrorMarker for chrono::OutOfRangeError {}
-impl PaceErrorMarker for ActivityLogErrorKind {}
-impl PaceErrorMarker for PaceTimeErrorKind {}
-impl PaceErrorMarker for ActivityStoreErrorKind {}
-impl PaceErrorMarker for TemplatingErrorKind {}
+impl_pace_error_marker!(std::io::Error);
+impl_pace_error_marker!(toml::de::Error);
+impl_pace_error_marker!(toml::ser::Error);
+impl_pace_error_marker!(serde_json::Error);
+impl_pace_error_marker!(chrono::ParseError);
+impl_pace_error_marker!(chrono::OutOfRangeError);
+impl_pace_error_marker!(ActivityLogErrorKind);
+impl_pace_error_marker!(PaceTimeErrorKind);
+impl_pace_error_marker!(ActivityStoreErrorKind);
+impl_pace_error_marker!(TemplatingErrorKind);
 
 impl<E> From<E> for PaceError
 where

@@ -26,6 +26,7 @@ rusqlite = ["dep:rusqlite", "dep:libsqlite3-sys"]
 
 [dependencies]
 displaydoc = { workspace = true }
+eyre = { workspace = true }
 itertools = { workspace = true }
 libsqlite3-sys = { workspace = true, features = ["bundled"], optional = true }
 merge = { workspace = true }

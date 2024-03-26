@@ -17,7 +17,7 @@ use crate::{
         filter::{ActivityFilterKind, FilteredActivities},
         status::ActivityStatusKind,
     },
-    error::{PaceOptResult, PaceResult},
+    error::{PaceStorageOptResult, PaceStorageResult},
 };
 
 impl Debug for dyn ActivityStorage {
@@ -39,7 +39,7 @@ pub trait SyncStorage {
     /// # Returns
     ///
     /// If the storage was synced successfully it should return `Ok(())`.
-    fn sync(&self) -> PaceResult<()>;
+    fn sync(&self) -> PaceStorageResult<()>;
 }
 
 /// The trait that all storage backends must implement. This allows us to swap out the storage
@@ -65,7 +65,7 @@ pub trait ActivityStorage:
     /// # Errors
     ///
     /// This function should return an error if the storage backend cannot be setup.
-    fn setup(&self) -> PaceResult<()>;
+    fn setup(&self) -> PaceStorageResult<()>;
 
     /// Teardown the storage backend. This is called once when the application stops.
     ///
@@ -78,7 +78,7 @@ pub trait ActivityStorage:
     /// # Returns
     ///
     /// If the storage backend was torn down successfully it should return `Ok(())`.
-    fn teardown(&self) -> PaceResult<()>;
+    fn teardown(&self) -> PaceStorageResult<()>;
 
     /// Identify the storage backend.
     ///
@@ -109,7 +109,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// The activity that was read from the storage backend. If no activity is found, it should return `Ok(None)`.
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem>;
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceStorageResult<ActivityItem>;
 
     /// List activities from the storage backend.
     ///
@@ -124,7 +124,10 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// A collection of the activities that were loaded from the storage backend. Returns Ok(None) if no activities are found.
-    fn list_activities(&self, filter: ActivityFilterKind) -> PaceOptResult<FilteredActivities>;
+    fn list_activities(
+        &self,
+        filter: ActivityFilterKind,
+    ) -> PaceStorageOptResult<FilteredActivities>;
 }
 
 /// Basic CUD Operations for Activities in the storage backend.
@@ -145,7 +148,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity was created successfully it should return the ID of the created activity.
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem>;
+    fn create_activity(&self, activity: Activity) -> PaceStorageResult<ActivityItem>;
 
     /// Update an existing activity in the storage backend.
     ///
@@ -175,7 +178,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
         activity_id: ActivityGuid,
         updated_activity: Activity,
         update_opts: UpdateOptions,
-    ) -> PaceResult<ActivityItem>;
+    ) -> PaceStorageResult<ActivityItem>;
 
     /// Delete an activity from the storage backend.
     ///
@@ -194,7 +197,7 @@ pub trait ActivityWriteOps: ActivityReadOps {
         &self,
         activity_id: ActivityGuid,
         delete_opts: DeleteOptions,
-    ) -> PaceResult<ActivityItem>;
+    ) -> PaceStorageResult<ActivityItem>;
 }
 
 /// Managing Activity State
@@ -217,7 +220,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// If the activity was started successfully it should return the ID of the started activity.
-    fn begin_activity(&self, mut activity: Activity) -> PaceResult<ActivityItem> {
+    fn begin_activity(&self, mut activity: Activity) -> PaceStorageResult<ActivityItem> {
         // End all unfinished activities before starting a new one,
         // we don't want to have multiple activities running at the same time
         let _ = self.end_all_activities(EndOptions::default())?;
@@ -247,7 +250,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
         &self,
         activity_id: ActivityGuid,
         hold_opts: HoldOptions,
-    ) -> PaceResult<ActivityItem>;
+    ) -> PaceStorageResult<ActivityItem>;
 
     /// Resume an activity in the storage backend.
     ///
@@ -267,7 +270,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
         &self,
         activity_id: ActivityGuid,
         resume_opts: ResumeOptions,
-    ) -> PaceResult<ActivityItem>;
+    ) -> PaceStorageResult<ActivityItem>;
 
     /// Resume the most recent activity in the storage backend.
     ///
@@ -285,7 +288,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn resume_most_recent_activity(
         &self,
         resume_opts: ResumeOptions,
-    ) -> PaceOptResult<ActivityItem>;
+    ) -> PaceStorageOptResult<ActivityItem>;
 
     /// End an activity in the storage backend.
     ///
@@ -305,7 +308,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
-    ) -> PaceResult<ActivityItem>;
+    ) -> PaceStorageResult<ActivityItem>;
 
     /// End all activities in the storage backend.
     ///
@@ -320,7 +323,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// A collection of the activities that were ended. Returns Ok(None) if no activities were ended.
-    fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>>;
+    fn end_all_activities(&self, end_opts: EndOptions) -> PaceStorageOptResult<Vec<ActivityItem>>;
 
     /// End all active intermissions in the storage backend.
     ///
@@ -338,7 +341,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn end_all_active_intermissions(
         &self,
         end_opts: EndOptions,
-    ) -> PaceOptResult<Vec<ActivityGuid>>;
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>>;
 
     /// End the last unfinished activity in the storage backend.
     ///
@@ -353,7 +356,10 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     /// # Returns
     ///
     /// The activity that was ended. Returns Ok(None) if no activity was ended.
-    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem>;
+    fn end_last_unfinished_activity(
+        &self,
+        end_opts: EndOptions,
+    ) -> PaceStorageOptResult<ActivityItem>;
 
     /// Hold the most recent activity that is active in the storage backend.
     ///
@@ -376,7 +382,7 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
     fn hold_most_recent_active_activity(
         &self,
         hold_opts: HoldOptions,
-    ) -> PaceOptResult<ActivityItem>;
+    ) -> PaceStorageOptResult<ActivityItem>;
 }
 
 /// Querying Activities
@@ -405,7 +411,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     // TODO!: This method requires defining what constitutes short, medium, and long durations.
     fn group_activities_by_duration_range(
         &self,
-    ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>>;
+    ) -> PaceStorageOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>>;
 
     /// Group activities by their start date. This can help in analyzing how
     /// activities are distributed over time.
@@ -423,7 +429,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     // TODO!: for the groupings, so we can distinguish between start and end date groupings.
     fn group_activities_by_start_date(
         &self,
-    ) -> PaceOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>>;
+    ) -> PaceStorageOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>>;
 
     /// Retrieve activities that have one or more intermissions, useful for identifying
     /// potential inefficiencies or breaks.
@@ -439,7 +445,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn list_activities_with_intermissions(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>>;
+    ) -> PaceStorageOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>>;
 
     /// Group activities based on keywords, e.g., category, tags, etc.
     ///
@@ -461,7 +467,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     fn group_activities_by_keywords(
         &self,
         keyword_opts: KeywordOptions,
-    ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>>;
+    ) -> PaceStorageOptResult<BTreeMap<String, Vec<ActivityItem>>>;
 
     /// Group activities based on their kind (e.g., Task, Intermission).
     ///
@@ -474,7 +480,9 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// A collection of the activities with their kind.
     /// The key is the kind of the activity, and the value is a list of activities of that kind.
     /// If no activities are found, it should return `Ok(None)`.
-    fn group_activities_by_kind(&self) -> PaceOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>>;
+    fn group_activities_by_kind(
+        &self,
+    ) -> PaceStorageOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>>;
 
     /// List activities by time range from the storage backend.
     ///
@@ -493,7 +501,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     fn list_activities_by_time_range(
         &self,
         time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<Vec<ActivityGuid>>;
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>>;
 
     /// Group activities by their status from the storage backend.
     ///
@@ -507,7 +515,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// If no activities are found, it should return `Ok(None)`.
     fn group_activities_by_status(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>>;
+    ) -> PaceStorageOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>>;
 
     /// List all current activities from the storage backend matching an `ActivityFilter`.
     ///
@@ -522,7 +530,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     fn list_current_activities(
         &self,
         filter: ActivityFilterKind,
-    ) -> PaceOptResult<Vec<ActivityGuid>> {
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         Ok(self
             .list_activities(filter)?
             .map(FilteredActivities::into_vec))
@@ -538,7 +546,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// A collection of the activities that were loaded from the storage backend by their ID in a `BTreeMap`.
     /// If no activities are found, it should return `Ok(None)`.
-    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>>;
+    fn list_activities_by_id(&self) -> PaceStorageOptResult<BTreeMap<ActivityGuid, Activity>>;
 
     /// List all active intermissions from the storage backend.
     ///
@@ -550,7 +558,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// A collection of the activities that are currently active intermissions.
     /// If no activities are found, it should return `Ok(None)`.
-    fn list_active_intermissions(&self) -> PaceOptResult<Vec<ActivityGuid>> {
+    fn list_active_intermissions(&self) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         Ok(self
             .list_activities(ActivityFilterKind::ActiveIntermission)?
             .map(FilteredActivities::into_vec))
@@ -570,7 +578,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// A collection of the most recent activities.
     /// If no activities are found, it should return `Ok(None)`.
-    fn list_most_recent_activities(&self, count: usize) -> PaceOptResult<Vec<ActivityGuid>> {
+    fn list_most_recent_activities(&self, count: usize) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         let filtered = self
             .list_activities(ActivityFilterKind::OnlyActivities)?
             .map(FilteredActivities::into_vec);
@@ -616,7 +624,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     /// # Returns
     ///
     /// If the activity is active, it should return `Ok(true)`. If it is not active, it should return `Ok(false)`.
-    fn is_activity_active(&self, activity_id: ActivityGuid) -> PaceResult<bool> {
+    fn is_activity_active(&self, activity_id: ActivityGuid) -> PaceStorageResult<bool> {
         let activity = self.read_activity(activity_id)?;
 
         debug!(
@@ -649,7 +657,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     fn list_intermissions_for_activity_id(
         &self,
         activity_id: ActivityGuid,
-    ) -> PaceOptResult<Vec<ActivityItem>> {
+    ) -> PaceStorageOptResult<Vec<ActivityItem>> {
         let Some(filtered) = self
             .list_activities(ActivityFilterKind::Intermission)?
             .map(FilteredActivities::into_vec)
@@ -703,7 +711,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     fn list_active_intermissions_for_activity_id(
         &self,
         activity_id: ActivityGuid,
-    ) -> PaceOptResult<Vec<ActivityGuid>> {
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         let guids = self.list_active_intermissions()?.map(|log| {
             log.iter()
                 .filter_map(|active_intermission_id| {
@@ -742,7 +750,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// The latest active activity.
     /// If no activity is found, it should return `Ok(None)`.
-    fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
+    fn most_recent_active_activity(&self) -> PaceStorageOptResult<ActivityItem> {
         let Some(current) = self.list_current_activities(ActivityFilterKind::Active)? else {
             debug!("No active activities found");
 
@@ -777,7 +785,7 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// The latest held activity.
     /// If no activity is found, it should return `Ok(None)`.
-    fn most_recent_held_activity(&self) -> PaceOptResult<ActivityItem> {
+    fn most_recent_held_activity(&self) -> PaceStorageOptResult<ActivityItem> {
         let Some(current) = self.list_current_activities(ActivityFilterKind::Held)? else {
             debug!("No held activities found");
 
@@ -823,7 +831,7 @@ pub trait ActivityQuerying: ActivityReadOps {
 //     /// # Returns
 //     ///
 //     /// If the tag was added successfully it should return `Ok(())`.
-//     fn add_tag_to_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceResult<()>;
+//     fn add_tag_to_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceStorageResult<()>;
 
 //     /// Remove a tag from an activity.
 //     ///
@@ -839,7 +847,7 @@ pub trait ActivityQuerying: ActivityReadOps {
 //     /// # Returns
 //     ///
 //     /// If the tag was removed successfully it should return `Ok(())`.
-//     fn remove_tag_from_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceResult<()>;
+//     fn remove_tag_from_activity(&self, activity_id: ActivityGuid, tag: &str) -> PaceStorageResult<()>;
 // }
 
 // /// Archiving Activities
@@ -863,7 +871,7 @@ pub trait ActivityQuerying: ActivityReadOps {
 //     /// # Returns
 //     ///
 //     /// If the activity was archived successfully it should return `Ok(())`.
-//     fn archive_activity(&self, activity_id: ActivityGuid) -> PaceResult<()>;
+//     fn archive_activity(&self, activity_id: ActivityGuid) -> PaceStorageResult<()>;
 
 //     /// Unarchive an activity.
 //     ///
@@ -878,7 +886,7 @@ pub trait ActivityQuerying: ActivityReadOps {
 //     /// # Returns
 //     ///
 //     /// If the activity was unarchived successfully it should return `Ok(())`.
-//     fn unarchive_activity(&self, activity_id: ActivityGuid) -> PaceResult<()>;
+//     fn unarchive_activity(&self, activity_id: ActivityGuid) -> PaceStorageResult<()>;
 // }
 
 // /// Generate Statistics for Activities
@@ -902,7 +910,7 @@ pub trait ActivityQuerying: ActivityReadOps {
 //     /// # Returns
 //     ///
 //     /// A summary or statistics of activities within the specified time frame.
-//     fn generate_activity_statistics(&self, time_frame: TimeFrame) -> PaceResult<ReviewSummary>;
+//     fn generate_activity_statistics(&self, time_frame: TimeFrame) -> PaceStorageResult<ReviewSummary>;
 // }
 
 // /// Reviewing Activities
@@ -931,5 +939,5 @@ pub trait ActivityQuerying: ActivityReadOps {
 //         &self,
 //         start: PaceDateTime,
 //         end: PaceDateTime,
-//     ) -> PaceResult<ActivityLog>;
+//     ) -> PaceStorageResult<ActivityLog>;
 // }

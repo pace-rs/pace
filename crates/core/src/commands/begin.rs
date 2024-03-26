@@ -12,7 +12,7 @@ use crate::{
     config::PaceConfig,
     domain::activity::{Activity, ActivityKind},
     error::{PaceResult, UserMessage},
-    prelude::ActivityStorage,
+    prelude::{ActivityStorage, PaceErrorKind},
     service::activity_store::ActivityStore,
     storage::{ActivityStateManagement, SyncStorage},
 };
@@ -144,13 +144,16 @@ impl BeginCommandOptions {
             .tags(tags)
             .build();
 
-        let activity_store = ActivityStore::with_storage(storage)?;
+        let activity_store =
+            ActivityStore::with_storage(storage).map_err(PaceErrorKind::Storage)?;
 
-        let activity_item = activity_store.begin_activity(activity)?;
+        let activity_item = activity_store
+            .begin_activity(activity)
+            .map_err(PaceErrorKind::Storage)?;
 
         debug!("Started Activity: {:?}", activity_item);
 
-        activity_store.sync()?;
+        activity_store.sync().map_err(PaceErrorKind::Storage)?;
 
         Ok(UserMessage::new(format!("{}", activity_item.activity())))
     }

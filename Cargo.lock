@@ -1336,6 +1336,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "displaydoc",
+ "eyre",
  "itertools",
  "libsqlite3-sys",
  "merge",

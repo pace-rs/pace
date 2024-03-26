@@ -8,7 +8,7 @@ use crate::{
     config::PaceConfig,
     domain::{activity::ActivityItem, filter::ActivityFilterKind},
     error::{PaceResult, UserMessage},
-    prelude::ActivityStorage,
+    prelude::{ActivityStorage, PaceErrorKind},
     service::activity_store::ActivityStore,
     storage::{ActivityQuerying, ActivityReadOps},
 };
@@ -38,28 +38,31 @@ impl NowCommandOptions {
         config: &PaceConfig,
         storage: Arc<dyn ActivityStorage>,
     ) -> PaceResult<UserMessage> {
-        let activity_store = ActivityStore::with_storage(storage)?;
+        let activity_store =
+            ActivityStore::with_storage(storage).map_err(PaceErrorKind::Storage)?;
 
-        let user_message = (activity_store.list_current_activities(ActivityFilterKind::Active)?)
-            .map_or_else(
-                || "No activities are currently running.".to_string(),
-                |activities| {
-                    debug!("Current Activities: {:?}", activities);
+        let user_message = (activity_store
+            .list_current_activities(ActivityFilterKind::Active)
+            .map_err(PaceErrorKind::Storage)?)
+        .map_or_else(
+            || "No activities are currently running.".to_string(),
+            |activities| {
+                debug!("Current Activities: {:?}", activities);
 
-                    // Get the activity items
-                    let activity_items = activities
-                        .iter()
-                        .flat_map(|activity_id| activity_store.read_activity(*activity_id))
-                        .collect::<Vec<ActivityItem>>();
+                // Get the activity items
+                let activity_items = activities
+                    .iter()
+                    .flat_map(|activity_id| activity_store.read_activity(*activity_id))
+                    .collect::<Vec<ActivityItem>>();
 
-                    let mut msgs = vec![];
-                    for activity in &activity_items {
-                        msgs.push(format!("{}", activity.activity()));
-                    }
+                let mut msgs = vec![];
+                for activity in &activity_items {
+                    msgs.push(format!("{}", activity.activity()));
+                }
 
-                    msgs.join("\n")
-                },
-            );
+                msgs.join("\n")
+            },
+        );
 
         Ok(UserMessage::new(user_message))
     }

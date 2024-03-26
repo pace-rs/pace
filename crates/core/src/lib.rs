@@ -62,8 +62,8 @@ pub mod prelude {
             status::ActivityStatusKind,
         },
         error::{
-            ActivityLogErrorKind, PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult,
-            UserMessage,
+            ActivityLogErrorKind, PaceError, PaceErrorKind, PaceOptResult, PaceResult,
+            PaceStorageOptResult, PaceStorageResult, TestResult, UserMessage,
         },
         service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
         storage::{

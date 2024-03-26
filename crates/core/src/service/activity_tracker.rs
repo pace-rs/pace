@@ -5,7 +5,7 @@ use tracing::debug;
 
 use crate::{
     domain::{filter::FilterOptions, reflection::ReflectionSummary},
-    error::PaceOptResult,
+    error::PaceStorageOptResult,
     service::activity_store::ActivityStore,
 };
 
@@ -32,7 +32,7 @@ impl ActivityTracker {
         &self,
         filter_opts: FilterOptions,
         time_frame: PaceTimeFrame,
-    ) -> PaceOptResult<ReflectionSummary> {
+    ) -> PaceStorageOptResult<ReflectionSummary> {
         let time_range_opts = TimeRangeOptions::try_from(time_frame)?;
 
         let Some(summary_groups) = self

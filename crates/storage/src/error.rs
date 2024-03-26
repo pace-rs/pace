@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use displaydoc::Display;
-use pace_core::prelude::{Activity, ActivityGuid, DatabaseEngineKind};
+use pace_core::prelude::{Activity, ActivityGuid, DatabaseEngineKind, PaceError};
 use thiserror::Error;
 
 pub type PaceStorageResult<T> = Result<T, PaceStorageErrorKind>;
@@ -10,11 +10,14 @@ pub type PaceStorageResult<T> = Result<T, PaceStorageErrorKind>;
 #[non_exhaustive]
 #[derive(Error, Debug, Display)]
 pub enum PaceStorageErrorKind {
-    /// SQLite error: {0}
+    /// Pace error: {0}
     #[error(transparent)]
-    #[cfg(feature = "rusqlite")]
-    SQLite(#[from] rusqlite::Error),
+    PaceError(#[from] PaceError),
 
+    // /// SQLite error: {0}
+    // #[error(transparent)]
+    // #[cfg(feature = "rusqlite")]
+    // SQLite(#[from] rusqlite::Error),
     /// Database error: {0}
     #[error(transparent)]
     Database(#[from] DatabaseStorageErrorKind),
@@ -25,6 +28,9 @@ pub enum PaceStorageErrorKind {
 
     /// Database storage not configured
     DatabaseStorageNotConfigured,
+
+    /// Database storage not implemented, yet!
+    StorageNotImplemented,
 }
 
 /// [`DatabaseErrorKind`] describes the errors that can happen while dealing with the SQLite database.

@@ -24,7 +24,7 @@ use crate::{
         reflection::{SummaryActivityGroup, SummaryGroupByCategory},
         status::ActivityStatusKind,
     },
-    error::{ActivityStoreErrorKind, PaceOptResult, PaceResult},
+    error::{ActivityStoreErrorKind, PaceStorageOptResult, PaceStorageResult},
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
         ActivityWriteOps, SyncStorage,
@@ -69,7 +69,7 @@ impl ActivityStore {
     ///
     /// This method returns a new `ActivityStore` if the storage backend
     /// was successfully created
-    pub fn with_storage(storage: Arc<dyn ActivityStorage>) -> PaceResult<Self> {
+    pub fn with_storage(storage: Arc<dyn ActivityStorage>) -> PaceStorageResult<Self> {
         debug!(
             "Creating activity store with storage: {}",
             storage.identify()
@@ -98,7 +98,7 @@ impl ActivityStore {
     /// # Returns
     ///
     /// This method returns `Ok(())` if the cache was successfully populated
-    fn populate_caches(&mut self) -> PaceResult<()> {
+    fn populate_caches(&mut self) -> PaceStorageResult<()> {
         self.cache.by_start_date = self
             .storage
             .group_activities_by_start_date()?
@@ -112,7 +112,7 @@ impl ActivityStore {
         &self,
         filter_opts: FilterOptions,
         time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<SummaryGroupByCategory> {
+    ) -> PaceStorageOptResult<SummaryGroupByCategory> {
         let Some(activity_guids) = self.list_activities_by_time_range(time_range_opts)? else {
             debug!("No activities found for time range: {:?}", time_range_opts);
 
@@ -213,7 +213,7 @@ impl ActivityStore {
 
 impl ActivityStorage for ActivityStore {
     #[tracing::instrument(skip(self))]
-    fn setup(&self) -> PaceResult<()> {
+    fn setup(&self) -> PaceStorageResult<()> {
         self.storage.setup()
     }
 
@@ -223,33 +223,36 @@ impl ActivityStorage for ActivityStore {
     }
 
     #[tracing::instrument(skip(self))]
-    fn teardown(&self) -> PaceResult<()> {
+    fn teardown(&self) -> PaceStorageResult<()> {
         self.storage.teardown()
     }
 }
 
 impl SyncStorage for ActivityStore {
     #[tracing::instrument(skip(self))]
-    fn sync(&self) -> PaceResult<()> {
+    fn sync(&self) -> PaceStorageResult<()> {
         self.storage.sync()
     }
 }
 
 impl ActivityReadOps for ActivityStore {
     #[tracing::instrument(skip(self))]
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceStorageResult<ActivityItem> {
         self.storage.read_activity(activity_id)
     }
 
     #[tracing::instrument(skip(self))]
-    fn list_activities(&self, filter: ActivityFilterKind) -> PaceOptResult<FilteredActivities> {
+    fn list_activities(
+        &self,
+        filter: ActivityFilterKind,
+    ) -> PaceStorageOptResult<FilteredActivities> {
         self.storage.list_activities(filter)
     }
 }
 
 impl ActivityWriteOps for ActivityStore {
     #[tracing::instrument(skip(self))]
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
+    fn create_activity(&self, activity: Activity) -> PaceStorageResult<ActivityItem> {
         self.storage.create_activity(activity)
     }
 
@@ -259,7 +262,7 @@ impl ActivityWriteOps for ActivityStore {
         activity_id: ActivityGuid,
         updated_activity: Activity,
         update_opts: UpdateOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.storage
             .update_activity(activity_id, updated_activity, update_opts)
     }
@@ -269,14 +272,14 @@ impl ActivityWriteOps for ActivityStore {
         &self,
         activity_id: ActivityGuid,
         delete_opts: DeleteOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.storage.delete_activity(activity_id, delete_opts)
     }
 }
 
 impl ActivityStateManagement for ActivityStore {
     #[tracing::instrument(skip(self))]
-    fn begin_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
+    fn begin_activity(&self, activity: Activity) -> PaceStorageResult<ActivityItem> {
         self.storage.begin_activity(activity)
     }
 
@@ -285,17 +288,20 @@ impl ActivityStateManagement for ActivityStore {
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.storage.end_activity(activity_id, end_opts)
     }
 
     #[tracing::instrument(skip(self))]
-    fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>> {
+    fn end_all_activities(&self, end_opts: EndOptions) -> PaceStorageOptResult<Vec<ActivityItem>> {
         self.storage.end_all_activities(end_opts)
     }
 
     #[tracing::instrument(skip(self))]
-    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
+    fn end_last_unfinished_activity(
+        &self,
+        end_opts: EndOptions,
+    ) -> PaceStorageOptResult<ActivityItem> {
         self.storage.end_last_unfinished_activity(end_opts)
     }
 
@@ -303,7 +309,7 @@ impl ActivityStateManagement for ActivityStore {
     fn hold_most_recent_active_activity(
         &self,
         hold_opts: HoldOptions,
-    ) -> PaceOptResult<ActivityItem> {
+    ) -> PaceStorageOptResult<ActivityItem> {
         self.storage.hold_most_recent_active_activity(hold_opts)
     }
 
@@ -311,7 +317,7 @@ impl ActivityStateManagement for ActivityStore {
     fn end_all_active_intermissions(
         &self,
         end_opts: EndOptions,
-    ) -> PaceOptResult<Vec<ActivityGuid>> {
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         self.storage.end_all_active_intermissions(end_opts)
     }
 
@@ -320,7 +326,7 @@ impl ActivityStateManagement for ActivityStore {
         &self,
         activity_id: ActivityGuid,
         resume_opts: ResumeOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.storage.resume_activity(activity_id, resume_opts)
     }
 
@@ -329,7 +335,7 @@ impl ActivityStateManagement for ActivityStore {
         &self,
         activity_id: ActivityGuid,
         hold_opts: HoldOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.storage.hold_activity(activity_id, hold_opts)
     }
 
@@ -337,35 +343,35 @@ impl ActivityStateManagement for ActivityStore {
     fn resume_most_recent_activity(
         &self,
         resume_opts: ResumeOptions,
-    ) -> PaceOptResult<ActivityItem> {
+    ) -> PaceStorageOptResult<ActivityItem> {
         self.storage.resume_most_recent_activity(resume_opts)
     }
 }
 
 impl ActivityQuerying for ActivityStore {
     #[tracing::instrument(skip(self))]
-    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
+    fn list_activities_by_id(&self) -> PaceStorageOptResult<BTreeMap<ActivityGuid, Activity>> {
         self.storage.list_activities_by_id()
     }
 
     #[tracing::instrument(skip(self))]
     fn group_activities_by_duration_range(
         &self,
-    ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
         self.storage.group_activities_by_duration_range()
     }
 
     #[tracing::instrument(skip(self))]
     fn group_activities_by_start_date(
         &self,
-    ) -> PaceOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
         self.storage.group_activities_by_start_date()
     }
 
     #[tracing::instrument(skip(self))]
     fn list_activities_with_intermissions(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
         self.storage.list_activities_with_intermissions()
     }
 
@@ -373,12 +379,14 @@ impl ActivityQuerying for ActivityStore {
     fn group_activities_by_keywords(
         &self,
         keyword_opts: KeywordOptions,
-    ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<String, Vec<ActivityItem>>> {
         self.storage.group_activities_by_keywords(keyword_opts)
     }
 
     #[tracing::instrument(skip(self))]
-    fn group_activities_by_kind(&self) -> PaceOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
+    fn group_activities_by_kind(
+        &self,
+    ) -> PaceStorageOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
         self.storage.group_activities_by_kind()
     }
 
@@ -386,14 +394,14 @@ impl ActivityQuerying for ActivityStore {
     fn list_activities_by_time_range(
         &self,
         time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<Vec<ActivityGuid>> {
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         self.storage.list_activities_by_time_range(time_range_opts)
     }
 
     #[tracing::instrument(skip(self))]
     fn group_activities_by_status(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>> {
         self.storage.group_activities_by_status()
     }
 }

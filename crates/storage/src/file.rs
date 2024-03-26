@@ -11,7 +11,8 @@ use pace_core::prelude::{
     Activity, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind, ActivityLog,
     ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStatusKind,
     ActivityStorage, ActivityWriteOps, DeleteOptions, EndOptions, FilteredActivities, HoldOptions,
-    KeywordOptions, PaceOptResult, PaceResult, ResumeOptions, SyncStorage, UpdateOptions,
+    KeywordOptions, PaceStorageOptResult, PaceStorageResult, ResumeOptions, SyncStorage,
+    UpdateOptions,
 };
 
 use crate::{error::TomlFileStorageErrorKind, in_memory::InMemoryActivityStorage};
@@ -28,7 +29,7 @@ pub struct TomlActivityStorage {
 }
 
 impl SyncStorage for TomlActivityStorage {
-    fn sync(&self) -> PaceResult<()> {
+    fn sync(&self) -> PaceStorageResult<()> {
         self.sync_to_file()
     }
 }
@@ -47,7 +48,7 @@ impl TomlActivityStorage {
     /// # Returns
     ///
     /// Returns a new `TomlActivityStorage`
-    pub fn new(path: impl AsRef<Path>) -> PaceResult<Self> {
+    pub fn new(path: impl AsRef<Path>) -> PaceStorageResult<Self> {
         let mut storage = Self {
             cache: InMemoryActivityStorage::new(),
             path: path.as_ref().to_path_buf(),
@@ -70,7 +71,7 @@ impl TomlActivityStorage {
     ///
     /// Returns `Ok(())` if the data is loaded successfully
     #[tracing::instrument(skip(self))]
-    fn load(&mut self) -> PaceResult<()> {
+    fn load(&mut self) -> PaceStorageResult<()> {
         let data = std::fs::read_to_string(&self.path)?;
         self.cache = InMemoryActivityStorage::from(toml::from_str::<ActivityLog>(&data)?);
 
@@ -89,7 +90,7 @@ impl TomlActivityStorage {
     ///
     /// Returns `Ok(())` if the cache is written successfully
     #[tracing::instrument(skip(self))]
-    pub fn sync_to_file(&self) -> PaceResult<()> {
+    pub fn sync_to_file(&self) -> PaceStorageResult<()> {
         let data = toml::to_string(&self.cache.get_activity_log())?;
         write(&self.path, data)?;
         Ok(())
@@ -98,7 +99,7 @@ impl TomlActivityStorage {
 
 impl ActivityStorage for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn setup(&self) -> PaceResult<()> {
+    fn setup(&self) -> PaceStorageResult<()> {
         if !self.path.exists() {
             create_dir_all(self.path.parent().ok_or(
                 TomlFileStorageErrorKind::ParentDirNotFound(self.path.clone()),
@@ -116,7 +117,7 @@ impl ActivityStorage for TomlActivityStorage {
     }
 
     #[tracing::instrument(skip(self))]
-    fn teardown(&self) -> PaceResult<()> {
+    fn teardown(&self) -> PaceStorageResult<()> {
         self.sync_to_file()
     }
 
@@ -128,24 +129,30 @@ impl ActivityStorage for TomlActivityStorage {
 
 impl ActivityReadOps for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceStorageResult<ActivityItem> {
         self.cache.read_activity(activity_id)
     }
 
     #[tracing::instrument(skip(self))]
-    fn list_activities(&self, filter: ActivityFilterKind) -> PaceOptResult<FilteredActivities> {
+    fn list_activities(
+        &self,
+        filter: ActivityFilterKind,
+    ) -> PaceStorageOptResult<FilteredActivities> {
         self.cache.list_activities(filter)
     }
 }
 
 impl ActivityStateManagement for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>> {
+    fn end_all_activities(&self, end_opts: EndOptions) -> PaceStorageOptResult<Vec<ActivityItem>> {
         self.cache.end_all_activities(end_opts)
     }
 
     #[tracing::instrument(skip(self))]
-    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
+    fn end_last_unfinished_activity(
+        &self,
+        end_opts: EndOptions,
+    ) -> PaceStorageOptResult<ActivityItem> {
         self.cache.end_last_unfinished_activity(end_opts)
     }
 
@@ -154,7 +161,7 @@ impl ActivityStateManagement for TomlActivityStorage {
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.cache.end_activity(activity_id, end_opts)
     }
 
@@ -162,7 +169,7 @@ impl ActivityStateManagement for TomlActivityStorage {
     fn hold_most_recent_active_activity(
         &self,
         hold_opts: HoldOptions,
-    ) -> PaceOptResult<ActivityItem> {
+    ) -> PaceStorageOptResult<ActivityItem> {
         self.cache.hold_most_recent_active_activity(hold_opts)
     }
 
@@ -170,7 +177,7 @@ impl ActivityStateManagement for TomlActivityStorage {
     fn end_all_active_intermissions(
         &self,
         end_opts: EndOptions,
-    ) -> PaceOptResult<Vec<ActivityGuid>> {
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         self.cache.end_all_active_intermissions(end_opts)
     }
 
@@ -179,7 +186,7 @@ impl ActivityStateManagement for TomlActivityStorage {
         &self,
         activity_id: ActivityGuid,
         resume_opts: ResumeOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.cache.resume_activity(activity_id, resume_opts)
     }
 
@@ -188,7 +195,7 @@ impl ActivityStateManagement for TomlActivityStorage {
         &self,
         activity_id: ActivityGuid,
         hold_opts: HoldOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.cache.hold_activity(activity_id, hold_opts)
     }
 
@@ -196,14 +203,14 @@ impl ActivityStateManagement for TomlActivityStorage {
     fn resume_most_recent_activity(
         &self,
         resume_opts: ResumeOptions,
-    ) -> PaceOptResult<ActivityItem> {
+    ) -> PaceStorageOptResult<ActivityItem> {
         self.cache.resume_most_recent_activity(resume_opts)
     }
 }
 
 impl ActivityWriteOps for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
+    fn create_activity(&self, activity: Activity) -> PaceStorageResult<ActivityItem> {
         self.cache.create_activity(activity)
     }
 
@@ -213,7 +220,7 @@ impl ActivityWriteOps for TomlActivityStorage {
         activity_id: ActivityGuid,
         updated_activity: Activity,
         update_opts: UpdateOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.cache
             .update_activity(activity_id, updated_activity, update_opts)
     }
@@ -223,40 +230,40 @@ impl ActivityWriteOps for TomlActivityStorage {
         &self,
         activity_id: ActivityGuid,
         delete_opts: DeleteOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         self.cache.delete_activity(activity_id, delete_opts)
     }
 }
 
 impl ActivityQuerying for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
+    fn list_activities_by_id(&self) -> PaceStorageOptResult<BTreeMap<ActivityGuid, Activity>> {
         self.cache.list_activities_by_id()
     }
 
     #[tracing::instrument(skip(self))]
-    fn most_recent_active_activity(&self) -> PaceOptResult<ActivityItem> {
+    fn most_recent_active_activity(&self) -> PaceStorageOptResult<ActivityItem> {
         self.cache.most_recent_active_activity()
     }
 
     #[tracing::instrument(skip(self))]
     fn group_activities_by_duration_range(
         &self,
-    ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
         self.cache.group_activities_by_duration_range()
     }
 
     #[tracing::instrument(skip(self))]
     fn group_activities_by_start_date(
         &self,
-    ) -> PaceOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
         self.cache.group_activities_by_start_date()
     }
 
     #[tracing::instrument(skip(self))]
     fn list_activities_with_intermissions(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
         self.cache.list_activities_with_intermissions()
     }
 
@@ -264,12 +271,14 @@ impl ActivityQuerying for TomlActivityStorage {
     fn group_activities_by_keywords(
         &self,
         keyword_opts: KeywordOptions,
-    ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<String, Vec<ActivityItem>>> {
         self.cache.group_activities_by_keywords(keyword_opts)
     }
 
     #[tracing::instrument(skip(self))]
-    fn group_activities_by_kind(&self) -> PaceOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
+    fn group_activities_by_kind(
+        &self,
+    ) -> PaceStorageOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
         self.cache.group_activities_by_kind()
     }
 
@@ -277,14 +286,14 @@ impl ActivityQuerying for TomlActivityStorage {
     fn list_activities_by_time_range(
         &self,
         time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<Vec<ActivityGuid>> {
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         self.cache.list_activities_by_time_range(time_range_opts)
     }
 
     #[tracing::instrument(skip(self))]
     fn group_activities_by_status(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>> {
         self.cache.group_activities_by_status()
     }
 }

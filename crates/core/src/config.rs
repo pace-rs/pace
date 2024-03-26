@@ -148,7 +148,6 @@ pub enum ActivityLogStorageKind {
     #[default]
     File,
     Database,
-    #[cfg(test)]
     InMemory,
 }
 

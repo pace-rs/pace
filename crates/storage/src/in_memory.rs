@@ -15,8 +15,8 @@ use pace_core::prelude::{
     Activity, ActivityEndOptions, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind,
     ActivityKindOptions, ActivityLog, ActivityLogErrorKind, ActivityQuerying, ActivityReadOps,
     ActivityStateManagement, ActivityStatusKind, ActivityStorage, ActivityWriteOps, DeleteOptions,
-    EndOptions, FilteredActivities, HoldOptions, KeywordOptions, PaceOptResult, PaceResult,
-    ResumeOptions, SyncStorage, UpdateOptions,
+    EndOptions, FilteredActivities, HoldOptions, KeywordOptions, PaceStorageOptResult,
+    PaceStorageResult, ResumeOptions, SyncStorage, UpdateOptions,
 };
 
 /// Type for shared `ActivityLog`
@@ -76,12 +76,12 @@ impl Default for InMemoryActivityStorage {
 }
 
 impl ActivityStorage for InMemoryActivityStorage {
-    fn setup(&self) -> PaceResult<()> {
+    fn setup(&self) -> PaceStorageResult<()> {
         debug!("Setting up in-memory storage");
         Ok(())
     }
 
-    fn teardown(&self) -> PaceResult<()> {
+    fn teardown(&self) -> PaceStorageResult<()> {
         debug!("Tearing down in-memory storage");
         Ok(())
     }
@@ -92,7 +92,7 @@ impl ActivityStorage for InMemoryActivityStorage {
 }
 
 impl SyncStorage for InMemoryActivityStorage {
-    fn sync(&self) -> PaceResult<()> {
+    fn sync(&self) -> PaceStorageResult<()> {
         debug!("Syncing in-memory storage");
 
         Ok(())
@@ -101,7 +101,7 @@ impl SyncStorage for InMemoryActivityStorage {
 
 impl ActivityReadOps for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceStorageResult<ActivityItem> {
         let activities = self.log.read();
 
         let activity = activities
@@ -117,7 +117,10 @@ impl ActivityReadOps for InMemoryActivityStorage {
     }
 
     #[tracing::instrument(skip(self))]
-    fn list_activities(&self, filter: ActivityFilterKind) -> PaceOptResult<FilteredActivities> {
+    fn list_activities(
+        &self,
+        filter: ActivityFilterKind,
+    ) -> PaceStorageOptResult<FilteredActivities> {
         let activity_log = self.log.read();
 
         let filtered = activity_log
@@ -170,7 +173,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
 
 impl ActivityWriteOps for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
+    fn create_activity(&self, activity: Activity) -> PaceStorageResult<ActivityItem> {
         let activities = self.log.read();
 
         let activity_item = ActivityItem::from(activity);
@@ -208,7 +211,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         activity_id: ActivityGuid,
         updated_activity: Activity,
         update_opts: UpdateOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         let activities = self.log.read();
 
         let original_activity = activities
@@ -237,7 +240,7 @@ impl ActivityWriteOps for InMemoryActivityStorage {
         &self,
         activity_id: ActivityGuid,
         delete_opts: DeleteOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         let mut activities = self.log.write();
 
         let activity = activities
@@ -256,7 +259,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         &self,
         activity_id: ActivityGuid,
         end_opts: EndOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         let activities = self.log.read();
 
         let begin_time = *activities
@@ -285,7 +288,10 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     }
 
     #[tracing::instrument(skip(self))]
-    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
+    fn end_last_unfinished_activity(
+        &self,
+        end_opts: EndOptions,
+    ) -> PaceStorageOptResult<ActivityItem> {
         let Some(most_recent) = self.most_recent_active_activity()? else {
             debug!("No active activity found.");
             return Ok(None);
@@ -299,7 +305,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     }
 
     #[tracing::instrument(skip(self))]
-    fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>> {
+    fn end_all_activities(&self, end_opts: EndOptions) -> PaceStorageOptResult<Vec<ActivityItem>> {
         let activities = self.log.read();
 
         let endable_activities = activities
@@ -325,10 +331,10 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let ended_activities = endable_activities
             .par_iter()
-            .map(|activity_id| -> PaceResult<ActivityItem> {
+            .map(|activity_id| -> PaceStorageResult<ActivityItem> {
                 self.end_activity(*activity_id, end_opts.clone())
             })
-            .collect::<PaceResult<Vec<ActivityItem>>>()?;
+            .collect::<PaceStorageResult<Vec<ActivityItem>>>()?;
 
         debug!("Ended activities: {:?}", ended_activities);
 
@@ -346,7 +352,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     fn hold_most_recent_active_activity(
         &self,
         hold_opts: HoldOptions,
-    ) -> PaceOptResult<ActivityItem> {
+    ) -> PaceStorageOptResult<ActivityItem> {
         // Get id from last activity that is not ended
         let Some(active_activity) = self.most_recent_active_activity()? else {
             debug!("No active activity found.");
@@ -362,7 +368,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     fn end_all_active_intermissions(
         &self,
         end_opts: EndOptions,
-    ) -> PaceOptResult<Vec<ActivityGuid>> {
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         let Some(active_intermissions) = self.list_active_intermissions()? else {
             debug!("No active intermissions found.");
 
@@ -372,11 +378,11 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let ended_intermissions = active_intermissions
             .par_iter()
-            .map(|activity_id| -> PaceResult<ActivityGuid> {
+            .map(|activity_id| -> PaceStorageResult<ActivityGuid> {
                 let _ = self.end_activity(*activity_id, end_opts.clone())?;
                 Ok(*activity_id)
             })
-            .collect::<PaceResult<Vec<ActivityGuid>>>()?;
+            .collect::<PaceStorageResult<Vec<ActivityGuid>>>()?;
 
         debug!("Ended intermissions: {:?}", ended_intermissions);
 
@@ -395,7 +401,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         &self,
         activity_id: ActivityGuid,
         resume_opts: ResumeOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         let resumable_activity = self.read_activity(activity_id)?;
 
         debug!("Resumable activity: {:?}", resumable_activity);
@@ -446,7 +452,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         &self,
         activity_id: ActivityGuid,
         hold_opts: HoldOptions,
-    ) -> PaceResult<ActivityItem> {
+    ) -> PaceStorageResult<ActivityItem> {
         // Get ActivityItem for activity that
         let active_activity = self.read_activity(activity_id)?;
 
@@ -541,7 +547,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     fn resume_most_recent_activity(
         &self,
         resume_opts: ResumeOptions,
-    ) -> PaceOptResult<ActivityItem> {
+    ) -> PaceStorageOptResult<ActivityItem> {
         // Get id from last activity that is not ended
         let Some(active_activity) = self.most_recent_held_activity()? else {
             debug!("No held activity found.");
@@ -562,7 +568,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
 impl ActivityQuerying for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn list_activities_by_id(&self) -> PaceOptResult<BTreeMap<ActivityGuid, Activity>> {
+    fn list_activities_by_id(&self) -> PaceStorageOptResult<BTreeMap<ActivityGuid, Activity>> {
         let activities = self.log.read();
 
         let activities_by_id = activities.activities().clone();
@@ -583,14 +589,14 @@ impl ActivityQuerying for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_duration_range(
         &self,
-    ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {
         todo!("Implement grouping activities by duration range")
     }
 
     #[tracing::instrument(skip(self))]
     fn group_activities_by_start_date(
         &self,
-    ) -> PaceOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<PaceDate, Vec<ActivityItem>>> {
         let activities = self.log.read();
 
         Some(activities.activities().iter().try_fold(
@@ -613,7 +619,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
     fn list_activities_with_intermissions(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<ActivityGuid, Vec<ActivityItem>>> {
         let Some(intermissions) = self
             .list_activities(ActivityFilterKind::Intermission)?
             .map(FilteredActivities::into_vec)
@@ -660,7 +666,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
     fn group_activities_by_keywords(
         &self,
         keyword_opts: KeywordOptions,
-    ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<String, Vec<ActivityItem>>> {
         let activities = self.log.read();
 
         Some(activities.activities().iter().try_fold(
@@ -706,7 +712,9 @@ impl ActivityQuerying for InMemoryActivityStorage {
     }
 
     #[tracing::instrument(skip(self))]
-    fn group_activities_by_kind(&self) -> PaceOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
+    fn group_activities_by_kind(
+        &self,
+    ) -> PaceStorageOptResult<BTreeMap<ActivityKind, Vec<ActivityItem>>> {
         let activities = self.log.read();
 
         Some(activities.activities().iter().try_fold(
@@ -732,7 +740,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
     fn group_activities_by_status(
         &self,
-    ) -> PaceOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>> {
+    ) -> PaceStorageOptResult<BTreeMap<ActivityStatusKind, Vec<ActivityItem>>> {
         let activities = self.log.read();
 
         Some(activities.activities().iter().try_fold(
@@ -759,7 +767,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
     fn list_activities_by_time_range(
         &self,
         time_range_opts: TimeRangeOptions,
-    ) -> PaceOptResult<Vec<ActivityGuid>> {
+    ) -> PaceStorageOptResult<Vec<ActivityGuid>> {
         let Some(filtered_activities) = self
             .list_activities(ActivityFilterKind::TimeRange(time_range_opts))?
             .map(FilteredActivities::into_vec)

@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
-use pace_core::prelude::{ActivityLogStorageKind, ActivityStorage, DatabaseEngineKind, PaceConfig};
+use pace_core::prelude::{
+    ActivityLogStorageKind, ActivityStorage, DatabaseEngineKind, PaceConfig, PaceStorageResult,
+};
 use tracing::debug;
 
 use crate::{
-    error::{DatabaseStorageErrorKind, PaceStorageErrorKind, PaceStorageResult},
+    error::{DatabaseStorageErrorKind, PaceStorageErrorKind},
     file::TomlActivityStorage,
     in_memory::InMemoryActivityStorage,
     sqlite::SqliteActivityStorage,
@@ -21,6 +23,8 @@ pub mod in_memory;
 #[cfg(feature = "rusqlite")]
 pub mod sqlite;
 
+pub mod storage_types;
+
 /// Get the storage backend from the configuration.
 ///
 /// # Arguments
@@ -35,48 +39,53 @@ pub mod sqlite;
 ///
 /// The storage backend.
 pub fn get_storage_from_config(config: &PaceConfig) -> PaceStorageResult<Arc<dyn ActivityStorage>> {
-    let storage: dyn ActivityStorage = match config.general().activity_log_options().storage_kind()
-    {
-        ActivityLogStorageKind::File => {
-            TomlActivityStorage::new(config.general().activity_log_options().path())?.into()
-        }
-        ActivityLogStorageKind::Database => {
-            if config.database().is_some() {
-                let Some(db_config) = config.database() else {
-                    return Err(DatabaseStorageErrorKind::NoConfigSettings.into());
-                };
+    let storage: Arc<dyn ActivityStorage> =
+        match config.general().activity_log_options().storage_kind() {
+            ActivityLogStorageKind::File => Arc::new(TomlActivityStorage::new(
+                config.general().activity_log_options().path(),
+            )?),
+            ActivityLogStorageKind::Database => {
+                if config.database().is_some() {
+                    let Some(db_config) = config.database() else {
+                        return Err(DatabaseStorageErrorKind::NoConfigSettings.into());
+                    };
 
-                match db_config.engine() {
-                    DatabaseEngineKind::Sqlite => {
-                        #[cfg(feature = "rusqlite")]
-                        {
-                            let connection_string = config
-                                .database()
-                                .as_ref()
-                                .ok_or(DatabaseStorageErrorKind::NoConnectionString)?
-                                .connection_string();
+                    let storage: Arc<dyn ActivityStorage> = match db_config.engine() {
+                        DatabaseEngineKind::Sqlite => {
+                            #[cfg(feature = "rusqlite")]
+                            {
+                                let connection_string = config
+                                    .database()
+                                    .as_ref()
+                                    .ok_or(DatabaseStorageErrorKind::NoConnectionString)?
+                                    .connection_string();
 
-                            debug!("Connecting to database: {}", &connection_string);
+                                debug!("Connecting to database: {}", &connection_string);
 
-                            SqliteActivityStorage::new(connection_string.clone())?.into()
+                                Arc::new(SqliteActivityStorage::new(connection_string.clone())?)
+                            }
+
+                            #[cfg(not(feature = "rusqlite"))]
+                            return Err(PaceErrorKind::DatabaseStorageNotImplemented.into());
                         }
-                        #[cfg(not(feature = "rusqlite"))]
-                        return Err(PaceErrorKind::DatabaseStorageNotImplemented.into());
-                    }
-                    engine => {
-                        return Err(
-                            DatabaseStorageErrorKind::UnsupportedDatabaseEngine(*engine).into()
-                        )
-                    }
+                        engine => {
+                            return Err(DatabaseStorageErrorKind::UnsupportedDatabaseEngine(
+                                *engine,
+                            )
+                            .into())
+                        }
+                    };
+
+                    storage
                 }
+
+                return Err(PaceStorageErrorKind::DatabaseStorageNotConfigured.into());
             }
+            ActivityLogStorageKind::InMemory => Arc::new(InMemoryActivityStorage::new()),
+            _ => return Err(PaceStorageErrorKind::StorageNotImplemented.into()),
+        };
 
-            return Err(PaceStorageErrorKind::DatabaseStorageNotConfigured.into());
-        }
-        ActivityLogStorageKind::InMemory => InMemoryActivityStorage::new().into(),
-    };
+    debug!("Using storage backend: {:?}", storage);
 
-    debug!("Using storage backend: {}", storage);
-
-    Ok(Arc::new(storage))
+    Ok(storage)
 }

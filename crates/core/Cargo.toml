@@ -31,6 +31,7 @@ clap = { workspace = true, optional = true, features = ["env", "wrap_help", "der
 directories = { workspace = true }
 displaydoc = { workspace = true }
 dotenvy = { workspace = true }
+eyre = { workspace = true }
 getset = { workspace = true }
 itertools = { workspace = true }
 merge = { workspace = true }
