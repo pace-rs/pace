@@ -1,6 +1,6 @@
+mod cli;
 mod hold_resume;
 mod start_finish_different_time_zone;
-mod cli;
 
 // DEBUGGING: To make life easier, you can import SimpleLogger from simplelog crate
 //
