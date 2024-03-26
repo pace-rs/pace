@@ -1,5 +1,5 @@
 -- migrate:up
-CREATE TABLE activities (
+CREATE TABLE IF NOT EXISTS activities (
     guid TEXT PRIMARY KEY,
     category TEXT NOT NULL,
     description TEXT NOT NULL,

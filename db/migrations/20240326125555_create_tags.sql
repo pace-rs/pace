@@ -1,5 +1,5 @@
 -- migrate:up
-CREATE TABLE tags (
+CREATE TABLE IF NOT EXISTS tags (
     guid TEXT PRIMARY KEY,
     tag TEXT NOT NULL
 );

@@ -1,5 +1,5 @@
 -- migrate:up
-CREATE TABLE activity_kinds (
+CREATE TABLE IF NOT EXISTS activity_kinds (
     guid TEXT PRIMARY KEY,
     kind TEXT NOT NULL
 );
