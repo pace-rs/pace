@@ -8,9 +8,10 @@ CREATE TABLE activities (
     duration INTEGER NULL,
     kind TEXT NOT NULL,
     status TEXT NOT NULL,
-    tags TEXT NULL,
     parent_guid TEXT NULL,
-    FOREIGN KEY (parent_id) REFERENCES activities(guid)
+    FOREIGN KEY (kind) REFERENCES activity_kinds(guid),
+    FOREIGN KEY (status) REFERENCES activity_status(guid),
+    FOREIGN KEY (parent_guid) REFERENCES activities(guid)
 );
 
 -- migrate:down
