@@ -572,18 +572,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
-name = "enum_dispatch"
-version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f33313078bb8d4d05a2733a94ac4c2d8a0df9a2b84424ebf4f33bfc224a890e"
-dependencies = [
- "once_cell",
- "proc-macro2",
- "quote",
- "syn 2.0.55",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1273,6 +1261,7 @@ dependencies = [
  "once_cell",
  "pace_cli",
  "pace_core",
+ "pace_storage",
  "pace_time",
  "predicates",
  "serde",
@@ -1307,12 +1296,11 @@ dependencies = [
  "diesel",
  "directories",
  "displaydoc",
- "enum_dispatch",
+ "dotenvy",
  "eyre",
  "getset",
  "insta",
  "itertools",
- "libsqlite3-sys",
  "merge",
  "miette",
  "once_cell",
@@ -1341,6 +1329,26 @@ dependencies = [
 [[package]]
 name = "pace_server"
 version = "0.1.3"
+
+[[package]]
+name = "pace_storage"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "displaydoc",
+ "itertools",
+ "libsqlite3-sys",
+ "merge",
+ "pace_core",
+ "pace_time",
+ "parking_lot",
+ "rayon",
+ "rusqlite",
+ "thiserror",
+ "toml 0.8.12",
+ "tracing",
+ "ulid",
+]
 
 [[package]]
 name = "pace_time"
