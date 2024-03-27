@@ -1,13 +1,7 @@
 use rusqlite::{Error, Row};
-use sea_query::{
-    enum_def, ColumnDef, Expr, ForeignKey, Func, Iden, Order, Query, SqliteQueryBuilder, Table,
-};
-use strum::EnumIter;
+use sea_query::enum_def;
 
-use crate::{
-    entities::{activity_kinds::ActivityKindsIden, activity_status::ActivityStatusIden},
-    storage::SQLiteEntity,
-};
+use crate::storage::SQLiteEntity;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[enum_def]
