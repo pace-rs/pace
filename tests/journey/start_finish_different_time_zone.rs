@@ -1,9 +1,8 @@
 use chrono::FixedOffset;
 use eyre::OptionExt;
-use pace_core::prelude::{
-    Activity, ActivityReadOps, ActivityStateManagement, EndOptions, InMemoryActivityStorage,
-    TestResult,
-};
+use pace_core::prelude::{Activity, ActivityReadOps, ActivityStateManagement, EndOptions};
+use pace_error::TestResult;
+use pace_storage::in_memory::InMemoryActivityStorage;
 use pace_time::{date_time::PaceDateTime, duration::PaceDuration};
 
 #[test]

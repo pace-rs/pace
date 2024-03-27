@@ -1,7 +1,8 @@
 //! Test the `ActivityStore` implementation with a `InMemoryStorage` backend.
 
 use chrono::NaiveDate;
-use pace_core::prelude::{ActivityStore, ActivityTracker, FilterOptions, TestResult};
+use pace_core::prelude::{ActivityStore, ActivityTracker, FilterOptions};
+use pace_error::TestResult;
 use pace_time::{duration::PaceDuration, time_range::TimeRangeOptions};
 use rstest::rstest;
 use similar_asserts::assert_eq;

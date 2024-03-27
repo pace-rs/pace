@@ -4,9 +4,11 @@ use chrono::Local;
 
 use pace_core::prelude::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityStatusKind, ActivityStore, TestResult,
+    ActivityStatusKind, ActivityStore,
 };
+use pace_error::TestResult;
 
+use pace_storage::file::TomlActivityStorage;
 use rstest::fixture;
 
 pub struct TestData {
@@ -52,6 +54,7 @@ pub fn activity_store_no_intermissions() -> TestResult<TestData> {
 // We need to use `#[cfg(not(tarpaulin_include))]` to exclude this from coverage reports
 #[cfg(not(tarpaulin_include))]
 pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
+    use pace_storage::in_memory::InMemoryActivityStorage;
     use pace_time::date_time::PaceDateTime;
 
     let begin_time = PaceDateTime::default();
@@ -163,8 +166,7 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
     Ok(TestData {
         activities: activities.clone(),
         store: ActivityStore::with_storage(Arc::new(
-            InMemoryActivityStorage::new_with_activity_log(ActivityLog::from_iter(activities))
-                .into(),
+            InMemoryActivityStorage::new_with_activity_log(ActivityLog::from_iter(activities)),
         ))?,
     })
 }
@@ -174,7 +176,5 @@ pub fn setup_activity_store_for_activity_tracker() -> TestResult<ActivityStore> 
     let fixture_path =
         Path::new("../../tests/fixtures/activity_tracker/activities.pace.toml").canonicalize()?;
 
-    let storage = TomlActivityStorage::new(fixture_path)?;
-
-    Ok(ActivityStore::with_storage(Arc::new(storage.into()))?)
+    Ok(ActivityStore::with_storage(Arc::new(TomlActivityStorage::new(fixture_path)?))?)
 }

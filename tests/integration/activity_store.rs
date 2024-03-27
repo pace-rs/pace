@@ -5,8 +5,10 @@ use std::{collections::HashSet, sync::Arc};
 use pace_core::prelude::{
     Activity, ActivityFilterKind, ActivityGuid, ActivityReadOps, ActivityStateManagement,
     ActivityStatusKind, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
-    InMemoryActivityStorage, ResumeOptions, TestResult, UpdateOptions,
+    ResumeOptions, UpdateOptions,
 };
+use pace_error::TestResult;
+use pace_storage::in_memory::InMemoryActivityStorage;
 
 use crate::util::{
     activity_store, activity_store_empty, activity_store_no_intermissions, TestData,
@@ -629,7 +631,7 @@ fn test_activity_store_resume_activity_passes(
 
 #[rstest]
 fn test_begin_activity_with_held_activity() -> TestResult<()> {
-    let store = ActivityStore::with_storage(Arc::new(InMemoryActivityStorage::new().into()))?;
+    let store = ActivityStore::with_storage(Arc::new(InMemoryActivityStorage::new()))?;
 
     // Begin activity
     let activity = Activity::builder()

@@ -1,7 +1,9 @@
 use pace_core::prelude::{
     Activity, ActivityQuerying, ActivityReadOps, ActivityStateManagement, HoldOptions,
-    InMemoryActivityStorage, ResumeOptions, TestResult,
+    ResumeOptions,
 };
+use pace_error::TestResult;
+use pace_storage::in_memory::InMemoryActivityStorage;
 
 #[test]
 #[allow(clippy::too_many_lines)]
