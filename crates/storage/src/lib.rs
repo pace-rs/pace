@@ -1,3 +1,19 @@
+pub mod migration;
+pub mod storage;
+
+pub mod error;
+
+/// A type of storage that can be synced to a persistent medium - a file
+pub mod file;
+
+/// An in-memory storage backend for activities.
+pub mod in_memory;
+
+#[cfg(feature = "rusqlite")]
+pub mod sqlite;
+
+pub mod entities;
+
 use std::sync::Arc;
 
 use pace_core::prelude::{
@@ -11,19 +27,6 @@ use crate::{
     in_memory::InMemoryActivityStorage,
     sqlite::SqliteActivityStorage,
 };
-
-pub mod error;
-
-/// A type of storage that can be synced to a persistent medium - a file
-pub mod file;
-
-/// An in-memory storage backend for activities.
-pub mod in_memory;
-
-#[cfg(feature = "rusqlite")]
-pub mod sqlite;
-
-pub mod storage_types;
 
 /// Get the storage backend from the configuration.
 ///

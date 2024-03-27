@@ -22,7 +22,12 @@ include = [
 [features]
 default = ["db"]
 db = ["rusqlite"]
-rusqlite = ["dep:rusqlite", "dep:libsqlite3-sys"]
+rusqlite = [
+  "dep:rusqlite",
+  "dep:libsqlite3-sys",
+  "dep:sea-query",
+  "dep:sea-query-rusqlite",
+]
 
 [dependencies]
 displaydoc = { workspace = true }
@@ -35,6 +40,9 @@ pace_time = { workspace = true, features = ["db"] }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
 rusqlite = { workspace = true, optional = true, features = ["bundled", "chrono"] }
+sea-query = { workspace = true, optional = true, no-default-features = true, features = ["derive", "attr", "with-chrono", "backend-sqlite"] }
+sea-query-rusqlite = { workspace = true, optional = true, features = ["with-chrono"] }
+strum = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true, features = ["indexmap", "preserve_order"] }
 tracing = { workspace = true }

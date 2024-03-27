@@ -2,8 +2,6 @@ use std::collections::BTreeMap;
 
 use itertools::Itertools;
 use rusqlite::Connection;
-
-use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 use tracing::debug;
 
 use pace_core::prelude::{
@@ -12,14 +10,9 @@ use pace_core::prelude::{
     ActivityWriteOps, DeleteOptions, EndOptions, FilteredActivities, HoldOptions, KeywordOptions,
     PaceStorageOptResult, PaceStorageResult, ResumeOptions, SyncStorage, UpdateOptions,
 };
+use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 
-use crate::error::DatabaseStorageErrorKind;
-
-pub trait FromRow {
-    fn from_row(row: &rusqlite::Row<'_>) -> PaceStorageResult<Self>
-    where
-        Self: Sized;
-}
+use crate::{error::DatabaseStorageErrorKind, migration::SQLiteMigrator};
 
 #[derive(Debug)]
 pub struct SqliteActivityStorage {
@@ -38,17 +31,15 @@ impl SqliteActivityStorage {
 
 impl ActivityStorage for SqliteActivityStorage {
     fn setup(&self) -> PaceStorageResult<()> {
-        // we embed `db/schema.sql` and run it against the database
-        // as a setup step
-        let schema = include_str!("../../../db/schema.sql");
+        let migrator = SQLiteMigrator::new(&self.connection)?;
 
-        self.connection.execute_batch(schema)?;
+        migrator.up()?;
 
         Ok(())
     }
 
     fn teardown(&self) -> PaceStorageResult<()> {
-        Ok(())
+        unimplemented!("teardown not implemented for sqlite storage")
     }
 
     fn identify(&self) -> String {
