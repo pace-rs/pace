@@ -101,9 +101,11 @@ impl ActivityStorage for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
     fn setup(&self) -> PaceStorageResult<()> {
         if !self.path.exists() {
-            create_dir_all(self.path.parent().ok_or(
-                TomlFileStorageErrorKind::ParentDirNotFound(self.path.clone()),
-            )?)?;
+            create_dir_all(
+                self.path.parent().ok_or_else(|| {
+                    TomlFileStorageErrorKind::ParentDirNotFound(self.path.clone())
+                })?,
+            )?;
 
             let mut file = OpenOptions::new()
                 .write(true)

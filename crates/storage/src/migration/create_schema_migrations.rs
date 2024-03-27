@@ -6,7 +6,7 @@ pub struct Migration;
 
 impl SQLiteMigration for Migration {
     fn version(&self) -> String {
-        "".to_string()
+        String::default()
     }
 
     fn up(&self) -> String {

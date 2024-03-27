@@ -33,7 +33,7 @@ pub struct SQLiteMigrator<'conn> {
 
 impl<'conn> SQLiteMigrator<'conn> {
     pub fn new(connection: &'conn Connection) -> PaceStorageResult<Self> {
-        let migrator = Self {
+        let mut migrator = Self {
             iterator: Self::load(),
             applied: VecDeque::default(),
             connection,
@@ -44,7 +44,7 @@ impl<'conn> SQLiteMigrator<'conn> {
         Ok(migrator)
     }
 
-    fn init(&self) -> PaceStorageResult<()> {
+    fn init(&mut self) -> PaceStorageResult<()> {
         let migration = self.iterator.next().ok_or_eyre("No migrations found")?;
         let query = migration.up();
 
@@ -108,7 +108,7 @@ impl<'conn> SQLiteMigrator<'conn> {
     }
 
     /// Migrate to the latest version
-    pub fn up(&self) -> PaceStorageResult<()> {
+    pub fn up(&mut self) -> PaceStorageResult<()> {
         while let Some(migration) = self.iterator.next() {
             let query = migration.up();
 
@@ -123,7 +123,7 @@ impl<'conn> SQLiteMigrator<'conn> {
     }
 
     /// Rollback the most recent migration
-    pub fn down(&self) -> PaceStorageResult<String> {
+    pub fn down(&mut self) -> PaceStorageResult<String> {
         let migration = self
             .applied
             .pop_back()
@@ -131,18 +131,17 @@ impl<'conn> SQLiteMigrator<'conn> {
 
         let query = migration.down();
 
-        self.connection.execute(&query, [])?;
+        _ = self.connection.execute(&query, [])?;
 
         self.remove_migration_version(migration.version())?;
 
         Ok(migration.version())
     }
 
-    /// List applied and pending migrations
-    pub fn status(&self) -> PaceStorageResult<(Vec<String>, Vec<String>)> {
+    /// List applied migrations
+    pub fn status(&self) -> PaceStorageResult<Vec<String>> {
         let applied = self.applied.iter().map(|m| m.version()).collect();
-        let pending = self.iterator.map(|m| m.version()).collect();
 
-        Ok((applied, pending))
+        Ok(applied)
     }
 }

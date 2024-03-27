@@ -31,15 +31,16 @@ impl SqliteActivityStorage {
 
 impl ActivityStorage for SqliteActivityStorage {
     fn setup(&self) -> PaceStorageResult<()> {
-        let migrator = SQLiteMigrator::new(&self.connection)?;
+        let mut migrate = SQLiteMigrator::new(&self.connection)?;
 
-        migrator.up()?;
+        migrate.up()?;
 
         Ok(())
     }
 
     fn teardown(&self) -> PaceStorageResult<()> {
-        unimplemented!("teardown not implemented for sqlite storage")
+        // TODO: Do we need a teardown for sqlite?
+        unimplemented!("teardown not yet implemented for sqlite storage")
     }
 
     fn identify(&self) -> String {
@@ -59,22 +60,23 @@ impl SyncStorage for SqliteActivityStorage {
 impl ActivityReadOps for SqliteActivityStorage {
     #[tracing::instrument]
     fn read_activity(&self, activity_id: ActivityGuid) -> PaceStorageResult<ActivityItem> {
-        let mut stmt = self
-            .connection
-            .prepare("SELECT * FROM activities WHERE id = ?1")?;
+        // let mut stmt = self
+        //     .connection
+        //     .prepare("SELECT * FROM activities WHERE id = ?1")?;
 
-        let activity_item_iter =
-            stmt.query_map(&[&activity_id], |row| Ok(ActivityItem::from_row(&row)))?;
+        // let activity_item_iter =
+        //     stmt.query_map(&[&activity_id], |row| Ok(ActivityItem::from_row(&row)))?;
 
-        let activity_item = activity_item_iter
-            .filter_map_ok(|item| item.ok())
-            .next()
-            .transpose()?
-            .ok_or(DatabaseStorageErrorKind::ActivityNotFound(activity_id))?;
+        // let activity_item = activity_item_iter
+        //     .filter_map_ok(|item| item.ok())
+        //     .next()
+        //     .transpose()?
+        //     .ok_or(DatabaseStorageErrorKind::ActivityNotFound(activity_id))?;
 
-        debug!("Read activity: {:?}", activity_item);
+        // debug!("Read activity: {:?}", activity_item);
 
-        Ok(activity_item)
+        // Ok(activity_item)
+        todo!("implement read_activity for sqlite")
     }
 
     #[tracing::instrument]
@@ -82,52 +84,55 @@ impl ActivityReadOps for SqliteActivityStorage {
         &self,
         filter: ActivityFilterKind,
     ) -> PaceStorageOptResult<FilteredActivities> {
-        let mut stmt = self.connection.prepare(filter.to_sql_statement())?;
+        // let mut stmt = self.connection.prepare(filter.to_sql_statement())?;
 
-        let activity_item_iter = stmt.query_map([], |row| Ok(ActivityGuid::from_row(&row)))?;
+        // let activity_item_iter = stmt.query_map([], |row| Ok(ActivityGuid::from_row(&row)))?;
 
-        let activities = activity_item_iter
-            .filter_map_ok(|item| item.ok())
-            .collect::<Result<Vec<ActivityGuid>, _>>()?;
+        // let activities = activity_item_iter
+        //     .filter_map_ok(|item| item.ok())
+        //     .collect::<Result<Vec<ActivityGuid>, _>>()?;
 
-        debug!("Listed activities: {:?}", activities);
+        // debug!("Listed activities: {:?}", activities);
 
-        if activities.is_empty() {
-            return Ok(None);
-        }
+        // if activities.is_empty() {
+        //     return Ok(None);
+        // }
 
-        let filtered_activities = match filter {
-            ActivityFilterKind::Everything => FilteredActivities::Everything(activities),
-            ActivityFilterKind::OnlyActivities => FilteredActivities::OnlyActivities(activities),
-            ActivityFilterKind::Active => FilteredActivities::Active(activities),
-            ActivityFilterKind::ActiveIntermission => {
-                FilteredActivities::ActiveIntermission(activities)
-            }
-            ActivityFilterKind::Archived => FilteredActivities::Archived(activities),
-            ActivityFilterKind::Ended => FilteredActivities::Ended(activities),
-            ActivityFilterKind::Held => FilteredActivities::Held(activities),
-            ActivityFilterKind::Intermission => FilteredActivities::Intermission(activities),
-            ActivityFilterKind::TimeRange(_) => FilteredActivities::TimeRange(activities),
-        };
+        // let filtered_activities = match filter {
+        //     ActivityFilterKind::Everything => FilteredActivities::Everything(activities),
+        //     ActivityFilterKind::OnlyActivities => FilteredActivities::OnlyActivities(activities),
+        //     ActivityFilterKind::Active => FilteredActivities::Active(activities),
+        //     ActivityFilterKind::ActiveIntermission => {
+        //         FilteredActivities::ActiveIntermission(activities)
+        //     }
+        //     ActivityFilterKind::Archived => FilteredActivities::Archived(activities),
+        //     ActivityFilterKind::Ended => FilteredActivities::Ended(activities),
+        //     ActivityFilterKind::Held => FilteredActivities::Held(activities),
+        //     ActivityFilterKind::Intermission => FilteredActivities::Intermission(activities),
+        //     ActivityFilterKind::TimeRange(_) => FilteredActivities::TimeRange(activities),
+        // };
 
-        Ok(Some(filtered_activities))
+        // Ok(Some(filtered_activities))
+
+        todo!("implement list_activities for sqlite")
     }
 }
 
 impl ActivityWriteOps for SqliteActivityStorage {
     fn create_activity(&self, activity: Activity) -> PaceStorageResult<ActivityItem> {
-        let tx = self.connection.transaction()?;
+        // let tx = self.connection.transaction()?;
 
-        let mut stmt = tx.prepare(activity.to_sql_prepare_statement())?;
+        // let mut stmt = tx.prepare(activity.to_sql_prepare_statement())?;
 
-        let (guid, params) = activity.to_sql_execute_statement()?;
+        // let (guid, params) = activity.to_sql_execute_statement()?;
 
-        if stmt.execute(params.as_slice())? > 0 {
-            tx.commit()?;
-            return Ok(ActivityItem::from((guid, activity)));
-        }
+        // if stmt.execute(params.as_slice())? > 0 {
+        //     tx.commit()?;
+        //     return Ok(ActivityItem::from((guid, activity)));
+        // }
 
-        return Err(DatabaseStorageErrorKind::ActivityCreationFailed(activity).into());
+        // return Err(DatabaseStorageErrorKind::ActivityCreationFailed(activity).into());
+        todo!("implement create_activity for sqlite")
     }
 
     fn update_activity(
@@ -144,17 +149,18 @@ impl ActivityWriteOps for SqliteActivityStorage {
         activity_id: ActivityGuid,
         delete_opts: DeleteOptions,
     ) -> PaceStorageResult<ActivityItem> {
-        let activity = self.read_activity(activity_id)?;
+        // let activity = self.read_activity(activity_id)?;
 
-        let tx = self.connection.transaction()?;
-        let mut stmt = tx.prepare("DELETE FROM activities WHERE id = ?1 LIMIT = 1")?;
+        // let tx = self.connection.transaction()?;
+        // let mut stmt = tx.prepare("DELETE FROM activities WHERE id = ?1 LIMIT = 1")?;
 
-        if stmt.execute(&[&activity_id])? == 1 {
-            tx.commit()?;
-            return Ok(activity);
-        }
+        // if stmt.execute(&[&activity_id])? == 1 {
+        //     tx.commit()?;
+        //     return Ok(activity);
+        // }
 
-        Err(DatabaseStorageErrorKind::ActivityDeletionFailed(activity_id).into())
+        // Err(DatabaseStorageErrorKind::ActivityDeletionFailed(activity_id).into())
+        todo!("implement delete_activity for sqlite")
     }
 }
 impl ActivityStateManagement for SqliteActivityStorage {

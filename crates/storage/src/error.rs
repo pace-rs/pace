@@ -33,7 +33,7 @@ pub enum PaceStorageErrorKind {
     StorageNotImplemented,
 }
 
-/// [`DatabaseErrorKind`] describes the errors that can happen while dealing with the SQLite database.
+/// [`DatabaseErrorKind`] describes the errors that can happen while dealing with the `SQLite` database.
 #[non_exhaustive]
 #[derive(Error, Debug, Display)]
 pub enum DatabaseStorageErrorKind {
