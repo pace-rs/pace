@@ -1,4 +1,5 @@
-use pace_core::prelude::find_root_config_file_path;
+use insta::assert_toml_snapshot;
+use pace_core::prelude::{find_root_config_file_path, PaceConfig};
 use pace_error::TestResult;
 use similar_asserts::assert_eq;
 use std::env;
@@ -26,4 +27,11 @@ fn test_find_root_projects_file() -> TestResult<()> {
     );
 
     Ok(())
+}
+
+#[test]
+fn test_config_default_snapshot_passes() {
+    let config = PaceConfig::default();
+
+    assert_toml_snapshot!(config);
 }

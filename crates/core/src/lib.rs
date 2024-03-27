@@ -41,9 +41,9 @@ pub mod prelude {
         config::{
             find_root_config_file_path, find_root_project_file, get_activity_log_paths,
             get_config_paths, get_home_activity_log_path, get_home_config_path,
-            ActivityLogFormatKind, ActivityLogStorageKind, AutoArchivalConfig, DatabaseConfig,
-            DatabaseEngineKind, ExportConfig, GeneralConfig, InboxConfig, PaceConfig,
-            PomodoroConfig, ReflectionsConfig,
+            ActivityLogStorageKind, AutoArchivalConfig, DatabaseEngineKind, ExportConfig,
+            GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig, ReflectionsConfig,
+            StorageConfig,
         },
         domain::{
             activity::{

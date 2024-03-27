@@ -26,6 +26,11 @@ pub struct PaceConfig {
     #[getset(get = "pub", get_mut = "pub")]
     general: GeneralConfig,
 
+    /// Storage configuration for the pace application
+    #[serde(default)]
+    #[getset(get = "pub", get_mut = "pub")]
+    storage: StorageConfig,
+
     /// Reflections configuration for the pace application
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", get_mut = "pub")]
@@ -35,11 +40,6 @@ pub struct PaceConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", get_mut = "pub")]
     export: Option<ExportConfig>,
-
-    /// Database configuration for the pace application
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[getset(get = "pub", get_mut = "pub")]
-    database: Option<DatabaseConfig>, // Optional because it's only needed if log_storage is "database"
 
     /// Pomodoro configuration for the pace application
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -64,8 +64,11 @@ impl PaceConfig {
     ///
     /// `activity_log` - The path to the activity log file
     pub fn set_activity_log_path(&mut self, activity_log: impl AsRef<Path>) {
-        *self.general_mut().activity_log_options_mut().path_mut() =
-            activity_log.as_ref().to_path_buf();
+        *self.storage_mut() = StorageConfig {
+            storage: ActivityLogStorageKind::File {
+                location: activity_log.as_ref().to_path_buf(),
+            },
+        };
     }
 
     pub fn set_time_zone(&mut self, time_zone: Tz) {
@@ -78,10 +81,6 @@ impl PaceConfig {
 #[getset(get = "pub")]
 #[serde(rename_all = "kebab-case")]
 pub struct GeneralConfig {
-    #[serde(flatten)]
-    #[getset(get = "pub", get_mut = "pub")]
-    activity_log_options: ActivityLogOptions,
-
     /// The default category separator
     /// Default: `::`
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -104,56 +103,28 @@ pub struct GeneralConfig {
     default_time_zone: Option<Tz>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Getters, MutGetters, Clone, Default)]
-#[getset(get = "pub")]
-#[serde(rename_all = "kebab-case")]
-pub struct ActivityLogOptions {
-    /// The path to the activity log file
-    /// Default is operating system dependent
-    /// Use `pace setup config` to set this value initially
-    #[getset(get_mut = "pub")]
-    path: PathBuf,
-
-    /// The format for the activity log
-    /// Default: `toml`
-    #[getset(get_mut = "pub")]
-    format_kind: Option<ActivityLogFormatKind>,
-
-    /// The storage type for the activity log
-    /// Default: `file`
-    storage_kind: ActivityLogStorageKind,
-}
-
-/// The kind of activity log format
-/// Default: `toml`
-///
-/// Options: `toml`, `json`, `yaml`
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default, EnumString)]
-#[serde(rename_all = "lowercase")]
-#[non_exhaustive]
-pub enum ActivityLogFormatKind {
-    #[default]
-    Toml,
-}
-
 /// The kind of log storage
-/// Default: `file`
-///
-/// Options: `file`, `database`
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
 pub enum ActivityLogStorageKind {
-    #[default]
-    File,
-    Database,
+    File {
+        /// The location of the activity log file
+        location: PathBuf,
+    },
+    Database {
+        /// The database engine to use
+        kind: DatabaseEngineKind,
+
+        /// The connection string to the database
+        connection: String,
+    },
     InMemory,
 }
 
 impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
-            activity_log_options: ActivityLogOptions::default(),
             category_separator: Some("::".to_string()),
             default_priority: Some(ItemPriorityKind::default()),
             most_recent_count: Some(9),
@@ -193,7 +164,18 @@ pub struct ExportConfig {
 /// Default: `sqlite`
 ///
 /// Options: `sqlite`, `postgres`, `mysql`, `sql-server`
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default, displaydoc::Display, EnumString)]
+#[derive(
+    Debug,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    Default,
+    displaydoc::Display,
+    EnumString,
+    PartialEq,
+    Eq,
+)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
 pub enum DatabaseEngineKind {
@@ -211,16 +193,27 @@ pub enum DatabaseEngineKind {
     SqlServer,
 }
 
-/// The database configuration for the pace application
-#[derive(Debug, Deserialize, Default, Serialize, Getters, Clone)]
+/// The storage configuration for the pace application
+#[derive(Debug, Deserialize, Serialize, Getters, Clone)]
 #[getset(get = "pub")]
 #[serde(rename_all = "kebab-case")]
-pub struct DatabaseConfig {
-    /// The connection string for the database
-    connection_string: String,
+pub struct StorageConfig {
+    /// The storage location
+    /// In case of a file, this is the path to the file: `file://path/to/file`
+    /// In case of a database, this is the connection string: `sqlite://path/to/database`
+    #[serde(flatten)]
+    storage: ActivityLogStorageKind,
+}
 
-    /// The kind of database engine
-    engine: DatabaseEngineKind,
+impl Default for StorageConfig {
+    fn default() -> Self {
+        Self {
+            storage: ActivityLogStorageKind::Database {
+                kind: DatabaseEngineKind::Sqlite,
+                connection: "./db/activities.pace.sqlite3".to_string(),
+            },
+        }
+    }
 }
 
 /// The pomodoro configuration for the pace application
@@ -525,8 +518,10 @@ mod tests {
         config.set_activity_log_path(activity_log);
 
         assert_eq!(
-            config.general().activity_log_options().path(),
-            Path::new(activity_log)
+            *config.storage().storage(),
+            ActivityLogStorageKind::File {
+                location: PathBuf::from(activity_log)
+            }
         );
     }
 

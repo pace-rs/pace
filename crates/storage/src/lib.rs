@@ -36,45 +36,29 @@ use crate::{
 ///
 /// The storage backend.
 pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<dyn ActivityStorage>> {
-    let storage: Arc<dyn ActivityStorage> =
-        match config.general().activity_log_options().storage_kind() {
-            ActivityLogStorageKind::File => Arc::new(TomlActivityStorage::new(
-                config.general().activity_log_options().path(),
-            )?),
-            ActivityLogStorageKind::Database => {
-                if let Some(db_config) = config.database() {
-                    match db_config.engine() {
-                        DatabaseEngineKind::Sqlite => {
-                            #[cfg(feature = "rusqlite")]
-                            {
-                                let connection_string = config
-                                    .database()
-                                    .as_ref()
-                                    .ok_or(DatabaseStorageErrorKind::NoConnectionString)?
-                                    .connection_string();
+    let storage: Arc<dyn ActivityStorage> = match config.storage().storage() {
+        ActivityLogStorageKind::File { location } => Arc::new(TomlActivityStorage::new(location)?),
+        ActivityLogStorageKind::Database { kind, connection } => match kind {
+            DatabaseEngineKind::Sqlite => {
+                #[cfg(feature = "rusqlite")]
+                {
+                    debug!("Connecting to database: {}", connection);
 
-                                debug!("Connecting to database: {}", &connection_string);
-
-                                Arc::new(SqliteActivityStorage::new(connection_string.clone())?)
-                            }
-
-                            #[cfg(not(feature = "rusqlite"))]
-                            return Err(PaceErrorKind::DatabaseStorageNotImplemented.into());
-                        }
-                        engine => {
-                            return Err(DatabaseStorageErrorKind::UnsupportedDatabaseEngine(
-                                engine.to_string(),
-                            )
-                            .into())
-                        }
-                    }
-                } else {
-                    return Err(DatabaseStorageErrorKind::DatabaseStorageNotConfigured.into());
+                    Arc::new(SqliteActivityStorage::new(connection.clone())?)
                 }
+
+                #[cfg(not(feature = "rusqlite"))]
+                return Err(PaceErrorKind::DatabaseStorageNotImplemented.into());
             }
-            ActivityLogStorageKind::InMemory => Arc::new(InMemoryActivityStorage::new()),
-            _ => return Err(DatabaseStorageErrorKind::StorageNotImplemented.into()),
-        };
+            engine => {
+                return Err(
+                    DatabaseStorageErrorKind::UnsupportedDatabaseEngine(engine.to_string()).into(),
+                )
+            }
+        },
+        ActivityLogStorageKind::InMemory => Arc::new(InMemoryActivityStorage::new()),
+        _ => return Err(DatabaseStorageErrorKind::StorageNotImplemented.into()),
+    };
 
     debug!("Using storage backend: {:?}", storage);
 

@@ -26,8 +26,6 @@ pub struct SQLiteActivityStatusKind(ActivityStatusKind);
 
 pub struct SQLiteActivityEndOptions(ActivityEndOptions);
 
-
-
 // impl SqliteActivity {
 //     pub fn to_sql_prepare_statement(&self) -> &'static str {
 //         "INSERT INTO activities (id, category, description, begin, end, duration, kind, status, tags, parent_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
