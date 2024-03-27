@@ -9,13 +9,13 @@ use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
+use pace_error::{ActivityLogErrorKind, PaceResult, UserMessage};
+
 use crate::{
     commands::UpdateOptions,
     config::PaceConfig,
-    error::{ActivityLogErrorKind, PaceResult, UserMessage},
-    prelude::{ActivityStorage, PaceErrorKind},
     service::activity_store::ActivityStore,
-    storage::{ActivityQuerying, ActivityWriteOps, SyncStorage},
+    storage::{ActivityQuerying, ActivityStorage, ActivityWriteOps, SyncStorage},
 };
 
 /// `adjust` subcommand options
@@ -165,12 +165,10 @@ impl AdjustCommandOptions {
 
         debug!("Parsed time: {date_time:?}");
 
-        let activity_store =
-            ActivityStore::with_storage(storage).map_err(PaceErrorKind::Storage)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let activity_item = activity_store
-            .most_recent_active_activity()
-            .map_err(PaceErrorKind::Storage)?
+            .most_recent_active_activity()?
             .ok_or_else(|| ActivityLogErrorKind::NoActiveActivityToAdjust)?;
 
         debug!("Most recent active activity item: {:?}", activity_item);
@@ -214,12 +212,10 @@ impl AdjustCommandOptions {
             }
         }
 
-        _ = activity_store
-            .update_activity(guid, activity.clone(), UpdateOptions::default())
-            .map_err(PaceErrorKind::Storage)?;
+        _ = activity_store.update_activity(guid, activity.clone(), UpdateOptions::default())?;
 
         if activity_item.activity() != &activity {
-            activity_store.sync().map_err(PaceErrorKind::Storage)?;
+            activity_store.sync()?;
             return Ok(UserMessage::new(format!(
                 "{} has been adjusted.",
                 activity_item.activity()

@@ -10,10 +10,9 @@ use serde_derive::{Deserialize, Serialize};
 use directories::ProjectDirs;
 use strum_macros::EnumString;
 
-use crate::{
-    domain::{priority::ItemPriorityKind, reflection::ReflectionsFormatKind},
-    error::{PaceErrorKind, PaceResult},
-};
+use crate::domain::{priority::ItemPriorityKind, reflection::ReflectionsFormatKind};
+
+use pace_error::{PaceErrorKind, PaceResult};
 
 /// The pace configuration file
 ///
@@ -503,7 +502,7 @@ impl Display for PaceConfig {
 #[cfg(test)]
 mod tests {
 
-    use crate::error::TestResult;
+    use pace_error::TestResult;
 
     use super::*;
     use rstest::*;

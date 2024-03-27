@@ -31,13 +31,12 @@ clap = { workspace = true, optional = true, features = ["env", "wrap_help", "der
 directories = { workspace = true }
 displaydoc = { workspace = true }
 dotenvy = { workspace = true }
-eyre = { workspace = true }
 getset = { workspace = true }
 itertools = { workspace = true }
 merge = { workspace = true }
-miette = { workspace = true, features = ["fancy"] }
 once_cell = { workspace = true }
 open = { workspace = true }
+pace_error = { workspace = true }
 pace_time = { workspace = true, features = ["rusqlite"] }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
@@ -48,7 +47,6 @@ strum = { workspace = true, features = ["derive"] }
 strum_macros = { workspace = true }
 tabled = { workspace = true }
 tera = { workspace = true }
-thiserror = { workspace = true }
 toml = { workspace = true, features = ["indexmap", "preserve_order"] }
 tracing = { workspace = true }
 typed-builder = { workspace = true }

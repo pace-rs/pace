@@ -3,7 +3,6 @@
 pub(crate) mod commands;
 pub(crate) mod config;
 pub(crate) mod domain;
-pub(crate) mod error;
 pub(crate) mod service;
 pub(crate) mod storage;
 pub(crate) mod template;
@@ -60,10 +59,6 @@ pub mod prelude {
                 SummaryCategories, SummaryGroupByCategory,
             },
             status::ActivityStatusKind,
-        },
-        error::{
-            ActivityLogErrorKind, PaceError, PaceErrorKind, PaceOptResult, PaceResult,
-            PaceStorageOptResult, PaceStorageResult, TestResult, UserMessage,
         },
         service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
         storage::{

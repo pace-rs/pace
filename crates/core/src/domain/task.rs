@@ -58,7 +58,7 @@ impl Default for TaskGuid {
 #[cfg(test)]
 mod tests {
 
-    use crate::error::TestResult;
+    use pace_error::TestResult;
 
     use super::*;
     use rstest::*;

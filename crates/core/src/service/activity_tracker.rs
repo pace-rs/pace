@@ -5,9 +5,10 @@ use tracing::debug;
 
 use crate::{
     domain::{filter::FilterOptions, reflection::ReflectionSummary},
-    error::PaceStorageOptResult,
     service::activity_store::ActivityStore,
 };
+
+use pace_error::PaceOptResult;
 
 // This struct represents the overall structure for tracking activities and their intermissions.
 pub struct ActivityTracker {
@@ -32,7 +33,7 @@ impl ActivityTracker {
         &self,
         filter_opts: FilterOptions,
         time_frame: PaceTimeFrame,
-    ) -> PaceStorageOptResult<ReflectionSummary> {
+    ) -> PaceOptResult<ReflectionSummary> {
         let time_range_opts = TimeRangeOptions::try_from(time_frame)?;
 
         let Some(summary_groups) = self

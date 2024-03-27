@@ -14,11 +14,12 @@ use typed_builder::TypedBuilder;
 use crate::{
     config::PaceConfig,
     domain::{activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind},
-    error::{PaceResult, TemplatingErrorKind, UserMessage},
-    prelude::{ActivityStorage, PaceErrorKind},
+    prelude::ActivityStorage,
     service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
     template::{PaceReflectionTemplate, TEMPLATES},
 };
+
+use pace_error::{PaceResult, TemplatingErrorKind, UserMessage};
 
 /// `reflect` subcommand options
 #[derive(Debug, Getters)]
@@ -147,16 +148,14 @@ impl ReflectCommandOptions {
             PaceTimeZoneKind::NotSet,
         ))?;
 
-        let activity_store =
-            ActivityStore::with_storage(storage).map_err(PaceErrorKind::Storage)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let activity_tracker = ActivityTracker::with_activity_store(activity_store);
 
         debug!("Displaying reflection for time frame: {}", time_frame);
 
-        let Some(reflection) = activity_tracker
-            .generate_reflection(FilterOptions::from(self), time_frame)
-            .map_err(PaceErrorKind::Storage)?
+        let Some(reflection) =
+            activity_tracker.generate_reflection(FilterOptions::from(self), time_frame)?
         else {
             return Ok(UserMessage::new(
                 "No activities found for the specified time frame",

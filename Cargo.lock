@@ -1322,6 +1322,7 @@ dependencies = [
  "once_cell",
  "pace_cli",
  "pace_core",
+ "pace_error",
  "pace_storage",
  "pace_time",
  "predicates",
@@ -1362,9 +1363,9 @@ dependencies = [
  "insta",
  "itertools",
  "merge",
- "miette",
  "once_cell",
  "open",
+ "pace_error",
  "pace_time",
  "parking_lot",
  "rayon",
@@ -1378,12 +1379,26 @@ dependencies = [
  "strum_macros",
  "tabled",
  "tera",
- "thiserror",
  "toml 0.8.12",
  "tracing",
  "typed-builder",
  "ulid",
  "wildmatch",
+]
+
+[[package]]
+name = "pace_error"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "displaydoc",
+ "miette",
+ "rusqlite",
+ "sea-query",
+ "serde_json",
+ "tera",
+ "thiserror",
+ "toml 0.8.12",
 ]
 
 [[package]]
@@ -1396,11 +1411,11 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "displaydoc",
- "eyre",
  "itertools",
  "libsqlite3-sys",
  "merge",
  "pace_core",
+ "pace_error",
  "pace_time",
  "parking_lot",
  "rayon",
@@ -1426,6 +1441,7 @@ dependencies = [
  "eyre",
  "getset",
  "humantime",
+ "pace_error",
  "rstest",
  "rusqlite",
  "serde",

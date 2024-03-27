@@ -17,10 +17,9 @@ use tracing::debug;
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
-use crate::{
-    domain::status::ActivityStatusKind,
-    error::{ActivityLogErrorKind, PaceResult},
-};
+use crate::domain::status::ActivityStatusKind;
+
+use pace_error::{ActivityLogErrorKind, PaceResult};
 
 #[derive(
     Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
@@ -698,7 +697,7 @@ mod tests {
     use eyre::{eyre, OptionExt};
     use pace_time::time_zone::PaceTimeZoneKind;
 
-    use crate::error::TestResult;
+    use pace_error::TestResult;
 
     use super::*;
 

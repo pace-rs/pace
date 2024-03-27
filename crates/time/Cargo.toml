@@ -34,6 +34,7 @@ derive_more = { workspace = true, features = ["add", "add_assign"] }
 displaydoc = { workspace = true }
 getset = { workspace = true }
 humantime = { workspace = true }
+pace_error = { workspace = true }
 rusqlite = { workspace = true, optional = true, features = ["bundled", "chrono"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }

@@ -11,11 +11,11 @@ use tracing::debug;
 use crate::{
     config::PaceConfig,
     domain::activity::{Activity, ActivityKind},
-    error::{PaceResult, UserMessage},
-    prelude::{ActivityStorage, PaceErrorKind},
     service::activity_store::ActivityStore,
-    storage::{ActivityStateManagement, SyncStorage},
+    storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
 };
+
+use pace_error::{PaceResult, UserMessage};
 
 /// `begin` subcommand options
 #[derive(Debug, Clone, PartialEq, Eq, Getters)]
@@ -144,16 +144,13 @@ impl BeginCommandOptions {
             .tags(tags)
             .build();
 
-        let activity_store =
-            ActivityStore::with_storage(storage).map_err(PaceErrorKind::Storage)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
-        let activity_item = activity_store
-            .begin_activity(activity)
-            .map_err(PaceErrorKind::Storage)?;
+        let activity_item = activity_store.begin_activity(activity)?;
 
         debug!("Started Activity: {:?}", activity_item);
 
-        activity_store.sync().map_err(PaceErrorKind::Storage)?;
+        activity_store.sync()?;
 
         Ok(UserMessage::new(format!("{}", activity_item.activity())))
     }

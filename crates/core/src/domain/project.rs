@@ -69,7 +69,7 @@ impl Default for ProjectGuid {
 #[cfg(test)]
 mod tests {
 
-    use crate::error::TestResult;
+    use pace_error::TestResult;
 
     use super::*;
     use rstest::*;

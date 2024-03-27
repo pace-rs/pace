@@ -4,8 +4,9 @@ use clap::Parser;
 use crate::{
     constants::PACE_DOCS_URL,
     constants::{PACE_CONFIG_DOCS_URL, PACE_DEV_DOCS_URL},
-    error::{PaceResult, UserMessage},
 };
+
+use pace_error::{PaceResult, UserMessage};
 
 /// `docs` subcommand options
 #[derive(Debug, Clone)]

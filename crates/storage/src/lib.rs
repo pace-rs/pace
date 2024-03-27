@@ -1,8 +1,6 @@
 pub mod migration;
 pub mod storage;
 
-pub mod error;
-
 /// A type of storage that can be synced to a persistent medium - a file
 pub mod file;
 
@@ -16,16 +14,12 @@ pub mod entities;
 
 use std::sync::Arc;
 
-use pace_core::prelude::{
-    ActivityLogStorageKind, ActivityStorage, DatabaseEngineKind, PaceConfig, PaceStorageResult,
-};
+use pace_core::prelude::{ActivityLogStorageKind, ActivityStorage, DatabaseEngineKind, PaceConfig};
+use pace_error::{DatabaseStorageErrorKind, PaceResult};
 use tracing::debug;
 
 use crate::{
-    error::{DatabaseStorageErrorKind, PaceStorageErrorKind},
-    file::TomlActivityStorage,
-    in_memory::InMemoryActivityStorage,
-    sqlite::SqliteActivityStorage,
+    file::TomlActivityStorage, in_memory::InMemoryActivityStorage, sqlite::SqliteActivityStorage,
 };
 
 /// Get the storage backend from the configuration.
@@ -41,7 +35,7 @@ use crate::{
 /// # Returns
 ///
 /// The storage backend.
-pub fn get_storage_from_config(config: &PaceConfig) -> PaceStorageResult<Arc<dyn ActivityStorage>> {
+pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<dyn ActivityStorage>> {
     let storage: Arc<dyn ActivityStorage> =
         match config.general().activity_log_options().storage_kind() {
             ActivityLogStorageKind::File => Arc::new(TomlActivityStorage::new(
@@ -69,17 +63,17 @@ pub fn get_storage_from_config(config: &PaceConfig) -> PaceStorageResult<Arc<dyn
                         }
                         engine => {
                             return Err(DatabaseStorageErrorKind::UnsupportedDatabaseEngine(
-                                *engine,
+                                engine.to_string(),
                             )
                             .into())
                         }
                     }
                 } else {
-                    return Err(PaceStorageErrorKind::DatabaseStorageNotConfigured.into());
+                    return Err(DatabaseStorageErrorKind::DatabaseStorageNotConfigured.into());
                 }
             }
             ActivityLogStorageKind::InMemory => Arc::new(InMemoryActivityStorage::new()),
-            _ => return Err(PaceStorageErrorKind::StorageNotImplemented.into()),
+            _ => return Err(DatabaseStorageErrorKind::StorageNotImplemented.into()),
         };
 
     debug!("Using storage backend: {:?}", storage);

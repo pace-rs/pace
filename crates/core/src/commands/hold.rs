@@ -13,11 +13,11 @@ use typed_builder::TypedBuilder;
 use crate::{
     config::PaceConfig,
     domain::intermission::IntermissionAction,
-    error::{PaceResult, UserMessage},
-    prelude::{ActivityStorage, PaceErrorKind},
     service::activity_store::ActivityStore,
-    storage::{ActivityStateManagement, SyncStorage},
+    storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
 };
+
+use pace_error::{PaceResult, UserMessage};
 
 /// `hold` subcommand options
 #[derive(Debug)]
@@ -119,21 +119,18 @@ impl HoldCommandOptions {
 
         debug!("Hold options: {hold_opts:?}");
 
-        let activity_store =
-            ActivityStore::with_storage(storage).map_err(PaceErrorKind::Storage)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
-        let user_message = if let Some(activity) = activity_store
-            .hold_most_recent_active_activity(hold_opts)
-            .map_err(PaceErrorKind::Storage)?
-        {
-            debug!("Held {}", activity.activity());
+        let user_message =
+            if let Some(activity) = activity_store.hold_most_recent_active_activity(hold_opts)? {
+                debug!("Held {}", activity.activity());
 
-            activity_store.sync().map_err(PaceErrorKind::Storage)?;
+                activity_store.sync()?;
 
-            format!("Held {}", activity.activity())
-        } else {
-            "No unfinished activities to hold.".to_string()
-        };
+                format!("Held {}", activity.activity())
+            } else {
+                "No unfinished activities to hold.".to_string()
+            };
 
         Ok(UserMessage::new(user_message))
     }

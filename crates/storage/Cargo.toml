@@ -31,16 +31,16 @@ rusqlite = [
 
 [dependencies]
 displaydoc = { workspace = true }
-eyre = { workspace = true }
 itertools = { workspace = true }
 libsqlite3-sys = { workspace = true, features = ["bundled"], optional = true }
 merge = { workspace = true }
 pace_core = { workspace = true }
+pace_error = { workspace = true }
 pace_time = { workspace = true, features = ["db"] }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
 rusqlite = { workspace = true, optional = true, features = ["bundled", "chrono"] }
-sea-query = { workspace = true, optional = true, default-features = false, features = ["derive", "attr", "with-chrono", "backend-sqlite"] }
+sea-query = { workspace = true, optional = true, features = ["derive", "attr", "with-chrono", "backend-sqlite"] }
 sea-query-rusqlite = { workspace = true, optional = true, features = ["with-chrono"] }
 strum = { workspace = true }
 thiserror = { workspace = true }

@@ -7,9 +7,11 @@ use eyre::Result;
 
 use pace_cli::{confirmation_or_break, prompt_resume_activity};
 use pace_core::prelude::{
-    get_storage_from_config, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
-    ActivityStore, ResumeCommandOptions, ResumeOptions, SyncStorage, UserMessage,
+    ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStore,
+    ResumeCommandOptions, ResumeOptions, SyncStorage,
 };
+use pace_error::UserMessage;
+use pace_storage::get_storage_from_config;
 use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 
 use crate::prelude::PACE_APP;

@@ -12,11 +12,11 @@ use typed_builder::TypedBuilder;
 use crate::{
     commands::EndOptions,
     config::PaceConfig,
-    error::{PaceResult, UserMessage},
-    prelude::{ActivityStorage, PaceErrorKind},
     service::activity_store::ActivityStore,
-    storage::{ActivityStateManagement, SyncStorage},
+    storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
 };
+
+use pace_error::{PaceResult, UserMessage};
 
 /// `end` subcommand options
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
@@ -98,15 +98,11 @@ impl EndCommandOptions {
 
         debug!("Parsed date time: {:?}", date_time);
 
-        let activity_store =
-            ActivityStore::with_storage(storage).map_err(PaceErrorKind::Storage)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let end_opts = EndOptions::builder().end_time(date_time).build();
 
-        let user_message = (activity_store
-            .end_all_activities(end_opts)
-            .map_err(PaceErrorKind::Storage)?)
-        .map_or_else(
+        let user_message = (activity_store.end_all_activities(end_opts)?).map_or_else(
             || "No unfinished activities to end.".to_string(),
             |unfinished_activities| {
                 let mut msgs = vec![];
@@ -120,7 +116,7 @@ impl EndCommandOptions {
             },
         );
 
-        activity_store.sync().map_err(PaceErrorKind::Storage)?;
+        activity_store.sync()?;
 
         Ok(UserMessage::new(user_message))
     }

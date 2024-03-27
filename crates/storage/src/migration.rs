@@ -9,13 +9,12 @@ mod create_categories_20240326125937;
 mod create_schema_migrations;
 mod create_tags_20240326125555;
 
-use eyre::OptionExt;
 use rusqlite::Connection;
-use sea_query::{Cond, Expr, Query, SqliteQueryBuilder};
+use sea_query::{Cond, Expr, Iden, Query, SqliteQueryBuilder};
 use std::collections::VecDeque;
 use ulid::Ulid;
 
-use pace_core::prelude::PaceStorageResult;
+use pace_error::{DatabaseStorageErrorKind, PaceResult};
 
 use crate::entities::schema_migrations::SchemaMigrationsIden;
 
@@ -32,7 +31,20 @@ pub struct SQLiteMigrator<'conn> {
 }
 
 impl<'conn> SQLiteMigrator<'conn> {
-    pub fn new(connection: &'conn Connection) -> PaceStorageResult<Self> {
+    /// Create a new `SQLiteMigrator`
+    ///
+    /// # Arguments
+    ///
+    /// * `connection` - The [`rusqlite::Connection`]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the initial migration fails
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `SQLiteMigrator`
+    pub fn new(connection: &'conn Connection) -> PaceResult<Self> {
         let mut migrator = Self {
             iterator: Self::load(),
             applied: VecDeque::default(),
@@ -44,11 +56,25 @@ impl<'conn> SQLiteMigrator<'conn> {
         Ok(migrator)
     }
 
-    fn init(&mut self) -> PaceStorageResult<()> {
-        let migration = self.iterator.next().ok_or_eyre("No migrations found")?;
+    fn init(&mut self) -> PaceResult<()> {
+        let migration =
+            self.iterator
+                .next()
+                .ok_or(DatabaseStorageErrorKind::NoMigrationsFound {
+                    table: SchemaMigrationsIden::Table.to_string(),
+                })?;
         let query = migration.up();
 
-        self.connection.execute(&query, [])?;
+        if self.connection.execute(&query, []).map_err(|source| {
+            DatabaseStorageErrorKind::MigrationFailed {
+                version: migration.version(),
+                query: query.to_string(),
+                source,
+            }
+        })? > 1
+        {
+            return Err(DatabaseStorageErrorKind::MigrationAffectedMultipleRows.into());
+        }
 
         self.applied.push_back(migration);
 
@@ -78,41 +104,102 @@ impl<'conn> SQLiteMigrator<'conn> {
         Box::new(migrations.into_iter())
     }
 
-    /// Push migration version to schema_migrations table
-    fn push_migration_version(&self, version: String) -> PaceStorageResult<()> {
+    /// Push migration version to `schema_migrations` table
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the migration version cannot be pushed
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the migration version is pushed successfully
+    fn push_migration_version(&self, version: String) -> PaceResult<()> {
         let query = Query::insert()
             .into_table(SchemaMigrationsIden::Table)
             .columns([SchemaMigrationsIden::Guid, SchemaMigrationsIden::Version])
-            .values([Ulid::new().to_string().into(), version.into()])?
+            .values([Ulid::new().to_string().into(), version.clone().into()])
+            .map_err(
+                |source| DatabaseStorageErrorKind::BuildingMigrationQueryFailed {
+                    version: version.clone(),
+                    table: SchemaMigrationsIden::Table.to_string(),
+                    query: source.to_string(),
+                    source,
+                },
+            )?
             .to_owned();
 
         let query = query.to_string(SqliteQueryBuilder);
 
-        self.connection.execute(&query, [])?;
+        if self.connection.execute(&query, []).map_err(|err| {
+            DatabaseStorageErrorKind::MigrationFailed {
+                version,
+                query,
+                source: err,
+            }
+        })? > 1
+        {
+            return Err(DatabaseStorageErrorKind::MigrationAffectedMultipleRows.into());
+        }
 
         Ok(())
     }
 
-    /// Remove migration version from schema_migrations table
-    fn remove_migration_version(&self, version: String) -> PaceStorageResult<()> {
+    /// Remove migration version from `schema_migrations` table
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the migration version cannot be removed
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the migration version is removed successfully
+    fn remove_migration_version(&self, version: String) -> PaceResult<()> {
         let query = Query::delete()
             .from_table(SchemaMigrationsIden::Table)
-            .cond_where(Cond::any().add(Expr::col(SchemaMigrationsIden::Version).eq(version)))
+            .cond_where(
+                Cond::any().add(Expr::col(SchemaMigrationsIden::Version).eq(version.clone())),
+            )
             .to_owned();
 
         let query = query.to_string(SqliteQueryBuilder);
 
-        self.connection.execute(&query, [])?;
+        if self.connection.execute(&query, []).map_err(|source| {
+            DatabaseStorageErrorKind::MigrationFailed {
+                version,
+                query,
+                source,
+            }
+        })? > 1
+        {
+            return Err(DatabaseStorageErrorKind::MigrationAffectedMultipleRows.into());
+        }
 
         Ok(())
     }
 
     /// Migrate to the latest version
-    pub fn up(&mut self) -> PaceStorageResult<()> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the migration fails
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the migration is successful
+    pub fn up(&mut self) -> PaceResult<()> {
         while let Some(migration) = self.iterator.next() {
             let query = migration.up();
 
-            self.connection.execute(&query, [])?;
+            if self.connection.execute(&query, []).map_err(|source| {
+                DatabaseStorageErrorKind::MigrationFailed {
+                    version: migration.version(),
+                    query: query.to_string(),
+                    source,
+                }
+            })? > 1
+            {
+                return Err(DatabaseStorageErrorKind::MigrationAffectedMultipleRows.into());
+            }
 
             self.push_migration_version(migration.version())?;
 
@@ -123,15 +210,29 @@ impl<'conn> SQLiteMigrator<'conn> {
     }
 
     /// Rollback the most recent migration
-    pub fn down(&mut self) -> PaceStorageResult<String> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there are no migrations to rollback
+    ///
+    /// # Returns
+    ///
+    /// Returns the version of the migration that was rolled back
+    pub fn down(&mut self) -> PaceResult<String> {
         let migration = self
             .applied
             .pop_back()
-            .ok_or_eyre("No migrations to rollback")?;
+            .ok_or(DatabaseStorageErrorKind::NoMigrationsToRollback)?;
 
         let query = migration.down();
 
-        _ = self.connection.execute(&query, [])?;
+        _ = self.connection.execute(&query, []).map_err(|source| {
+            DatabaseStorageErrorKind::MigrationFailed {
+                version: migration.version(),
+                query: query.to_string(),
+                source,
+            }
+        })?;
 
         self.remove_migration_version(migration.version())?;
 
@@ -139,9 +240,8 @@ impl<'conn> SQLiteMigrator<'conn> {
     }
 
     /// List applied migrations
-    pub fn status(&self) -> PaceStorageResult<Vec<String>> {
-        let applied = self.applied.iter().map(|m| m.version()).collect();
-
-        Ok(applied)
+    #[must_use]
+    pub fn status(&self) -> Vec<String> {
+        self.applied.iter().map(|m| m.version()).collect()
     }
 }

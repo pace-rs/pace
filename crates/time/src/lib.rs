@@ -1,7 +1,6 @@
 pub mod date;
 pub mod date_time;
 pub mod duration;
-pub mod error;
 pub mod flags;
 #[cfg(feature = "rusqlite")]
 pub mod rusqlite;
