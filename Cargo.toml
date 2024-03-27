@@ -113,7 +113,7 @@ human-panic = { workspace = true }
 pace_cli = { workspace = true }
 pace_core = { workspace = true, features = ["cli"] }
 pace_error = { workspace = true }
-pace_storage = { workspace = true, features = ["db"] }
+pace_storage = { workspace = true }
 pace_time = { workspace = true, features = ["cli", "db"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }

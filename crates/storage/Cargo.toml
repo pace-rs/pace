@@ -19,29 +19,30 @@ include = [
   "Cargo.toml",
 ]
 
-[features]
-default = ["db"]
-db = ["rusqlite"]
-rusqlite = [
-  "dep:rusqlite",
-  "dep:libsqlite3-sys",
-  "dep:sea-query",
-  "dep:sea-query-rusqlite",
-]
+# TODO: With our limited scope, we don't feature gate anything
+# [features]
+# default = ["db"]
+# db = ["rusqlite"]
+# rusqlite = [
+#   "dep:rusqlite",
+#   "dep:libsqlite3-sys",
+#   "dep:sea-query",
+#   "dep:sea-query-rusqlite",
+# ]
 
 [dependencies]
 displaydoc = { workspace = true }
 itertools = { workspace = true }
-libsqlite3-sys = { workspace = true, features = ["bundled"], optional = true }
+libsqlite3-sys = { workspace = true, features = ["bundled"] }
 merge = { workspace = true }
 pace_core = { workspace = true }
 pace_error = { workspace = true }
 pace_time = { workspace = true, features = ["db"] }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
-rusqlite = { workspace = true, optional = true, features = ["bundled", "chrono"] }
-sea-query = { workspace = true, optional = true, features = ["derive", "attr", "with-chrono", "backend-sqlite"] }
-sea-query-rusqlite = { workspace = true, optional = true, features = ["with-chrono"] }
+rusqlite = { workspace = true, features = ["bundled", "chrono"] }
+sea-query = { workspace = true, features = ["derive", "attr", "with-chrono", "backend-sqlite"] }
+sea-query-rusqlite = { workspace = true, features = ["with-chrono"] }
 strum = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true, features = ["indexmap", "preserve_order"] }

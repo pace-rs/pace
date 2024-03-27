@@ -7,7 +7,6 @@ pub mod file;
 /// An in-memory storage backend for activities.
 pub mod in_memory;
 
-#[cfg(feature = "rusqlite")]
 pub mod sqlite;
 
 pub mod entities;
@@ -40,15 +39,9 @@ pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<dyn Activi
         ActivityLogStorageKind::File { location } => Arc::new(TomlActivityStorage::new(location)?),
         ActivityLogStorageKind::Database { kind, connection } => match kind {
             DatabaseEngineKind::Sqlite => {
-                #[cfg(feature = "rusqlite")]
-                {
-                    debug!("Connecting to database: {}", connection);
+                debug!("Connecting to database: {}", connection);
 
-                    Arc::new(SqliteActivityStorage::new(connection.clone())?)
-                }
-
-                #[cfg(not(feature = "rusqlite"))]
-                return Err(PaceErrorKind::DatabaseStorageNotImplemented.into());
+                Arc::new(SqliteActivityStorage::new(connection.clone())?)
             }
             engine => {
                 return Err(
