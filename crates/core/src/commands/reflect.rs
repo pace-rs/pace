@@ -7,7 +7,7 @@ use pace_time::{
     time_zone::PaceTimeZoneKind,
 };
 use serde_derive::Serialize;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
@@ -15,8 +15,8 @@ use crate::{
     config::PaceConfig,
     domain::{activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind},
     error::{PaceResult, TemplatingErrorKind, UserMessage},
+    prelude::ActivityStorage,
     service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
-    storage::get_storage_from_config,
     template::{PaceReflectionTemplate, TEMPLATES},
 };
 
@@ -123,7 +123,11 @@ pub struct ReflectCommandOptions {
 
 impl ReflectCommandOptions {
     #[tracing::instrument(skip(self))]
-    pub fn handle_reflect(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+    pub fn handle_reflect(
+        &self,
+        config: &PaceConfig,
+        storage: Arc<dyn ActivityStorage>,
+    ) -> PaceResult<UserMessage> {
         let Self {
             export_file,
             time_flags,
@@ -143,7 +147,7 @@ impl ReflectCommandOptions {
             PaceTimeZoneKind::NotSet,
         ))?;
 
-        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let activity_tracker = ActivityTracker::with_activity_store(activity_store);
 

@@ -43,8 +43,8 @@ pub mod prelude {
             find_root_config_file_path, find_root_project_file, get_activity_log_paths,
             get_config_paths, get_home_activity_log_path, get_home_config_path,
             ActivityLogFormatKind, ActivityLogStorageKind, AutoArchivalConfig, DatabaseConfig,
-            ExportConfig, GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig,
-            ReflectionsConfig,
+            DatabaseEngineKind, ExportConfig, GeneralConfig, InboxConfig, PaceConfig,
+            PomodoroConfig, ReflectionsConfig,
         },
         domain::{
             activity::{
@@ -61,12 +61,14 @@ pub mod prelude {
             },
             status::ActivityStatusKind,
         },
-        error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult, UserMessage},
+        error::{
+            ActivityLogErrorKind, PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult,
+            UserMessage,
+        },
         service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
         storage::{
-            file::TomlActivityStorage, get_storage_from_config, in_memory::InMemoryActivityStorage,
             ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
-            ActivityWriteOps, StorageKind, SyncStorage,
+            ActivityWriteOps, SyncStorage,
         },
         util::overwrite_left_with_right,
     };

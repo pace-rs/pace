@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
@@ -12,8 +12,9 @@ use crate::{
     config::PaceConfig,
     domain::activity::{Activity, ActivityKind},
     error::{PaceResult, UserMessage},
+    prelude::ActivityStorage,
     service::activity_store::ActivityStore,
-    storage::{get_storage_from_config, ActivityStateManagement, SyncStorage},
+    storage::{ActivityStateManagement, SyncStorage},
 };
 
 /// `begin` subcommand options
@@ -102,7 +103,11 @@ impl BeginCommandOptions {
     /// Returns a `UserMessage` with the information about the started activity
     /// that can be displayed to the user
     #[tracing::instrument(skip(self))]
-    pub fn handle_begin(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+    pub fn handle_begin(
+        &self,
+        config: &PaceConfig,
+        storage: Arc<dyn ActivityStorage>,
+    ) -> PaceResult<UserMessage> {
         let Self {
             category,
             at,
@@ -139,7 +144,7 @@ impl BeginCommandOptions {
             .tags(tags)
             .build();
 
-        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let activity_item = activity_store.begin_activity(activity)?;
 

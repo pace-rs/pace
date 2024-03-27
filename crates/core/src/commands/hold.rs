@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
@@ -12,8 +14,9 @@ use crate::{
     config::PaceConfig,
     domain::intermission::IntermissionAction,
     error::{PaceResult, UserMessage},
+    prelude::ActivityStorage,
     service::activity_store::ActivityStore,
-    storage::{get_storage_from_config, ActivityStateManagement, SyncStorage},
+    storage::{ActivityStateManagement, SyncStorage},
 };
 
 /// `hold` subcommand options
@@ -81,7 +84,11 @@ impl HoldCommandOptions {
     ///
     /// A `UserMessage` with the information about the held activity that can be displayed to the user
     #[tracing::instrument(skip(self))]
-    pub fn handle_hold(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+    pub fn handle_hold(
+        &self,
+        config: &PaceConfig,
+        storage: Arc<dyn ActivityStorage>,
+    ) -> PaceResult<UserMessage> {
         let Self {
             pause_at,
             reason,
@@ -112,7 +119,7 @@ impl HoldCommandOptions {
 
         debug!("Hold options: {hold_opts:?}");
 
-        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let user_message =
             if let Some(activity) = activity_store.hold_most_recent_active_activity(hold_opts)? {

@@ -27,7 +27,7 @@ use crate::{
     error::{ActivityStoreErrorKind, PaceOptResult, PaceResult},
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
-        ActivityWriteOps, StorageKind, SyncStorage,
+        ActivityWriteOps, SyncStorage,
     },
 };
 
@@ -39,7 +39,7 @@ pub struct ActivityStore {
     cache: ActivityStoreCache,
 
     /// The storage backend
-    storage: Arc<StorageKind>,
+    storage: Arc<dyn ActivityStorage>,
 }
 
 #[derive(Debug, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default)]
@@ -69,15 +69,18 @@ impl ActivityStore {
     ///
     /// This method returns a new `ActivityStore` if the storage backend
     /// was successfully created
-    pub fn with_storage(storage: Arc<StorageKind>) -> PaceResult<Self> {
-        debug!("Creating activity store with storage: {}", storage);
+    pub fn with_storage(storage: Arc<dyn ActivityStorage>) -> PaceResult<Self> {
+        debug!(
+            "Creating activity store with storage: {}",
+            storage.identify()
+        );
 
         let mut store = Self {
             cache: ActivityStoreCache::default(),
             storage,
         };
 
-        store.setup_storage()?;
+        store.setup()?;
 
         store.populate_caches()?;
 
@@ -210,8 +213,18 @@ impl ActivityStore {
 
 impl ActivityStorage for ActivityStore {
     #[tracing::instrument(skip(self))]
-    fn setup_storage(&self) -> PaceResult<()> {
-        self.storage.setup_storage()
+    fn setup(&self) -> PaceResult<()> {
+        self.storage.setup()
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn identify(&self) -> String {
+        self.storage.identify()
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn teardown(&self) -> PaceResult<()> {
+        self.storage.teardown()
     }
 }
 

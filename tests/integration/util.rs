@@ -4,7 +4,7 @@ use chrono::Local;
 
 use pace_core::prelude::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityStatusKind, ActivityStore, InMemoryActivityStorage, TestResult, TomlActivityStorage,
+    ActivityStatusKind, ActivityStore, TestResult,
 };
 
 use rstest::fixture;

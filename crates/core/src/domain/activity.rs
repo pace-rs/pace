@@ -274,7 +274,8 @@ impl ActivityEndOptions {
         Self { end, duration }
     }
 
-    pub fn as_tuple(&self) -> (PaceDateTime, PaceDuration) {
+    #[must_use]
+    pub const fn as_tuple(&self) -> (PaceDateTime, PaceDuration) {
         (self.end, self.duration)
     }
 }
@@ -321,7 +322,7 @@ impl ActivityGuid {
     }
 
     #[must_use]
-    pub fn with_id(id: Ulid) -> Self {
+    pub const fn with_id(id: Ulid) -> Self {
         Self(id)
     }
 }

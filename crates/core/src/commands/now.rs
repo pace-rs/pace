@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 #[cfg(feature = "clap")]
 use clap::Parser;
 use tracing::debug;
@@ -6,8 +8,9 @@ use crate::{
     config::PaceConfig,
     domain::{activity::ActivityItem, filter::ActivityFilterKind},
     error::{PaceResult, UserMessage},
+    prelude::ActivityStorage,
     service::activity_store::ActivityStore,
-    storage::{get_storage_from_config, ActivityQuerying, ActivityReadOps},
+    storage::{ActivityQuerying, ActivityReadOps},
 };
 
 /// `now` subcommand options
@@ -30,8 +33,12 @@ impl NowCommandOptions {
     ///
     /// Returns a `UserMessage` with the information about the current activities that can be displayed to the user
     #[tracing::instrument(skip(self))]
-    pub fn handle_now(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
-        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
+    pub fn handle_now(
+        &self,
+        config: &PaceConfig,
+        storage: Arc<dyn ActivityStorage>,
+    ) -> PaceResult<UserMessage> {
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let user_message = (activity_store.list_current_activities(ActivityFilterKind::Active)?)
             .map_or_else(
