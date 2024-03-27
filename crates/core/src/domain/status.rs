@@ -1,5 +1,5 @@
 use serde_derive::{Deserialize, Serialize};
-use strum::EnumString;
+use strum::{EnumIter, EnumString};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
@@ -29,6 +29,7 @@ pub enum TaskStatus {
     PartialOrd,
     Ord,
     EnumString,
+    EnumIter,
     strum::Display,
 )]
 #[serde(rename_all = "kebab-case")]

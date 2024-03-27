@@ -8,6 +8,7 @@ use pace_time::{
     date_time::PaceDateTime,
     duration::{calculate_duration, duration_to_str, PaceDuration},
 };
+use strum::EnumIter;
 
 use serde_derive::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt::Display};
@@ -82,6 +83,7 @@ impl From<(ActivityGuid, Activity)> for ActivityItem {
     PartialOrd,
     Ord,
     EnumString,
+    EnumIter,
     strum::Display,
 )]
 #[serde(rename_all = "kebab-case")]

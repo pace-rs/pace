@@ -1,11 +1,13 @@
-pub mod create_activities_20240325143710;
-pub mod create_activities_categories_20240326130013;
-pub mod create_activities_tags_20240326125630;
-pub mod create_activity_kinds_20240326124253;
-pub mod create_activity_status_20240326125819;
-pub mod create_categories_20240326125937;
-pub mod create_schema_migrations;
-pub mod create_tags_20240326125555;
+mod create_activities_20240325143710;
+mod create_activities_categories_20240326130013;
+mod create_activities_tags_20240326125630;
+mod create_activity_kind_values_20240327162015;
+mod create_activity_kinds_20240326124253;
+mod create_activity_status_20240326125819;
+mod create_activity_status_values_20240327163645;
+mod create_categories_20240326125937;
+mod create_schema_migrations;
+mod create_tags_20240326125555;
 
 use eyre::OptionExt;
 use rusqlite::Connection;
@@ -69,6 +71,8 @@ impl<'conn> SQLiteMigrator<'conn> {
             Box::new(create_activity_status_20240326125819::Migration),
             Box::new(create_categories_20240326125937::Migration),
             Box::new(create_activities_categories_20240326130013::Migration),
+            Box::new(create_activity_kind_values_20240327162015::Migration),
+            Box::new(create_activity_status_values_20240327163645::Migration),
         ];
 
         Box::new(migrations.into_iter())

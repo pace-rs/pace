@@ -1,3 +1,7 @@
+use pace_core::prelude::{
+    Activity, ActivityEndOptions, ActivityGuid, ActivityKind, ActivityStatusKind,
+};
+
 pub mod activities;
 pub mod activities_categories;
 pub mod activities_tags;
@@ -6,6 +10,23 @@ pub mod activity_status;
 pub mod categories;
 pub mod schema_migrations;
 pub mod tags;
+
+pub struct SQLiteActivity(Activity);
+
+pub struct SQLiteActivityGuid(ActivityGuid);
+
+pub struct SQLiteActivityItem {
+    guid: SQLiteActivityGuid,
+    activity: SQLiteActivity,
+}
+
+pub struct SQLiteActivityKind(ActivityKind);
+
+pub struct SQLiteActivityStatusKind(ActivityStatusKind);
+
+pub struct SQLiteActivityEndOptions(ActivityEndOptions);
+
+
 
 // impl SqliteActivity {
 //     pub fn to_sql_prepare_statement(&self) -> &'static str {
