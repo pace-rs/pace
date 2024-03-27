@@ -114,8 +114,8 @@ pub struct EntryPoint {
     #[arg(long, env = "PACE_ACTIVITY_LOG_FILE", value_hint = clap::ValueHint::FilePath)]
     pub activity_log: Option<PathBuf>,
 
-    /// Use the specified activity log file
-    #[arg(long, env = "PACE_ACTIVITY_LOG_FILE", value_hint = clap::ValueHint::FilePath)]
+    /// Use the specified database URL for activity storage
+    #[arg(long, env = "PACE_ACTIVITY_DATABASE_URL", value_hint = clap::ValueHint::Url)]
     pub database_url: Option<PathBuf>,
 
     /// Pace Home Directory
