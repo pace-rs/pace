@@ -37,11 +37,11 @@ use crate::{
 pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<dyn ActivityStorage>> {
     let storage: Arc<dyn ActivityStorage> = match config.storage().storage() {
         ActivityLogStorageKind::File { location } => Arc::new(TomlActivityStorage::new(location)?),
-        ActivityLogStorageKind::Database { kind, connection } => match kind {
+        ActivityLogStorageKind::Database { kind, url } => match kind {
             DatabaseEngineKind::Sqlite => {
-                debug!("Connecting to database: {}", connection);
+                debug!("Connecting to database: {}", url);
 
-                Arc::new(SqliteActivityStorage::new(connection.clone())?)
+                Arc::new(SqliteActivityStorage::new(url.clone())?)
             }
             engine => {
                 return Err(

@@ -9,4 +9,4 @@ most-recent-count = 9
 default-time-zone = 'UTC'
 [storage.database]
 kind = 'sqlite'
-connection = './db/activities.pace.sqlite3'
+url = './db/activities.pace.sqlite3'

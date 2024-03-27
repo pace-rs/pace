@@ -116,8 +116,9 @@ pub enum ActivityLogStorageKind {
         /// The database engine to use
         kind: DatabaseEngineKind,
 
-        /// The connection string to the database
-        connection: String,
+        /// The URL to the database
+        /// In case of [`DatabaseEngineKind::Sqlite`], this is the path to the database file
+        url: String,
     },
     InMemory,
 }
@@ -210,7 +211,7 @@ impl Default for StorageConfig {
         Self {
             storage: ActivityLogStorageKind::Database {
                 kind: DatabaseEngineKind::Sqlite,
-                connection: "./db/activities.pace.sqlite3".to_string(),
+                url: "./db/activities.pace.sqlite3".to_string(),
             },
         }
     }

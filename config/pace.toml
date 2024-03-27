@@ -10,11 +10,11 @@ default-timezone = "UTC"
 [storage.database]
 # The kind of database storage
 # Supported values: "sqlite", "mysql", "postgres", "mssql"
-# If you choose "sqlite", the connection string should be the path to the database file
+# If you choose "sqlite", the url should be the path to the database file
 # Currently, only "sqlite" is supported
 kind = 'sqlite'
-# In case of a SQLite database, this is the connection string: `sqlite://path/to/database`
-connection = './db/activities.pace.sqlite3'
+# In case of a SQLite database, this is the url: `/path/to/database`
+url = './db/activities.pace.sqlite3'
 
 # For completeness, here is the file storage configuration
 #

@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 
-use itertools::Itertools;
 use rusqlite::Connection;
-use tracing::debug;
 
 use pace_core::prelude::{
     Activity, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind, ActivityQuerying,
@@ -21,10 +19,9 @@ pub struct SqliteActivityStorage {
 }
 
 impl SqliteActivityStorage {
-    pub fn new(connection_string: String) -> PaceResult<Self> {
-        let connection = Connection::open(connection_string.as_str()).map_err(|err| {
-            DatabaseStorageErrorKind::ConnectionFailed(connection_string, err.to_string())
-        })?;
+    pub fn new(url: String) -> PaceResult<Self> {
+        let connection = Connection::open(url.as_str())
+            .map_err(|err| DatabaseStorageErrorKind::ConnectionFailed(url, err.to_string()))?;
 
         Ok(Self { connection })
     }
@@ -117,7 +114,7 @@ impl ActivityReadOps for SqliteActivityStorage {
 }
 
 impl ActivityWriteOps for SqliteActivityStorage {
-    fn create_activity(&self, activity: Activity) -> PaceResult<ActivityItem> {
+    fn create_activity(&self, _activity: Activity) -> PaceResult<ActivityItem> {
         // let tx = self.connection.transaction()?;
 
         // let mut stmt = tx.prepare(activity.to_sql_prepare_statement())?;
@@ -135,17 +132,17 @@ impl ActivityWriteOps for SqliteActivityStorage {
 
     fn update_activity(
         &self,
-        activity_id: ActivityGuid,
-        updated_activity: Activity,
-        update_opts: UpdateOptions,
+        _activity_id: ActivityGuid,
+        _updated_activity: Activity,
+        _update_opts: UpdateOptions,
     ) -> PaceResult<ActivityItem> {
         todo!()
     }
 
     fn delete_activity(
         &self,
-        activity_id: ActivityGuid,
-        delete_opts: DeleteOptions,
+        _activity_id: ActivityGuid,
+        _delete_opts: DeleteOptions,
     ) -> PaceResult<ActivityItem> {
         // let activity = self.read_activity(activity_id)?;
 
@@ -164,53 +161,53 @@ impl ActivityWriteOps for SqliteActivityStorage {
 impl ActivityStateManagement for SqliteActivityStorage {
     fn hold_activity(
         &self,
-        activity_id: ActivityGuid,
-        hold_opts: HoldOptions,
+        _activity_id: ActivityGuid,
+        _hold_opts: HoldOptions,
     ) -> PaceResult<ActivityItem> {
         todo!()
     }
 
     fn resume_activity(
         &self,
-        activity_id: ActivityGuid,
-        resume_opts: ResumeOptions,
+        _activity_id: ActivityGuid,
+        _resume_opts: ResumeOptions,
     ) -> PaceResult<ActivityItem> {
         todo!()
     }
 
     fn resume_most_recent_activity(
         &self,
-        resume_opts: ResumeOptions,
+        _resume_opts: ResumeOptions,
     ) -> PaceOptResult<ActivityItem> {
         todo!()
     }
 
     fn end_activity(
         &self,
-        activity_id: ActivityGuid,
-        end_opts: EndOptions,
+        _activity_id: ActivityGuid,
+        _end_opts: EndOptions,
     ) -> PaceResult<ActivityItem> {
         todo!()
     }
 
-    fn end_all_activities(&self, end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>> {
+    fn end_all_activities(&self, _end_opts: EndOptions) -> PaceOptResult<Vec<ActivityItem>> {
         todo!()
     }
 
     fn end_all_active_intermissions(
         &self,
-        end_opts: EndOptions,
+        _end_opts: EndOptions,
     ) -> PaceOptResult<Vec<ActivityGuid>> {
         todo!()
     }
 
-    fn end_last_unfinished_activity(&self, end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
+    fn end_last_unfinished_activity(&self, _end_opts: EndOptions) -> PaceOptResult<ActivityItem> {
         todo!()
     }
 
     fn hold_most_recent_active_activity(
         &self,
-        hold_opts: HoldOptions,
+        _hold_opts: HoldOptions,
     ) -> PaceOptResult<ActivityItem> {
         todo!()
     }
@@ -236,7 +233,7 @@ impl ActivityQuerying for SqliteActivityStorage {
 
     fn group_activities_by_keywords(
         &self,
-        keyword_opts: KeywordOptions,
+        _keyword_opts: KeywordOptions,
     ) -> PaceOptResult<BTreeMap<String, Vec<ActivityItem>>> {
         todo!()
     }
@@ -247,7 +244,7 @@ impl ActivityQuerying for SqliteActivityStorage {
 
     fn list_activities_by_time_range(
         &self,
-        time_range_opts: TimeRangeOptions,
+        _time_range_opts: TimeRangeOptions,
     ) -> PaceOptResult<Vec<ActivityGuid>> {
         todo!()
     }
