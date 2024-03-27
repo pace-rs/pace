@@ -33,7 +33,7 @@ fn fixture_begin_activity(dir_str: &String) -> TestResult<()> {
         .args([
             "--config",
             "tests/fixtures/configs/pace.toml",
-            "--activity-log-file",
+            "--activity-log",
             dir_str,
             "begin",
             "MyActivity",
@@ -77,7 +77,7 @@ fn test_begin_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &dir_str,
         "begin",
         "MyActivity",
@@ -97,7 +97,7 @@ fn test_now_no_activities_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &dir_str,
         "now"
     ]));
@@ -115,7 +115,7 @@ fn test_now_with_active_activity_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &dir_str,
         "now"
     ]));
@@ -133,7 +133,7 @@ fn test_end_with_active_activity_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &dir_str,
         "end"
     ]));
@@ -151,7 +151,7 @@ fn test_hold_with_active_activity_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &dir_str,
         "hold"
     ]));
@@ -170,7 +170,7 @@ fn test_resume_with_held_activity_snapshot_passes() -> TestResult<()> {
         .args([
             "--config",
             "tests/fixtures/configs/pace.toml",
-            "--activity-log-file",
+            "--activity-log",
             &dir_str,
             "hold",
         ])
@@ -179,7 +179,7 @@ fn test_resume_with_held_activity_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &dir_str,
         "resume"
     ]));
@@ -198,7 +198,7 @@ fn test_adjust_activity_snapshot_passes() -> TestResult<()> {
         .args([
             "--config",
             "tests/fixtures/configs/pace.toml",
-            "--activity-log-file",
+            "--activity-log",
             &dir_str,
             "adjust",
             "--description",
@@ -211,7 +211,7 @@ fn test_adjust_activity_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &dir_str,
         "now",
     ]));
@@ -228,7 +228,7 @@ fn test_reflect_from_to_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
         "--from",
@@ -249,7 +249,7 @@ fn test_reflect_date_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
         "--date",
@@ -267,7 +267,7 @@ fn test_reflect_today_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
     ]));
@@ -283,7 +283,7 @@ fn test_reflect_current_week_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
         "current-week",
@@ -300,7 +300,7 @@ fn test_reflect_current_month_snapshot_passes() -> TestResult<()> {
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
         "current-month",
@@ -318,7 +318,7 @@ fn test_reflect_from_to_filter_category_glob_front_snapshot_passes() -> TestResu
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
         "--from",
@@ -341,7 +341,7 @@ fn test_reflect_from_to_filter_category_case_sensitive_snapshot_passes() -> Test
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
         "--from",
@@ -365,7 +365,7 @@ fn test_reflect_from_to_filter_category_full_snapshot_passes() -> TestResult<()>
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
         "--from",
@@ -388,7 +388,7 @@ fn test_reflect_from_to_filter_category_glob_back_snapshot_passes() -> TestResul
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
         "--from",
@@ -412,7 +412,7 @@ fn test_reflect_from_to_filter_category_glob_back_case_sensitive_snapshot_passes
     assert_cmd_snapshot!(StdCommand::new(env!("CARGO_BIN_EXE_pace")).args([
         "--config",
         "tests/fixtures/configs/pace.toml",
-        "--activity-log-file",
+        "--activity-log",
         &activities,
         "reflect",
         "--from",
