@@ -48,12 +48,8 @@ pub fn get_storage_from_config(config: &PaceConfig) -> PaceStorageResult<Arc<dyn
                 config.general().activity_log_options().path(),
             )?),
             ActivityLogStorageKind::Database => {
-                if config.database().is_some() {
-                    let Some(db_config) = config.database() else {
-                        return Err(DatabaseStorageErrorKind::NoConfigSettings.into());
-                    };
-
-                    let storage: Arc<dyn ActivityStorage> = match db_config.engine() {
+                if let Some(db_config) = config.database() {
+                    match db_config.engine() {
                         DatabaseEngineKind::Sqlite => {
                             #[cfg(feature = "rusqlite")]
                             {
@@ -77,12 +73,10 @@ pub fn get_storage_from_config(config: &PaceConfig) -> PaceStorageResult<Arc<dyn
                             )
                             .into())
                         }
-                    };
-
-                    storage
+                    }
+                } else {
+                    return Err(PaceStorageErrorKind::DatabaseStorageNotConfigured.into());
                 }
-
-                return Err(PaceStorageErrorKind::DatabaseStorageNotConfigured.into());
             }
             ActivityLogStorageKind::InMemory => Arc::new(InMemoryActivityStorage::new()),
             _ => return Err(PaceStorageErrorKind::StorageNotImplemented.into()),

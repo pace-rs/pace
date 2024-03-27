@@ -43,9 +43,6 @@ pub enum DatabaseStorageErrorKind {
     /// No connection string provided
     NoConnectionString,
 
-    /// No configuration settings provided in configuration file, please set them up with `pace setup config`
-    NoConfigSettings,
-
     /// This database engine is currently not supported: {0}
     UnsupportedDatabaseEngine(DatabaseEngineKind),
 
