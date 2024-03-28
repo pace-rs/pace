@@ -25,7 +25,7 @@ pub trait SQLiteEntity {
     /// # Returns
     ///
     /// Returns a struct.
-    fn from_row(row: Row<'_>) -> Result<Self, Error>
+    fn from_row(row: &Row<'_>) -> Result<Self, Error>
     where
         Self: Sized;
 }

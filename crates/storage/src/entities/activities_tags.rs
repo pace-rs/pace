@@ -22,7 +22,7 @@ pub enum Relation {
 }
 
 impl SQLiteEntity for ActivitiesTags {
-    fn from_row(row: Row<'_>) -> Result<Self, Error>
+    fn from_row(row: &Row<'_>) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -30,10 +30,10 @@ impl SQLiteEntity for ActivitiesTags {
     }
 }
 
-impl TryFrom<Row<'_>> for ActivitiesTags {
+impl TryFrom<&Row<'_>> for ActivitiesTags {
     type Error = Error;
 
-    fn try_from(row: Row<'_>) -> Result<Self, Self::Error> {
+    fn try_from(row: &Row<'_>) -> Result<Self, Self::Error> {
         Ok(Self {
             guid: row.get("guid")?,
             tag_guid: row.get("tag_guid")?,

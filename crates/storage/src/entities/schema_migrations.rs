@@ -14,7 +14,7 @@ pub struct SchemaMigrations {
 }
 
 impl SQLiteEntity for SchemaMigrations {
-    fn from_row(row: Row<'_>) -> Result<Self, Error>
+    fn from_row(row: &Row<'_>) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -22,10 +22,10 @@ impl SQLiteEntity for SchemaMigrations {
     }
 }
 
-impl TryFrom<Row<'_>> for SchemaMigrations {
+impl TryFrom<&Row<'_>> for SchemaMigrations {
     type Error = Error;
 
-    fn try_from(row: Row<'_>) -> Result<Self, Self::Error> {
+    fn try_from(row: &Row<'_>) -> Result<Self, Self::Error> {
         Ok(Self {
             guid: row.get("guid")?,
             version: row.get("version")?,

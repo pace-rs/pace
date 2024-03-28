@@ -270,6 +270,12 @@ pub enum DatabaseStorageErrorKind {
         version: String,
         source: rusqlite::Error,
     },
+
+    /// Failed to read activity {guid}: {source}
+    ActivityReadFailed {
+        guid: String,
+        source: rusqlite::Error,
+    },
 }
 
 /// [`TomlFileStorageErrorKind`] describes the errors that can happen while dealing with the Toml file storage.
