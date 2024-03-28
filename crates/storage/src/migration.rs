@@ -11,7 +11,7 @@ mod create_tags_20240326125555;
 
 use rusqlite::Connection;
 use sea_query::{Cond, Expr, Iden, Query, SqliteQueryBuilder};
-use std::{collections::VecDeque, f32::consts::E};
+use std::collections::VecDeque;
 use tracing::debug;
 use ulid::Ulid;
 
@@ -25,7 +25,6 @@ pub trait SQLiteMigration {
     fn down(&self) -> String;
 }
 
-// TODO: Select migration_version from database and skip the migration if already a value exists
 pub struct SQLiteMigrator<'conn> {
     iterator: Box<dyn Iterator<Item = Box<dyn SQLiteMigration>>>,
     applied: VecDeque<Box<dyn SQLiteMigration>>,
