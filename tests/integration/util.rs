@@ -54,7 +54,7 @@ pub fn activity_store_no_intermissions() -> TestResult<TestData> {
 // We need to use `#[cfg(not(tarpaulin_include))]` to exclude this from coverage reports
 #[cfg(not(tarpaulin_include))]
 pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
-    use pace_core::prelude::PaceCategory;
+    use pace_core::prelude::{PaceCategory, PaceDescription};
     use pace_storage::storage::in_memory::InMemoryActivityStorage;
     use pace_time::date_time::PaceDateTime;
 
@@ -65,7 +65,7 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
         .collect::<HashSet<String>>();
 
     let mut completed = Activity::builder()
-        .description("Activity with end".to_string())
+        .description(PaceDescription::new("Activity with end"))
         .begin(begin_time)
         .status(ActivityStatusKind::Completed)
         .tags(tags.clone())
@@ -75,7 +75,7 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
     let completed = ActivityItem::from((ActivityGuid::default(), completed));
 
     let mut archived_activity = Activity::builder()
-        .description("Activity with end".to_string())
+        .description(PaceDescription::new("Activity with end"))
         .begin(begin_time)
         .status(ActivityStatusKind::Archived)
         .tags(tags.clone())
@@ -94,7 +94,7 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
         time_30_min_ago + chrono::TimeDelta::try_minutes(15).ok_or("Should have time delta.")?,
     );
 
-    let desc = "Activity with Intermission".to_string();
+    let desc = PaceDescription::new("Activity with Intermission");
 
     let cat = PaceCategory::new("Test::Intermission");
 
@@ -139,7 +139,9 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
     let created = ActivityItem::from((
         ActivityGuid::default(),
         Activity::builder()
-            .description("Default activity, but no end and not active.")
+            .description(PaceDescription::new(
+                "Default activity, but no end and not active.",
+            ))
             .status(ActivityStatusKind::Created)
             .tags(tags)
             .build(),

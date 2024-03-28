@@ -5,7 +5,7 @@ use std::{collections::HashSet, sync::Arc};
 use pace_core::prelude::{
     Activity, ActivityFilterKind, ActivityGuid, ActivityReadOps, ActivityStateManagement,
     ActivityStatusKind, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
-    PaceCategory, ResumeOptions, UpdateOptions,
+    PaceCategory, PaceDescription, ResumeOptions, UpdateOptions,
 };
 use pace_error::TestResult;
 use pace_storage::storage::in_memory::InMemoryActivityStorage;
@@ -27,7 +27,7 @@ fn test_activity_store_create_activity_passes(
     } = activity_store_empty?;
 
     let activity = Activity::builder()
-        .description("Test Description".to_string())
+        .description(PaceDescription::new("Test Description"))
         .category(PaceCategory::new("Test::Category"))
         .build();
 
@@ -255,11 +255,11 @@ fn test_activity_store_update_activity_passes(
     let og_activity = activities[0].clone();
     let og_activity_id = *og_activity.guid();
 
-    let updated_test_desc = "Updated Test Description".to_string();
+    let updated_test_desc = PaceDescription::new("Updated Test Description");
     let updated_test_cat = PaceCategory::new("Test::UpdatedCategory");
 
     let new_activity = Activity::builder()
-        .description(updated_test_desc.to_string())
+        .description(updated_test_desc.clone())
         .category(updated_test_cat.clone())
         .tags(tags.clone())
         .build();
@@ -355,7 +355,7 @@ fn test_activity_store_update_activity_fails(
     } = activity_store?;
 
     let new_activity = Activity::builder()
-        .description("test".to_string())
+        .description(PaceDescription::new("test"))
         .category(PaceCategory::new("test"))
         .build();
 
@@ -424,7 +424,7 @@ fn test_activity_store_begin_intermission_passes(
 
     assert_eq!(
         intermission.activity().description(),
-        "Activity with Intermission"
+        &PaceDescription::new("Activity with Intermission")
     );
 
     assert_eq!(
@@ -491,7 +491,7 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
 
     assert_eq!(
         intermission.activity().description(),
-        "Activity with Intermission"
+        &PaceDescription::new("Activity with Intermission")
     );
 
     assert_eq!(
@@ -635,7 +635,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
 
     // Begin activity
     let activity = Activity::builder()
-        .description("Test Description".to_string())
+        .description(PaceDescription::new("Test Description"))
         .build();
 
     let activity = store.begin_activity(activity)?;
@@ -659,7 +659,7 @@ fn test_begin_activity_with_held_activity() -> TestResult<()> {
 
     // Begin another activity although there is a held activity
     let new_activity = Activity::builder()
-        .description("New Description".to_string())
+        .description(PaceDescription::new("New Description"))
         .build();
 
     let new_activity = store.begin_activity(new_activity)?;

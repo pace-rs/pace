@@ -14,7 +14,7 @@ use pace_error::{ActivityLogErrorKind, PaceResult, UserMessage};
 use crate::{
     commands::UpdateOptions,
     config::PaceConfig,
-    domain::category::PaceCategory,
+    domain::{category::PaceCategory, description::PaceDescription},
     service::activity_store::ActivityStore,
     storage::{ActivityQuerying, ActivityStorage, ActivityWriteOps, SyncStorage},
 };
@@ -53,7 +53,7 @@ pub struct AdjustCommandOptions {
             visible_alias = "desc"
         )
     )]
-    description: Option<String>,
+    description: Option<PaceDescription>,
 
     /// The start time of the activity. Format: HH:MM
     #[cfg_attr(

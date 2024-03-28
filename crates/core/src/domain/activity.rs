@@ -16,7 +16,9 @@ use strum_macros::EnumString;
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-use crate::domain::{category::PaceCategory, id::Guid, status::ActivityStatusKind};
+use crate::domain::{
+    category::PaceCategory, description::PaceDescription, id::Guid, status::ActivityStatusKind,
+};
 
 use pace_error::{ActivityLogErrorKind, PaceResult};
 
@@ -209,7 +211,7 @@ pub struct Activity {
     // as well for intermissions, which don't have a description
     #[builder(setter(into))]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    description: String,
+    description: PaceDescription,
 
     /// The start date and time of the activity
     #[builder(default, setter(into))]
@@ -555,7 +557,7 @@ impl Activity {
 #[getset(get = "pub")]
 pub struct ActivitySession {
     /// A description of the activity group
-    description: String,
+    description: PaceDescription,
 
     /// Root Activity within the activity group
     root_activity: ActivityItem,
@@ -614,7 +616,7 @@ impl ActivitySession {
 #[getset(get = "pub")]
 pub struct ActivityGroup {
     /// A description of the activity group
-    description: String,
+    description: PaceDescription,
 
     /// Duration spent on the grouped activities, essentially the sum of all durations
     /// of the activities within the group and their children. Intermissions are counting
@@ -647,7 +649,7 @@ impl ActivityGroup {
     }
 
     pub fn with_multiple_sessions(
-        description: String,
+        description: PaceDescription,
         activity_sessions: Vec<ActivitySession>,
     ) -> Self {
         debug!("Creating new activity group");
@@ -723,7 +725,10 @@ mod tests {
             &PaceCategory::new("Work")
         );
 
-        assert_eq!(activity.description, "This is an example activity");
+        assert_eq!(
+            activity.description,
+            PaceDescription::new("This is an example activity")
+        );
 
         let ActivityEndOptions { end, duration } = activity
             .activity_end_options()

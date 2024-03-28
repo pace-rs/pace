@@ -1,6 +1,6 @@
 use pace_core::prelude::{
     Activity, ActivityQuerying, ActivityReadOps, ActivityStateManagement, HoldOptions,
-    ResumeOptions,
+    PaceDescription, ResumeOptions,
 };
 use pace_error::TestResult;
 use pace_storage::storage::in_memory::InMemoryActivityStorage;
@@ -10,7 +10,9 @@ use pace_storage::storage::in_memory::InMemoryActivityStorage;
 fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
     let storage = InMemoryActivityStorage::new();
 
-    let first_og_activity = Activity::builder().description("Test activity").build();
+    let first_og_activity = Activity::builder()
+        .description(PaceDescription::new("Test activity"))
+        .build();
 
     let first_begin_activity = storage.begin_activity(first_og_activity.clone())?;
 
@@ -52,7 +54,9 @@ fn test_hold_resume_journey_for_activities_passes() -> TestResult<()> {
 
     // Now we create another activity, which should end the first one automatically
 
-    let second_og_activity = Activity::builder().description("Our new activity").build();
+    let second_og_activity = Activity::builder()
+        .description(PaceDescription::new("Our new activity"))
+        .build();
 
     let second_begin_activity = storage.begin_activity(second_og_activity.clone())?;
 

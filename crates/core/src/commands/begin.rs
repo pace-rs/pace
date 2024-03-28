@@ -13,6 +13,7 @@ use crate::{
     domain::{
         activity::{Activity, ActivityKind},
         category::PaceCategory,
+        description::PaceDescription,
     },
     service::activity_store::ActivityStore,
     storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
@@ -43,7 +44,7 @@ pub struct BeginCommandOptions {
 
     /// The description of the activity you want to start
     #[cfg_attr(feature = "clap", clap(value_name = "Activity Description"))]
-    description: String,
+    description: PaceDescription,
 
     /// The tags you want to associate with the activity, separated by a comma
     #[cfg_attr(

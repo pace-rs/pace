@@ -1,6 +1,8 @@
 use chrono::FixedOffset;
 use eyre::OptionExt;
-use pace_core::prelude::{Activity, ActivityReadOps, ActivityStateManagement, EndOptions};
+use pace_core::prelude::{
+    Activity, ActivityReadOps, ActivityStateManagement, EndOptions, PaceDescription,
+};
 use pace_error::TestResult;
 use pace_storage::storage::in_memory::InMemoryActivityStorage;
 use pace_time::{date_time::PaceDateTime, duration::PaceDuration};
@@ -14,7 +16,7 @@ fn test_begin_and_end_activity_in_different_time_zones_passes() -> TestResult<()
     let now = PaceDateTime::now();
 
     let first_og_activity = Activity::builder()
-        .description("Our time zone")
+        .description(PaceDescription::new("Our time zone"))
         .begin(now)
         .build();
 

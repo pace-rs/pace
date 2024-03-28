@@ -12,7 +12,7 @@ use typed_builder::TypedBuilder;
 
 use crate::{
     config::PaceConfig,
-    domain::intermission::IntermissionAction,
+    domain::{description::PaceDescription, intermission::IntermissionAction},
     service::activity_store::ActivityStore,
     storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
 };
@@ -34,7 +34,7 @@ pub struct HoldCommandOptions {
 
     /// The reason for the intermission, if this is not set, the description of the activity to be held will be used
     #[cfg_attr(feature = "clap", clap(short, long, value_name = "Reason"))]
-    reason: Option<String>,
+    reason: Option<PaceDescription>,
 
     /// If there are existing intermissions, they will be finished and a new one is being created
     ///
@@ -151,5 +151,5 @@ pub struct HoldOptions {
 
     /// The reason for holding the activity
     #[builder(default, setter(into))]
-    reason: Option<String>,
+    reason: Option<PaceDescription>,
 }

@@ -10,13 +10,13 @@ use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
-use crate::domain::{priority::ItemPriorityKind, status::TaskStatus};
+use crate::domain::{description::PaceDescription, priority::ItemPriorityKind, status::TaskStatus};
 
 #[derive(Debug, TypedBuilder, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Task {
     created_at: NaiveDateTime,
 
-    description: String,
+    description: PaceDescription,
 
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]

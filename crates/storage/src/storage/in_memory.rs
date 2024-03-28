@@ -819,6 +819,7 @@ mod tests {
 
     use super::*;
     use chrono::Local;
+    use pace_core::prelude::PaceDescription;
     use pace_error::TestResult;
     use pace_time::date_time::PaceDateTime;
     use std::collections::HashSet;
@@ -852,7 +853,7 @@ mod tests {
 
         let begin = Local::now().fixed_offset();
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
             .collect::<HashSet<String>>();
@@ -889,7 +890,7 @@ mod tests {
 
         let begin = Local::now().fixed_offset();
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
             .collect::<HashSet<String>>();
@@ -931,7 +932,7 @@ mod tests {
 
         let begin = Local::now().fixed_offset();
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
             .collect::<HashSet<String>>();
@@ -953,7 +954,7 @@ mod tests {
             "Stored activity is not the same as the original activity."
         );
 
-        let new_description = "Updated description";
+        let new_description = PaceDescription::new("Updated description");
 
         let tags = vec!["bla".to_string(), "test".to_string()]
             .into_iter()
@@ -967,7 +968,7 @@ mod tests {
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
             .status(ActivityStatusKind::InProgress)
-            .description(new_description)
+            .description(new_description.clone())
             .tags(tags.clone())
             .build();
 
@@ -993,7 +994,7 @@ mod tests {
 
         assert_eq!(
             new_stored_activity.activity().description(),
-            new_description,
+            &new_description,
             "Description was not updated."
         );
 
@@ -1030,7 +1031,7 @@ mod tests {
         // Create activity
         let begin = Local::now().fixed_offset();
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
             .collect::<HashSet<String>>();
@@ -1075,7 +1076,7 @@ mod tests {
         );
 
         // Update activity
-        let new_description = "Updated description";
+        let new_description = PaceDescription::new("Updated description");
 
         let tags = vec!["bla".to_string(), "test".to_string()]
             .into_iter()
@@ -1089,7 +1090,7 @@ mod tests {
             .begin(new_begin)
             .kind(ActivityKind::PomodoroWork)
             .status(ActivityStatusKind::Created)
-            .description(new_description)
+            .description(new_description.clone())
             .tags(tags.clone())
             .build();
 
@@ -1103,7 +1104,7 @@ mod tests {
 
         assert_eq!(
             new_stored_activity.activity().description(),
-            new_description,
+            &new_description,
             "Description was not updated."
         );
 
@@ -1164,7 +1165,7 @@ mod tests {
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let end_time = now + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
             .collect::<HashSet<String>>();
@@ -1226,7 +1227,7 @@ mod tests {
         let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
             .collect::<HashSet<String>>();
@@ -1285,7 +1286,7 @@ mod tests {
         let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
             .collect::<HashSet<String>>();
@@ -1302,7 +1303,7 @@ mod tests {
 
         let begin_time = now - chrono::TimeDelta::try_seconds(60).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity 2";
+        let description = PaceDescription::new("Test activity 2");
 
         let activity2 = Activity::builder()
             .begin(begin_time)
@@ -1353,7 +1354,7 @@ mod tests {
         let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
             .collect::<HashSet<String>>();
@@ -1427,7 +1428,7 @@ mod tests {
         let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
             .collect::<HashSet<String>>();
@@ -1507,7 +1508,7 @@ mod tests {
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let end_time = now + chrono::TimeDelta::try_seconds(60).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
 
         let activity = Activity::builder()
             .begin(begin_time)
@@ -1568,7 +1569,7 @@ mod tests {
         let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
 
         let activity = Activity::builder()
             .begin(begin_time)
@@ -1616,12 +1617,12 @@ mod tests {
         let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
 
         let activity = Activity::builder()
             .begin(begin_time)
             .kind(kind)
-            .description(description)
+            .description(description.clone())
             .build();
 
         let activity_item = storage.begin_activity(activity)?;
@@ -1657,8 +1658,8 @@ mod tests {
         );
 
         assert_eq!(
-            *grouped_activity.activity().description(),
-            description,
+            grouped_activity.activity().description(),
+            &description,
             "Grouped activity description is not the same as the original activity description."
         );
 
@@ -1671,12 +1672,12 @@ mod tests {
         let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
 
         let activity = Activity::builder()
             .begin(begin_time)
             .kind(kind)
-            .description(description)
+            .description(description.clone())
             .build();
 
         let activity_item = storage.begin_activity(activity)?;
@@ -1718,8 +1719,8 @@ mod tests {
         );
 
         assert_eq!(
-            *grouped_activity.activity().description(),
-            description,
+            grouped_activity.activity().description(),
+            &description,
             "Grouped activity description is not the same as the original activity description."
         );
 
@@ -1732,12 +1733,12 @@ mod tests {
         let now = Local::now().fixed_offset();
         let begin_time = now - chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta.")?;
         let kind = ActivityKind::Activity;
-        let description = "Test activity";
+        let description = PaceDescription::new("Test activity");
 
         let activity = Activity::builder()
             .begin(begin_time)
             .kind(kind)
-            .description(description)
+            .description(description.clone())
             .build();
 
         let activity_item = storage.begin_activity(activity)?;
@@ -1779,8 +1780,8 @@ mod tests {
         );
 
         assert_eq!(
-            *grouped_activity.activity().description(),
-            description,
+            grouped_activity.activity().description(),
+            &description,
             "Grouped activity description is not the same as the original activity description."
         );
 

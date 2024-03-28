@@ -20,6 +20,7 @@ use crate::{
             Activity, ActivityGroup, ActivityGuid, ActivityItem, ActivityKind, ActivitySession,
         },
         category::{self, PaceCategory},
+        description::PaceDescription,
         filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
         reflection::{SummaryActivityGroup, SummaryGroupByCategory},
         status::ActivityStatusKind,
@@ -124,7 +125,7 @@ impl ActivityStore {
         let mut summary_groups: SummaryGroupByCategory = BTreeMap::new();
 
         let mut activity_sessions_lookup_by_category: HashMap<
-            (Category, Subcategory, Description),
+            (Category, Subcategory, PaceDescription),
             Vec<ActivitySession>,
         > = HashMap::new();
 

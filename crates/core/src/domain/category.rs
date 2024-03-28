@@ -5,12 +5,16 @@ use std::str::FromStr;
 use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
-use crate::{config::GeneralConfig, domain::id::Guid};
+use crate::{
+    config::GeneralConfig,
+    domain::{description::PaceDescription, id::Guid},
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, Hash, PartialEq, Default, PartialOrd, Ord)]
 pub struct PaceCategory(String);
 
 impl PaceCategory {
+    #[must_use]
     pub fn new(category: &str) -> Self {
         Self(category.to_owned())
     }
@@ -49,7 +53,7 @@ struct NewCategory {
     /// The category description
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    description: Option<PaceDescription>,
 
     /// The category id
     #[builder(default = Some(CategoryGuid::default()), setter(strip_option))]
@@ -154,7 +158,7 @@ impl Default for NewCategory {
         Self {
             guid: Some(CategoryGuid::default()),
             name: "Uncategorized".to_string(),
-            description: Some("Uncategorized category".to_string()),
+            description: Some(PaceDescription::new("Uncategorized category")),
             subcategories: Option::default(),
         }
     }
