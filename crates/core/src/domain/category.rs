@@ -1,6 +1,6 @@
 //! Category entity and business logic
 
-use std::str::FromStr;
+use std::{convert::Infallible, str::FromStr};
 
 use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
@@ -26,7 +26,7 @@ impl<'a, T: AsRef<&'a str>> From<T> for PaceCategory {
 }
 
 impl FromStr for PaceCategory {
-    type Err = String;
+    type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self::new(s))

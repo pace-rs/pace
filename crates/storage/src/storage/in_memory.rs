@@ -819,10 +819,9 @@ mod tests {
 
     use super::*;
     use chrono::Local;
-    use pace_core::prelude::PaceDescription;
+    use pace_core::prelude::{PaceDescription, PaceTagCollection};
     use pace_error::TestResult;
     use pace_time::date_time::PaceDateTime;
-    use std::collections::HashSet;
 
     #[test]
     fn test_in_memory_activity_storage_passes() {
@@ -856,7 +855,7 @@ mod tests {
         let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let activity = Activity::builder()
             .begin(begin)
@@ -893,7 +892,7 @@ mod tests {
         let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let activity = Activity::builder()
             .begin(begin)
@@ -935,7 +934,7 @@ mod tests {
         let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let og_activity = Activity::builder()
             .begin(begin)
@@ -958,7 +957,7 @@ mod tests {
 
         let tags = vec!["bla".to_string(), "test".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let new_begin = PaceDateTime::from(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
@@ -1034,7 +1033,7 @@ mod tests {
         let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let mut activity = Activity::builder()
             .begin(begin)
@@ -1080,7 +1079,7 @@ mod tests {
 
         let tags = vec!["bla".to_string(), "test".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let new_begin = PaceDateTime::from(
             begin + chrono::TimeDelta::try_seconds(30).ok_or("Invalid time delta")?,
@@ -1168,7 +1167,7 @@ mod tests {
         let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let activity = Activity::builder()
             .begin(begin_time)
@@ -1230,7 +1229,7 @@ mod tests {
         let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let activity = Activity::builder()
             .begin(begin_time)
@@ -1289,7 +1288,7 @@ mod tests {
         let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let activity = Activity::builder()
             .begin(begin_time)
@@ -1357,7 +1356,7 @@ mod tests {
         let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let activity = Activity::builder()
             .begin(begin_time)
@@ -1431,7 +1430,7 @@ mod tests {
         let description = PaceDescription::new("Test activity");
         let tags = vec!["test".to_string(), "activity".to_string()]
             .into_iter()
-            .collect::<HashSet<String>>();
+            .collect::<PaceTagCollection>();
 
         let activity = Activity::builder()
             .begin(begin_time)

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
@@ -15,6 +15,7 @@ use crate::{
         category::PaceCategory,
         description::PaceDescription,
     },
+    prelude::PaceTagCollection,
     service::activity_store::ActivityStore,
     storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
 };
@@ -134,7 +135,7 @@ impl BeginCommandOptions {
         // parse tags from string or get an empty set
         let tags = tags
             .as_ref()
-            .map(|tags| tags.iter().cloned().collect::<HashSet<String>>());
+            .map(|tags| tags.iter().cloned().collect::<PaceTagCollection>());
 
         debug!("Parsed tags: {tags:?}");
 

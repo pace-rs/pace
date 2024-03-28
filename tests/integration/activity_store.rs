@@ -1,11 +1,11 @@
 //! Test the `ActivityStore` implementation with a `InMemoryStorage` backend.
 
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use pace_core::prelude::{
     Activity, ActivityFilterKind, ActivityGuid, ActivityReadOps, ActivityStateManagement,
     ActivityStatusKind, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
-    PaceCategory, PaceDescription, ResumeOptions, UpdateOptions,
+    PaceCategory, PaceDescription, PaceTagCollection, ResumeOptions, UpdateOptions,
 };
 use pace_error::TestResult;
 use pace_storage::storage::in_memory::InMemoryActivityStorage;
@@ -250,7 +250,7 @@ fn test_activity_store_update_activity_passes(
 
     let tags = vec!["bla".to_string(), "cookie".to_string()]
         .into_iter()
-        .collect::<HashSet<String>>();
+        .collect::<PaceTagCollection>();
 
     let og_activity = activities[0].clone();
     let og_activity_id = *og_activity.guid();

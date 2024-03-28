@@ -1,15 +1,15 @@
-use std::{collections::HashSet, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use chrono::Local;
+use rstest::fixture;
 
 use pace_core::prelude::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityStatusKind, ActivityStore,
+    ActivityStatusKind, ActivityStore, PaceCategory, PaceDescription, PaceTagCollection,
 };
 use pace_error::TestResult;
-
-use pace_storage::storage::file::TomlActivityStorage;
-use rstest::fixture;
+use pace_storage::storage::{file::TomlActivityStorage, in_memory::InMemoryActivityStorage};
+use pace_time::date_time::PaceDateTime;
 
 pub struct TestData {
     pub activities: Vec<ActivityItem>,
@@ -54,15 +54,11 @@ pub fn activity_store_no_intermissions() -> TestResult<TestData> {
 // We need to use `#[cfg(not(tarpaulin_include))]` to exclude this from coverage reports
 #[cfg(not(tarpaulin_include))]
 pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
-    use pace_core::prelude::{PaceCategory, PaceDescription};
-    use pace_storage::storage::in_memory::InMemoryActivityStorage;
-    use pace_time::date_time::PaceDateTime;
-
     let begin_time = PaceDateTime::default();
 
     let tags = vec!["test".to_string(), "activity".to_string()]
         .into_iter()
-        .collect::<HashSet<String>>();
+        .collect::<PaceTagCollection>();
 
     let mut completed = Activity::builder()
         .description(PaceDescription::new("Activity with end"))

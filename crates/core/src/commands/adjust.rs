@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
@@ -15,6 +15,7 @@ use crate::{
     commands::UpdateOptions,
     config::PaceConfig,
     domain::{category::PaceCategory, description::PaceDescription},
+    prelude::PaceTagCollection,
     service::activity_store::ActivityStore,
     storage::{ActivityQuerying, ActivityStorage, ActivityWriteOps, SyncStorage},
 };
@@ -196,7 +197,7 @@ impl AdjustCommandOptions {
         }
 
         if let Some(tags) = tags {
-            let tags = tags.iter().cloned().collect::<HashSet<String>>();
+            let tags = tags.iter().cloned().collect::<PaceTagCollection>();
 
             if *override_tags {
                 debug!("Overriding tags with: {:?}", tags);

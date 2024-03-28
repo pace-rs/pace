@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{convert::Infallible, str::FromStr};
 
 use serde_derive::{Deserialize, Serialize};
 
@@ -18,7 +18,7 @@ impl<'a, T: AsRef<&'a str>> From<T> for PaceDescription {
 }
 
 impl FromStr for PaceDescription {
-    type Err = String;
+    type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self::new(s))

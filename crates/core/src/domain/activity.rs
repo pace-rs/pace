@@ -11,13 +11,14 @@ use pace_time::{
 use strum::EnumIter;
 
 use serde_derive::{Deserialize, Serialize};
-use std::{collections::HashSet, fmt::Display};
+use std::fmt::Display;
 use strum_macros::EnumString;
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
 use crate::domain::{
     category::PaceCategory, description::PaceDescription, id::Guid, status::ActivityStatusKind,
+    tag::PaceTagCollection,
 };
 
 use pace_error::{ActivityLogErrorKind, PaceResult};
@@ -239,7 +240,12 @@ pub struct Activity {
     /// Tags for the activity
     #[builder(default, setter(into))]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    tags: Option<HashSet<String>>,
+    tags: Option<PaceTagCollection>,
+
+    #[serde(default)]
+    #[builder(default)]
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
+    status: ActivityStatusKind,
 
     // Pomodoro-specific attributes
     /// The pomodoro cycle of the activity
@@ -247,11 +253,6 @@ pub struct Activity {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
     pomodoro_cycle_options: Option<PomodoroCycle>,
-
-    #[serde(default)]
-    #[builder(default)]
-    #[merge(strategy = crate::util::overwrite_left_with_right)]
-    status: ActivityStatusKind,
 }
 
 #[derive(

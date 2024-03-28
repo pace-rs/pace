@@ -60,6 +60,7 @@ pub mod prelude {
                 SummaryCategories, SummaryGroupByCategory,
             },
             status::ActivityStatusKind,
+            tag::{PaceTag, PaceTagCollection},
         },
         service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
         storage::{
