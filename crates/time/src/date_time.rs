@@ -12,21 +12,18 @@ use serde_derive::{Deserialize, Serialize};
 use tracing::debug;
 
 use crate::{
-    date::PaceDate,
-    duration::PaceDuration,
-    error::{PaceTimeErrorKind, PaceTimeResult},
-    time::PaceTime,
-    time_zone::PaceTimeZoneKind,
-    Validate,
+    date::PaceDate, duration::PaceDuration, time::PaceTime, time_zone::PaceTimeZoneKind, Validate,
 };
 
+use pace_error::{PaceError, PaceResult, TimeErrorKind};
+
 impl TryFrom<PaceDate> for PaceDateTime {
-    type Error = PaceTimeErrorKind;
+    type Error = TimeErrorKind;
 
     fn try_from(_date: PaceDate) -> Result<Self, Self::Error> {
         // if the date is invalid because of the time, use the default time
         // Ok(Self::new(date.inner().and_hms_opt(0, 0, 0).ok_or_else(
-        //     || PaceTimeErrorKind::InvalidDate(date.to_string()),
+        //     || TimeErrorKind::InvalidDate(date.to_string()),
         // )?))
         unimplemented!("Implement conversion from PaceDate to PaceDateTime")
     }
@@ -37,7 +34,7 @@ impl TryFrom<PaceDate> for PaceDateTime {
 pub struct PaceDateTime(DateTime<FixedOffset>);
 
 impl FromStr for PaceDateTime {
-    type Err = PaceTimeErrorKind;
+    type Err = TimeErrorKind;
 
     /// Parse a `PaceDateTime` from a string
     ///
@@ -54,13 +51,13 @@ impl FromStr for PaceDateTime {
     /// Returns the parsed `PaceDateTime`
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self(DateTime::parse_from_rfc3339(s).map_err(|e| {
-            PaceTimeErrorKind::ParseError(format!("{e:?}"))
+            TimeErrorKind::ParseError(format!("{e:?}"))
         })?))
     }
 }
 
 impl TryFrom<(Option<&NaiveTime>, PaceTimeZoneKind, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceTimeErrorKind;
+    type Error = PaceError;
 
     /// Try to convert from a tuple of optional naive time, time zone and time zone offset
     ///
@@ -103,7 +100,7 @@ impl TryFrom<(Option<&NaiveTime>, PaceTimeZoneKind, PaceTimeZoneKind)> for PaceD
             }
             _ => {
                 debug!("Conversion failed with time zones: {tz:?} and {tz_config:?}");
-                Err(PaceTimeErrorKind::ConversionToPaceDateTimeFailed)
+                Err(TimeErrorKind::ConversionToPaceDateTimeFailed.into())
             }
         }
     }
@@ -125,11 +122,7 @@ impl PaceDateTime {
     /// # Returns
     ///
     /// Returns the date time with a time zone implementation
-    pub fn new(
-        date: NaiveDate,
-        time: NaiveTime,
-        time_zone: PaceTimeZoneKind,
-    ) -> PaceTimeResult<Self> {
+    pub fn new(date: NaiveDate, time: NaiveTime, time_zone: PaceTimeZoneKind) -> PaceResult<Self> {
         pace_date_time_from_date_and_time_and_tz(date, time, time_zone)
     }
 
@@ -146,22 +139,18 @@ impl PaceDateTime {
     /// # Returns
     ///
     /// Returns the new [`PaceDateTime`] with the added [`TimeDelta`]
-    pub fn add_duration(self, rhs: PaceDuration) -> PaceTimeResult<Self> {
+    pub fn add_duration(self, rhs: PaceDuration) -> PaceResult<Self> {
         Ok(Self(
             self.0
                 .checked_add_signed(
                     Duration::new(
                         i64::try_from(rhs.inner())
-                            .map_err(PaceTimeErrorKind::FailedToConvertDurationToI64)?,
+                            .map_err(TimeErrorKind::FailedToConvertDurationToI64)?,
                         0,
                     )
-                    .ok_or_else(|| {
-                        PaceTimeErrorKind::ConversionToDurationFailed(format!("{rhs:?}"))
-                    })?,
+                    .ok_or_else(|| TimeErrorKind::ConversionToDurationFailed(format!("{rhs:?}")))?,
                 )
-                .ok_or_else(|| {
-                    PaceTimeErrorKind::AddingTimeDeltaFailed(format!("{self} + {rhs:?}"))
-                })?,
+                .ok_or_else(|| TimeErrorKind::AddingTimeDeltaFailed(format!("{self} + {rhs:?}")))?,
         ))
     }
 
@@ -195,16 +184,16 @@ impl PaceDateTime {
     ///
     /// Returns an error if the time can't be set to the start of the day
     /// and the time is ambiguous
-    pub fn start_of_day(mut self) -> PaceTimeResult<Self> {
+    pub fn start_of_day(mut self) -> PaceResult<Self> {
         let time_zone = self.0.offset();
         let time = self.0.date_naive().and_time(
-            NaiveTime::from_hms_opt(0, 0, 0).ok_or(PaceTimeErrorKind::SettingStartOfDayFailed)?,
+            NaiveTime::from_hms_opt(0, 0, 0).ok_or(TimeErrorKind::SettingStartOfDayFailed)?,
         );
 
         if let LocalResult::Single(datetime) = time_zone.from_local_datetime(&time) {
             self.0 = datetime;
         } else {
-            return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+            return Err(TimeErrorKind::AmbiguousConversionResult.into());
         }
 
         Ok(self)
@@ -216,17 +205,16 @@ impl PaceDateTime {
     ///
     /// Returns an error if the time can't be set to the end of the day
     /// and the time is ambiguous
-    pub fn end_of_day(mut self) -> PaceTimeResult<Self> {
+    pub fn end_of_day(mut self) -> PaceResult<Self> {
         let time_zone = self.0.offset();
         let time = self.0.date_naive().and_time(
-            NaiveTime::from_hms_opt(23, 59, 59)
-                .ok_or(PaceTimeErrorKind::SettingStartOfDayFailed)?,
+            NaiveTime::from_hms_opt(23, 59, 59).ok_or(TimeErrorKind::SettingStartOfDayFailed)?,
         );
 
         if let LocalResult::Single(datetime) = time_zone.from_local_datetime(&time) {
             self.0 = datetime;
         } else {
-            return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+            return Err(TimeErrorKind::AmbiguousConversionResult.into());
         }
 
         Ok(self)
@@ -290,7 +278,7 @@ impl PaceDateTime {
 
 impl Validate for PaceDateTime {
     type Output = Self;
-    type Error = PaceTimeErrorKind;
+    type Error = PaceError;
 
     /// Check if time is in the future
     ///
@@ -301,9 +289,9 @@ impl Validate for PaceDateTime {
     /// # Returns
     ///
     /// Returns the time if it's not in the future
-    fn validate(self) -> PaceTimeResult<Self> {
+    fn validate(self) -> PaceResult<Self> {
         if self > Self::now() {
-            Err(PaceTimeErrorKind::StartTimeInFuture(self))
+            Err(TimeErrorKind::StartTimeInFuture(self.to_string()).into())
         } else {
             Ok(self)
         }
@@ -336,16 +324,16 @@ impl From<Option<DateTime<FixedOffset>>> for PaceDateTime {
 }
 
 impl TryFrom<NaiveDateTime> for PaceDateTime {
-    type Error = PaceTimeErrorKind;
+    type Error = PaceError;
 
-    fn try_from(time: NaiveDateTime) -> PaceTimeResult<Self> {
+    fn try_from(time: NaiveDateTime) -> PaceResult<Self> {
         // get local time zone
         let local = Local::now();
         let local = local.offset();
 
         // combine NaiveDateTime with local time zone
         let LocalResult::Single(datetime) = local.from_local_datetime(&time) else {
-            Err(PaceTimeErrorKind::AmbiguousConversionResult)?
+            Err(TimeErrorKind::AmbiguousConversionResult)?
         };
 
         Ok(Self::from(datetime.round_subsecs(0).fixed_offset()))
@@ -373,11 +361,11 @@ impl TryFrom<NaiveDateTime> for PaceDateTime {
 pub(crate) fn pace_date_time_from_date_and_tz_with_zero_hms(
     date: NaiveDate,
     time_zone: PaceTimeZoneKind,
-) -> PaceTimeResult<PaceDateTime> {
+) -> PaceResult<PaceDateTime> {
     pace_date_time_from_date_and_time_and_tz(
         date,
         NaiveTime::from_hms_opt(0, 0, 0)
-            .ok_or_else(|| PaceTimeErrorKind::InvalidDate(date.to_string()))?,
+            .ok_or_else(|| TimeErrorKind::InvalidDate(date.to_string()))?,
         time_zone,
     )?
     .validate()
@@ -402,18 +390,18 @@ pub fn pace_date_time_from_date_and_time_and_tz(
     date: NaiveDate,
     time: NaiveTime,
     tz: PaceTimeZoneKind,
-) -> PaceTimeResult<PaceDateTime> {
+) -> PaceResult<PaceDateTime> {
     let date_time = match tz {
         PaceTimeZoneKind::TimeZone(ref tz) => {
             let LocalResult::Single(datetime) = tz.from_local_datetime(&date.and_time(time)) else {
-                return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+                return Err(TimeErrorKind::AmbiguousConversionResult.into());
             };
 
             PaceDateTime::from(datetime.round_subsecs(0).fixed_offset())
         }
         PaceTimeZoneKind::TimeZoneOffset(ref tz) => {
             let LocalResult::Single(datetime) = tz.from_local_datetime(&date.and_time(time)) else {
-                return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+                return Err(TimeErrorKind::AmbiguousConversionResult.into());
             };
 
             PaceDateTime::from(datetime.round_subsecs(0).fixed_offset())
@@ -421,7 +409,7 @@ pub fn pace_date_time_from_date_and_time_and_tz(
         PaceTimeZoneKind::NotSet => {
             let LocalResult::Single(datetime) = Local.from_local_datetime(&date.and_time(time))
             else {
-                return Err(PaceTimeErrorKind::AmbiguousConversionResult);
+                return Err(TimeErrorKind::AmbiguousConversionResult.into());
             };
 
             PaceDateTime::from(datetime.round_subsecs(0).fixed_offset())
@@ -434,7 +422,7 @@ pub fn pace_date_time_from_date_and_time_and_tz(
 }
 
 impl TryFrom<(NaiveDate, NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceTimeErrorKind;
+    type Error = PaceError;
 
     fn try_from(
         (date, time, tz): (NaiveDate, NaiveTime, PaceTimeZoneKind),
@@ -444,7 +432,7 @@ impl TryFrom<(NaiveDate, NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
 }
 
 impl TryFrom<(NaiveDate, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceTimeErrorKind;
+    type Error = PaceError;
 
     fn try_from((date, tz): (NaiveDate, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
         pace_date_time_from_date_and_time_and_tz(date, Local::now().time(), tz)?.validate()
@@ -452,7 +440,7 @@ impl TryFrom<(NaiveDate, PaceTimeZoneKind)> for PaceDateTime {
 }
 
 impl TryFrom<(NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceTimeErrorKind;
+    type Error = PaceError;
 
     fn try_from((time, tz): (NaiveTime, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
         pace_date_time_from_date_and_time_and_tz(Local::now().date_naive(), time, tz)?.validate()
@@ -460,7 +448,7 @@ impl TryFrom<(NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
 }
 
 impl TryFrom<(NaiveDate, NaiveTime)> for PaceDateTime {
-    type Error = PaceTimeErrorKind;
+    type Error = PaceError;
 
     fn try_from((date, time): (NaiveDate, NaiveTime)) -> Result<Self, Self::Error> {
         pace_date_time_from_date_and_time_and_tz(
@@ -473,7 +461,7 @@ impl TryFrom<(NaiveDate, NaiveTime)> for PaceDateTime {
 }
 
 impl TryFrom<(NaiveDateTime, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceTimeErrorKind;
+    type Error = PaceError;
 
     fn try_from((date_time, tz): (NaiveDateTime, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
         pace_date_time_from_date_and_time_and_tz(date_time.date(), date_time.time(), tz)?.validate()

@@ -11,10 +11,9 @@ use humantime::format_duration;
 use serde_derive::{Deserialize, Serialize};
 use tracing::debug;
 
-use crate::{
-    date_time::PaceDateTime,
-    error::{PaceTimeErrorKind, PaceTimeResult},
-};
+use pace_error::{PaceResult, TimeErrorKind};
+
+use crate::date_time::PaceDateTime;
 
 /// Converts timespec to nice readable relative time string
 ///
@@ -159,11 +158,11 @@ impl PaceDuration {
 }
 
 impl FromStr for PaceDuration {
-    type Err = PaceTimeErrorKind;
+    type Err = TimeErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.parse::<u64>().map_or_else(
-            |_| Err(PaceTimeErrorKind::ParsingDurationFailed(s.to_string())),
+            |_| Err(TimeErrorKind::ParsingDurationFailed(s.to_string())),
             |duration| Ok(Self(duration)),
         )
     }
@@ -176,11 +175,11 @@ impl From<Duration> for PaceDuration {
 }
 
 impl TryFrom<chrono::Duration> for PaceDuration {
-    type Error = PaceTimeErrorKind;
+    type Error = TimeErrorKind;
 
     fn try_from(duration: chrono::Duration) -> Result<Self, Self::Error> {
         Ok(Self(duration.num_seconds().try_into().map_err(|_| {
-            PaceTimeErrorKind::ParsingDurationFailed(duration.to_string())
+            TimeErrorKind::ParsingDurationFailed(duration.to_string())
         })?))
     }
 }
@@ -228,10 +227,7 @@ impl std::ops::SubAssign for PaceDuration {
 ///
 /// Returns the duration of the activity
 #[tracing::instrument]
-pub fn calculate_duration(
-    begin: &PaceDateTime,
-    end: &PaceDateTime,
-) -> PaceTimeResult<PaceDuration> {
+pub fn calculate_duration(begin: &PaceDateTime, end: &PaceDateTime) -> PaceResult<PaceDuration> {
     let duration = end.inner().signed_duration_since(begin.inner()).to_std()?;
 
     debug!("Duration: {duration:?}");

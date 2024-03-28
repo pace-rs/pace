@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
@@ -10,11 +10,16 @@ use tracing::debug;
 
 use crate::{
     config::PaceConfig,
-    domain::activity::{Activity, ActivityKind},
-    error::{PaceResult, UserMessage},
+    domain::{
+        activity::{Activity, ActivityKind},
+        category::PaceCategory,
+        description::PaceDescription,
+    },
     service::activity_store::ActivityStore,
-    storage::{get_storage_from_config, ActivityStateManagement, SyncStorage},
+    storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
 };
+
+use pace_error::{PaceResult, UserMessage};
 
 /// `begin` subcommand options
 #[derive(Debug, Clone, PartialEq, Eq, Getters)]
@@ -28,7 +33,7 @@ pub struct BeginCommandOptions {
     /// You can use the separator you setup in the configuration file
     /// to specify a subcategory.
     #[cfg_attr(feature = "clap", clap(short, long, name = "Category"))]
-    category: Option<String>,
+    category: Option<PaceCategory>,
 
     /// The time the activity has been started at. Format: HH:MM
     #[cfg_attr(
@@ -39,7 +44,7 @@ pub struct BeginCommandOptions {
 
     /// The description of the activity you want to start
     #[cfg_attr(feature = "clap", clap(value_name = "Activity Description"))]
-    description: String,
+    description: PaceDescription,
 
     /// The tags you want to associate with the activity, separated by a comma
     #[cfg_attr(
@@ -102,7 +107,11 @@ impl BeginCommandOptions {
     /// Returns a `UserMessage` with the information about the started activity
     /// that can be displayed to the user
     #[tracing::instrument(skip(self))]
-    pub fn handle_begin(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+    pub fn handle_begin(
+        &self,
+        config: &PaceConfig,
+        storage: Arc<dyn ActivityStorage>,
+    ) -> PaceResult<UserMessage> {
         let Self {
             category,
             at,
@@ -139,7 +148,7 @@ impl BeginCommandOptions {
             .tags(tags)
             .build();
 
-        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let activity_item = activity_store.begin_activity(activity)?;
 

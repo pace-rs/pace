@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
@@ -9,12 +9,14 @@ use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
+use pace_error::{ActivityLogErrorKind, PaceResult, UserMessage};
+
 use crate::{
     commands::UpdateOptions,
     config::PaceConfig,
-    error::{ActivityLogErrorKind, PaceResult, UserMessage},
+    domain::{category::PaceCategory, description::PaceDescription},
     service::activity_store::ActivityStore,
-    storage::{get_storage_from_config, ActivityQuerying, ActivityWriteOps, SyncStorage},
+    storage::{ActivityQuerying, ActivityStorage, ActivityWriteOps, SyncStorage},
 };
 
 /// `adjust` subcommand options
@@ -38,7 +40,7 @@ pub struct AdjustCommandOptions {
             visible_alias = "cat"
         )
     )]
-    category: Option<String>,
+    category: Option<PaceCategory>,
 
     /// The description of the activity
     #[cfg_attr(
@@ -51,7 +53,7 @@ pub struct AdjustCommandOptions {
             visible_alias = "desc"
         )
     )]
-    description: Option<String>,
+    description: Option<PaceDescription>,
 
     /// The start time of the activity. Format: HH:MM
     #[cfg_attr(
@@ -138,7 +140,11 @@ impl AdjustCommandOptions {
     /// A `UserMessage` to be printed to the user indicating the result of the operation and
     /// some additional information
     #[tracing::instrument(skip(self))]
-    pub fn handle_adjust(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+    pub fn handle_adjust(
+        &self,
+        config: &PaceConfig,
+        storage: Arc<dyn ActivityStorage>,
+    ) -> PaceResult<UserMessage> {
         let Self {
             category,
             description,
@@ -160,7 +166,7 @@ impl AdjustCommandOptions {
 
         debug!("Parsed time: {date_time:?}");
 
-        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let activity_item = activity_store
             .most_recent_active_activity()?

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
@@ -10,10 +12,11 @@ use typed_builder::TypedBuilder;
 use crate::{
     commands::EndOptions,
     config::PaceConfig,
-    error::{PaceResult, UserMessage},
     service::activity_store::ActivityStore,
-    storage::{get_storage_from_config, ActivityStateManagement, SyncStorage},
+    storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
 };
+
+use pace_error::{PaceResult, UserMessage};
 
 /// `end` subcommand options
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
@@ -73,7 +76,11 @@ impl EndCommandOptions {
     /// Returns a `UserMessage` with the information about the ended activity
     /// that can be displayed to the user
     #[tracing::instrument(skip(self))]
-    pub fn handle_end(&self, config: &PaceConfig) -> PaceResult<UserMessage> {
+    pub fn handle_end(
+        &self,
+        config: &PaceConfig,
+        storage: Arc<dyn ActivityStorage>,
+    ) -> PaceResult<UserMessage> {
         let Self {
             at,
             time_zone,
@@ -91,7 +98,7 @@ impl EndCommandOptions {
 
         debug!("Parsed date time: {:?}", date_time);
 
-        let activity_store = ActivityStore::with_storage(get_storage_from_config(config)?)?;
+        let activity_store = ActivityStore::with_storage(storage)?;
 
         let end_opts = EndOptions::builder().end_time(date_time).build();
 

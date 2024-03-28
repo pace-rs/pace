@@ -8,17 +8,19 @@ use pace_time::{
     date_time::PaceDateTime,
     duration::{calculate_duration, duration_to_str, PaceDuration},
 };
+use strum::EnumIter;
+
 use serde_derive::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt::Display};
 use strum_macros::EnumString;
 use tracing::debug;
 use typed_builder::TypedBuilder;
-use ulid::Ulid;
 
-use crate::{
-    domain::status::ActivityStatusKind,
-    error::{ActivityLogErrorKind, PaceResult},
+use crate::domain::{
+    category::PaceCategory, description::PaceDescription, id::Guid, status::ActivityStatusKind,
 };
+
+use pace_error::{ActivityLogErrorKind, PaceResult};
 
 #[derive(
     Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
@@ -81,8 +83,11 @@ impl From<(ActivityGuid, Activity)> for ActivityItem {
     PartialOrd,
     Ord,
     EnumString,
+    EnumIter,
+    strum::Display,
 )]
 #[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 // #[serde(untagged)]
 pub enum ActivityKind {
     /// A generic activity
@@ -199,14 +204,14 @@ pub struct Activity {
     #[getset(get = "pub", get_mut = "pub")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    category: Option<String>,
+    category: Option<PaceCategory>,
 
     /// The description of the activity
     // This needs to be an Optional, because we use the whole activity struct
     // as well for intermissions, which don't have a description
     #[builder(setter(into))]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    description: String,
+    description: PaceDescription,
 
     /// The start date and time of the activity
     #[builder(default, setter(into))]
@@ -270,6 +275,11 @@ impl ActivityEndOptions {
     pub const fn new(end: PaceDateTime, duration: PaceDuration) -> Self {
         Self { end, duration }
     }
+
+    #[must_use]
+    pub const fn as_tuple(&self) -> (PaceDateTime, PaceDuration) {
+        (self.end, self.duration)
+    }
 }
 
 #[derive(
@@ -305,7 +315,24 @@ impl ActivityKindOptions {
 
 /// The unique identifier of an activity
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
-pub struct ActivityGuid(Ulid);
+pub struct ActivityGuid(Guid);
+
+impl ActivityGuid {
+    #[must_use]
+    pub fn new() -> Self {
+        Self(Guid::new())
+    }
+
+    #[must_use]
+    pub const fn with_id(id: Guid) -> Self {
+        Self(id)
+    }
+
+    #[must_use]
+    pub const fn inner(&self) -> &Guid {
+        &self.0
+    }
+}
 
 impl Display for ActivityGuid {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -315,7 +342,7 @@ impl Display for ActivityGuid {
 
 impl Default for ActivityGuid {
     fn default() -> Self {
-        Self(Ulid::new())
+        Self(Guid::new())
     }
 }
 
@@ -324,7 +351,7 @@ impl Display for Activity {
         let time = self.begin.and_local_timezone(&Local);
         let utc_offset = time.offset();
         let symbol = self.kind.as_symbol();
-        let nop_cat = "Uncategorized".to_string();
+        let nop_cat = PaceCategory::new("Uncategorized");
         let description = self.description();
         let category = self.category().as_ref().unwrap_or(&nop_cat);
         let started_at = duration_to_str(time);
@@ -530,7 +557,7 @@ impl Activity {
 #[getset(get = "pub")]
 pub struct ActivitySession {
     /// A description of the activity group
-    description: String,
+    description: PaceDescription,
 
     /// Root Activity within the activity group
     root_activity: ActivityItem,
@@ -589,7 +616,7 @@ impl ActivitySession {
 #[getset(get = "pub")]
 pub struct ActivityGroup {
     /// A description of the activity group
-    description: String,
+    description: PaceDescription,
 
     /// Duration spent on the grouped activities, essentially the sum of all durations
     /// of the activities within the group and their children. Intermissions are counting
@@ -622,7 +649,7 @@ impl ActivityGroup {
     }
 
     pub fn with_multiple_sessions(
-        description: String,
+        description: PaceDescription,
         activity_sessions: Vec<ActivitySession>,
     ) -> Self {
         debug!("Creating new activity group");
@@ -676,7 +703,7 @@ mod tests {
     use eyre::{eyre, OptionExt};
     use pace_time::time_zone::PaceTimeZoneKind;
 
-    use crate::error::TestResult;
+    use pace_error::TestResult;
 
     use super::*;
 
@@ -693,13 +720,19 @@ mod tests {
 
         let activity: Activity = toml::from_str(toml)?;
 
-        assert_eq!(activity.category.as_ref().ok_or("No category.")?, "Work");
+        assert_eq!(
+            activity.category.as_ref().ok_or("No category.")?,
+            &PaceCategory::new("Work")
+        );
 
-        assert_eq!(activity.description, "This is an example activity");
+        assert_eq!(
+            activity.description,
+            PaceDescription::new("This is an example activity")
+        );
 
         let ActivityEndOptions { end, duration } = activity
             .activity_end_options()
-            .clone()
+            .as_ref()
             .ok_or("No end options")?;
 
         let begin_time = PaceDateTime::try_from((
@@ -724,9 +757,9 @@ mod tests {
 
         assert_eq!(activity.begin, begin_time);
 
-        assert_eq!(end, end_time);
+        assert_eq!(end, &end_time);
 
-        assert_eq!(duration, PaceDuration::from_str("19")?);
+        assert_eq!(duration, &PaceDuration::from_str("19")?);
 
         assert_eq!(activity.kind, ActivityKind::Activity);
 

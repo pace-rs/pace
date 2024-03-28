@@ -10,7 +10,10 @@ use tabled::{
 
 use typed_builder::TypedBuilder;
 
-use crate::domain::activity::{ActivityGroup, ActivityItem, ActivityKind};
+use crate::domain::{
+    activity::{ActivityGroup, ActivityItem, ActivityKind},
+    description::PaceDescription,
+};
 
 /// The kind of review format
 /// Default: `console`
@@ -111,7 +114,7 @@ impl std::fmt::Display for ReflectionSummary {
             for (description, activity_group) in summary_group.activity_groups_by_description() {
                 builder.push_record(vec![
                     subcategory,
-                    description,
+                    description.to_string().as_str(),
                     format!(
                         "{} ({})",
                         &activity_group.adjusted_duration().to_string(),
@@ -168,7 +171,7 @@ pub struct SummaryActivityGroup {
     total_break_count: usize,
 
     /// The groups of activities for a summary category
-    activity_groups_by_description: BTreeMap<String, ActivityGroup>,
+    activity_groups_by_description: BTreeMap<PaceDescription, ActivityGroup>,
 }
 
 impl SummaryActivityGroup {

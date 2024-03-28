@@ -42,9 +42,8 @@ This crate exposes a few features for controlling dependency usage:
 - **cli** - Enables support for CLI features by enabling `merge` and `clap`
   features. *This feature is enabled by default*.
 
-- **sqlite** - Enables a dependency on the `rusqlite` crate and enables
-  persistence to a SQLite database. *This feature is disabled by default as it's
-  not yet implemented*.
+- **rusqlite** - Enables a dependency on the `rusqlite` crate and enables
+  persistence to a SQLite database. *This feature is enabled by default*.
 
 ## Examples
 

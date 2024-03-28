@@ -5,9 +5,10 @@ use tracing::debug;
 
 use crate::{
     domain::{filter::FilterOptions, reflection::ReflectionSummary},
-    error::PaceOptResult,
     service::activity_store::ActivityStore,
 };
+
+use pace_error::PaceOptResult;
 
 // This struct represents the overall structure for tracking activities and their intermissions.
 pub struct ActivityTracker {

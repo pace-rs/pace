@@ -1,5 +1,7 @@
 //! Domain models and business rules
 
+pub mod id;
+
 /// The kind of activity a user can track
 pub mod activity;
 
@@ -9,6 +11,7 @@ pub mod activity_log;
 /// A category for activities
 pub mod category;
 
+pub mod description;
 /// A filter for activities
 pub mod filter;
 pub mod inbox;

@@ -13,7 +13,7 @@ pub fn overwrite_left_with_right<T>(left: &mut T, right: T) {
 #[cfg(test)]
 mod tests {
 
-    use crate::domain::activity::Activity;
+    use crate::domain::{activity::Activity, category::PaceCategory};
 
     use super::*;
 
@@ -37,8 +37,8 @@ mod tests {
     fn test_overwrite_activity_passes() {
         let mut left = Activity::default();
         let mut right = Activity::default();
-        _ = right.category_mut().replace("right".to_string());
+        _ = right.category_mut().replace(PaceCategory::new("right"));
         overwrite_left_with_right(&mut left, right);
-        assert_eq!(left.category(), &Some("right".to_string()));
+        assert_eq!(left.category(), &Some(PaceCategory::new("right")));
     }
 }

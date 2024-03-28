@@ -19,17 +19,19 @@ use crate::{
         activity::{
             Activity, ActivityGroup, ActivityGuid, ActivityItem, ActivityKind, ActivitySession,
         },
-        category,
+        category::{self, PaceCategory},
+        description::PaceDescription,
         filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
         reflection::{SummaryActivityGroup, SummaryGroupByCategory},
         status::ActivityStatusKind,
     },
-    error::{ActivityStoreErrorKind, PaceOptResult, PaceResult},
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
-        ActivityWriteOps, StorageKind, SyncStorage,
+        ActivityWriteOps, SyncStorage,
     },
 };
+
+use pace_error::{ActivityStoreErrorKind, PaceOptResult, PaceResult};
 
 /// The activity store entity
 #[derive(TypedBuilder, Getters, Setters, MutGetters)]
@@ -39,7 +41,7 @@ pub struct ActivityStore {
     cache: ActivityStoreCache,
 
     /// The storage backend
-    storage: Arc<StorageKind>,
+    storage: Arc<dyn ActivityStorage>,
 }
 
 #[derive(Debug, TypedBuilder, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default)]
@@ -69,15 +71,18 @@ impl ActivityStore {
     ///
     /// This method returns a new `ActivityStore` if the storage backend
     /// was successfully created
-    pub fn with_storage(storage: Arc<StorageKind>) -> PaceResult<Self> {
-        debug!("Creating activity store with storage: {}", storage);
+    pub fn with_storage(storage: Arc<dyn ActivityStorage>) -> PaceResult<Self> {
+        debug!(
+            "Creating activity store with storage: {}",
+            storage.identify()
+        );
 
         let mut store = Self {
             cache: ActivityStoreCache::default(),
             storage,
         };
 
-        store.setup_storage()?;
+        store.setup()?;
 
         store.populate_caches()?;
 
@@ -120,7 +125,7 @@ impl ActivityStore {
         let mut summary_groups: SummaryGroupByCategory = BTreeMap::new();
 
         let mut activity_sessions_lookup_by_category: HashMap<
-            (Category, Subcategory, Description),
+            (Category, Subcategory, PaceDescription),
             Vec<ActivitySession>,
         > = HashMap::new();
 
@@ -131,19 +136,23 @@ impl ActivityStore {
         for activity_guid in activity_guids {
             let activity_item = self.read_activity(activity_guid)?;
 
+            let fallback_category = PaceCategory::new("Uncategorized");
+
             let activity_category = activity_item
                 .activity()
                 .category()
-                .as_deref()
-                .unwrap_or("Uncategorized")
-                .to_string();
+                .as_ref()
+                .unwrap_or(&fallback_category);
 
             // Skip if category does not match user input
             if let Some(category) = filter_opts.category() {
                 let (filter_category, activity_category) = if *filter_opts.case_sensitive() {
                     (category.clone(), activity_category.clone())
                 } else {
-                    (category.to_lowercase(), activity_category.to_lowercase())
+                    (
+                        PaceCategory::new(&category.to_lowercase()),
+                        PaceCategory::new(&activity_category.to_lowercase()),
+                    )
                 };
 
                 if !WildMatch::new(&filter_category).matches(&activity_category) {
@@ -161,7 +170,7 @@ impl ActivityStore {
 
             // Handle splitting subcategories
             let (category, subcategory) =
-                category::split_category_by_category_separator(&activity_category, None);
+                category::split_category_by_category_separator(activity_category, None);
 
             // Deduplicate activities by category and description first
             _ = activity_sessions_lookup_by_category
@@ -210,8 +219,18 @@ impl ActivityStore {
 
 impl ActivityStorage for ActivityStore {
     #[tracing::instrument(skip(self))]
-    fn setup_storage(&self) -> PaceResult<()> {
-        self.storage.setup_storage()
+    fn setup(&self) -> PaceResult<()> {
+        self.storage.setup()
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn identify(&self) -> String {
+        self.storage.identify()
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn teardown(&self) -> PaceResult<()> {
+        self.storage.teardown()
     }
 }
 

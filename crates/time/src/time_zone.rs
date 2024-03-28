@@ -1,6 +1,6 @@
 use chrono::{FixedOffset, Local};
 
-use crate::error::PaceTimeErrorKind;
+use pace_error::TimeErrorKind;
 
 /// Get the local time zone offset to UTC to guess the time zones
 ///
@@ -92,7 +92,7 @@ impl PaceTimeZoneKind {
 }
 
 impl TryFrom<(Option<&chrono_tz::Tz>, Option<&FixedOffset>)> for PaceTimeZoneKind {
-    type Error = PaceTimeErrorKind;
+    type Error = TimeErrorKind;
 
     fn try_from(
         (tz, tz_offset): (Option<&chrono_tz::Tz>, Option<&FixedOffset>),
@@ -101,7 +101,7 @@ impl TryFrom<(Option<&chrono_tz::Tz>, Option<&FixedOffset>)> for PaceTimeZoneKin
             (Some(tz), None) => Ok(Self::TimeZone(tz.to_owned())),
             (None, Some(tz_offset)) => Ok(Self::TimeZoneOffset(tz_offset.to_owned())),
             (None, None) => Ok(Self::NotSet),
-            (Some(_), Some(_)) => Err(PaceTimeErrorKind::AmbiguousTimeZones),
+            (Some(_), Some(_)) => Err(TimeErrorKind::AmbiguousTimeZones),
         }
     }
 }

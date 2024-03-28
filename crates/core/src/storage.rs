@@ -1,7 +1,13 @@
-use std::{collections::BTreeMap, fmt::Display, sync::Arc};
+#[cfg(feature = "rusqlite")]
+pub mod rusqlite;
 
-use enum_dispatch::enum_dispatch;
+use std::{
+    collections::BTreeMap,
+    fmt::{self, Debug, Formatter},
+};
+
 use itertools::Itertools;
+use pace_error::{PaceOptResult, PaceResult};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 use tracing::debug;
 
@@ -10,79 +16,22 @@ use crate::{
         hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
         UpdateOptions,
     },
-    config::{ActivityLogStorageKind, PaceConfig},
     domain::{
         activity::{Activity, ActivityGuid, ActivityItem, ActivityKind},
         filter::{ActivityFilterKind, FilteredActivities},
         status::ActivityStatusKind,
     },
-    error::{PaceErrorKind, PaceOptResult, PaceResult},
-    service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, in_memory::InMemoryActivityStorage},
 };
 
-/// A type of storage that can be synced to a persistent medium - a file
-pub mod file;
-
-/// An in-memory storage backend for activities.
-pub mod in_memory;
-// TODO: Implement conversion FromSQL and ToSQL
-// #[cfg(feature = "sqlite")]
-// pub mod sqlite;
-
-/// Get the storage backend from the configuration.
-///
-/// # Arguments
-///
-/// * `config` - The application configuration.
-///
-/// # Errors
-///
-/// This function should return an error if the storage backend cannot be created or is not supported.
-///
-/// # Returns
-///
-/// The storage backend.
-pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<StorageKind>> {
-    let storage: StorageKind = match config.general().activity_log_options().storage_kind() {
-        ActivityLogStorageKind::File => {
-            TomlActivityStorage::new(config.general().activity_log_options().path())?.into()
-        }
-        ActivityLogStorageKind::Database => {
-            return Err(PaceErrorKind::DatabaseStorageNotImplemented.into())
-        }
-        #[cfg(test)]
-        ActivityLogStorageKind::InMemory => InMemoryActivityStorage::new().into(),
-    };
-
-    debug!("Using storage backend: {}", storage);
-
-    Ok(Arc::new(storage))
-}
-
-#[enum_dispatch]
-pub enum StorageKind {
-    ActivityStore,
-    InMemoryActivityStorage,
-    TomlActivityStorage,
-}
-
-impl Display for StorageKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ActivityStore(_) => write!(f, "StorageKind: ActivityStore"),
-            Self::InMemoryActivityStorage(_) => {
-                write!(f, "StorageKind: InMemoryActivityStorage")
-            }
-            Self::TomlActivityStorage(_) => write!(f, "StorageKind: TomlActivityStorage"),
-        }
+impl Debug for dyn ActivityStorage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "ActivityStorage: {}", self.identify())
     }
 }
 
 /// A type of storage that can be synced to a persistent medium.
 ///
 /// This is useful for in-memory storage that needs to be persisted to disk or a database.
-#[enum_dispatch(StorageKind)]
 pub trait SyncStorage {
     /// Sync the storage to a persistent medium.
     ///
@@ -101,7 +50,6 @@ pub trait SyncStorage {
 ///
 /// Storage backends can be in-memory, on-disk, or in a database. They can be any kind of
 /// persistent storage that can be used to store activities.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityStorage:
     ActivityReadOps + ActivityWriteOps + ActivityStateManagement + SyncStorage + ActivityQuerying
 // TODO!: Implement other traits
@@ -120,7 +68,29 @@ pub trait ActivityStorage:
     /// # Errors
     ///
     /// This function should return an error if the storage backend cannot be setup.
-    fn setup_storage(&self) -> PaceResult<()>;
+    fn setup(&self) -> PaceResult<()>;
+
+    /// Teardown the storage backend. This is called once when the application stops.
+    ///
+    /// This is where you would close the database connection, save the file, etc.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the storage backend cannot be torn down.
+    ///
+    /// # Returns
+    ///
+    /// If the storage backend was torn down successfully it should return `Ok(())`.
+    fn teardown(&self) -> PaceResult<()>;
+
+    /// Identify the storage backend.
+    ///
+    /// This is useful for logging and debugging purposes.
+    ///
+    /// # Returns
+    ///
+    /// The identifier of the storage backend.
+    fn identify(&self) -> String;
 }
 
 /// Basic Read Operations for Activities in the storage backend.
@@ -128,7 +98,6 @@ pub trait ActivityStorage:
 /// Read operations are essential for loading activities from the storage backend.
 /// These operations are used to get activities by their ID, list all activities, or filter activities by a specific criterion.
 /// They are also used to get the current state of activities, such as the currently active activities.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityReadOps {
     /// Read an activity from the storage backend.
     ///
@@ -165,7 +134,6 @@ pub trait ActivityReadOps {
 ///
 /// CUD stands for Create, Update, and Delete. These are the basic operations that can be performed on activities.
 /// These operations are essential for managing activities in the storage backend.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityWriteOps: ActivityReadOps {
     /// Create an activity in the storage backend.
     ///
@@ -238,7 +206,6 @@ pub trait ActivityWriteOps: ActivityReadOps {
 /// This is useful for keeping track of the current state of activities and making sure they are properly managed.
 ///
 /// For example, you might want to start a new activity, end an activity that is currently running, or hold an activity temporarily.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + ActivityQuerying {
     /// Begin an activity in the storage backend. This makes the activity active.
     ///
@@ -423,7 +390,6 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
 ///
 /// For example, you might want to list all activities that are currently active,
 /// find all activities within a specific date range, or get a specific activity by its ID.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityQuerying: ActivityReadOps {
     /// Group activities by predefined duration ranges (e.g., short, medium, long).
     ///

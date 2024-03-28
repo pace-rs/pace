@@ -1,10 +1,4 @@
 [general]
-# Define where to store the activity log: options include "file", "database", etc.
-storage-kind = "file"
-# Path to the activity log file, used if storage-kind is set to "file"
-path = "/path/to/your/activity.pace.toml"
-# Specify the default format for new activity logs: "toml" or "yaml"
-format-kind = "toml"
 # Category separator used in the cli
 category-separator = "::"
 # Default priority for new tasks
@@ -23,10 +17,9 @@ include-tags = true
 include-descriptions = true
 time-format = "%Y-%m-%d %H:%M"
 
-[database]
-# Database configurations are used if storage-kind is set to "database"
-engine = "sqlite" # only option supported for now is "sqlite"
-connection-string = "path/to/your/database.db"
+[storage.file]
+# In case of a file, this is the path to the file: `/path/to/file`
+location = "/path/to/your/storage"
 
 [pomodoro]
 # Pomodoro technique specific configurations

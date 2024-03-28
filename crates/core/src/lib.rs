@@ -3,7 +3,6 @@
 pub(crate) mod commands;
 pub(crate) mod config;
 pub(crate) mod domain;
-pub(crate) mod error;
 pub(crate) mod service;
 pub(crate) mod storage;
 pub(crate) mod template;
@@ -42,9 +41,9 @@ pub mod prelude {
         config::{
             find_root_config_file_path, find_root_project_file, get_activity_log_paths,
             get_config_paths, get_home_activity_log_path, get_home_config_path,
-            ActivityLogFormatKind, ActivityLogStorageKind, AutoArchivalConfig, DatabaseConfig,
-            ExportConfig, GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig,
-            ReflectionsConfig,
+            ActivityLogStorageKind, AutoArchivalConfig, DatabaseEngineKind, ExportConfig,
+            GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig, ReflectionsConfig,
+            StorageConfig,
         },
         domain::{
             activity::{
@@ -52,7 +51,8 @@ pub mod prelude {
                 ActivityKind, ActivityKindOptions, ActivitySession,
             },
             activity_log::ActivityLog,
-            category::split_category_by_category_separator,
+            category::{split_category_by_category_separator, PaceCategory},
+            description::PaceDescription,
             filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
             intermission::IntermissionAction,
             reflection::{
@@ -61,12 +61,10 @@ pub mod prelude {
             },
             status::ActivityStatusKind,
         },
-        error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult, UserMessage},
         service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
         storage::{
-            file::TomlActivityStorage, get_storage_from_config, in_memory::InMemoryActivityStorage,
             ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
-            ActivityWriteOps, StorageKind, SyncStorage,
+            ActivityWriteOps, SyncStorage,
         },
         util::overwrite_left_with_right,
     };

@@ -4,7 +4,8 @@ use chrono::{Local, NaiveDate};
 
 use serde_derive::{Deserialize, Serialize};
 
-use crate::{date_time::PaceDateTime, error::PaceTimeErrorKind};
+use crate::date_time::PaceDateTime;
+use pace_error::TimeErrorKind;
 
 /// {0}
 #[derive(
@@ -53,26 +54,22 @@ impl PaceDate {
 }
 
 impl FromStr for PaceDate {
-    type Err = PaceTimeErrorKind;
+    type Err = TimeErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let date = NaiveDate::parse_from_str(s, "%Y-%m-%d")
-            .map_err(|_| PaceTimeErrorKind::ParsingDateFailed(format!("Invalid date: {s}")))?;
+            .map_err(|_| TimeErrorKind::ParsingDateFailed(format!("Invalid date: {s}")))?;
 
         Ok(Self(date))
     }
 }
 
 impl TryFrom<(i32, u32, u32)> for PaceDate {
-    type Error = PaceTimeErrorKind;
+    type Error = TimeErrorKind;
 
     fn try_from((year, month, day): (i32, u32, u32)) -> Result<Self, Self::Error> {
         NaiveDate::from_ymd_opt(year, month, day).map_or_else(
-            || {
-                Err(PaceTimeErrorKind::InvalidDate(format!(
-                    "{year}/{month}/{day}"
-                )))
-            },
+            || Err(TimeErrorKind::InvalidDate(format!("{year}/{month}/{day}"))),
             |date| Ok(Self(date)),
         )
     }
