@@ -3,7 +3,7 @@ use pace_error::PaceResult;
 
 use crate::entities::SQLiteActivityItem;
 
-pub trait Mediator {
+pub trait Convert {
     type Options;
     type Source;
     type Target;
@@ -12,9 +12,9 @@ pub trait Mediator {
     fn from_stored(stored: Self::Target, opts: Self::Options) -> PaceResult<Self::Source>;
 }
 
-pub struct SQLiteActivityMediator;
+pub struct SQLiteActivityConverter;
 
-impl Mediator for SQLiteActivityMediator {
+impl Convert for SQLiteActivityConverter {
     type Options = ();
     type Source = ActivityItem;
     type Target = SQLiteActivityItem;

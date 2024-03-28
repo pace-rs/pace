@@ -15,8 +15,8 @@ use sea_query::{Expr, Query, SqliteQueryBuilder};
 use tracing::debug;
 
 use crate::{
+    convert::Convert,
     entities::activities::{Activities, ActivitiesIden},
-    mediator::Mediator,
     migration::SQLiteMigrator,
     storage::SQLiteEntity,
 };
