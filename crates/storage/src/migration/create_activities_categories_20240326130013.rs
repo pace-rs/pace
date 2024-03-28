@@ -25,6 +25,16 @@ impl SQLiteMigration for Migration {
                     .not_null()
                     .primary_key(),
             )
+            .col(
+                ColumnDef::new(ActivitiesCategoriesIden::ActivityGuid)
+                    .text()
+                    .not_null(),
+            )
+            .col(
+                ColumnDef::new(ActivitiesCategoriesIden::CategoryGuid)
+                    .text()
+                    .not_null(),
+            )
             .foreign_key(
                 ForeignKey::create()
                     .name("fk_activities_categories_category_guid")

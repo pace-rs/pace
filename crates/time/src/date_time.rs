@@ -15,7 +15,7 @@ use crate::{
     date::PaceDate, duration::PaceDuration, time::PaceTime, time_zone::PaceTimeZoneKind, Validate,
 };
 
-use pace_error::{PaceError, PaceResult, TimeErrorKind};
+use pace_error::{BoxedPaceError, PaceResult, TimeErrorKind};
 
 impl TryFrom<PaceDate> for PaceDateTime {
     type Error = TimeErrorKind;
@@ -57,7 +57,7 @@ impl FromStr for PaceDateTime {
 }
 
 impl TryFrom<(Option<&NaiveTime>, PaceTimeZoneKind, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     /// Try to convert from a tuple of optional naive time, time zone and time zone offset
     ///
@@ -278,7 +278,7 @@ impl PaceDateTime {
 
 impl Validate for PaceDateTime {
     type Output = Self;
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     /// Check if time is in the future
     ///
@@ -324,7 +324,7 @@ impl From<Option<DateTime<FixedOffset>>> for PaceDateTime {
 }
 
 impl TryFrom<NaiveDateTime> for PaceDateTime {
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     fn try_from(time: NaiveDateTime) -> PaceResult<Self> {
         // get local time zone
@@ -422,7 +422,7 @@ pub fn pace_date_time_from_date_and_time_and_tz(
 }
 
 impl TryFrom<(NaiveDate, NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     fn try_from(
         (date, time, tz): (NaiveDate, NaiveTime, PaceTimeZoneKind),
@@ -432,7 +432,7 @@ impl TryFrom<(NaiveDate, NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
 }
 
 impl TryFrom<(NaiveDate, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     fn try_from((date, tz): (NaiveDate, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
         pace_date_time_from_date_and_time_and_tz(date, Local::now().time(), tz)?.validate()
@@ -440,7 +440,7 @@ impl TryFrom<(NaiveDate, PaceTimeZoneKind)> for PaceDateTime {
 }
 
 impl TryFrom<(NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     fn try_from((time, tz): (NaiveTime, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
         pace_date_time_from_date_and_time_and_tz(Local::now().date_naive(), time, tz)?.validate()
@@ -448,7 +448,7 @@ impl TryFrom<(NaiveTime, PaceTimeZoneKind)> for PaceDateTime {
 }
 
 impl TryFrom<(NaiveDate, NaiveTime)> for PaceDateTime {
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     fn try_from((date, time): (NaiveDate, NaiveTime)) -> Result<Self, Self::Error> {
         pace_date_time_from_date_and_time_and_tz(
@@ -461,7 +461,7 @@ impl TryFrom<(NaiveDate, NaiveTime)> for PaceDateTime {
 }
 
 impl TryFrom<(NaiveDateTime, PaceTimeZoneKind)> for PaceDateTime {
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     fn try_from((date_time, tz): (NaiveDateTime, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
         pace_date_time_from_date_and_time_and_tz(date_time.date(), date_time.time(), tz)?.validate()

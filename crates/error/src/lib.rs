@@ -15,8 +15,11 @@ macro_rules! impl_pace_error_marker {
 /// Result type that is being returned from test functions and methods that can fail and thus have errors.
 pub type TestResult<T> = Result<T, Box<dyn Error + 'static>>;
 
+/// We use a boxed error type for flexibility and size.
+pub type BoxedPaceError = Box<PaceError>;
+
 /// Result type that is being returned from methods that can fail and thus have [`PaceError`]s.
-pub type PaceResult<T> = Result<T, PaceError>;
+pub type PaceResult<T> = Result<T, BoxedPaceError>;
 
 /// Result type that is being returned from methods that have optional return values and can fail thus having [`PaceError`]s.
 pub type PaceOptResult<T> = PaceResult<Option<T>>;
@@ -72,6 +75,12 @@ impl std::fmt::Display for PaceError {
 
 // Accessors for anything we do want to expose publicly.
 impl PaceError {
+    /// Create a new [`PaceError`].
+    #[must_use]
+    pub const fn new(kind: PaceErrorKind) -> Self {
+        Self(kind)
+    }
+
     /// Expose the inner error kind.
     ///
     /// This is useful for matching on the error kind.
@@ -130,6 +139,10 @@ pub enum PaceErrorKind {
     #[error(transparent)]
     Time(#[from] TimeErrorKind),
 
+    /// Config related error: {0}
+    #[error(transparent)]
+    Config(#[from] ConfigErrorKind),
+
     /// JSON error: {0}
     #[error(transparent)]
     Json(#[from] serde_json::Error),
@@ -141,18 +154,6 @@ pub enum PaceErrorKind {
     /// Time chosen is not valid, because it lays before the current activity's beginning: {0}
     #[error(transparent)]
     ChronoDurationIsNegative(#[from] chrono::OutOfRangeError),
-
-    /// Config file {file_name} not found in directory hierarchy starting from {current_dir}
-    ConfigFileNotFound {
-        /// The current directory
-        current_dir: String,
-
-        /// The file name
-        file_name: String,
-    },
-
-    /// Configuration file not found, please run `pace setup config` to initialize `pace`
-    ParentDirNotFound(PathBuf),
 
     /// There is no path available to store the activity log
     NoPathAvailable,
@@ -175,6 +176,23 @@ pub enum PaceErrorKind {
         #[source]
         source: ulid::DecodeError,
     },
+}
+
+/// [`ConfigErrorKind`] describes the errors that can happen while dealing with our configuration.
+#[non_exhaustive]
+#[derive(Error, Debug, Display)]
+pub enum ConfigErrorKind {
+    /// Config file {file_name} not found in directory hierarchy starting from {current_dir}
+    ConfigFileNotFound {
+        /// The current directory
+        current_dir: String,
+
+        /// The file name
+        file_name: String,
+    },
+
+    /// Configuration file not found, please run `pace setup config` to initialize `pace`
+    ParentDirNotFound(PathBuf),
 }
 
 /// [`DatabaseErrorKind`] describes the errors that can happen while dealing with the `SQLite` database.
@@ -230,6 +248,28 @@ pub enum DatabaseStorageErrorKind {
 
     /// Migration affected multiple rows
     MigrationAffectedMultipleRows,
+
+    /// Checking if migration exists failed. Version: {version}, Table: {table}, Query: {query}, Source: {source}
+    CheckingMigrationExistsFailed {
+        version: String,
+        table: String,
+        query: String,
+        source: rusqlite::Error,
+    },
+
+    /// Selection query failed for migration version: {version}, table: {table}, query: {query}, source: {source}
+    SelectionQueryFailed {
+        version: String,
+        table: String,
+        query: String,
+        source: rusqlite::Error,
+    },
+
+    /// Row does not contain migration version: {version}, source: {source}
+    RowDoesNotContainMigrationVersion {
+        version: String,
+        source: rusqlite::Error,
+    },
 }
 
 /// [`TomlFileStorageErrorKind`] describes the errors that can happen while dealing with the Toml file storage.
@@ -460,6 +500,7 @@ impl_pace_error_marker!(TimeErrorKind);
 impl_pace_error_marker!(TemplatingErrorKind);
 impl_pace_error_marker!(DatabaseStorageErrorKind);
 impl_pace_error_marker!(TomlFileStorageErrorKind);
+impl_pace_error_marker!(ConfigErrorKind);
 
 impl<E> From<E> for PaceError
 where
@@ -468,5 +509,15 @@ where
 {
     fn from(value: E) -> Self {
         Self(PaceErrorKind::from(value))
+    }
+}
+
+impl<E> From<E> for Box<PaceError>
+where
+    E: PaceErrorMarker,
+    PaceErrorKind: From<E>,
+{
+    fn from(value: E) -> Self {
+        Self::new(PaceError::new(PaceErrorKind::from(value)))
     }
 }

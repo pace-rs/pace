@@ -43,18 +43,18 @@ impl SQLiteMigration for Migration {
                     .from_col(ActivitiesIden::ParentGuid)
                     .to_col(ActivitiesIden::Guid),
             )
-            .foreign_key(
-                ForeignKey::create()
-                    .name("fk_activities_kind")
-                    .from(ActivitiesIden::Table, ActivitiesIden::Kind)
-                    .to(ActivityKindsIden::Table, ActivityKindsIden::Guid),
-            )
-            .foreign_key(
-                ForeignKey::create()
-                    .name("fk_activities_status")
-                    .from(ActivitiesIden::Table, ActivitiesIden::Status)
-                    .to(ActivityStatusIden::Table, ActivityStatusIden::Guid),
-            )
+            // .foreign_key(
+            //     ForeignKey::create()
+            //         .name("fk_activities_kind")
+            //         .from(ActivitiesIden::Table, ActivitiesIden::Kind)
+            //         .to(ActivityKindsIden::Table, ActivityKindsIden::Guid),
+            // )
+            // .foreign_key(
+            //     ForeignKey::create()
+            //         .name("fk_activities_status")
+            //         .from(ActivitiesIden::Table, ActivitiesIden::Status)
+            //         .to(ActivityStatusIden::Table, ActivityStatusIden::Guid),
+            // )
             .build(SqliteQueryBuilder)
     }
 

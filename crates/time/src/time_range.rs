@@ -7,7 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-use pace_error::{PaceError, PaceResult, TimeErrorKind};
+use pace_error::{BoxedPaceError, PaceResult, TimeErrorKind};
 
 use crate::{date::PaceDate, date_time::PaceDateTime, time_frame::PaceTimeFrame, Validate};
 
@@ -30,7 +30,7 @@ impl Display for TimeRangeOptions {
 }
 
 impl TryFrom<PaceTimeFrame> for TimeRangeOptions {
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     fn try_from(time_frame: PaceTimeFrame) -> Result<Self, Self::Error> {
         match time_frame {
@@ -50,7 +50,7 @@ impl TryFrom<PaceTimeFrame> for TimeRangeOptions {
 
 impl Validate for TimeRangeOptions {
     type Output = Self;
-    type Error = PaceError;
+    type Error = BoxedPaceError;
 
     /// Validate the time range
     ///

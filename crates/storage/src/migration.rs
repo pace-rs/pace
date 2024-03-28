@@ -11,7 +11,8 @@ mod create_tags_20240326125555;
 
 use rusqlite::Connection;
 use sea_query::{Cond, Expr, Iden, Query, SqliteQueryBuilder};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, f32::consts::E};
+use tracing::debug;
 use ulid::Ulid;
 
 use pace_error::{DatabaseStorageErrorKind, PaceResult};
@@ -24,6 +25,7 @@ pub trait SQLiteMigration {
     fn down(&self) -> String;
 }
 
+// TODO: Select migration_version from database and skip the migration if already a value exists
 pub struct SQLiteMigrator<'conn> {
     iterator: Box<dyn Iterator<Item = Box<dyn SQLiteMigration>>>,
     applied: VecDeque<Box<dyn SQLiteMigration>>,
@@ -65,16 +67,21 @@ impl<'conn> SQLiteMigrator<'conn> {
                 })?;
         let query = migration.up();
 
-        if self.connection.execute(&query, []).map_err(|source| {
-            DatabaseStorageErrorKind::MigrationFailed {
-                version: migration.version(),
-                query: query.to_string(),
-                source,
+        _ = match self.connection.execute(&query, []) {
+            Ok(val) => val,
+            Err(rusqlite::Error::SqlInputError { msg, .. }) if msg.contains("already exists") => {
+                debug!("Table already exists");
+                0
             }
-        })? > 1
-        {
-            return Err(DatabaseStorageErrorKind::MigrationAffectedMultipleRows.into());
-        }
+            Err(err) => {
+                return Err(DatabaseStorageErrorKind::MigrationFailed {
+                    version: migration.version(),
+                    query: query.to_string(),
+                    source: err,
+                }
+                .into());
+            }
+        };
 
         self.applied.push_back(migration);
 
@@ -190,16 +197,29 @@ impl<'conn> SQLiteMigrator<'conn> {
         while let Some(migration) = self.iterator.next() {
             let query = migration.up();
 
-            if self.connection.execute(&query, []).map_err(|source| {
-                DatabaseStorageErrorKind::MigrationFailed {
-                    version: migration.version(),
-                    query: query.to_string(),
-                    source,
+            // check if migration already exists in schema_migrations table
+            if self.check_migration_exists(&migration.version())? {
+                debug!("Migration already exists");
+                continue;
+            };
+
+            _ = match self.connection.execute(&query, []) {
+                Ok(val) => val,
+                Err(rusqlite::Error::SqlInputError { msg, .. })
+                    if msg.contains("already exists") =>
+                {
+                    debug!("Table already exists");
+                    0
                 }
-            })? > 1
-            {
-                return Err(DatabaseStorageErrorKind::MigrationAffectedMultipleRows.into());
-            }
+                Err(err) => {
+                    return Err(DatabaseStorageErrorKind::MigrationFailed {
+                        version: migration.version(),
+                        query: query.to_string(),
+                        source: err,
+                    }
+                    .into());
+                }
+            };
 
             self.push_migration_version(migration.version())?;
 
@@ -207,6 +227,42 @@ impl<'conn> SQLiteMigrator<'conn> {
         }
 
         Ok(())
+    }
+
+    fn check_migration_exists(&self, version: &str) -> PaceResult<bool> {
+        let query = Query::select()
+            .from(SchemaMigrationsIden::Table)
+            .columns([SchemaMigrationsIden::Version])
+            .cond_where(Expr::col(SchemaMigrationsIden::Version).eq(version))
+            .to_string(SqliteQueryBuilder);
+
+        let mut stmt = self.connection.prepare(&query).map_err(|source| {
+            DatabaseStorageErrorKind::CheckingMigrationExistsFailed {
+                version: version.to_string(),
+                table: SchemaMigrationsIden::Table.to_string(),
+                query: query.to_string(),
+                source,
+            }
+        })?;
+
+        let mut rows =
+            stmt.query([])
+                .map_err(|source| DatabaseStorageErrorKind::SelectionQueryFailed {
+                    version: version.to_string(),
+                    table: SchemaMigrationsIden::Table.to_string(),
+                    query: query.to_string(),
+                    source,
+                })?;
+
+        Ok(rows
+            .next()
+            .map_err(
+                |source| DatabaseStorageErrorKind::RowDoesNotContainMigrationVersion {
+                    version: version.to_string(),
+                    source,
+                },
+            )?
+            .is_some())
     }
 
     /// Rollback the most recent migration

@@ -12,7 +12,7 @@ use strum_macros::EnumString;
 
 use crate::domain::{priority::ItemPriorityKind, reflection::ReflectionsFormatKind};
 
-use pace_error::{PaceErrorKind, PaceResult};
+use pace_error::{ConfigErrorKind, PaceResult};
 
 /// The pace configuration file
 ///
@@ -335,7 +335,7 @@ pub fn find_root_config_file_path(
     file_name: &str,
 ) -> PaceResult<PathBuf> {
     find_root_project_file(&current_dir, file_name).ok_or_else(|| {
-        PaceErrorKind::ConfigFileNotFound {
+        ConfigErrorKind::ConfigFileNotFound {
             current_dir: current_dir.as_ref().to_string_lossy().to_string(),
             file_name: file_name.to_string(),
         }
