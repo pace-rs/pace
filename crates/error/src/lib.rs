@@ -208,8 +208,12 @@ pub enum DatabaseStorageErrorKind {
     /// This database engine is currently not supported: {0}
     UnsupportedDatabaseEngine(String),
 
-    /// Activity with id {0} not found
-    ActivityNotFound(String),
+    /// Activity with id {guid} not found: {source}
+    ActivityNotFound {
+        guid: String,
+        #[source]
+        source: rusqlite::Error,
+    },
 
     /// Failed to create activity: {0}
     ActivityCreationFailed(String),
@@ -254,6 +258,7 @@ pub enum DatabaseStorageErrorKind {
         version: String,
         table: String,
         query: String,
+        #[source]
         source: rusqlite::Error,
     },
 
@@ -262,18 +267,32 @@ pub enum DatabaseStorageErrorKind {
         version: String,
         table: String,
         query: String,
+        #[source]
         source: rusqlite::Error,
     },
 
     /// Row does not contain migration version: {version}, source: {source}
     RowDoesNotContainMigrationVersion {
         version: String,
+        #[source]
         source: rusqlite::Error,
     },
 
     /// Failed to read activity {guid}: {source}
     ActivityReadFailed {
         guid: String,
+        #[source]
+        source: rusqlite::Error,
+    },
+
+    /// There is no item contained with id {0}
+    NoItemContained(String),
+
+    /// Failed to add values to database table: {version}, query: {query}, source: {source}
+    AddingValuesToDatabaseTableFailed {
+        version: String,
+        query: String,
+        #[source]
         source: rusqlite::Error,
     },
 }

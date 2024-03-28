@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use itertools::Itertools;
 use rusqlite::Connection;
 
 use pace_core::prelude::{
@@ -10,8 +11,15 @@ use pace_core::prelude::{
 };
 use pace_error::{DatabaseStorageErrorKind, PaceOptResult, PaceResult};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
+use sea_query::{Expr, Query, SqliteQueryBuilder};
+use tracing::debug;
 
-use crate::migration::SQLiteMigrator;
+use crate::{
+    entities::activities::{Activities, ActivitiesIden},
+    mediator::Mediator,
+    migration::SQLiteMigrator,
+    storage::SQLiteEntity,
+};
 
 #[derive(Debug)]
 pub struct SqliteActivityStorage {
@@ -58,23 +66,51 @@ impl SyncStorage for SqliteActivityStorage {
 impl ActivityReadOps for SqliteActivityStorage {
     #[tracing::instrument]
     fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
-        // let mut stmt = self
-        //     .connection
-        //     .prepare("SELECT * FROM activities WHERE id = ?1")?;
+        let query = Query::select()
+            .from(ActivitiesIden::Table)
+            .cond_where(Expr::col(ActivitiesIden::Guid).eq(activity_id.to_string()))
+            .limit(1)
+            .to_string(SqliteQueryBuilder);
 
-        // let activity_item_iter =
-        //     stmt.query_map(&[&activity_id], |row| Ok(ActivityItem::from_row(&row)))?;
+        debug!("Read activity query: {query}");
 
-        // let activity_item = activity_item_iter
-        //     .filter_map_ok(|item| item.ok())
-        //     .next()
-        //     .transpose()?
-        //     .ok_or(DatabaseStorageErrorKind::ActivityNotFound(activity_id))?;
+        let mut stmt = self.connection.prepare(&query).map_err(|source| {
+            DatabaseStorageErrorKind::ActivityReadFailed {
+                guid: activity_id.to_string(),
+                source,
+            }
+        })?;
 
-        // debug!("Read activity: {:?}", activity_item);
+        let activity_item_iter = stmt
+            .query_map([&activity_id], |row| Ok(Activities::from_row(row)))
+            .map_err(|source| DatabaseStorageErrorKind::ActivityReadFailed {
+                guid: activity_id.to_string(),
+                source,
+            })?;
 
-        // Ok(activity_item)
-        todo!("implement read_activity for sqlite")
+        let database_item = activity_item_iter
+            .filter_map_ok(std::result::Result::ok)
+            .next()
+            .ok_or(DatabaseStorageErrorKind::NoItemContained(
+                activity_id.to_string(),
+            ))?
+            .map_err(|source| DatabaseStorageErrorKind::ActivityNotFound {
+                guid: activity_id.to_string(),
+                source,
+            })?;
+
+        debug!("Read activity: {:?}", database_item);
+
+        // TODO: Now we need to get the rest of the data from the database
+        // and return the ActivityItem
+        //
+        // Missing data:
+        // ActivityStatus (1:N)
+        // ActivityKind (1:N)
+        // Categories (M:N)
+        // Tags (M:N)
+
+        Ok(ActivityItem::default())
     }
 
     #[tracing::instrument]

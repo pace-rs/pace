@@ -203,23 +203,39 @@ impl<'conn> SQLiteMigrator<'conn> {
                 continue;
             };
 
-            _ = match self.connection.execute(&query, []) {
-                Ok(val) => val,
-                Err(rusqlite::Error::SqlInputError { msg, .. })
-                    if msg.contains("already exists") =>
-                {
-                    debug!("Table already exists");
-                    0
-                }
-                Err(err) => {
-                    return Err(DatabaseStorageErrorKind::MigrationFailed {
+            if query.is_empty() {
+                continue;
+            }
+
+            // check if query contains multiple queries
+            // if so, run each query separately
+            if query.contains("; ") {
+                self.connection.execute_batch(&query).map_err(|source| {
+                    DatabaseStorageErrorKind::AddingValuesToDatabaseTableFailed {
                         version: migration.version(),
                         query: query.to_string(),
-                        source: err,
+                        source,
                     }
-                    .into());
-                }
-            };
+                })?;
+            } else {
+                _ = match self.connection.execute(&query, []) {
+                    Ok(val) => val,
+                    Err(rusqlite::Error::SqlInputError { msg, .. })
+                        if msg.contains("already exists") =>
+                    {
+                        debug!("Table already exists");
+                        0
+                    }
+                    Err(err) => {
+                        return Err(DatabaseStorageErrorKind::MigrationFailed {
+                            version: migration.version(),
+                            query: query.to_string(),
+                            source: err,
+                        }
+                        .into());
+                    }
+                };
+            }
 
             self.push_migration_version(migration.version())?;
 
