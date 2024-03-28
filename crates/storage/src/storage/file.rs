@@ -14,7 +14,7 @@ use pace_core::prelude::{
 use pace_error::{PaceOptResult, PaceResult, TomlFileStorageErrorKind};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 
-use crate::in_memory::InMemoryActivityStorage;
+use crate::storage::in_memory::InMemoryActivityStorage;
 
 /// In-memory backed TOML activity storage
 ///

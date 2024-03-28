@@ -51,7 +51,7 @@ pub mod prelude {
                 ActivityKind, ActivityKindOptions, ActivitySession,
             },
             activity_log::ActivityLog,
-            category::split_category_by_category_separator,
+            category::{split_category_by_category_separator, PaceCategory},
             filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
             intermission::IntermissionAction,
             reflection::{

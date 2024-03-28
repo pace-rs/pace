@@ -1,13 +1,6 @@
+pub mod mediator;
 pub mod migration;
 pub mod storage;
-
-/// A type of storage that can be synced to a persistent medium - a file
-pub mod file;
-
-/// An in-memory storage backend for activities.
-pub mod in_memory;
-
-pub mod sqlite;
 
 pub mod entities;
 
@@ -17,7 +10,7 @@ use pace_core::prelude::{ActivityLogStorageKind, ActivityStorage, DatabaseEngine
 use pace_error::{DatabaseStorageErrorKind, PaceResult};
 use tracing::debug;
 
-use crate::{
+use crate::storage::{
     file::TomlActivityStorage, in_memory::InMemoryActivityStorage, sqlite::SqliteActivityStorage,
 };
 

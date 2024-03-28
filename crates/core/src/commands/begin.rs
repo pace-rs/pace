@@ -10,7 +10,10 @@ use tracing::debug;
 
 use crate::{
     config::PaceConfig,
-    domain::activity::{Activity, ActivityKind},
+    domain::{
+        activity::{Activity, ActivityKind},
+        category::PaceCategory,
+    },
     service::activity_store::ActivityStore,
     storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
 };
@@ -29,7 +32,7 @@ pub struct BeginCommandOptions {
     /// You can use the separator you setup in the configuration file
     /// to specify a subcategory.
     #[cfg_attr(feature = "clap", clap(short, long, name = "Category"))]
-    category: Option<String>,
+    category: Option<PaceCategory>,
 
     /// The time the activity has been started at. Format: HH:MM
     #[cfg_attr(

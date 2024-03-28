@@ -1,5 +1,7 @@
 //! Domain models and business rules
 
+pub mod id;
+
 /// The kind of activity a user can track
 pub mod activity;
 

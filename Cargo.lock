@@ -580,12 +580,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
-name = "dotenvy"
-version = "0.15.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
-
-[[package]]
 name = "either"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1359,7 +1353,6 @@ dependencies = [
  "clap",
  "directories",
  "displaydoc",
- "dotenvy",
  "eyre",
  "getset",
  "insta",
@@ -1372,6 +1365,7 @@ dependencies = [
  "parking_lot",
  "rayon",
  "rstest",
+ "rusqlite",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1401,6 +1395,7 @@ dependencies = [
  "tera",
  "thiserror",
  "toml 0.8.12",
+ "ulid",
 ]
 
 [[package]]
@@ -1413,6 +1408,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "displaydoc",
+ "getset",
  "itertools",
  "libsqlite3-sys",
  "merge",
@@ -1428,6 +1424,7 @@ dependencies = [
  "thiserror",
  "toml 0.8.12",
  "tracing",
+ "typed-builder",
  "ulid",
 ]
 

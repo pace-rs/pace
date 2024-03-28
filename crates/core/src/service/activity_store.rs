@@ -19,7 +19,7 @@ use crate::{
         activity::{
             Activity, ActivityGroup, ActivityGuid, ActivityItem, ActivityKind, ActivitySession,
         },
-        category,
+        category::{self, PaceCategory},
         filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
         reflection::{SummaryActivityGroup, SummaryGroupByCategory},
         status::ActivityStatusKind,
@@ -135,19 +135,23 @@ impl ActivityStore {
         for activity_guid in activity_guids {
             let activity_item = self.read_activity(activity_guid)?;
 
+            let fallback_category = PaceCategory::new("Uncategorized");
+
             let activity_category = activity_item
                 .activity()
                 .category()
-                .as_deref()
-                .unwrap_or("Uncategorized")
-                .to_string();
+                .as_ref()
+                .unwrap_or(&fallback_category);
 
             // Skip if category does not match user input
             if let Some(category) = filter_opts.category() {
                 let (filter_category, activity_category) = if *filter_opts.case_sensitive() {
                     (category.clone(), activity_category.clone())
                 } else {
-                    (category.to_lowercase(), activity_category.to_lowercase())
+                    (
+                        PaceCategory::new(&category.to_lowercase()),
+                        PaceCategory::new(&activity_category.to_lowercase()),
+                    )
                 };
 
                 if !WildMatch::new(&filter_category).matches(&activity_category) {
@@ -165,7 +169,7 @@ impl ActivityStore {
 
             // Handle splitting subcategories
             let (category, subcategory) =
-                category::split_category_by_category_separator(&activity_category, None);
+                category::split_category_by_category_separator(activity_category, None);
 
             // Deduplicate activities by category and description first
             _ = activity_sessions_lookup_by_category

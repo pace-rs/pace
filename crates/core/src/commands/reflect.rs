@@ -13,7 +13,10 @@ use typed_builder::TypedBuilder;
 
 use crate::{
     config::PaceConfig,
-    domain::{activity::ActivityKind, filter::FilterOptions, reflection::ReflectionsFormatKind},
+    domain::{
+        activity::ActivityKind, category::PaceCategory, filter::FilterOptions,
+        reflection::ReflectionsFormatKind,
+    },
     prelude::ActivityStorage,
     service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
     template::{PaceReflectionTemplate, TEMPLATES},
@@ -40,7 +43,7 @@ pub struct ReflectCommandOptions {
         feature = "clap",
         clap(short, long, value_name = "Category", visible_alias = "cat")
     )]
-    category: Option<String>,
+    category: Option<PaceCategory>,
 
     /// Case sensitive category filter
     #[cfg_attr(

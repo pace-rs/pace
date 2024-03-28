@@ -14,6 +14,7 @@ use pace_error::{ActivityLogErrorKind, PaceResult, UserMessage};
 use crate::{
     commands::UpdateOptions,
     config::PaceConfig,
+    domain::category::PaceCategory,
     service::activity_store::ActivityStore,
     storage::{ActivityQuerying, ActivityStorage, ActivityWriteOps, SyncStorage},
 };
@@ -39,7 +40,7 @@ pub struct AdjustCommandOptions {
             visible_alias = "cat"
         )
     )]
-    category: Option<String>,
+    category: Option<PaceCategory>,
 
     /// The description of the activity
     #[cfg_attr(

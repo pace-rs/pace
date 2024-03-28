@@ -168,6 +168,13 @@ pub enum PaceErrorKind {
     /// Toml file error: {0}
     #[error(transparent)]
     TomlFile(#[from] TomlFileStorageErrorKind),
+
+    /// Invalid Ulid parsed from string: {value} due to {source}
+    InvalidGuid {
+        value: String,
+        #[source]
+        source: ulid::DecodeError,
+    },
 }
 
 /// [`DatabaseErrorKind`] describes the errors that can happen while dealing with the `SQLite` database.

@@ -15,9 +15,8 @@ use std::{collections::HashSet, fmt::Display};
 use strum_macros::EnumString;
 use tracing::debug;
 use typed_builder::TypedBuilder;
-use ulid::Ulid;
 
-use crate::domain::status::ActivityStatusKind;
+use crate::domain::{category::PaceCategory, id::Guid, status::ActivityStatusKind};
 
 use pace_error::{ActivityLogErrorKind, PaceResult};
 
@@ -203,7 +202,7 @@ pub struct Activity {
     #[getset(get = "pub", get_mut = "pub")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    category: Option<String>,
+    category: Option<PaceCategory>,
 
     /// The description of the activity
     // This needs to be an Optional, because we use the whole activity struct
@@ -314,17 +313,22 @@ impl ActivityKindOptions {
 
 /// The unique identifier of an activity
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
-pub struct ActivityGuid(Ulid);
+pub struct ActivityGuid(Guid);
 
 impl ActivityGuid {
     #[must_use]
     pub fn new() -> Self {
-        Self(Ulid::new())
+        Self(Guid::new())
     }
 
     #[must_use]
-    pub const fn with_id(id: Ulid) -> Self {
+    pub const fn with_id(id: Guid) -> Self {
         Self(id)
+    }
+
+    #[must_use]
+    pub const fn inner(&self) -> &Guid {
+        &self.0
     }
 }
 
@@ -336,7 +340,7 @@ impl Display for ActivityGuid {
 
 impl Default for ActivityGuid {
     fn default() -> Self {
-        Self(Ulid::new())
+        Self(Guid::new())
     }
 }
 
@@ -345,7 +349,7 @@ impl Display for Activity {
         let time = self.begin.and_local_timezone(&Local);
         let utc_offset = time.offset();
         let symbol = self.kind.as_symbol();
-        let nop_cat = "Uncategorized".to_string();
+        let nop_cat = PaceCategory::new("Uncategorized");
         let description = self.description();
         let category = self.category().as_ref().unwrap_or(&nop_cat);
         let started_at = duration_to_str(time);
@@ -714,13 +718,16 @@ mod tests {
 
         let activity: Activity = toml::from_str(toml)?;
 
-        assert_eq!(activity.category.as_ref().ok_or("No category.")?, "Work");
+        assert_eq!(
+            activity.category.as_ref().ok_or("No category.")?,
+            &PaceCategory::new("Work")
+        );
 
         assert_eq!(activity.description, "This is an example activity");
 
         let ActivityEndOptions { end, duration } = activity
             .activity_end_options()
-            .clone()
+            .as_ref()
             .ok_or("No end options")?;
 
         let begin_time = PaceDateTime::try_from((
@@ -745,9 +752,9 @@ mod tests {
 
         assert_eq!(activity.begin, begin_time);
 
-        assert_eq!(end, end_time);
+        assert_eq!(end, &end_time);
 
-        assert_eq!(duration, PaceDuration::from_str("19")?);
+        assert_eq!(duration, &PaceDuration::from_str("19")?);
 
         assert_eq!(activity.kind, ActivityKind::Activity);
 

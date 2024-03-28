@@ -15,7 +15,8 @@ use pace_core::prelude::{
     Activity, ActivityEndOptions, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind,
     ActivityKindOptions, ActivityLog, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
     ActivityStatusKind, ActivityStorage, ActivityWriteOps, DeleteOptions, EndOptions,
-    FilteredActivities, HoldOptions, KeywordOptions, ResumeOptions, SyncStorage, UpdateOptions,
+    FilteredActivities, HoldOptions, KeywordOptions, PaceCategory, ResumeOptions, SyncStorage,
+    UpdateOptions,
 };
 use pace_error::{ActivityLogErrorKind, PaceOptResult, PaceResult};
 
@@ -712,11 +713,13 @@ impl ActivityQuerying for InMemoryActivityStorage {
 
                     debug!("No category specified. Using 'Uncategorized' as the category.");
 
+                    let fallback_category = PaceCategory::new("Uncategorized");
+
                     acc.entry(
                         activity
                             .category()
                             .as_ref()
-                            .unwrap_or(&"Uncategorized".to_string())
+                            .unwrap_or(&fallback_category)
                             .to_string(),
                     )
                     .or_default()
@@ -1571,12 +1574,14 @@ mod tests {
             .begin(begin_time)
             .kind(kind)
             .description(description)
-            .category("Project::Test".to_string())
+            .category(PaceCategory::new("Project::Test"))
             .build();
 
         let activity_item = storage.begin_activity(activity)?;
 
-        let keyword_opts = KeywordOptions::builder().category("Test").build();
+        let keyword_opts = KeywordOptions::builder()
+            .category(PaceCategory::new("Test"))
+            .build();
 
         let grouped_activities = storage.group_activities_by_keywords(keyword_opts)?.ok_or(
             "Grouped activities by keywords returned None, but should have returned Some.",

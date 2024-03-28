@@ -1,3 +1,6 @@
+#[cfg(feature = "rusqlite")]
+pub mod rusqlite;
+
 use std::{
     collections::BTreeMap,
     fmt::{self, Debug, Formatter},

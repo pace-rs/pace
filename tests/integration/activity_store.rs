@@ -5,10 +5,10 @@ use std::{collections::HashSet, sync::Arc};
 use pace_core::prelude::{
     Activity, ActivityFilterKind, ActivityGuid, ActivityReadOps, ActivityStateManagement,
     ActivityStatusKind, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
-    ResumeOptions, UpdateOptions,
+    PaceCategory, ResumeOptions, UpdateOptions,
 };
 use pace_error::TestResult;
-use pace_storage::in_memory::InMemoryActivityStorage;
+use pace_storage::storage::in_memory::InMemoryActivityStorage;
 
 use crate::util::{
     activity_store, activity_store_empty, activity_store_no_intermissions, TestData,
@@ -28,7 +28,7 @@ fn test_activity_store_create_activity_passes(
 
     let activity = Activity::builder()
         .description("Test Description".to_string())
-        .category("Test::Category".to_string())
+        .category(PaceCategory::new("Test::Category"))
         .build();
 
     let og_activity = activity.clone();
@@ -256,7 +256,7 @@ fn test_activity_store_update_activity_passes(
     let og_activity_id = *og_activity.guid();
 
     let updated_test_desc = "Updated Test Description".to_string();
-    let updated_test_cat = "Test::UpdatedCategory".to_string();
+    let updated_test_cat = PaceCategory::new("Test::UpdatedCategory");
 
     let new_activity = Activity::builder()
         .description(updated_test_desc.to_string())
@@ -356,7 +356,7 @@ fn test_activity_store_update_activity_fails(
 
     let new_activity = Activity::builder()
         .description("test".to_string())
-        .category("test".to_string())
+        .category(PaceCategory::new("test"))
         .build();
 
     let activity_id = ActivityGuid::default();
@@ -419,7 +419,7 @@ fn test_activity_store_begin_intermission_passes(
 
     assert_eq!(
         intermission.activity().category(),
-        &Some("Test::Intermission".to_string())
+        &Some(PaceCategory::new("Test::Intermission"))
     );
 
     assert_eq!(
@@ -485,7 +485,7 @@ fn test_activity_store_begin_intermission_with_existing_does_nothing_passes(
 
     assert_eq!(
         intermission.activity().category(),
-        &Some("Test::Intermission".to_string()),
+        &Some(PaceCategory::new("Test::Intermission")),
         "Category should be the same as original activity."
     );
 

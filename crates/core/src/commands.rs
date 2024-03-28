@@ -11,7 +11,10 @@ use getset::Getters;
 use pace_time::date_time::PaceDateTime;
 use typed_builder::TypedBuilder;
 
-use crate::commands::{hold::HoldOptions, resume::ResumeOptions};
+use crate::{
+    commands::{hold::HoldOptions, resume::ResumeOptions},
+    domain::category::PaceCategory,
+};
 
 /// Options for ending an activity
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
@@ -56,5 +59,5 @@ pub struct DeleteOptions {}
 #[non_exhaustive]
 pub struct KeywordOptions {
     #[builder(default, setter(into, strip_option))]
-    category: Option<String>,
+    category: Option<PaceCategory>,
 }

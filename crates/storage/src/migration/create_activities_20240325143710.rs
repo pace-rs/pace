@@ -31,7 +31,7 @@ impl SQLiteMigration for Migration {
                     .text()
                     .not_null(),
             )
-            .col(ColumnDef::new(ActivitiesIden::Begin).text().not_null())
+            .col(ColumnDef::new(ActivitiesIden::Begin).date_time().not_null())
             .col(ColumnDef::new(ActivitiesIden::End).text().null())
             .col(ColumnDef::new(ActivitiesIden::Duration).integer().null())
             .col(ColumnDef::new(ActivitiesIden::Kind).text().not_null())

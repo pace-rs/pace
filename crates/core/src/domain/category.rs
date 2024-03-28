@@ -1,14 +1,51 @@
 //! Category entity and business logic
 
+use std::str::FromStr;
+
 use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
-use ulid::Ulid;
 
-use crate::config::GeneralConfig;
+use crate::{config::GeneralConfig, domain::id::Guid};
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, Hash, PartialEq, Default, PartialOrd, Ord)]
+pub struct PaceCategory(String);
+
+impl PaceCategory {
+    pub fn new(category: &str) -> Self {
+        Self(category.to_owned())
+    }
+}
+impl<'a, T: AsRef<&'a str>> From<T> for PaceCategory {
+    fn from(category: T) -> Self {
+        Self::new(category.as_ref())
+    }
+}
+
+impl FromStr for PaceCategory {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::new(s))
+    }
+}
+
+impl std::fmt::Display for PaceCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::ops::Deref for PaceCategory {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// The category entity
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, Clone)]
-pub struct Category {
+struct NewCategory {
     /// The category description
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -26,7 +63,7 @@ pub struct Category {
     // TODO: Add support for subcategories
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    subcategories: Option<Vec<Category>>,
+    subcategories: Option<Vec<NewCategory>>,
 }
 
 /// Extracts the category and subcategory from a string
@@ -40,19 +77,28 @@ pub struct Category {
 ///
 /// A tuple containing the category and subcategory
 #[must_use]
-pub fn extract_categories(category_string: &str, separator: &str) -> (Category, Option<Category>) {
+fn extract_categories(
+    category_string: &str,
+    separator: &str,
+) -> (NewCategory, Option<NewCategory>) {
     let parts: Vec<_> = category_string.split(separator).collect();
     if parts.len() > 1 {
         // if there are more than one part, the first part is the category
         // and the rest is the subcategory
         (
-            Category::builder().name(parts[0].to_string()).build(),
-            Some(Category::builder().name(parts[1..].join(separator)).build()),
+            NewCategory::builder().name(parts[0].to_string()).build(),
+            Some(
+                NewCategory::builder()
+                    .name(parts[1..].join(separator))
+                    .build(),
+            ),
         )
     } else {
         // if there is only one part, it's the category
         (
-            Category::builder().name(category_string.to_owned()).build(),
+            NewCategory::builder()
+                .name(category_string.to_owned())
+                .build(),
             None,
         )
     }
@@ -95,15 +141,15 @@ pub fn split_category_by_category_separator(
 
 /// The category id
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct CategoryGuid(Ulid);
+pub struct CategoryGuid(Guid);
 
 impl Default for CategoryGuid {
     fn default() -> Self {
-        Self(Ulid::new())
+        Self(Guid::new())
     }
 }
 
-impl Default for Category {
+impl Default for NewCategory {
     fn default() -> Self {
         Self {
             guid: Some(CategoryGuid::default()),

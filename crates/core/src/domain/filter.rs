@@ -4,7 +4,10 @@ use serde_derive::Serialize;
 use strum::EnumIter;
 use typed_builder::TypedBuilder;
 
-use crate::{commands::reflect::ReflectCommandOptions, domain::activity::ActivityGuid};
+use crate::{
+    commands::reflect::ReflectCommandOptions,
+    domain::{activity::ActivityGuid, category::PaceCategory},
+};
 
 /// Filter for activities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumIter)]
@@ -92,7 +95,7 @@ impl FilteredActivities {
 )]
 #[getset(get = "pub")]
 pub struct FilterOptions {
-    category: Option<String>,
+    category: Option<PaceCategory>,
     case_sensitive: bool,
 }
 

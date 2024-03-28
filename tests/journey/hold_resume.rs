@@ -3,7 +3,7 @@ use pace_core::prelude::{
     ResumeOptions,
 };
 use pace_error::TestResult;
-use pace_storage::in_memory::InMemoryActivityStorage;
+use pace_storage::storage::in_memory::InMemoryActivityStorage;
 
 #[test]
 #[allow(clippy::too_many_lines)]

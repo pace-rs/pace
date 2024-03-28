@@ -1,17 +1,21 @@
+use chrono::FixedOffset;
+use getset::Getters;
 use rusqlite::{Error, Row};
 use sea_query::enum_def;
 use strum::EnumIter;
+use typed_builder::TypedBuilder;
 
 use crate::storage::SQLiteEntity;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, TypedBuilder, Getters)]
+#[getset(get = "pub")]
 #[enum_def]
 pub struct Activities {
     pub guid: String,
     pub category: String,
     pub description: String,
-    pub begin: String,
-    pub end: Option<String>,
+    pub begin: chrono::DateTime<FixedOffset>,
+    pub end: Option<chrono::DateTime<FixedOffset>>,
     pub duration: Option<i32>,
     pub kind: String,
     pub status: String,

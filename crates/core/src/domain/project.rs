@@ -18,11 +18,11 @@ pub struct ProjectList {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DefaultOptions {
-    categories: Option<Vec<Category>>,
+    categories: Option<Vec<ProjectCategory>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Category {
+pub struct ProjectCategory {
     id: Ulid,
     name: String,
     description: Option<String>,

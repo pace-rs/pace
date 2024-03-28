@@ -8,7 +8,7 @@ use pace_core::prelude::{
 };
 use pace_error::TestResult;
 
-use pace_storage::file::TomlActivityStorage;
+use pace_storage::storage::file::TomlActivityStorage;
 use rstest::fixture;
 
 pub struct TestData {
@@ -54,7 +54,8 @@ pub fn activity_store_no_intermissions() -> TestResult<TestData> {
 // We need to use `#[cfg(not(tarpaulin_include))]` to exclude this from coverage reports
 #[cfg(not(tarpaulin_include))]
 pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData> {
-    use pace_storage::in_memory::InMemoryActivityStorage;
+    use pace_core::prelude::PaceCategory;
+    use pace_storage::storage::in_memory::InMemoryActivityStorage;
     use pace_time::date_time::PaceDateTime;
 
     let begin_time = PaceDateTime::default();
@@ -95,7 +96,7 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
 
     let desc = "Activity with Intermission".to_string();
 
-    let cat = "Test::Intermission".to_string();
+    let cat = PaceCategory::new("Test::Intermission");
 
     let paused = ActivityItem::from((
         ActivityGuid::default(),

@@ -35,7 +35,7 @@ displaydoc = { workspace = true }
 getset = { workspace = true }
 humantime = { workspace = true }
 pace_error = { workspace = true }
-rusqlite = { workspace = true, optional = true, features = ["bundled", "chrono"] }
+rusqlite = { workspace = true, optional = true, features = ["chrono"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 thiserror = { workspace = true }

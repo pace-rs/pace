@@ -1,9 +1,12 @@
+use getset::Getters;
 use rusqlite::{Error, Row};
 use sea_query::enum_def;
+use typed_builder::TypedBuilder;
 
 use crate::storage::SQLiteEntity;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, TypedBuilder, Getters)]
+#[getset(get = "pub")]
 #[enum_def]
 pub struct SchemaMigrations {
     pub guid: String,

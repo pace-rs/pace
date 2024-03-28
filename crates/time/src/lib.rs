@@ -3,7 +3,7 @@ pub mod date_time;
 pub mod duration;
 pub mod flags;
 #[cfg(feature = "rusqlite")]
-pub mod rusqlite;
+pub mod storage;
 pub mod time;
 pub mod time_frame;
 pub mod time_range;

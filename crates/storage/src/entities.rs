@@ -1,6 +1,10 @@
 use pace_core::prelude::{
     Activity, ActivityEndOptions, ActivityGuid, ActivityKind, ActivityStatusKind,
 };
+use typed_builder::TypedBuilder;
+use ulid::Ulid;
+
+use crate::entities::activities::Activities as SQLiteActivity;
 
 pub mod activities;
 pub mod activities_categories;
@@ -11,20 +15,18 @@ pub mod categories;
 pub mod schema_migrations;
 pub mod tags;
 
-pub struct SQLiteActivity(Activity);
-
-pub struct SQLiteActivityGuid(ActivityGuid);
-
+#[derive(Clone, Debug, PartialEq, Eq, TypedBuilder)]
 pub struct SQLiteActivityItem {
-    guid: SQLiteActivityGuid,
+    guid: Ulid,
     activity: SQLiteActivity,
 }
 
-pub struct SQLiteActivityKind(ActivityKind);
-
-pub struct SQLiteActivityStatusKind(ActivityStatusKind);
-
-pub struct SQLiteActivityEndOptions(ActivityEndOptions);
+impl SQLiteActivityItem {
+    #[must_use]
+    pub const fn new(guid: Ulid, activity: SQLiteActivity) -> Self {
+        Self { guid, activity }
+    }
+}
 
 // impl SqliteActivity {
 //     pub fn to_sql_prepare_statement(&self) -> &'static str {
@@ -165,52 +167,5 @@ pub struct SQLiteActivityEndOptions(ActivityEndOptions);
 //         let guid = ActivityGuid::from_row(row)?;
 
 //         Ok(Self::builder().guid(guid).activity(activity).build())
-//     }
-// }
-
-// impl ToSql for SqliteActivityGuid {
-//     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-//         Ok(rusqlite::types::ToSqlOutput::Owned(
-//             rusqlite::types::Value::Text(self.to_string()),
-//         ))
-//     }
-// }
-
-// impl FromSql for SqliteActivityGuid {
-//     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-//         Ok(ActivityGuid::with_id(
-//             Ulid::from_string(value.as_str()?)
-//                 .map_err(|err| rusqlite::types::FromSqlError::Other(Box::new(err)))?,
-//         ))
-//     }
-// }
-
-// impl ToSql for SqliteActivityKind {
-//     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-//         Ok(rusqlite::types::ToSqlOutput::Owned(
-//             rusqlite::types::Value::Text(self.to_string()),
-//         ))
-//     }
-// }
-
-// impl FromSql for SqliteActivityKind {
-//     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-//         Ok(ActivityKind::from_str(value.as_str()?)
-//             .map_err(|err| rusqlite::types::FromSqlError::Other(Box::new(err)))?)
-//     }
-// }
-
-// impl ToSql for SqliteActivityStatusKind {
-//     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-//         Ok(rusqlite::types::ToSqlOutput::Owned(
-//             rusqlite::types::Value::Text(self.to_string()),
-//         ))
-//     }
-// }
-
-// impl FromSql for SqliteActivityStatusKind {
-//     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-//         Ok(ActivityStatusKind::from_str(value.as_str()?)
-//             .map_err(|err| rusqlite::types::FromSqlError::Other(Box::new(err)))?)
 //     }
 // }
