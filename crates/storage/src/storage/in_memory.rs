@@ -119,7 +119,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
 
         drop(activities);
 
-        debug!("Activity with id {:?} found: {:?}", activity_id, activity);
+        debug!("Activity with id {activity_id:?} found: {activity:?}");
 
         Ok((activity_id, activity).into())
     }
@@ -150,7 +150,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
 
         drop(activity_log);
 
-        debug!("Filtered activities: {:?}", filtered);
+        debug!("Filtered activities: {filtered:?}");
 
         if filtered.is_empty() {
             return Ok(None);
@@ -230,14 +230,14 @@ impl ActivityWriteOps for InMemoryActivityStorage {
                     activity_id.to_string(),
                 ))?;
 
-        debug!("Original activity: {:?}", original_activity);
+        debug!("Original activity: {original_activity:?}");
 
         drop(activities);
 
         let mut activities = self.log.write();
 
         let _ = activities.entry(activity_id).and_modify(|activity| {
-            debug!("Updating activity: {:?}", activity);
+            debug!("Updating activity: {activity:?}");
             activity.merge(updated_activity);
         });
 
@@ -290,7 +290,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             calculate_duration(&begin_time, end_opts.end_time())?,
         );
 
-        debug!("End options: {:?}", end_opts);
+        debug!("End options: {end_opts:?}");
 
         let mut activities = self.log.write();
 
@@ -310,7 +310,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             return Ok(None);
         };
 
-        debug!("Most recent activity: {:?}", most_recent);
+        debug!("Most recent activity: {most_recent:?}");
 
         let activity = self.end_activity(*most_recent.guid(), end_opts)?;
 
@@ -334,7 +334,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         drop(activities);
 
-        debug!("Endable activities: {:?}", endable_activities);
+        debug!("Endable activities: {endable_activities:?}");
 
         // There are no active activities
         if endable_activities.is_empty() {
@@ -349,7 +349,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             })
             .collect::<PaceResult<Vec<ActivityItem>>>()?;
 
-        debug!("Ended activities: {:?}", ended_activities);
+        debug!("Ended activities: {ended_activities:?}");
 
         if ended_activities.len() != endable_activities.len() {
             debug!("Not all activities were ended.");
@@ -397,7 +397,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             })
             .collect::<PaceResult<Vec<ActivityGuid>>>()?;
 
-        debug!("Ended intermissions: {:?}", ended_intermissions);
+        debug!("Ended intermissions: {ended_intermissions:?}");
 
         if ended_intermissions.len() != active_intermissions.len() {
             debug!("Not all intermissions were ended.");
@@ -417,7 +417,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
     ) -> PaceResult<ActivityItem> {
         let resumable_activity = self.read_activity(activity_id)?;
 
-        debug!("Resumable activity: {:?}", resumable_activity);
+        debug!("Resumable activity: {resumable_activity:?}");
 
         // If the activity is active, return early with an error
         if resumable_activity.activity().is_in_progress() {
@@ -441,7 +441,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         // so you can't have multiple intermissions at once, only one at a time.
         let ended_intermission_ids = self.end_all_active_intermissions(resume_opts.into())?;
 
-        debug!("Ended intermission ids: {:?}", ended_intermission_ids);
+        debug!("Ended intermission ids: {ended_intermission_ids:?}");
 
         // Update the activity to be active again
         let mut editable_activity = resumable_activity.clone();
@@ -451,7 +451,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             .set_status(ActivityStatusKind::InProgress)
             .clone();
 
-        debug!("Updated activity: {:?}", updated_activity);
+        debug!("Updated activity: {updated_activity:?}");
 
         let _ = self.update_activity(
             *resumable_activity.guid(),
@@ -471,7 +471,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         // Get ActivityItem for activity that
         let active_activity = self.read_activity(activity_id)?;
 
-        debug!("Active activity: {:?}", active_activity);
+        debug!("Active activity: {active_activity:?}");
 
         // make sure, the activity is not already ended or archived
         if !active_activity.activity().is_in_progress() {
@@ -517,10 +517,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         let active_intermission_ids =
             self.end_all_active_intermissions(hold_opts.clone().into())?;
 
-        debug!(
-            "Ended active intermission ids: {:?}",
-            active_intermission_ids
-        );
+        debug!("Ended active intermission ids: {active_intermission_ids:?}");
 
         // Create a new intermission for the active activity
         let activity_kind_opts = ActivityKindOptions::with_parent_id(*active_activity.guid());
@@ -541,7 +538,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         let created_intermission_item = self.begin_activity(intermission)?;
 
-        debug!("Created intermission: {:?}", created_intermission_item);
+        debug!("Created intermission: {created_intermission_item:?}");
 
         // Update the active activity to be held
         let mut editable_activity = active_activity.clone();
@@ -551,7 +548,7 @@ impl ActivityStateManagement for InMemoryActivityStorage {
             .set_status(ActivityStatusKind::Paused)
             .clone();
 
-        debug!("Updated activity: {:?}", updated_activity);
+        debug!("Updated activity: {updated_activity:?}");
 
         let _ = self.update_activity(
             *active_activity.guid(),
@@ -623,7 +620,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
             |mut acc: BTreeMap<PaceDate, Vec<ActivityItem>>, (activity_id, activity)| {
                 let begin_date = activity.begin().date_naive();
 
-                debug!("Begin date: {:?}", begin_date);
+                debug!("Begin date: {begin_date:?}");
 
                 acc.entry(begin_date)
                     .or_default()
@@ -648,14 +645,14 @@ impl ActivityQuerying for InMemoryActivityStorage {
             return Ok(None);
         };
 
-        debug!("Intermissions: {:?}", intermissions);
+        debug!("Intermissions: {intermissions:?}");
 
         Some(intermissions.into_iter().try_fold(
             BTreeMap::new(),
             |mut acc: BTreeMap<ActivityGuid, Vec<ActivityItem>>, intermission_id| {
                 let intermission = self.read_activity(intermission_id)?;
 
-                debug!("Intermission: {:?}", intermission);
+                debug!("Intermission: {intermission:?}");
 
                 let parent_id = intermission
                     .activity()
@@ -669,11 +666,11 @@ impl ActivityQuerying for InMemoryActivityStorage {
                         intermission_id.to_string(),
                     ))?;
 
-                debug!("Parent id: {:?}", parent_id);
+                debug!("Parent id: {parent_id:?}");
 
                 let parent_activity = self.read_activity(parent_id)?;
 
-                debug!("Parent activity: {:?}", parent_activity);
+                debug!("Parent activity: {parent_activity:?}");
 
                 acc.entry(parent_id).or_default().push(parent_activity);
 
@@ -697,7 +694,7 @@ impl ActivityQuerying for InMemoryActivityStorage {
                 if let Some(category) = keyword_opts.category() {
                     let category = category.to_lowercase();
 
-                    debug!("Category: {:?}", category);
+                    debug!("Category: {category:?}");
 
                     if activity
                         .category()
@@ -744,10 +741,8 @@ impl ActivityQuerying for InMemoryActivityStorage {
             BTreeMap::new(),
             |mut acc: BTreeMap<ActivityKind, Vec<ActivityItem>>, (activity_id, activity)| {
                 debug!(
-                    "Activity kind: {:?} for item {:?} with id {:?}",
-                    activity.kind(),
-                    activity,
-                    activity_id
+                    "Activity kind: {:?} for item {activity:?} with id {activity_id:?}",
+                    activity.kind()
                 );
 
                 acc.entry(*activity.kind())
@@ -770,10 +765,8 @@ impl ActivityQuerying for InMemoryActivityStorage {
             BTreeMap::new(),
             |mut acc: BTreeMap<ActivityStatusKind, Vec<ActivityItem>>, (activity_id, activity)| {
                 debug!(
-                    "Activity status: {:?} for item {:?} with id {:?}",
-                    activity.status(),
-                    activity,
-                    activity_id
+                    "Activity status: {:?} for item {activity:?} with id {activity_id:?}",
+                    activity.status()
                 );
 
                 acc.entry(*activity.status())

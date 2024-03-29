@@ -43,7 +43,7 @@ impl NowCommandOptions {
             .map_or_else(
                 || "No activities are currently running.".to_string(),
                 |activities| {
-                    debug!("Current Activities: {:?}", activities);
+                    debug!("Current Activities: {activities:?}");
 
                     // Get the activity items
                     let activity_items = activities

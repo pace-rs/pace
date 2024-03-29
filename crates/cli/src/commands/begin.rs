@@ -152,7 +152,7 @@ impl BeginCommandOptions {
 
         let activity_item = activity_store.begin_activity(activity)?;
 
-        debug!("Started Activity: {:?}", activity_item);
+        debug!("Started Activity: {activity_item:?}");
 
         activity_store.sync()?;
 

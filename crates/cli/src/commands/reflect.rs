@@ -154,7 +154,7 @@ impl ReflectCommandOptions {
 
         let activity_tracker = ActivityTracker::with_activity_store(activity_store);
 
-        debug!("Displaying reflection for time frame: {}", time_frame);
+        debug!("Displaying reflection for time frame: {time_frame}");
 
         let filter_opts = FilterOptions::builder()
             .category(category.clone())
@@ -175,7 +175,7 @@ impl ReflectCommandOptions {
             Some(ReflectionsFormatKind::Json) => {
                 let json = serde_json::to_string_pretty(&reflection)?;
 
-                debug!("Reflection: {}", json);
+                debug!("Reflection: {json}");
 
                 // write to file if export file is specified
                 if let Some(export_file) = export_file {
@@ -208,7 +208,7 @@ impl ReflectCommandOptions {
                         .map_err(TemplatingErrorKind::RenderingToTemplateFailed)?
                 };
 
-                debug!("Reflection: {}", templated);
+                debug!("Reflection: {templated}");
 
                 // write to file if export file is specified
                 if let Some(export_file) = export_file {

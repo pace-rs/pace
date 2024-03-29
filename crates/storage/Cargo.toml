@@ -19,17 +19,6 @@ include = [
   "Cargo.toml",
 ]
 
-# TODO: With our limited scope, we don't feature gate anything
-# [features]
-# default = ["db"]
-# db = ["rusqlite"]
-# rusqlite = [
-#   "dep:rusqlite",
-#   "dep:libsqlite3-sys",
-#   "dep:sea-query",
-#   "dep:sea-query-rusqlite",
-# ]
-
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 displaydoc = { workspace = true }
@@ -37,16 +26,16 @@ getset = { workspace = true }
 itertools = { workspace = true }
 libsqlite3-sys = { workspace = true, features = ["bundled"] }
 merge = { workspace = true }
-pace_core = { workspace = true, features = ["db"] }
+pace_core = { workspace = true }
 pace_error = { workspace = true }
-pace_time = { workspace = true, features = ["db"] }
+pace_time = { workspace = true }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
-rusqlite = { workspace = true, features = ["bundled", "chrono"] }
-sea-query = { workspace = true, features = ["derive", "attr", "with-chrono", "backend-sqlite"] }
-sea-query-rusqlite = { workspace = true, features = ["with-chrono"] }
+sea-orm = { workspace = true, features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros", "mock", "with-chrono", "debug-print"] }
+sea-orm-migration = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, default-features = false, features = ["rt-multi-thread"] }
 toml = { workspace = true, features = ["indexmap", "preserve_order"] }
 tracing = { workspace = true }
 typed-builder = { workspace = true }

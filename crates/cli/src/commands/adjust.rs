@@ -171,25 +171,25 @@ impl AdjustCommandOptions {
             .most_recent_active_activity()?
             .ok_or_else(|| ActivityLogErrorKind::NoActiveActivityToAdjust)?;
 
-        debug!("Most recent active activity item: {:?}", activity_item);
+        debug!("Most recent active activity item: {activity_item:?}");
 
         let guid = *activity_item.guid();
         let mut activity = activity_item.activity().clone();
 
         if let Some(category) = category {
-            debug!("Setting category to: {:?}", category);
+            debug!("Setting category to: {category:?}");
 
             _ = activity.set_category(category.clone().into());
         }
 
         if let Some(description) = description {
-            debug!("Setting description to: {:?}", description);
+            debug!("Setting description to: {description:?}");
 
             _ = activity.set_description(description.clone());
         }
 
         if start.is_some() {
-            debug!("Setting start time to: {:?}", date_time);
+            debug!("Setting start time to: {date_time:?}");
 
             _ = activity.set_begin(date_time);
         }
@@ -198,7 +198,7 @@ impl AdjustCommandOptions {
             let tags = tags.iter().cloned().collect::<PaceTagCollection>();
 
             if *override_tags {
-                debug!("Overriding tags with: {:?}", tags);
+                debug!("Overriding tags with: {tags:?}");
                 _ = activity.set_tags(Some(tags));
             } else {
                 let merged_tags = activity.tags_mut().as_mut().map_or_else(
@@ -206,7 +206,7 @@ impl AdjustCommandOptions {
                     |existing_tags| existing_tags.union(&tags).cloned().collect(),
                 );
 
-                debug!("Setting merged tags: {:?}", merged_tags);
+                debug!("Setting merged tags: {merged_tags:?}");
 
                 _ = activity.set_tags(Some(merged_tags));
             }

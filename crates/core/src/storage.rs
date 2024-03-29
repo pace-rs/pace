@@ -1,5 +1,5 @@
-#[cfg(feature = "rusqlite")]
-pub mod rusqlite;
+// #[cfg(feature = "rusqlite")]
+// pub mod rusqlite;
 
 use itertools::Itertools;
 use std::{
@@ -585,10 +585,7 @@ pub trait ActivityQuerying: ActivityReadOps {
         };
 
         if filtered.len() > count {
-            debug!(
-                "Found more than {} recent activities, dropping some...",
-                count
-            );
+            debug!("Found more than {count} recent activities, dropping some...");
 
             Ok(Some(
                 (*filtered)
@@ -667,24 +664,21 @@ pub trait ActivityQuerying: ActivityReadOps {
                 let activity_item = self.read_activity(*activity).ok()?;
 
                 if activity_item.activity().parent_id() == Some(activity_id) {
-                    debug!("Found intermission for activity: {}", activity_id);
+                    debug!("Found intermission for activity: {activity_id}");
                     Some(activity_item)
                 } else {
-                    debug!("Not an intermission for activity: {}", activity_id);
+                    debug!("Not an intermission for activity: {activity_id}");
                     None
                 }
             })
             .collect::<Vec<ActivityItem>>();
 
         if intermissions.is_empty() {
-            debug!("No intermissions found for activity: {}", activity_id);
+            debug!("No intermissions found for activity: {activity_id}");
             return Ok(None);
         }
 
-        debug!(
-            "Activity with id {:?} has intermissions: {:?}",
-            activity_id, intermissions
-        );
+        debug!("Activity with id {activity_id:?} has intermissions: {intermissions:?}");
 
         Ok(Some(intermissions))
     }
@@ -717,20 +711,17 @@ pub trait ActivityQuerying: ActivityReadOps {
                         .parent_id()
                         == Some(activity_id)
                     {
-                        debug!("Found active intermission for activity: {}", activity_id);
+                        debug!("Found active intermission for activity: {activity_id}");
                         Some(*active_intermission_id)
                     } else {
-                        debug!("No active intermission found for activity: {}", activity_id);
+                        debug!("No active intermission found for activity: {activity_id}");
                         None
                     }
                 })
                 .collect::<Vec<ActivityGuid>>()
         });
 
-        debug!(
-            "Activity with id {:?} has active intermissions: {:?}",
-            activity_id, guids
-        );
+        debug!("Activity with id {activity_id:?} has active intermissions: {guids:?}");
 
         Ok(guids)
     }

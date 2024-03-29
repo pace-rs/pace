@@ -43,7 +43,7 @@ impl ActivityTracker {
 
         let summary = ReflectionSummary::new(time_range_opts, summary_groups);
 
-        debug!("Generated reflection: {:#?}", summary);
+        debug!("Generated reflection: {summary:#?}");
 
         Ok(Some(summary))
     }

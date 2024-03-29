@@ -95,7 +95,7 @@ impl EndCommandOptions {
         ))?
         .validate()?;
 
-        debug!("Parsed date time: {:?}", date_time);
+        debug!("Parsed date time: {date_time:?}");
 
         let activity_store = ActivityStore::with_storage(storage)?;
 

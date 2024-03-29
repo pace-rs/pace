@@ -1,11 +1,12 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fs::File, path::PathBuf};
 
 use itertools::Itertools;
-use rusqlite::Connection;
-use sea_query::{Expr, Query, SqliteQueryBuilder};
+use sea_orm::{Database, DatabaseConnection};
+use tokio::runtime::Runtime;
 use tracing::debug;
 
 use pace_core::{
+    config::DatabaseEngineKind,
     options::{
         DeleteOptions, EndOptions, HoldOptions, KeywordOptions, ResumeOptions, UpdateOptions,
     },
@@ -19,33 +20,74 @@ use pace_error::{DatabaseStorageErrorKind, PaceOptResult, PaceResult};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 
 use crate::{
-    convert::Convert,
-    entities::activities::{Activities, ActivitiesIden},
-    migration::SQLiteMigrator,
-    storage::SQLiteEntity,
+    migration::{Migrator, MigratorTrait},
+    runtime,
 };
 
 #[derive(Debug)]
-pub struct SqliteActivityStorage {
-    connection: Connection,
+pub struct DatabaseActivityStorage {
+    connection: DatabaseConnection,
 }
 
-impl SqliteActivityStorage {
-    pub fn new(url: String) -> PaceResult<Self> {
-        let connection = Connection::open(url.as_str())
-            .map_err(|err| DatabaseStorageErrorKind::ConnectionFailed(url, err.to_string()))?;
+impl DatabaseActivityStorage {
+    /// Create a new database activity storage instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - The database engine kind.
+    /// * `url` - The database connection URL.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an error if the database connection engine is not supported.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the database connection fails as its a critical operation.
+    ///
+    /// # Returns
+    ///
+    /// A new database activity storage instance.
+    #[allow(clippy::expect_used)]
+    pub fn new(kind: DatabaseEngineKind, url: &str) -> PaceResult<Self> {
+        let connection_string = match kind {
+            DatabaseEngineKind::Sqlite => {
+                debug!("Connecting to SQLite database: {url}");
 
-        Ok(Self { connection })
+                let path = PathBuf::from(&url);
+
+                if !path.exists() {
+                    _ = File::create(&path)?;
+                }
+
+                format!("sqlite://{url}")
+            }
+            engine => {
+                return Err(
+                    DatabaseStorageErrorKind::UnsupportedDatabaseEngine(engine.to_string()).into(),
+                )
+            }
+        };
+
+        runtime().block_on(async {
+            let connection = Database::connect(connection_string)
+                .await
+                .expect("Failed to connect to the database");
+
+            Ok(Self { connection })
+        })
     }
 }
 
-impl ActivityStorage for SqliteActivityStorage {
+impl ActivityStorage for DatabaseActivityStorage {
     fn setup(&self) -> PaceResult<()> {
-        let mut migrate = SQLiteMigrator::new(&self.connection)?;
+        runtime().block_on(async {
+            Migrator::up(&self.connection, None)
+                .await
+                .map_err(|source| DatabaseStorageErrorKind::MigrationFailed { source })?;
 
-        migrate.up()?;
-
-        Ok(())
+            Ok(())
+        })
     }
 
     fn teardown(&self) -> PaceResult<()> {
@@ -58,7 +100,7 @@ impl ActivityStorage for SqliteActivityStorage {
     }
 }
 
-impl SyncStorage for SqliteActivityStorage {
+impl SyncStorage for DatabaseActivityStorage {
     fn sync(&self) -> PaceResult<()> {
         // We sync activities to the database in each operation
         // so we don't need to do anything here
@@ -67,44 +109,9 @@ impl SyncStorage for SqliteActivityStorage {
     }
 }
 
-impl ActivityReadOps for SqliteActivityStorage {
+impl ActivityReadOps for DatabaseActivityStorage {
     #[tracing::instrument]
     fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
-        let query = Query::select()
-            .from(ActivitiesIden::Table)
-            .cond_where(Expr::col(ActivitiesIden::Guid).eq(activity_id.to_string()))
-            .limit(1)
-            .to_string(SqliteQueryBuilder);
-
-        debug!("Read activity query: {query}");
-
-        let mut stmt = self.connection.prepare(&query).map_err(|source| {
-            DatabaseStorageErrorKind::ActivityReadFailed {
-                guid: activity_id.to_string(),
-                source,
-            }
-        })?;
-
-        let activity_item_iter = stmt
-            .query_map([&activity_id], |row| Ok(Activities::from_row(row)))
-            .map_err(|source| DatabaseStorageErrorKind::ActivityReadFailed {
-                guid: activity_id.to_string(),
-                source,
-            })?;
-
-        let database_item = activity_item_iter
-            .filter_map_ok(std::result::Result::ok)
-            .next()
-            .ok_or(DatabaseStorageErrorKind::NoItemContained(
-                activity_id.to_string(),
-            ))?
-            .map_err(|source| DatabaseStorageErrorKind::ActivityNotFound {
-                guid: activity_id.to_string(),
-                source,
-            })?;
-
-        debug!("Read activity: {:?}", database_item);
-
         // TODO: Now we need to get the rest of the data from the database
         // and return the ActivityItem
         //
@@ -128,7 +135,7 @@ impl ActivityReadOps for SqliteActivityStorage {
         //     .filter_map_ok(|item| item.ok())
         //     .collect::<Result<Vec<ActivityGuid>, _>>()?;
 
-        // debug!("Listed activities: {:?}", activities);
+        // debug!("Listed activities: {activities:?}");
 
         // if activities.is_empty() {
         //     return Ok(None);
@@ -154,7 +161,7 @@ impl ActivityReadOps for SqliteActivityStorage {
     }
 }
 
-impl ActivityWriteOps for SqliteActivityStorage {
+impl ActivityWriteOps for DatabaseActivityStorage {
     fn create_activity(&self, _activity: Activity) -> PaceResult<ActivityItem> {
         // let tx = self.connection.transaction()?;
 
@@ -199,7 +206,7 @@ impl ActivityWriteOps for SqliteActivityStorage {
         todo!("implement delete_activity for sqlite")
     }
 }
-impl ActivityStateManagement for SqliteActivityStorage {
+impl ActivityStateManagement for DatabaseActivityStorage {
     fn hold_activity(
         &self,
         _activity_id: ActivityGuid,
@@ -253,7 +260,7 @@ impl ActivityStateManagement for SqliteActivityStorage {
         todo!()
     }
 }
-impl ActivityQuerying for SqliteActivityStorage {
+impl ActivityQuerying for DatabaseActivityStorage {
     fn group_activities_by_duration_range(
         &self,
     ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {

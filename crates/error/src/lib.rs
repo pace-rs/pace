@@ -199,8 +199,12 @@ pub enum ConfigErrorKind {
 #[non_exhaustive]
 #[derive(Error, Debug, Display)]
 pub enum DatabaseStorageErrorKind {
-    /// Error connecting to database: {0} - {1}
-    ConnectionFailed(String, String),
+    /// Error connecting to database {url}: {source}
+    ConnectionFailed {
+        url: String,
+        #[source]
+        source: sea_orm::error::DbErr,
+    },
 
     /// No connection string provided
     NoConnectionString,
@@ -212,7 +216,7 @@ pub enum DatabaseStorageErrorKind {
     ActivityNotFound {
         guid: String,
         #[source]
-        source: rusqlite::Error,
+        source: sea_orm::error::SqlErr,
     },
 
     /// Failed to create activity: {0}
@@ -227,12 +231,10 @@ pub enum DatabaseStorageErrorKind {
     /// Database storage not implemented, yet!
     StorageNotImplemented,
 
-    /// Database migration failed. Version: {version}, Query: {query}, Source: {source}
+    /// Database migration failed: {source}
     MigrationFailed {
-        version: String,
-        query: String,
         #[source]
-        source: rusqlite::Error,
+        source: sea_orm::error::DbErr,
     },
 
     /// No migrations found for table: {table}
@@ -244,7 +246,7 @@ pub enum DatabaseStorageErrorKind {
         table: String,
         query: String,
         #[source]
-        source: sea_query::error::Error,
+        source: sea_orm::error::SqlErr,
     },
 
     /// No migrations to rollback
@@ -259,7 +261,7 @@ pub enum DatabaseStorageErrorKind {
         table: String,
         query: String,
         #[source]
-        source: rusqlite::Error,
+        source: sea_orm::error::SqlErr,
     },
 
     /// Selection query failed for migration version: {version}, table: {table}, query: {query}, source: {source}
@@ -268,21 +270,21 @@ pub enum DatabaseStorageErrorKind {
         table: String,
         query: String,
         #[source]
-        source: rusqlite::Error,
+        source: sea_orm::error::SqlErr,
     },
 
     /// Row does not contain migration version: {version}, source: {source}
     RowDoesNotContainMigrationVersion {
         version: String,
         #[source]
-        source: rusqlite::Error,
+        source: sea_orm::error::SqlErr,
     },
 
     /// Failed to read activity {guid}: {source}
     ActivityReadFailed {
         guid: String,
         #[source]
-        source: rusqlite::Error,
+        source: sea_orm::error::SqlErr,
     },
 
     /// There is no item contained with id {0}
@@ -293,7 +295,7 @@ pub enum DatabaseStorageErrorKind {
         version: String,
         query: String,
         #[source]
-        source: rusqlite::Error,
+        source: sea_orm::error::SqlErr,
     },
 }
 

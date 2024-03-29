@@ -12,9 +12,11 @@ default-timezone = "UTC"
 # Supported values: "sqlite", "mysql", "postgres", "mssql"
 # If you choose "sqlite", the url should be the path to the database file
 # Currently, only "sqlite" is supported
-kind = 'sqlite'
-# In case of a SQLite database, this is the url: `/path/to/database`
-url = './db/activities.pace.sqlite3'
+kind = "sqlite"
+# In case of a SQLite database, this is the url: `/path/to/database?mode=rwc`
+# '?mode=rwc' is required for read-write connections
+# Otherwise, this is the connection string: `username:password@host/database`
+url = "./db/activities.pace.sqlite3?mode=rwc"
 
 # For completeness, here is the file storage configuration
 #

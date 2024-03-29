@@ -124,11 +124,11 @@ impl ResumeCmd {
 
                     let new_activity = activity_item.activity().new_from_self();
 
-                    debug!("New Activity: {:?}", new_activity);
+                    debug!("New Activity: {new_activity:?}");
 
                     let new_stored_activity = activity_store.begin_activity(new_activity)?;
 
-                    debug!("Started Activity: {:?}", new_stored_activity);
+                    debug!("Started Activity: {new_stored_activity:?}");
 
                     format!("Resumed {}", new_stored_activity.activity())
                 }

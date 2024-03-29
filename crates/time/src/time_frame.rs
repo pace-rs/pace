@@ -276,7 +276,7 @@ pub(crate) fn time_frame_from_date_and_time_flags_with_time_zone_kind(
         _ => PaceTimeFrame::default(),
     };
 
-    debug!("Converted Time frame: {:?}", time_frame);
+    debug!("Converted Time frame: {time_frame:?}");
 
     Ok(time_frame)
 }

@@ -13,5 +13,4 @@ logs/*
 .cargo/config.toml
 
 # Database
-db/activities.pace.sqlite3
-/sea-orm
+db/activities.pace.sqlite3*

@@ -17,8 +17,7 @@ description = "pace-error - library for error handling in pace ecosystem"
 chrono = { workspace = true }
 displaydoc = { workspace = true }
 miette = { workspace = true, features = ["fancy"] }
-rusqlite = { workspace = true }
-sea-query = { workspace = true }
+sea-orm = { workspace = true }
 serde_json = { workspace = true }
 tera = { workspace = true }
 thiserror = { workspace = true }

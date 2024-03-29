@@ -8,12 +8,12 @@ pub mod activity_tracker;
 
 use std::sync::Arc;
 
-use pace_core::prelude::{ActivityLogStorageKind, ActivityStorage, DatabaseEngineKind, PaceConfig};
+use pace_core::prelude::{ActivityLogStorageKind, ActivityStorage, PaceConfig};
 use pace_error::{DatabaseStorageErrorKind, PaceResult};
 use tracing::debug;
 
 use pace_storage::storage::{
-    file::TomlActivityStorage, in_memory::InMemoryActivityStorage, sqlite::SqliteActivityStorage,
+    file::TomlActivityStorage, in_memory::InMemoryActivityStorage, sqlite::DatabaseActivityStorage,
 };
 
 /// Get the storage backend from the configuration.
@@ -32,23 +32,16 @@ use pace_storage::storage::{
 pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<dyn ActivityStorage>> {
     let storage: Arc<dyn ActivityStorage> = match config.storage().storage() {
         ActivityLogStorageKind::File { location } => Arc::new(TomlActivityStorage::new(location)?),
-        ActivityLogStorageKind::Database { kind, url } => match kind {
-            DatabaseEngineKind::Sqlite => {
-                debug!("Connecting to database: {}", url);
+        ActivityLogStorageKind::Database { kind, url } => {
+            debug!("Connecting to SQLite database: {url}");
 
-                Arc::new(SqliteActivityStorage::new(url.clone())?)
-            }
-            engine => {
-                return Err(
-                    DatabaseStorageErrorKind::UnsupportedDatabaseEngine(engine.to_string()).into(),
-                )
-            }
-        },
+            Arc::new(DatabaseActivityStorage::new(*kind, url)?)
+        }
         ActivityLogStorageKind::InMemory => Arc::new(InMemoryActivityStorage::new()),
         _ => return Err(DatabaseStorageErrorKind::StorageNotImplemented.into()),
     };
 
-    debug!("Using storage backend: {:?}", storage);
+    debug!("Using storage backend: {storage:?}");
 
     Ok(storage)
 }
