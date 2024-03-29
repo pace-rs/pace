@@ -5,7 +5,7 @@ use ulid::Ulid;
 
 use sea_orm_migration::prelude::*;
 
-use crate::entity::activity_status::ActivityStatus;
+use crate::entity::activity_status::ActivityStatusEnum;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -16,8 +16,8 @@ impl MigrationTrait for Migration {
         let activity_kinds = ActivityStatusKind::iter()
             .map(|kind| {
                 Query::insert()
-                    .into_table(ActivityStatus::Table)
-                    .columns([ActivityStatus::Guid, ActivityStatus::Status])
+                    .into_table(ActivityStatusEnum::Table)
+                    .columns([ActivityStatusEnum::Guid, ActivityStatusEnum::Status])
                     .values_panic([Ulid::new().to_string().into(), kind.to_string().into()])
                     .to_owned()
             })
@@ -32,7 +32,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .exec_stmt(Query::delete().from_table(ActivityStatus::Table).to_owned())
+            .exec_stmt(
+                Query::delete()
+                    .from_table(ActivityStatusEnum::Table)
+                    .to_owned(),
+            )
             .await
     }
 }

@@ -1,8 +1,8 @@
 use sea_orm_migration::prelude::*;
 
-use crate::entity::activities::Activities;
-use crate::entity::activities_tags::ActivitiesTags;
-use crate::entity::tags::Tags;
+use crate::entity::activities::ActivitiesEnum;
+use crate::entity::activities_tags::ActivitiesTagsEnum;
+use crate::entity::tags::TagsEnum;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -14,30 +14,34 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .if_not_exists()
-                    .table(ActivitiesTags::Table)
+                    .table(ActivitiesTagsEnum::Table)
                     .col(
-                        ColumnDef::new(ActivitiesTags::Guid)
+                        ColumnDef::new(ActivitiesTagsEnum::Guid)
                             .text()
                             .not_null()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(ActivitiesTags::TagGuid).text().not_null())
                     .col(
-                        ColumnDef::new(ActivitiesTags::ActivityGuid)
+                        ColumnDef::new(ActivitiesTagsEnum::TagGuid)
+                            .text()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ActivitiesTagsEnum::ActivityGuid)
                             .text()
                             .not_null(),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_activities_tags_tag_guid")
-                            .from(ActivitiesTags::Table, ActivitiesTags::TagGuid)
-                            .to(Tags::Table, Tags::Guid),
+                            .from(ActivitiesTagsEnum::Table, ActivitiesTagsEnum::TagGuid)
+                            .to(TagsEnum::Table, TagsEnum::Guid),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_activities_tags_activity_guid")
-                            .from(ActivitiesTags::Table, ActivitiesTags::ActivityGuid)
-                            .to(Activities::Table, Activities::Guid),
+                            .from(ActivitiesTagsEnum::Table, ActivitiesTagsEnum::ActivityGuid)
+                            .to(ActivitiesEnum::Table, ActivitiesEnum::Guid),
                     )
                     .to_owned(),
             )
@@ -48,7 +52,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 Table::drop()
-                    .table(ActivitiesTags::Table)
+                    .table(ActivitiesTagsEnum::Table)
                     .if_exists()
                     .to_owned(),
             )

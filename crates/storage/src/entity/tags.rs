@@ -11,7 +11,7 @@ pub struct Model {
 }
 
 #[derive(DeriveIden)]
-pub enum Tags {
+pub enum TagsEnum {
     Table,
     Guid,
     Tag,

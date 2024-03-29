@@ -212,12 +212,8 @@ pub enum DatabaseStorageErrorKind {
     /// This database engine is currently not supported: {0}
     UnsupportedDatabaseEngine(String),
 
-    /// Activity with id {guid} not found: {source}
-    ActivityNotFound {
-        guid: String,
-        #[source]
-        source: sea_orm::error::SqlErr,
-    },
+    /// Activity with id {guid} not found
+    ActivityNotFound { guid: String },
 
     /// Failed to create activity: {0}
     ActivityCreationFailed(String),
@@ -284,7 +280,7 @@ pub enum DatabaseStorageErrorKind {
     ActivityReadFailed {
         guid: String,
         #[source]
-        source: sea_orm::error::SqlErr,
+        source: sea_orm::error::DbErr,
     },
 
     /// There is no item contained with id {0}

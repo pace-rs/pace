@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-use crate::entity::categories::Categories;
+use crate::entity::categories::CategoriesEnum;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -12,15 +12,15 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .if_not_exists()
-                    .table(Categories::Table)
+                    .table(CategoriesEnum::Table)
                     .col(
-                        ColumnDef::new(Categories::Guid)
+                        ColumnDef::new(CategoriesEnum::Guid)
                             .text()
                             .not_null()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Categories::Category).text().not_null())
-                    .col(ColumnDef::new(Categories::Description).text().null())
+                    .col(ColumnDef::new(CategoriesEnum::Category).text().not_null())
+                    .col(ColumnDef::new(CategoriesEnum::Description).text().null())
                     .to_owned(),
             )
             .await
@@ -30,7 +30,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 Table::drop()
-                    .table(Categories::Table)
+                    .table(CategoriesEnum::Table)
                     .if_exists()
                     .to_owned(),
             )

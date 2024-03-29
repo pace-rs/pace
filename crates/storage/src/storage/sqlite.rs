@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, fs::File, path::PathBuf};
 
 use itertools::Itertools;
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{Database, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter};
 use tokio::runtime::Runtime;
 use tracing::debug;
 
@@ -20,6 +20,7 @@ use pace_error::{DatabaseStorageErrorKind, PaceOptResult, PaceResult};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 
 use crate::{
+    entity::{activities, activity_status, descriptions, prelude::Activities, tags},
     migration::{Migrator, MigratorTrait},
     runtime,
 };
@@ -112,17 +113,24 @@ impl SyncStorage for DatabaseActivityStorage {
 impl ActivityReadOps for DatabaseActivityStorage {
     #[tracing::instrument]
     fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
-        // TODO: Now we need to get the rest of the data from the database
-        // and return the ActivityItem
-        //
-        // Missing data:
-        // Description (1:1) (in extra table for deduplication)
-        // ActivityStatus (1:N)
-        // ActivityKind (1:N)
-        // Categories (M:N)
-        // Tags (M:N)
+        runtime().block_on(async {
+            let Ok(Some(activity)) = Activities::find_by_id(activity_id.to_string())
+                .one(&self.connection)
+                .await
+            else {
+                return Err(DatabaseStorageErrorKind::ActivityNotFound {
+                    guid: activity_id.to_string(),
+                }
+                .into());
+            };
 
-        Ok(ActivityItem::default())
+            let description = activity
+                .find_related(descriptions::Entity)
+                .one(&self.connection)
+                .await;
+
+            Ok(ActivityItem::default())
+        })
     }
 
     #[tracing::instrument]
@@ -260,6 +268,7 @@ impl ActivityStateManagement for DatabaseActivityStorage {
         todo!()
     }
 }
+
 impl ActivityQuerying for DatabaseActivityStorage {
     fn group_activities_by_duration_range(
         &self,

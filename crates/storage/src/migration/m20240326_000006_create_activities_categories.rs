@@ -1,8 +1,8 @@
 use sea_orm_migration::prelude::*;
 
-use crate::entity::activities::Activities;
-use crate::entity::activities_categories::ActivitiesCategories;
-use crate::entity::categories::Categories;
+use crate::entity::activities::ActivitiesEnum;
+use crate::entity::activities_categories::ActivitiesCategoriesEnum;
+use crate::entity::categories::CategoriesEnum;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -13,21 +13,21 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(ActivitiesCategories::Table)
+                    .table(ActivitiesCategoriesEnum::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(ActivitiesCategories::Guid)
+                        ColumnDef::new(ActivitiesCategoriesEnum::Guid)
                             .text()
                             .not_null()
                             .primary_key(),
                     )
                     .col(
-                        ColumnDef::new(ActivitiesCategories::ActivityGuid)
+                        ColumnDef::new(ActivitiesCategoriesEnum::ActivityGuid)
                             .text()
                             .not_null(),
                     )
                     .col(
-                        ColumnDef::new(ActivitiesCategories::CategoryGuid)
+                        ColumnDef::new(ActivitiesCategoriesEnum::CategoryGuid)
                             .text()
                             .not_null(),
                     )
@@ -35,19 +35,19 @@ impl MigrationTrait for Migration {
                         ForeignKey::create()
                             .name("fk_activities_categories_category_guid")
                             .from(
-                                ActivitiesCategories::Table,
-                                ActivitiesCategories::CategoryGuid,
+                                ActivitiesCategoriesEnum::Table,
+                                ActivitiesCategoriesEnum::CategoryGuid,
                             )
-                            .to(Categories::Table, Categories::Guid),
+                            .to(CategoriesEnum::Table, CategoriesEnum::Guid),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_activities_categories_activity_guid")
                             .from(
-                                ActivitiesCategories::Table,
-                                ActivitiesCategories::ActivityGuid,
+                                ActivitiesCategoriesEnum::Table,
+                                ActivitiesCategoriesEnum::ActivityGuid,
                             )
-                            .to(Activities::Table, Activities::Guid),
+                            .to(ActivitiesEnum::Table, ActivitiesEnum::Guid),
                     )
                     .to_owned(),
             )
@@ -58,7 +58,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 Table::drop()
-                    .table(ActivitiesCategories::Table)
+                    .table(ActivitiesCategoriesEnum::Table)
                     .if_exists()
                     .to_owned(),
             )

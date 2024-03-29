@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-use crate::entity::activity_status::ActivityStatus;
+use crate::entity::activity_status::ActivityStatusEnum;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -12,14 +12,14 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .if_not_exists()
-                    .table(ActivityStatus::Table)
+                    .table(ActivityStatusEnum::Table)
                     .col(
-                        ColumnDef::new(ActivityStatus::Guid)
+                        ColumnDef::new(ActivityStatusEnum::Guid)
                             .text()
                             .not_null()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(ActivityStatus::Status).text().not_null())
+                    .col(ColumnDef::new(ActivityStatusEnum::Status).text().not_null())
                     .to_owned(),
             )
             .await
@@ -29,7 +29,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 Table::drop()
-                    .table(ActivityStatus::Table)
+                    .table(ActivityStatusEnum::Table)
                     .if_exists()
                     .to_owned(),
             )

@@ -4,7 +4,7 @@ use sea_orm_migration::prelude::*;
 use strum::IntoEnumIterator;
 use ulid::Ulid;
 
-use crate::entity::activity_kinds::ActivityKinds;
+use crate::entity::activity_kinds::ActivityKindsEnum;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -15,8 +15,8 @@ impl MigrationTrait for Migration {
         let activity_kinds = ActivityKind::iter()
             .map(|kind| {
                 Query::insert()
-                    .into_table(ActivityKinds::Table)
-                    .columns([ActivityKinds::Guid, ActivityKinds::Kind])
+                    .into_table(ActivityKindsEnum::Table)
+                    .columns([ActivityKindsEnum::Guid, ActivityKindsEnum::Kind])
                     .values_panic([Ulid::new().to_string().into(), kind.to_string().into()])
                     .to_owned()
             })
@@ -31,7 +31,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .exec_stmt(Query::delete().from_table(ActivityKinds::Table).to_owned())
+            .exec_stmt(
+                Query::delete()
+                    .from_table(ActivityKindsEnum::Table)
+                    .to_owned(),
+            )
             .await
     }
 }

@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-use crate::entity::activity_kinds::ActivityKinds;
+use crate::entity::activity_kinds::ActivityKindsEnum;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -12,14 +12,14 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .if_not_exists()
-                    .table(ActivityKinds::Table)
+                    .table(ActivityKindsEnum::Table)
                     .col(
-                        ColumnDef::new(ActivityKinds::Guid)
+                        ColumnDef::new(ActivityKindsEnum::Guid)
                             .text()
                             .not_null()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(ActivityKinds::Kind).text().not_null())
+                    .col(ColumnDef::new(ActivityKindsEnum::Kind).text().not_null())
                     .to_owned(),
             )
             .await
@@ -29,7 +29,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 Table::drop()
-                    .table(ActivityKinds::Table)
+                    .table(ActivityKindsEnum::Table)
                     .if_exists()
                     .to_owned(),
             )

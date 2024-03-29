@@ -1,9 +1,9 @@
 use sea_orm_migration::prelude::*;
 
-use crate::entity::activities::Activities;
-use crate::entity::activity_kinds::ActivityKinds;
-use crate::entity::activity_status::ActivityStatus;
-use crate::entity::descriptions::Descriptions;
+use crate::entity::activities::ActivitiesEnum;
+use crate::entity::activity_kinds::ActivityKindsEnum;
+use crate::entity::activity_status::ActivityStatusEnum;
+use crate::entity::descriptions::DescriptionsEnum;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -14,56 +14,56 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Activities::Table)
+                    .table(ActivitiesEnum::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Activities::Guid)
+                        ColumnDef::new(ActivitiesEnum::Guid)
                             .text()
                             .not_null()
                             .primary_key(),
                     )
                     .col(
-                        ColumnDef::new(Activities::DescriptionGuid)
+                        ColumnDef::new(ActivitiesEnum::DescriptionGuid)
                             .text()
                             .not_null(),
                     )
                     .col(
-                        ColumnDef::new(Activities::Begin)
+                        ColumnDef::new(ActivitiesEnum::Begin)
                             .timestamp_with_time_zone()
                             .not_null(),
                     )
                     .col(
-                        ColumnDef::new(Activities::End)
+                        ColumnDef::new(ActivitiesEnum::End)
                             .timestamp_with_time_zone()
                             .null(),
                     )
-                    .col(ColumnDef::new(Activities::Duration).integer().null())
-                    .col(ColumnDef::new(Activities::KindGuid).text().not_null())
-                    .col(ColumnDef::new(Activities::StatusGuid).text().not_null())
-                    .col(ColumnDef::new(Activities::ParentGuid).text().null())
+                    .col(ColumnDef::new(ActivitiesEnum::Duration).integer().null())
+                    .col(ColumnDef::new(ActivitiesEnum::KindGuid).text().not_null())
+                    .col(ColumnDef::new(ActivitiesEnum::StatusGuid).text().not_null())
+                    .col(ColumnDef::new(ActivitiesEnum::ParentGuid).text().null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_activities_parent_guid")
-                            .from(Activities::Table, Activities::ParentGuid)
-                            .to(Activities::Table, Activities::Guid),
+                            .from(ActivitiesEnum::Table, ActivitiesEnum::ParentGuid)
+                            .to(ActivitiesEnum::Table, ActivitiesEnum::Guid),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_activities_kind")
-                            .from(Activities::Table, Activities::KindGuid)
-                            .to(ActivityKinds::Table, ActivityKinds::Guid),
+                            .from(ActivitiesEnum::Table, ActivitiesEnum::KindGuid)
+                            .to(ActivityKindsEnum::Table, ActivityKindsEnum::Guid),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_activities_status")
-                            .from(Activities::Table, Activities::StatusGuid)
-                            .to(ActivityStatus::Table, ActivityStatus::Guid),
+                            .from(ActivitiesEnum::Table, ActivitiesEnum::StatusGuid)
+                            .to(ActivityStatusEnum::Table, ActivityStatusEnum::Guid),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_activities_description")
-                            .from(Activities::Table, Activities::DescriptionGuid)
-                            .to(Descriptions::Table, Descriptions::Guid),
+                            .from(ActivitiesEnum::Table, ActivitiesEnum::DescriptionGuid)
+                            .to(DescriptionsEnum::Table, DescriptionsEnum::Guid),
                     )
                     .to_owned(),
             )
@@ -74,7 +74,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 Table::drop()
-                    .table(Activities::Table)
+                    .table(ActivitiesEnum::Table)
                     .if_exists()
                     .to_owned(),
             )
