@@ -105,6 +105,7 @@ impl ActivityReadOps for SqliteActivityStorage {
         // and return the ActivityItem
         //
         // Missing data:
+        // Description (1:1) (in extra table for deduplication)
         // ActivityStatus (1:N)
         // ActivityKind (1:N)
         // Categories (M:N)

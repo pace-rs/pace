@@ -6,6 +6,7 @@ mod create_activity_kinds_20240326124253;
 mod create_activity_status_20240326125819;
 mod create_activity_status_values_20240327163645;
 mod create_categories_20240326125937;
+mod create_descriptions_20240329131712;
 mod create_schema_migrations;
 mod create_tags_20240326125555;
 
@@ -105,6 +106,7 @@ impl<'conn> SQLiteMigrator<'conn> {
             Box::new(create_activities_categories_20240326130013::Migration),
             Box::new(create_activity_kind_values_20240327162015::Migration),
             Box::new(create_activity_status_values_20240327163645::Migration),
+            Box::new(create_descriptions_20240329131712::Migration),
         ];
 
         Box::new(migrations.into_iter())

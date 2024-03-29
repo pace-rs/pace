@@ -54,6 +54,7 @@ pub mod prelude {
             category::{split_category_by_category_separator, PaceCategory},
             description::PaceDescription,
             filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
+            id::Guid,
             intermission::IntermissionAction,
             reflection::{
                 Highlights, ReflectionSummary, ReflectionsFormatKind, SummaryActivityGroup,

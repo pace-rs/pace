@@ -1,4 +1,5 @@
 use getset::Getters;
+use pace_core::prelude::Guid;
 use rusqlite::{Error, Row};
 use sea_query::enum_def;
 use strum::EnumIter;
@@ -10,9 +11,9 @@ use crate::storage::SQLiteEntity;
 #[getset(get = "pub")]
 #[enum_def]
 pub struct ActivitiesCategories {
-    pub guid: String,
-    pub category_guid: String,
-    pub activity_guid: String,
+    pub guid: Guid,
+    pub category_guid: Guid,
+    pub activity_guid: Guid,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

@@ -3,7 +3,7 @@ use sea_query::{ColumnDef, ForeignKey, SqliteQueryBuilder, Table};
 use crate::{
     entities::{
         activities::ActivitiesIden, activity_kinds::ActivityKindsIden,
-        activity_status::ActivityStatusIden,
+        activity_status::ActivityStatusIden, description::DescriptionsIden,
     },
     migration::SQLiteMigration,
 };
@@ -25,17 +25,16 @@ impl SQLiteMigration for Migration {
                     .not_null()
                     .primary_key(),
             )
-            .col(ColumnDef::new(ActivitiesIden::Category).text().not_null())
             .col(
-                ColumnDef::new(ActivitiesIden::Description)
+                ColumnDef::new(ActivitiesIden::DescriptionGuid)
                     .text()
                     .not_null(),
             )
             .col(ColumnDef::new(ActivitiesIden::Begin).date_time().not_null())
             .col(ColumnDef::new(ActivitiesIden::End).text().null())
             .col(ColumnDef::new(ActivitiesIden::Duration).integer().null())
-            .col(ColumnDef::new(ActivitiesIden::Kind).text().not_null())
-            .col(ColumnDef::new(ActivitiesIden::Status).text().not_null())
+            .col(ColumnDef::new(ActivitiesIden::KindGuid).text().not_null())
+            .col(ColumnDef::new(ActivitiesIden::StatusGuid).text().not_null())
             .col(ColumnDef::new(ActivitiesIden::ParentGuid).text().null())
             .foreign_key(
                 ForeignKey::create()
@@ -46,14 +45,20 @@ impl SQLiteMigration for Migration {
             .foreign_key(
                 ForeignKey::create()
                     .name("fk_activities_kind")
-                    .from(ActivitiesIden::Table, ActivitiesIden::Kind)
+                    .from(ActivitiesIden::Table, ActivitiesIden::KindGuid)
                     .to(ActivityKindsIden::Table, ActivityKindsIden::Guid),
             )
             .foreign_key(
                 ForeignKey::create()
                     .name("fk_activities_status")
-                    .from(ActivitiesIden::Table, ActivitiesIden::Status)
+                    .from(ActivitiesIden::Table, ActivitiesIden::StatusGuid)
                     .to(ActivityStatusIden::Table, ActivityStatusIden::Guid),
+            )
+            .foreign_key(
+                ForeignKey::create()
+                    .name("fk_activities_description")
+                    .from(ActivitiesIden::Table, ActivitiesIden::DescriptionGuid)
+                    .to(DescriptionsIden::Table, DescriptionsIden::Guid),
             )
             .build(SqliteQueryBuilder)
     }

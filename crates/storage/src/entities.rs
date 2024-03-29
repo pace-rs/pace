@@ -12,6 +12,7 @@ pub mod activities_tags;
 pub mod activity_kinds;
 pub mod activity_status;
 pub mod categories;
+pub mod description;
 pub mod schema_migrations;
 pub mod tags;
 

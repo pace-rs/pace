@@ -1,4 +1,5 @@
 use getset::Getters;
+use pace_core::prelude::Guid;
 use rusqlite::{Error, Row};
 use sea_query::enum_def;
 use typed_builder::TypedBuilder;
@@ -9,7 +10,7 @@ use crate::storage::SQLiteEntity;
 #[getset(get = "pub")]
 #[enum_def]
 pub struct SchemaMigrations {
-    pub guid: String,
+    pub guid: Guid,
     pub version: i64,
 }
 

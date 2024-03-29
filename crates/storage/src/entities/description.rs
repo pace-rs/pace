@@ -1,5 +1,5 @@
 use getset::Getters;
-use pace_core::prelude::Guid;
+use pace_core::prelude::{Guid, PaceDescription};
 use rusqlite::{Error, Row};
 use sea_query::enum_def;
 use strum::EnumIter;
@@ -10,19 +10,17 @@ use crate::storage::SQLiteEntity;
 #[derive(Clone, Debug, PartialEq, Eq, TypedBuilder, Getters)]
 #[getset(get = "pub")]
 #[enum_def]
-pub struct ActivitiesTags {
+pub struct Descriptions {
     pub guid: Guid,
-    pub tag_guid: Guid,
-    pub activity_guid: Guid,
+    pub description: PaceDescription,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     Activities,
-    Tags,
 }
 
-impl SQLiteEntity for ActivitiesTags {
+impl SQLiteEntity for Descriptions {
     fn from_row(row: &Row<'_>) -> Result<Self, Error>
     where
         Self: Sized,
@@ -31,14 +29,13 @@ impl SQLiteEntity for ActivitiesTags {
     }
 }
 
-impl TryFrom<&Row<'_>> for ActivitiesTags {
+impl TryFrom<&Row<'_>> for Descriptions {
     type Error = Error;
 
     fn try_from(row: &Row<'_>) -> Result<Self, Self::Error> {
         Ok(Self {
             guid: row.get("guid")?,
-            tag_guid: row.get("tag_guid")?,
-            activity_guid: row.get("activity_guid")?,
+            description: row.get("description")?,
         })
     }
 }
