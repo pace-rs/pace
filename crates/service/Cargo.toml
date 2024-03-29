@@ -17,6 +17,7 @@ description = "pace-service - service support library for pace"
 getset = { workspace = true }
 pace_core = { workspace = true, features = ["db"] }
 pace_error = { workspace = true }
+pace_storage = { workspace = true }
 pace_time = { workspace = true, features = ["rusqlite"] }
 tracing = { workspace = true }
 typed-builder = { workspace = true }

@@ -1417,6 +1417,7 @@ dependencies = [
  "getset",
  "pace_core",
  "pace_error",
+ "pace_storage",
  "pace_time",
  "tracing",
  "typed-builder",

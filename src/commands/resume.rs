@@ -14,8 +14,7 @@ use pace_core::{
     prelude::{ActivityQuerying, ActivityReadOps, ActivityStateManagement, SyncStorage},
 };
 use pace_error::UserMessage;
-use pace_service::activity_store::ActivityStore;
-use pace_storage::get_storage_from_config;
+use pace_service::{activity_store::ActivityStore, get_storage_from_config};
 use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 
 use crate::prelude::PACE_APP;

@@ -116,7 +116,6 @@ pace_cli = { workspace = true }
 pace_core = { workspace = true, features = ["cli"] }
 pace_error = { workspace = true }
 pace_service = { workspace = true }
-pace_storage = { workspace = true }
 pace_time = { workspace = true, features = ["cli", "db"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
@@ -136,6 +135,7 @@ assert_cmd = { workspace = true }
 insta = { workspace = true, features = ["toml"] }
 insta-cmd = { workspace = true }
 once_cell = { workspace = true }
+pace_storage = { workspace = true }
 predicates = { workspace = true }
 rstest = { workspace = true }
 similar-asserts = { workspace = true }
