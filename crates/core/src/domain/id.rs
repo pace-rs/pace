@@ -38,7 +38,7 @@ impl FromStr for Guid {
 
 impl Display for Guid {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Ulid: {}", self.0.to_string())
+        write!(f, "{}", self.0.to_string())
     }
 }
 
