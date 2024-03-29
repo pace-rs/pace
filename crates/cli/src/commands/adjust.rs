@@ -5,20 +5,18 @@ use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::Getters;
-use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-use pace_error::{ActivityLogErrorKind, PaceResult, UserMessage};
-
-use crate::{
-    commands::UpdateOptions,
+use pace_core::{
     config::PaceConfig,
-    domain::{category::PaceCategory, description::PaceDescription},
-    prelude::PaceTagCollection,
-    service::activity_store::ActivityStore,
+    domain::{category::PaceCategory, description::PaceDescription, tag::PaceTagCollection},
+    options::UpdateOptions,
     storage::{ActivityQuerying, ActivityStorage, ActivityWriteOps, SyncStorage},
 };
+use pace_error::{ActivityLogErrorKind, PaceResult, UserMessage};
+use pace_service::activity_store::ActivityStore;
+use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 
 /// `adjust` subcommand options
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]

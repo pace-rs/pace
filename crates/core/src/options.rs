@@ -1,20 +1,29 @@
-pub mod adjust;
-pub mod begin;
-pub mod docs;
-pub mod end;
-pub mod hold;
-pub mod now;
-pub mod reflect;
-pub mod resume;
-
-use getset::Getters;
+use getset::{Getters, MutGetters, Setters};
 use pace_time::date_time::PaceDateTime;
+use serde_derive::Serialize;
 use typed_builder::TypedBuilder;
 
-use crate::{
-    commands::{hold::HoldOptions, resume::ResumeOptions},
-    domain::category::PaceCategory,
+use crate::domain::{
+    category::PaceCategory, description::PaceDescription, intermission::IntermissionAction,
 };
+
+/// Options for holding an activity
+#[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
+#[getset(get = "pub")]
+#[non_exhaustive]
+pub struct HoldOptions {
+    /// The action to take on the intermission
+    #[builder(default)]
+    action: IntermissionAction,
+
+    /// The start time of the intermission
+    #[builder(default, setter(into))]
+    begin_time: PaceDateTime,
+
+    /// The reason for holding the activity
+    #[builder(default, setter(into))]
+    reason: Option<PaceDescription>,
+}
 
 /// Options for ending an activity
 #[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
@@ -60,4 +69,23 @@ pub struct DeleteOptions {}
 pub struct KeywordOptions {
     #[builder(default, setter(into, strip_option))]
     category: Option<PaceCategory>,
+}
+
+/// Options for resuming an activity
+#[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
+#[getset(get = "pub")]
+#[non_exhaustive]
+pub struct ResumeOptions {
+    /// The resume time of the intermission
+    #[builder(default, setter(into))]
+    resume_time: Option<PaceDateTime>,
+}
+
+#[derive(
+    Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
+)]
+#[getset(get = "pub")]
+pub struct FilterOptions {
+    category: Option<PaceCategory>,
+    case_sensitive: bool,
 }

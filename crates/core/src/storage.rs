@@ -1,25 +1,25 @@
 #[cfg(feature = "rusqlite")]
 pub mod rusqlite;
 
+use itertools::Itertools;
 use std::{
     collections::BTreeMap,
     fmt::{self, Debug, Formatter},
 };
-
-use itertools::Itertools;
-use pace_error::{PaceOptResult, PaceResult};
-use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 use tracing::debug;
 
+use pace_error::{PaceOptResult, PaceResult};
+use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
+
 use crate::{
-    commands::{
-        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
-        UpdateOptions,
-    },
     domain::{
-        activity::{Activity, ActivityGuid, ActivityItem, ActivityKind},
+        activity::{Activity, ActivityItem, ActivityKind},
         filter::{ActivityFilterKind, FilteredActivities},
+        id::ActivityGuid,
         status::ActivityStatusKind,
+    },
+    options::{
+        DeleteOptions, EndOptions, HoldOptions, KeywordOptions, ResumeOptions, UpdateOptions,
     },
 };
 

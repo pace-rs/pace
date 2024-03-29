@@ -1,6 +1,8 @@
-use pace_core::prelude::{
-    Activity, ActivityQuerying, ActivityReadOps, ActivityStateManagement, HoldOptions,
-    PaceDescription, ResumeOptions,
+use pace_core::{
+    options::{HoldOptions, ResumeOptions},
+    prelude::{
+        Activity, ActivityQuerying, ActivityReadOps, ActivityStateManagement, PaceDescription,
+    },
 };
 use pace_error::TestResult;
 use pace_storage::storage::in_memory::InMemoryActivityStorage;

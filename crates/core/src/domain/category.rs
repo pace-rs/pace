@@ -5,10 +5,7 @@ use std::{convert::Infallible, str::FromStr};
 use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
-use crate::{
-    config::GeneralConfig,
-    domain::{description::PaceDescription, id::Guid},
-};
+use crate::{config::GeneralConfig, domain::description::PaceDescription, prelude::CategoryGuid};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, Hash, PartialEq, Default, PartialOrd, Ord)]
 pub struct PaceCategory(String);
@@ -140,16 +137,6 @@ pub fn split_category_by_category_separator(
     } else {
         // if there is only one part, it's the category
         (parts[0].to_string(), None)
-    }
-}
-
-/// The category id
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct CategoryGuid(Guid);
-
-impl Default for CategoryGuid {
-    fn default() -> Self {
-        Self(Guid::new())
     }
 }
 

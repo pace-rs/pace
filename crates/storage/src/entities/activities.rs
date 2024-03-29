@@ -1,6 +1,8 @@
 use chrono::FixedOffset;
 use getset::Getters;
-use pace_core::prelude::{ActivityGuid, ActivityItem, Guid};
+use pace_core::prelude::{
+    ActivityGuid, ActivityItem, ActivityKindGuid, ActivityStatusGuid, DescriptionGuid,
+};
 use rusqlite::{Error, Row};
 use sea_query::enum_def;
 use strum::EnumIter;
@@ -13,13 +15,13 @@ use crate::storage::SQLiteEntity;
 #[enum_def]
 pub struct Activities {
     pub guid: ActivityGuid,
-    pub description_guid: Guid,
+    pub description_guid: DescriptionGuid,
     pub begin: chrono::DateTime<FixedOffset>,
     pub end: Option<chrono::DateTime<FixedOffset>>,
-    pub kind_guid: Guid,
+    pub kind_guid: ActivityKindGuid,
     pub duration: Option<i32>,
-    pub status_guid: Guid,
-    pub parent_guid: Option<Guid>,
+    pub status_guid: ActivityStatusGuid,
+    pub parent_guid: Option<ActivityGuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

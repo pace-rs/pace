@@ -1317,6 +1317,7 @@ dependencies = [
  "pace_cli",
  "pace_core",
  "pace_error",
+ "pace_service",
  "pace_storage",
  "pace_time",
  "predicates",
@@ -1336,10 +1337,19 @@ version = "0.4.5"
 dependencies = [
  "chrono",
  "chrono-tz",
+ "clap",
  "dialoguer",
  "eyre",
  "getset",
+ "open",
  "pace_core",
+ "pace_error",
+ "pace_service",
+ "pace_time",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tera",
  "tracing",
  "typed-builder",
 ]
@@ -1359,7 +1369,6 @@ dependencies = [
  "itertools",
  "merge",
  "once_cell",
- "open",
  "pace_error",
  "pace_time",
  "parking_lot",
@@ -1379,7 +1388,6 @@ dependencies = [
  "tracing",
  "typed-builder",
  "ulid",
- "wildmatch",
 ]
 
 [[package]]
@@ -1401,6 +1409,19 @@ dependencies = [
 [[package]]
 name = "pace_server"
 version = "0.1.3"
+
+[[package]]
+name = "pace_service"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "pace_core",
+ "pace_error",
+ "pace_time",
+ "tracing",
+ "typed-builder",
+ "wildmatch",
+]
 
 [[package]]
 name = "pace_storage"

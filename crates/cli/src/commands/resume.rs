@@ -3,7 +3,6 @@ use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::Getters;
-use pace_time::date_time::PaceDateTime;
 use typed_builder::TypedBuilder;
 
 /// `resume` subcommand options
@@ -55,14 +54,4 @@ pub struct ResumeCommandOptions {
 impl ResumeCommandOptions {
     // FIXME: Inner run implementation for the resume command kept in pace-rs crate for now
     // FIXME: due to the dependency on pace-cli
-}
-
-/// Options for resuming an activity
-#[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
-#[getset(get = "pub")]
-#[non_exhaustive]
-pub struct ResumeOptions {
-    /// The resume time of the intermission
-    #[builder(default, setter(into))]
-    resume_time: Option<PaceDateTime>,
 }

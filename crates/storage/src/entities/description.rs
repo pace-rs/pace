@@ -1,5 +1,5 @@
 use getset::Getters;
-use pace_core::prelude::{Guid, PaceDescription};
+use pace_core::prelude::{DescriptionGuid, PaceDescription};
 use rusqlite::{Error, Row};
 use sea_query::enum_def;
 use strum::EnumIter;
@@ -11,7 +11,7 @@ use crate::storage::SQLiteEntity;
 #[getset(get = "pub")]
 #[enum_def]
 pub struct Descriptions {
-    pub guid: Guid,
+    pub guid: DescriptionGuid,
     pub description: PaceDescription,
 }
 

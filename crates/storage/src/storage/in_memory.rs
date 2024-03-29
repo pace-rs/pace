@@ -11,12 +11,16 @@ use merge::Merge;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use tracing::debug;
 
-use pace_core::prelude::{
-    Activity, ActivityEndOptions, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind,
-    ActivityKindOptions, ActivityLog, ActivityQuerying, ActivityReadOps, ActivityStateManagement,
-    ActivityStatusKind, ActivityStorage, ActivityWriteOps, DeleteOptions, EndOptions,
-    FilteredActivities, HoldOptions, KeywordOptions, PaceCategory, ResumeOptions, SyncStorage,
-    UpdateOptions,
+use pace_core::{
+    options::{
+        DeleteOptions, EndOptions, HoldOptions, KeywordOptions, ResumeOptions, UpdateOptions,
+    },
+    prelude::{
+        Activity, ActivityEndOptions, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind,
+        ActivityKindOptions, ActivityLog, ActivityQuerying, ActivityReadOps,
+        ActivityStateManagement, ActivityStatusKind, ActivityStorage, ActivityWriteOps,
+        FilteredActivities, PaceCategory, SyncStorage,
+    },
 };
 use pace_error::{ActivityLogErrorKind, PaceOptResult, PaceResult};
 

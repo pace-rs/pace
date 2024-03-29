@@ -7,10 +7,11 @@ use rusqlite::{types::FromSql, ToSql};
 // TODO: handle PaceTagCollection
 
 use crate::{
-    domain::id::Guid,
-    prelude::{
-        ActivityGuid, ActivityKind, ActivityStatusKind, PaceCategory, PaceDescription, PaceTag,
+    domain::id::{
+        ActivityGuid, ActivityKindGuid, ActivityStatusGuid, CategoryGuid, DescriptionGuid, Guid,
+        TagGuid,
     },
+    prelude::{ActivityKind, ActivityStatusKind, PaceCategory, PaceDescription, PaceTag},
 };
 
 impl ToSql for ActivityGuid {
@@ -114,5 +115,75 @@ impl FromSql for PaceTag {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         Self::from_str(value.as_str()?)
             .map_err(|err| rusqlite::types::FromSqlError::Other(Box::new(err)))
+    }
+}
+
+impl ToSql for ActivityKindGuid {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        self.inner().to_sql()
+    }
+}
+
+impl FromSql for ActivityKindGuid {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        Ok(Self::with_id(Guid::from_str(value.as_str()?).map_err(
+            |err| rusqlite::types::FromSqlError::Other(Box::new(err)),
+        )?))
+    }
+}
+
+impl ToSql for ActivityStatusGuid {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        self.inner().to_sql()
+    }
+}
+
+impl FromSql for ActivityStatusGuid {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        Ok(Self::with_id(Guid::from_str(value.as_str()?).map_err(
+            |err| rusqlite::types::FromSqlError::Other(Box::new(err)),
+        )?))
+    }
+}
+
+impl ToSql for CategoryGuid {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        self.inner().to_sql()
+    }
+}
+
+impl FromSql for CategoryGuid {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        Ok(Self::with_id(Guid::from_str(value.as_str()?).map_err(
+            |err| rusqlite::types::FromSqlError::Other(Box::new(err)),
+        )?))
+    }
+}
+
+impl ToSql for DescriptionGuid {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        self.inner().to_sql()
+    }
+}
+
+impl FromSql for DescriptionGuid {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        Ok(Self::with_id(Guid::from_str(value.as_str()?).map_err(
+            |err| rusqlite::types::FromSqlError::Other(Box::new(err)),
+        )?))
+    }
+}
+
+impl ToSql for TagGuid {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        self.inner().to_sql()
+    }
+}
+
+impl FromSql for TagGuid {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        Ok(Self::with_id(Guid::from_str(value.as_str()?).map_err(
+            |err| rusqlite::types::FromSqlError::Other(Box::new(err)),
+        )?))
     }
 }

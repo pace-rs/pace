@@ -17,8 +17,8 @@ use tracing::debug;
 use typed_builder::TypedBuilder;
 
 use crate::domain::{
-    category::PaceCategory, description::PaceDescription, id::Guid, status::ActivityStatusKind,
-    tag::PaceTagCollection,
+    category::PaceCategory, description::PaceDescription, id::ActivityGuid,
+    status::ActivityStatusKind, tag::PaceTagCollection,
 };
 
 use pace_error::{ActivityLogErrorKind, PaceResult};
@@ -311,39 +311,6 @@ impl ActivityKindOptions {
         Self {
             parent_id: parent_id.into(),
         }
-    }
-}
-
-/// The unique identifier of an activity
-#[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
-pub struct ActivityGuid(Guid);
-
-impl ActivityGuid {
-    #[must_use]
-    pub fn new() -> Self {
-        Self(Guid::new())
-    }
-
-    #[must_use]
-    pub const fn with_id(id: Guid) -> Self {
-        Self(id)
-    }
-
-    #[must_use]
-    pub const fn inner(&self) -> &Guid {
-        &self.0
-    }
-}
-
-impl Display for ActivityGuid {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Default for ActivityGuid {
-    fn default() -> Self {
-        Self(Guid::new())
     }
 }
 

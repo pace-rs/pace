@@ -4,20 +4,17 @@ use chrono::{FixedOffset, NaiveTime};
 use chrono_tz::Tz;
 #[cfg(feature = "clap")]
 use clap::Parser;
-
-use getset::Getters;
-use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 use tracing::debug;
-use typed_builder::TypedBuilder;
 
-use crate::{
+use pace_core::{
     config::PaceConfig,
     domain::{description::PaceDescription, intermission::IntermissionAction},
-    service::activity_store::ActivityStore,
+    options::HoldOptions,
     storage::{ActivityStateManagement, ActivityStorage, SyncStorage},
 };
-
 use pace_error::{PaceResult, UserMessage};
+use pace_service::activity_store::ActivityStore;
+use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 
 /// `hold` subcommand options
 #[derive(Debug)]
@@ -134,22 +131,4 @@ impl HoldCommandOptions {
 
         Ok(UserMessage::new(user_message))
     }
-}
-
-/// Options for holding an activity
-#[derive(Debug, Clone, PartialEq, TypedBuilder, Eq, Hash, Default, Getters)]
-#[getset(get = "pub")]
-#[non_exhaustive]
-pub struct HoldOptions {
-    /// The action to take on the intermission
-    #[builder(default)]
-    action: IntermissionAction,
-
-    /// The start time of the intermission
-    #[builder(default, setter(into))]
-    begin_time: PaceDateTime,
-
-    /// The reason for holding the activity
-    #[builder(default, setter(into))]
-    reason: Option<PaceDescription>,
 }

@@ -37,7 +37,6 @@ getset = { workspace = true }
 itertools = { workspace = true }
 merge = { workspace = true }
 once_cell = { workspace = true }
-open = { workspace = true }
 pace_error = { workspace = true }
 pace_time = { workspace = true, features = ["rusqlite"] }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
@@ -54,7 +53,6 @@ toml = { workspace = true, features = ["indexmap", "preserve_order"] }
 tracing = { workspace = true }
 typed-builder = { workspace = true }
 ulid = { workspace = true, features = ["serde"] }
-wildmatch = { workspace = true }
 
 [dev-dependencies]
 eyre = { workspace = true }

@@ -20,6 +20,15 @@ pub static TEMPLATES: Lazy<Tera> = Lazy::new(|| {
 });
 
 /// Returns the human duration of the argument.
+///
+/// # Errors
+///
+/// Returns an error if the argument is not a valid `PaceDuration`.
+///
+/// # Returns
+///
+/// Returns a `Value` with the human readable duration.
+#[allow(clippy::implicit_hasher)]
 pub fn human_duration(value: &Value, _: &HashMap<String, Value>) -> Result<Value, Error> {
     let Ok(duration) = from_value::<PaceDuration>(value.clone()) else {
         return Err(Error::msg(format!(
@@ -36,6 +45,7 @@ pub struct PaceReflectionTemplate {
 }
 
 impl PaceReflectionTemplate {
+    #[must_use]
     pub fn into_context(self) -> Context {
         self.context
     }

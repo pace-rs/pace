@@ -2,12 +2,15 @@
 
 use std::sync::Arc;
 
-use pace_core::prelude::{
-    Activity, ActivityFilterKind, ActivityGuid, ActivityReadOps, ActivityStateManagement,
-    ActivityStatusKind, ActivityStore, ActivityWriteOps, DeleteOptions, EndOptions, HoldOptions,
-    PaceCategory, PaceDescription, PaceTagCollection, ResumeOptions, UpdateOptions,
+use pace_core::{
+    options::{DeleteOptions, EndOptions, HoldOptions, ResumeOptions, UpdateOptions},
+    prelude::{
+        Activity, ActivityFilterKind, ActivityGuid, ActivityReadOps, ActivityStateManagement,
+        ActivityStatusKind, ActivityWriteOps, PaceCategory, PaceDescription, PaceTagCollection,
+    },
 };
 use pace_error::TestResult;
+use pace_service::activity_store::ActivityStore;
 use pace_storage::storage::in_memory::InMemoryActivityStorage;
 
 use crate::util::{

@@ -1,7 +1,7 @@
 #[cfg(feature = "clap")]
 use clap::Parser;
 
-use crate::{
+use pace_core::{
     constants::PACE_DOCS_URL,
     constants::{PACE_CONFIG_DOCS_URL, PACE_DEV_DOCS_URL},
 };

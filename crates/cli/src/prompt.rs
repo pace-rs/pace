@@ -111,7 +111,7 @@ pub fn prompt_config_file_path(
 /// # Returns
 ///
 /// Returns `Ok(())` if the user confirms their choices
-pub fn confirmation_or_break(prompt: &str) -> Result<()> {
+pub fn confirmation_or_break_default_false(prompt: &str) -> Result<()> {
     let confirmation = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(prompt)
         .default(false)
@@ -119,6 +119,33 @@ pub fn confirmation_or_break(prompt: &str) -> Result<()> {
 
     if !confirmation {
         eyre::bail!("Exiting. No changes were made.");
+    }
+
+    Ok(())
+}
+
+/// Prompts the user to confirm their choices or break the setup assistant
+///
+/// # Arguments
+///
+/// * `prompt` - The prompt to display to the user
+///
+/// # Errors
+///
+/// Returns an error if the wants to break the setup assistant or
+/// if the prompt fails
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the user confirms their choices
+pub fn confirmation_or_break_default_true(prompt: &str) -> Result<()> {
+    let confirmation = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(prompt)
+        .default(true)
+        .interact()?;
+
+    if !confirmation {
+        eyre::bail!("Setup exited without changes. No changes were made.");
     }
 
     Ok(())

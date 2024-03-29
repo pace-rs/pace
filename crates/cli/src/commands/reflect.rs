@@ -1,28 +1,25 @@
 #[cfg(feature = "clap")]
 use clap::Parser;
 use getset::{Getters, MutGetters, Setters};
-use pace_time::{
-    flags::{DateFlags, TimeFlags},
-    time_frame::PaceTimeFrame,
-    time_zone::PaceTimeZoneKind,
-};
 use serde_derive::Serialize;
 use std::{path::PathBuf, sync::Arc};
 use tracing::debug;
 use typed_builder::TypedBuilder;
 
-use crate::{
+use pace_core::{
     config::PaceConfig,
-    domain::{
-        activity::ActivityKind, category::PaceCategory, filter::FilterOptions,
-        reflection::ReflectionsFormatKind,
-    },
-    prelude::ActivityStorage,
-    service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
+    domain::{activity::ActivityKind, category::PaceCategory, reflection::ReflectionsFormatKind},
+    options::FilterOptions,
+    storage::ActivityStorage,
     template::{PaceReflectionTemplate, TEMPLATES},
 };
-
 use pace_error::{PaceResult, TemplatingErrorKind, UserMessage};
+use pace_service::{activity_store::ActivityStore, activity_tracker::ActivityTracker};
+use pace_time::{
+    flags::{DateFlags, TimeFlags},
+    time_frame::PaceTimeFrame,
+    time_zone::PaceTimeZoneKind,
+};
 
 /// `reflect` subcommand options
 #[derive(Debug, Getters)]
@@ -138,6 +135,8 @@ impl ReflectCommandOptions {
             date_flags,
             template_file,
             output_format,
+            category,
+            case_sensitive,
             // time_zone,
             // time_zone_offset,
             .. // TODO: ignore the rest of the fields for now,
@@ -157,8 +156,12 @@ impl ReflectCommandOptions {
 
         debug!("Displaying reflection for time frame: {}", time_frame);
 
-        let Some(reflection) =
-            activity_tracker.generate_reflection(FilterOptions::from(self), time_frame)?
+        let filter_opts = FilterOptions::builder()
+            .category(category.clone())
+            .case_sensitive(*case_sensitive)
+            .build();
+
+        let Some(reflection) = activity_tracker.generate_reflection(filter_opts, time_frame)?
         else {
             return Ok(UserMessage::new(
                 "No activities found for the specified time frame",
@@ -186,7 +189,6 @@ impl ReflectCommandOptions {
 
                 return Ok(UserMessage::new(json));
             }
-
             Some(ReflectionsFormatKind::Template) => {
                 let context = PaceReflectionTemplate::from(reflection).into_context();
 
@@ -221,6 +223,7 @@ impl ReflectCommandOptions {
                 return Ok(UserMessage::new(templated));
             }
             Some(ReflectionsFormatKind::Csv) => unimplemented!("CSV format not yet supported"),
+            _ => unimplemented!("Unsupported output format"),
         }
     }
 }

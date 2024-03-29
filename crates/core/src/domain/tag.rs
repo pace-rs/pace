@@ -1,9 +1,10 @@
 use typed_builder::TypedBuilder;
-use ulid::Ulid;
 
 use std::{collections::HashSet, convert::Infallible, str::FromStr};
 
 use serde_derive::{Deserialize, Serialize};
+
+use crate::domain::id::TagGuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
 pub struct PaceTagCollection(HashSet<PaceTag>);
@@ -82,15 +83,6 @@ impl std::ops::Deref for PaceTag {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
-pub struct TagGuid(Ulid);
-
-impl Default for TagGuid {
-    fn default() -> Self {
-        Self(Ulid::new())
-    }
-}
-
 #[derive(Debug, TypedBuilder, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 pub struct Tag {
     #[builder(default, setter(strip_option))]
@@ -101,6 +93,7 @@ pub struct Tag {
 }
 
 impl Tag {
+    #[must_use]
     pub const fn new(guid: Option<TagGuid>, text: String) -> Self {
         Self { guid, text }
     }

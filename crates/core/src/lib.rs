@@ -1,12 +1,11 @@
 //! # Pace Core
 
-pub(crate) mod commands;
-pub(crate) mod config;
-pub(crate) mod domain;
-pub(crate) mod service;
-pub(crate) mod storage;
-pub(crate) mod template;
-pub(crate) mod util;
+pub mod config;
+pub mod domain;
+pub mod options;
+pub mod storage;
+pub mod template;
+pub mod util;
 
 // Constants
 pub mod constants {
@@ -27,17 +26,6 @@ pub use toml;
 pub mod prelude {
     // Public Prelude API
     pub use crate::{
-        commands::{
-            adjust::AdjustCommandOptions,
-            begin::BeginCommandOptions,
-            docs::DocsCommandOptions,
-            end::EndCommandOptions,
-            hold::{HoldCommandOptions, HoldOptions},
-            now::NowCommandOptions,
-            reflect::{ExpensiveFlags, ReflectCommandOptions},
-            resume::{ResumeCommandOptions, ResumeOptions},
-            DeleteOptions, EndOptions, KeywordOptions, UpdateOptions,
-        },
         config::{
             find_root_config_file_path, find_root_project_file, get_activity_log_paths,
             get_config_paths, get_home_activity_log_path, get_home_config_path,
@@ -47,14 +35,17 @@ pub mod prelude {
         },
         domain::{
             activity::{
-                Activity, ActivityEndOptions, ActivityGroup, ActivityGuid, ActivityItem,
-                ActivityKind, ActivityKindOptions, ActivitySession,
+                Activity, ActivityEndOptions, ActivityGroup, ActivityItem, ActivityKind,
+                ActivityKindOptions, ActivitySession,
             },
             activity_log::ActivityLog,
             category::{split_category_by_category_separator, PaceCategory},
             description::PaceDescription,
-            filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
-            id::Guid,
+            filter::{ActivityFilterKind, FilteredActivities},
+            id::{
+                ActivityGuid, ActivityKindGuid, ActivityStatusGuid, CategoryGuid, DescriptionGuid,
+                Guid, TagGuid,
+            },
             intermission::IntermissionAction,
             reflection::{
                 Highlights, ReflectionSummary, ReflectionsFormatKind, SummaryActivityGroup,
@@ -63,7 +54,6 @@ pub mod prelude {
             status::ActivityStatusKind,
             tag::{PaceTag, PaceTagCollection},
         },
-        service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
         storage::{
             ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
             ActivityWriteOps, SyncStorage,

@@ -3,12 +3,10 @@
 use pace_time::{time_frame::PaceTimeFrame, time_range::TimeRangeOptions};
 use tracing::debug;
 
-use crate::{
-    domain::{filter::FilterOptions, reflection::ReflectionSummary},
-    service::activity_store::ActivityStore,
-};
-
+use pace_core::{domain::reflection::ReflectionSummary, options::FilterOptions};
 use pace_error::PaceOptResult;
+
+use crate::activity_store::ActivityStore;
 
 // This struct represents the overall structure for tracking activities and their intermissions.
 pub struct ActivityTracker {

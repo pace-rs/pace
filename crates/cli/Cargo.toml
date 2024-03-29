@@ -18,14 +18,27 @@ include = [
   "src/**/*",
   "Cargo.toml",
 ]
+[features]
+default = ["cli"]
+cli = ["clap"]
+clap = ["dep:clap"]
 
 [dependencies]
 chrono = { workspace = true }
 chrono-tz = { workspace = true }
+clap = { workspace = true, optional = true, features = ["env", "wrap_help", "derive"] }
 dialoguer = { workspace = true, features = ["fuzzy-select"] }
 eyre = { workspace = true }
 getset = { workspace = true }
+open = { workspace = true }
 pace_core = { workspace = true }
+pace_error = { workspace = true }
+pace_service = { workspace = true }
+pace_time = { workspace = true }
+serde = { workspace = true }
+serde_derive = { workspace = true }
+serde_json = { workspace = true }
+tera = { workspace = true }
 tracing = { workspace = true }
 typed-builder = { workspace = true }
 

@@ -5,9 +5,10 @@ use rstest::fixture;
 
 use pace_core::prelude::{
     Activity, ActivityGuid, ActivityItem, ActivityKind, ActivityKindOptions, ActivityLog,
-    ActivityStatusKind, ActivityStore, PaceCategory, PaceDescription, PaceTagCollection,
+    ActivityStatusKind, PaceCategory, PaceDescription, PaceTagCollection,
 };
 use pace_error::TestResult;
+use pace_service::activity_store::ActivityStore;
 use pace_storage::storage::{file::TomlActivityStorage, in_memory::InMemoryActivityStorage};
 use pace_time::date_time::PaceDateTime;
 

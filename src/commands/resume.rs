@@ -5,12 +5,16 @@ use abscissa_core::{status_err, tracing::debug, Application, Command, Runnable, 
 use clap::Parser;
 use eyre::Result;
 
-use pace_cli::{confirmation_or_break, prompt_resume_activity};
-use pace_core::prelude::{
-    ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStore,
-    ResumeCommandOptions, ResumeOptions, SyncStorage,
+use pace_cli::{
+    commands::resume::ResumeCommandOptions,
+    prompt::{confirmation_or_break_default_true, prompt_resume_activity},
+};
+use pace_core::{
+    options::ResumeOptions,
+    prelude::{ActivityQuerying, ActivityReadOps, ActivityStateManagement, SyncStorage},
 };
 use pace_error::UserMessage;
+use pace_service::activity_store::ActivityStore;
 use pace_storage::get_storage_from_config;
 use pace_time::{date_time::PaceDateTime, time_zone::PaceTimeZoneKind, Validate};
 
@@ -113,7 +117,7 @@ impl ResumeCmd {
                 Err(recoverable_err) if recoverable_err.possible_new_activity_from_resume() => {
                     debug!("Activity to resume: {:?}", activity_item.activity());
 
-                    confirmation_or_break(
+                    confirmation_or_break_default_true(
                             "We can't resume this already ended activity. Do you want to begin one with the same contents?",
                         )?;
 

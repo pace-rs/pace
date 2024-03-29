@@ -10,20 +10,19 @@ use typed_builder::TypedBuilder;
 
 use wildmatch::WildMatch;
 
-use crate::{
-    commands::{
-        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
-        UpdateOptions,
-    },
+use pace_core::{
     domain::{
-        activity::{
-            Activity, ActivityGroup, ActivityGuid, ActivityItem, ActivityKind, ActivitySession,
-        },
+        activity::{Activity, ActivityGroup, ActivityItem, ActivityKind, ActivitySession},
         category::{self, PaceCategory},
         description::PaceDescription,
-        filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
+        filter::{ActivityFilterKind, FilteredActivities},
+        id::ActivityGuid,
         reflection::{SummaryActivityGroup, SummaryGroupByCategory},
         status::ActivityStatusKind,
+    },
+    options::{
+        DeleteOptions, EndOptions, FilterOptions, HoldOptions, KeywordOptions, ResumeOptions,
+        UpdateOptions,
     },
     storage::{
         ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,

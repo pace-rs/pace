@@ -3,7 +3,10 @@ use rayon::iter::{FromParallelIterator, IntoParallelIterator};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::domain::activity::{Activity, ActivityGuid, ActivityItem};
+use crate::domain::{
+    activity::{Activity, ActivityItem},
+    id::ActivityGuid,
+};
 
 /// The activity log entity
 ///

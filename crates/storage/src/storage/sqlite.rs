@@ -2,17 +2,21 @@ use std::collections::BTreeMap;
 
 use itertools::Itertools;
 use rusqlite::Connection;
+use sea_query::{Expr, Query, SqliteQueryBuilder};
+use tracing::debug;
 
-use pace_core::prelude::{
-    Activity, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind, ActivityQuerying,
-    ActivityReadOps, ActivityStateManagement, ActivityStatusKind, ActivityStorage,
-    ActivityWriteOps, DeleteOptions, EndOptions, FilteredActivities, HoldOptions, KeywordOptions,
-    ResumeOptions, SyncStorage, UpdateOptions,
+use pace_core::{
+    options::{
+        DeleteOptions, EndOptions, HoldOptions, KeywordOptions, ResumeOptions, UpdateOptions,
+    },
+    prelude::{
+        Activity, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind, ActivityQuerying,
+        ActivityReadOps, ActivityStateManagement, ActivityStatusKind, ActivityStorage,
+        ActivityWriteOps, FilteredActivities, SyncStorage,
+    },
 };
 use pace_error::{DatabaseStorageErrorKind, PaceOptResult, PaceResult};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
-use sea_query::{Expr, Query, SqliteQueryBuilder};
-use tracing::debug;
 
 use crate::{
     convert::Convert,

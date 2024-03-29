@@ -4,14 +4,13 @@ use std::sync::Arc;
 use clap::Parser;
 use tracing::debug;
 
-use crate::{
+use pace_core::{
     config::PaceConfig,
     domain::{activity::ActivityItem, filter::ActivityFilterKind},
-    service::activity_store::ActivityStore,
     storage::{ActivityQuerying, ActivityReadOps, ActivityStorage},
 };
-
 use pace_error::{PaceResult, UserMessage};
+use pace_service::activity_store::ActivityStore;
 
 /// `now` subcommand options
 #[derive(Debug)]

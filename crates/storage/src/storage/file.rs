@@ -5,11 +5,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pace_core::prelude::{
-    Activity, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind, ActivityLog,
-    ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStatusKind,
-    ActivityStorage, ActivityWriteOps, DeleteOptions, EndOptions, FilteredActivities, HoldOptions,
-    KeywordOptions, ResumeOptions, SyncStorage, UpdateOptions,
+use pace_core::{
+    options::{
+        DeleteOptions, EndOptions, HoldOptions, KeywordOptions, ResumeOptions, UpdateOptions,
+    },
+    prelude::{
+        Activity, ActivityFilterKind, ActivityGuid, ActivityItem, ActivityKind, ActivityLog,
+        ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStatusKind,
+        ActivityStorage, ActivityWriteOps, FilteredActivities, SyncStorage,
+    },
 };
 use pace_error::{PaceOptResult, PaceResult, TomlFileStorageErrorKind};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};

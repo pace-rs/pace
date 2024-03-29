@@ -2,11 +2,10 @@
 
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 use clap::Parser;
+use pace_cli::commands::end::EndCommandOptions;
 use pace_storage::get_storage_from_config;
 
 use crate::prelude::PACE_APP;
-
-use pace_core::prelude::EndCommandOptions;
 
 /// `end` subcommand
 #[derive(Command, Debug, Parser)]
