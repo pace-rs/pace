@@ -1,23 +1,22 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header_cli.png" style="max-width:500px; width:100%; height: auto" />
+<img src="https://raw.githubusercontent.com/pace-rs/assets/main/logos/readme_header_service.png" style="max-width:500px; width:100%; height: auto" />
 </p>
-<p align="center"><b>pace-cli - library to support timetracking on the command line</b></p>
+<p align="center"><b>pace-service - a service library for the pace ecosystem</b></p>
 
 <p align="center">
-<a href="https://crates.io/crates/pace_cli"><img src="https://img.shields.io/crates/v/pace_cli.svg" /></a>
-<a href="https://docs.rs/pace_cli/"><img src="https://img.shields.io/docsrs/pace_cli?style=flat&amp;labelColor=1c1d42&amp;color=4f396a&amp;logo=Rust&amp;logoColor=white" /></a>
-<a href="https://raw.githubusercontent.com/pace-rs/pace/main/crates/cli/LICENSE"><img src="https://img.shields.io/badge/license-AGPLv3+-red.svg" /></a>
-<a href="https://crates.io/crates/pace_cli"><img src="https://img.shields.io/crates/d/pace_cli.svg" /></a>
+<a href="https://crates.io/crates/pace_service"><img src="https://img.shields.io/crates/v/pace_service.svg" /></a>
+<a href="https://docs.rs/pace_service/"><img src="https://img.shields.io/docsrs/pace_service?style=flat&amp;labelColor=1c1d42&amp;color=4f396a&amp;logo=Rust&amp;logoColor=white" /></a>
+<a href="https://raw.githubusercontent.com/pace-rs/pace/main/crates/time/LICENSE"><img src="https://img.shields.io/badge/license-AGPLv3+-red.svg" /></a>
+<a href="https://crates.io/crates/pace_service"><img src="https://img.shields.io/crates/d/pace_service.svg" /></a>
 <p>
 
 ## About
 
-`pace-cli` is a library to support timetracking on the command line. It is the
-library to support special cli use cases for the `pace` timetracking
-application.
+`pace-service` is a library to support timetracking on the command line. It is
+the service library for the `pace` timetracking application.
 
-⚠️ **Note:** `pace-cli` is currently in active development and is not yet ready
-for production use. Expect breaking changes and incomplete features. We
+⚠️ **Note:** `pace-service` is currently in active development and is not yet
+ready for production use. Expect breaking changes and incomplete features. We
 encourage you to try it out and provide feedback, but please be aware that it is
 not yet stable.
 
@@ -33,7 +32,7 @@ You can ask questions in the
 | Discord       | [![Discord](https://dcbadge.vercel.app/api/server/RKSWrAcYdG?style=flat-square)](https://discord.gg/RKSWrAcYdG) |
 | Discussions   | [GitHub Discussions](https://github.com/orgs/pace-rs/discussions)                                               |
 
-## Crate features
+<!-- ## Crate features
 
 This crate exposes a few features for controlling dependency usage:
 
@@ -42,6 +41,12 @@ This crate exposes a few features for controlling dependency usage:
 
 - **cli** - Enables support for CLI features by enabling `merge` and `clap`
   features. *This feature is enabled by default*.
+
+- **db** - Enables support for database features by enabling `rusqlite`
+  features. *This feature is enabled by default*.
+
+- **rusqlite** - Enables a dependency on the `rusqlite` crate and enables
+  database support. *This feature is enabled by default*. -->
 
 ## Examples
 
