@@ -1,11 +1,11 @@
 ---
-source: tests/cli.rs
+source: tests/journey/cli.rs
 info:
   program: pace
   args:
     - "--config"
     - tests/fixtures/configs/pace.toml
-    - "--activity-log-file"
+    - "--activity-log"
     - "./tests/fixtures/activity_tracker/activities.pace.toml"
     - reflect
     - "--from"

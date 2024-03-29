@@ -1,12 +1,12 @@
 ---
-source: tests/cli.rs
+source: tests/journey/cli.rs
 info:
   program: pace
   args:
     - "--config"
     - tests/fixtures/configs/pace.toml
-    - "--activity-log-file"
-    - "D:\\a\\pace\\pace\\./tests/generated\\.tmp6Eme4G\\activities.pace.toml"
+    - "--activity-log"
+    - "D:\\a\\pace\\pace\\./tests/generated\\.tmp9oVkZI\\activities.pace.toml"
     - end
 ---
 success: true

@@ -1,11 +1,11 @@
 ---
-source: tests/cli.rs
+source: tests/journey/cli.rs
 info:
   program: pace
   args:
     - "--config"
     - tests/fixtures/configs/pace.toml
-    - "--activity-log-file"
+    - "--activity-log"
     - "./tests/fixtures/activity_tracker/activities.pace.toml"
     - reflect
     - "--from"
@@ -13,7 +13,7 @@ info:
     - "--to"
     - 2024-02-28
     - "--category"
-    - "development::pace"
+    - dev*
 ---
 success: true
 exit_code: 0
@@ -29,7 +29,11 @@ exit_code: 0
 ├─────────────┼─────────────────────────┼─────────────────────┼─────────────────┤
 │    pace     │ Implementing Reflection │          3m 22s (1) │       4m 4s (1) │
 ├─────────────┼─────────────────────────┼─────────────────────┼─────────────────┤
-│    Total    │                         │              3m 22s │           4m 4s │
+│ development │                         │                 51s │             10s │
+├─────────────┼─────────────────────────┼─────────────────────┼─────────────────┤
+│   rustic    │      More Testing       │             51s (2) │         10s (1) │
+├─────────────┼─────────────────────────┼─────────────────────┼─────────────────┤
+│    Total    │                         │              4m 13s │          4m 14s │
 ╰─────────────┴─────────────────────────┴─────────────────────┴─────────────────╯
 
 ----- stderr -----
