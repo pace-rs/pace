@@ -174,7 +174,7 @@ pub fn setup_activity_store(kind: &ActivityStoreTestKind) -> TestResult<TestData
 #[fixture]
 pub fn setup_activity_store_for_activity_tracker() -> TestResult<ActivityStore> {
     let fixture_path =
-        Path::new("../../tests/fixtures/activity_tracker/activities.pace.toml").canonicalize()?;
+        Path::new("tests/fixtures/activity_tracker/activities.pace.toml").canonicalize()?;
 
     Ok(ActivityStore::with_storage(Arc::new(
         TomlActivityStorage::new(fixture_path)?,
