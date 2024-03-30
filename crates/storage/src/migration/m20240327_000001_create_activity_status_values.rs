@@ -12,7 +12,7 @@ pub struct Migration;
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    async fn up(&self, manager: &'life1 SchemaManager<'_>) -> Result<(), DbErr> {
         let activity_kinds = ActivityStatusKind::iter()
             .map(|kind| {
                 Query::insert()
@@ -30,7 +30,7 @@ impl MigrationTrait for Migration {
         Ok(())
     }
 
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    async fn down(&self, manager: &'life1 SchemaManager<'_>) -> Result<(), DbErr> {
         manager
             .exec_stmt(
                 Query::delete()
