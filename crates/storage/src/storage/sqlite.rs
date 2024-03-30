@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, fs::File, path::PathBuf};
 
-use itertools::Itertools;
-use sea_orm::{Database, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter};
-use tokio::runtime::Runtime;
+// use itertools::Itertools;
+use sea_orm::{Database, DatabaseConnection, EntityTrait, ModelTrait};
 use tracing::debug;
 
 use pace_core::{
@@ -20,7 +19,7 @@ use pace_error::{DatabaseStorageErrorKind, PaceOptResult, PaceResult};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 
 use crate::{
-    entity::{activities, activity_status, descriptions, prelude::Activities, tags},
+    entity::{descriptions, prelude::Activities},
     migration::{Migrator, MigratorTrait},
     runtime,
 };
@@ -124,12 +123,14 @@ impl ActivityReadOps for DatabaseActivityStorage {
                 .into());
             };
 
-            let description = activity
+            let _description = activity
                 .find_related(descriptions::Entity)
                 .one(&self.connection)
                 .await;
 
-            Ok(ActivityItem::default())
+            todo!("implement read_activity for sqlite");
+
+            // Ok(ActivityItem::default())
         })
     }
 
