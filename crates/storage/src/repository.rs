@@ -1,8 +1,10 @@
+pub mod activity;
 pub mod category;
+pub mod tag;
 
 use pace_error::{PaceOptResult, PaceResult};
 
-pub trait Repository<T> {
+pub(crate) trait Repository<T> {
     /// Read a single entity by its id.
     ///
     /// # Arguments
@@ -16,7 +18,7 @@ pub trait Repository<T> {
     /// # Returns
     ///
     /// Returns the entity if it exists or None if it does not.
-    fn read(&self, id: &str) -> PaceOptResult<T>;
+    async fn read(&self, id: &str) -> PaceOptResult<T>;
 
     /// Read all entities of a given type.
     ///
@@ -28,7 +30,7 @@ pub trait Repository<T> {
     ///
     /// Returns a vector of all entities of the given type or an
     /// empty vector if there are none.
-    fn read_all(&self) -> PaceOptResult<Vec<T>>;
+    async fn read_all(&self) -> PaceOptResult<Vec<T>>;
 
     /// Create a new entity of a given type.
     ///
@@ -43,7 +45,7 @@ pub trait Repository<T> {
     /// # Returns
     ///
     /// Returns the id of the created entity.
-    fn create(&self, entity: &T) -> PaceResult<String>;
+    async fn create(&self, model: &T) -> PaceResult<String>;
 
     /// Update an existing entity of a given type.
     ///
@@ -59,7 +61,7 @@ pub trait Repository<T> {
     /// # Returns
     ///
     /// Returns nothing if the entity was updated successfully.
-    fn update(&self, id: &str, entity: &T) -> PaceResult<()>;
+    async fn update(&self, id: &str, model: &T) -> PaceResult<()>;
 
     /// Delete an existing entity of a given type.
     ///
@@ -70,5 +72,26 @@ pub trait Repository<T> {
     /// # Errors
     ///
     /// Returns an error if there was a problem deleting the entity.
-    fn delete(&self, id: &str) -> PaceResult<()>;
+    ///
+    /// # Returns
+    ///
+    /// Returns the deleted entity if it exists.
+    async fn delete(&self, id: &str) -> PaceOptResult<T>;
+}
+
+pub struct SeaOrmRepository<'conn> {
+    activity: activity::ActivityRepository<'conn, sea_orm::DatabaseConnection>,
+    category: category::CategoryRepository<'conn, sea_orm::DatabaseConnection>,
+    tag: tag::TagRepository<'conn, sea_orm::DatabaseConnection>,
+}
+
+impl<'conn> SeaOrmRepository<'conn> {
+    #[must_use]
+    pub const fn new(connection: &'conn sea_orm::DatabaseConnection) -> Self {
+        Self {
+            activity: activity::ActivityRepository::new(connection),
+            category: category::CategoryRepository::new(connection),
+            tag: tag::TagRepository::new(connection),
+        }
+    }
 }

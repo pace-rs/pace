@@ -45,6 +45,26 @@ impl MigrationTrait for Migration {
                     )
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .table(Activities::Table)
+                    .name("idx_activities_parent_guid")
+                    .col(Activities::ParentGuid)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .table(Activities::Table)
+                    .name("idx_activities_description")
+                    .col(Activities::Description)
+                    .to_owned(),
+            )
             .await
     }
 

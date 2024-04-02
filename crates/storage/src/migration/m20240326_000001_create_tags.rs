@@ -17,6 +17,16 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Tags::Tag).text().not_null())
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .table(Tags::Table)
+                    .name("idx_tags_tag")
+                    .col(Tags::Tag)
+                    .to_owned(),
+            )
             .await
     }
 

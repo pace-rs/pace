@@ -23,6 +23,16 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Categories::Description).text().null())
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .table(Categories::Table)
+                    .name("idx_categories_category")
+                    .col(Categories::Category)
+                    .to_owned(),
+            )
             .await
     }
 

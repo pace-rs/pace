@@ -293,6 +293,26 @@ pub enum DatabaseStorageErrorKind {
         #[source]
         source: sea_orm::error::SqlErr,
     },
+
+    /// Failed to read item {item_type}::{item_id} from database: {source}
+    RepositoryReadFailed {
+        source: sea_orm::DbErr,
+        item_type: String,
+        item_id: String,
+    },
+
+    /// Failed to delete item {item_type}::{item_id} from database: {source}
+    RepositoryDeleteFailed {
+        source: sea_orm::prelude::DbErr,
+        item_type: String,
+        item_id: String,
+    },
+
+    /// Failed to create item {item_type} in database: {source}
+    RepositoryCreateFailed {
+        source: sea_orm::prelude::DbErr,
+        item_type: String,
+    },
 }
 
 /// [`TomlFileStorageErrorKind`] describes the errors that can happen while dealing with the Toml file storage.
