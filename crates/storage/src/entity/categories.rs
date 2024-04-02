@@ -12,7 +12,7 @@ pub struct Model {
 }
 
 #[derive(DeriveIden)]
-pub enum CategoriesEnum {
+pub enum Categories {
     Table,
     Guid,
     Category,

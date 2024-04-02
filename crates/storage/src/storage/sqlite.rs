@@ -19,7 +19,7 @@ use pace_error::{DatabaseStorageErrorKind, PaceOptResult, PaceResult};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 
 use crate::{
-    entity::{descriptions, prelude::Activities},
+    entity::prelude::Activities,
     migration::{Migrator, MigratorTrait},
     runtime,
 };
@@ -123,10 +123,10 @@ impl ActivityReadOps for DatabaseActivityStorage {
                 .into());
             };
 
-            let _description = activity
-                .find_related(descriptions::Entity)
-                .one(&self.connection)
-                .await;
+            // let _description = activity
+            //     .find_related(descriptions::Entity)
+            //     .one(&self.connection)
+            //     .await;
 
             todo!("implement read_activity for sqlite");
 

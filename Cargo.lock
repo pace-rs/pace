@@ -1812,6 +1812,7 @@ dependencies = [
  "parking_lot",
  "rayon",
  "rstest",
+ "sea-orm",
  "serde",
  "serde_derive",
  "serde_json",

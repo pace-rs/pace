@@ -8,7 +8,7 @@ use pace_time::{
     date_time::PaceDateTime,
     duration::{calculate_duration, duration_to_str, PaceDuration},
 };
-use strum::EnumIter;
+use sea_orm::DeriveActiveEnum;
 
 use serde_derive::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -84,28 +84,35 @@ impl From<(ActivityGuid, Activity)> for ActivityItem {
     PartialOrd,
     Ord,
     EnumString,
-    EnumIter,
+    sea_orm::EnumIter,
     strum::Display,
+    DeriveActiveEnum,
 )]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
 // #[serde(untagged)]
 pub enum ActivityKind {
     /// A generic activity
     #[default]
+    #[sea_orm(num_value = 0)]
     Activity,
 
-    /// A task
-    Task,
-
     /// A break
+    #[sea_orm(num_value = 1)]
     Intermission,
 
+    /// A pomodoro break
+    #[sea_orm(num_value = 2)]
+    PomodoroIntermission,
+
     /// A pomodoro work session
+    #[sea_orm(num_value = 3)]
     PomodoroWork,
 
-    /// A pomodoro break
-    PomodoroIntermission,
+    /// A task
+    #[sea_orm(num_value = 4)]
+    Task,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]

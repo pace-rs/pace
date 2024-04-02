@@ -3,6 +3,7 @@
 pub mod entity;
 pub mod migration;
 pub mod query;
+pub mod repository;
 pub mod storage;
 
 use std::sync::OnceLock;

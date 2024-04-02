@@ -39,6 +39,7 @@ pace_error = { workspace = true }
 pace_time = { workspace = true }
 parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
+sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }

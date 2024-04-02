@@ -3,8 +3,5 @@
 pub use super::activities::Entity as Activities;
 pub use super::activities_categories::Entity as ActivitiesCategories;
 pub use super::activities_tags::Entity as ActivitiesTags;
-pub use super::activity_kinds::Entity as ActivityKinds;
-pub use super::activity_status::Entity as ActivityStatus;
 pub use super::categories::Entity as Categories;
-pub use super::descriptions::Entity as Descriptions;
 pub use super::tags::Entity as Tags;
