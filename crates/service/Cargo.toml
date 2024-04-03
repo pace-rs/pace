@@ -1,0 +1,27 @@
+[package]
+name = "pace_service"
+version = "0.1.0"
+authors = { workspace = true }
+categories = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+description = "pace-service - service support library for pace"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+getset = { workspace = true }
+pace_core = { workspace = true }
+pace_error = { workspace = true }
+pace_storage = { workspace = true }
+pace_time = { workspace = true }
+tracing = { workspace = true }
+typed-builder = { workspace = true }
+wildmatch = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,32 @@
+---
+source: tests/journey/cli.rs
+info:
+  program: pace
+  args:
+    - "--config"
+    - tests/fixtures/configs/pace.toml
+    - "--activity-log"
+    - "./tests/fixtures/activity_tracker/activities.pace.toml"
+    - reflect
+    - "--from"
+    - 2024-02-26
+    - "--to"
+    - 2024-02-28
+    - "--category"
+    - "*Pace"
+    - "--case-sensitive"
+---
+success: true
+exit_code: 0
+----- stdout -----
+╭──────────┬─────────────┬─────────────────────┬─────────────────╮
+│    Your activity insights for the period:                      │
+│                                                                │
+│    2024-02-26 00:00:00 +00:00 - 2024-02-28 23:59:59 +00:00     │
+├──────────┼─────────────┼─────────────────────┼─────────────────┤
+│ Category │ Description │ Duration (Sessions) │ Breaks (Amount) │
+├──────────┼─────────────┼─────────────────────┼─────────────────┤
+│  Total   │             │                  0s │              0s │
+╰──────────┴─────────────┴─────────────────────┴─────────────────╯
+
+----- stderr -----

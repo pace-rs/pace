@@ -1,0 +1,17 @@
+---
+source: tests/journey/cli.rs
+info:
+  program: pace
+  args:
+    - "--config"
+    - tests/fixtures/configs/pace.toml
+    - "--activity-log"
+    - "D:\\a\\pace\\pace\\./tests/generated\\.tmpeeQ1O3\\activities.pace.toml"
+    - now
+---
+success: true
+exit_code: 0
+----- stdout -----
+📆  Activity: "NewDescription" (NewCategory::SubCategory) started just now in UTC+00:00
+
+----- stderr -----

@@ -1,0 +1,12 @@
+---
+source: tests/integration/config.rs
+expression: config
+---
+[general]
+category-separator = '::'
+default-priority = 'medium'
+most-recent-count = 9
+default-time-zone = 'UTC'
+[storage.database]
+kind = 'sqlite'
+url = './db/activities.pace.sqlite3'

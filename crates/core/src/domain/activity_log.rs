@@ -3,7 +3,10 @@ use rayon::iter::{FromParallelIterator, IntoParallelIterator};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::domain::activity::{Activity, ActivityGuid, ActivityItem};
+use crate::domain::{
+    activity::{Activity, ActivityItem},
+    id::ActivityGuid,
+};
 
 /// The activity log entity
 ///
@@ -62,7 +65,7 @@ impl FromParallelIterator<(ActivityGuid, Activity)> for ActivityLog {
 #[cfg(test)]
 mod tests {
 
-    use crate::error::TestResult;
+    use pace_error::TestResult;
 
     use super::*;
     use rstest::*;

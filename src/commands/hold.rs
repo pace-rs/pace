@@ -3,7 +3,8 @@
 use abscissa_core::{status_err, Application, Command, Runnable, Shutdown};
 
 use clap::Parser;
-use pace_core::prelude::HoldCommandOptions;
+use pace_cli::commands::hold::HoldCommandOptions;
+use pace_service::get_storage_from_config;
 
 use crate::prelude::PACE_APP;
 
@@ -16,12 +17,17 @@ pub struct HoldCmd {
 
 impl Runnable for HoldCmd {
     fn run(&self) {
-        match self.hold_opts.handle_hold(&PACE_APP.config()) {
-            Ok(user_message) => user_message.display(),
-            Err(err) => {
-                status_err!("{}", err);
-                PACE_APP.shutdown(Shutdown::Crash);
-            }
-        };
+        if let Ok(storage) = get_storage_from_config(&PACE_APP.config()) {
+            match self.hold_opts.handle_hold(&PACE_APP.config(), storage) {
+                Ok(user_message) => user_message.display(),
+                Err(err) => {
+                    status_err!("{}", err);
+                    PACE_APP.shutdown(Shutdown::Crash);
+                }
+            };
+        } else {
+            status_err!("Failed to get storage from config");
+            PACE_APP.shutdown(Shutdown::Crash);
+        }
     }
 }

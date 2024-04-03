@@ -5,11 +5,12 @@ use tracing::debug;
 use crate::{
     date::PaceDate,
     date_time::PaceDateTime,
-    error::PaceTimeErrorKind,
     flags::{DateFlags, TimeFlags},
     time_range::TimeRangeOptions,
     time_zone::PaceTimeZoneKind,
 };
+
+use pace_error::{BoxedPaceError, PaceResult};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Display)]
 pub enum PaceTimeFrame {
@@ -53,7 +54,7 @@ impl
         PaceTimeZoneKind,
     )> for PaceTimeFrame
 {
-    type Error = PaceTimeErrorKind;
+    type Error = BoxedPaceError;
 
     fn try_from(
         (time_flags, date_flags, tz, tz_config): (
@@ -70,7 +71,7 @@ impl
 }
 
 impl TryFrom<(Option<&TimeFlags>, Option<&DateFlags>, PaceTimeZoneKind)> for PaceTimeFrame {
-    type Error = PaceTimeErrorKind;
+    type Error = BoxedPaceError;
 
     fn try_from(
         (time_flags, date_flags, tz): (Option<&TimeFlags>, Option<&DateFlags>, PaceTimeZoneKind),
@@ -85,7 +86,7 @@ impl TryFrom<(Option<&TimeFlags>, Option<&DateFlags>, PaceTimeZoneKind)> for Pac
 }
 
 impl TryFrom<(&DateFlags, PaceTimeZoneKind)> for PaceTimeFrame {
-    type Error = PaceTimeErrorKind;
+    type Error = BoxedPaceError;
 
     fn try_from((date_flags, tz): (&DateFlags, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
         time_frame_from_date_and_time_flags_with_time_zone_kind(
@@ -98,7 +99,7 @@ impl TryFrom<(&DateFlags, PaceTimeZoneKind)> for PaceTimeFrame {
 }
 
 impl TryFrom<&DateFlags> for PaceTimeFrame {
-    type Error = PaceTimeErrorKind;
+    type Error = BoxedPaceError;
 
     fn try_from(date_flags: &DateFlags) -> Result<Self, Self::Error> {
         time_frame_from_date_and_time_flags_with_time_zone_kind(
@@ -111,7 +112,7 @@ impl TryFrom<&DateFlags> for PaceTimeFrame {
 }
 
 impl TryFrom<(Option<&DateFlags>, PaceTimeZoneKind)> for PaceTimeFrame {
-    type Error = PaceTimeErrorKind;
+    type Error = BoxedPaceError;
 
     fn try_from(
         (date_flags, tz): (Option<&DateFlags>, PaceTimeZoneKind),
@@ -126,7 +127,7 @@ impl TryFrom<(Option<&DateFlags>, PaceTimeZoneKind)> for PaceTimeFrame {
 }
 
 impl TryFrom<(Option<&TimeFlags>, PaceTimeZoneKind)> for PaceTimeFrame {
-    type Error = PaceTimeErrorKind;
+    type Error = BoxedPaceError;
 
     fn try_from(
         (time_flags, tz): (Option<&TimeFlags>, PaceTimeZoneKind),
@@ -141,7 +142,7 @@ impl TryFrom<(Option<&TimeFlags>, PaceTimeZoneKind)> for PaceTimeFrame {
 }
 
 impl TryFrom<(&TimeFlags, PaceTimeZoneKind)> for PaceTimeFrame {
-    type Error = PaceTimeErrorKind;
+    type Error = BoxedPaceError;
 
     fn try_from((time_flags, tz): (&TimeFlags, PaceTimeZoneKind)) -> Result<Self, Self::Error> {
         time_frame_from_date_and_time_flags_with_time_zone_kind(
@@ -154,7 +155,7 @@ impl TryFrom<(&TimeFlags, PaceTimeZoneKind)> for PaceTimeFrame {
 }
 
 impl TryFrom<&TimeFlags> for PaceTimeFrame {
-    type Error = PaceTimeErrorKind;
+    type Error = BoxedPaceError;
 
     fn try_from(time_flags: &TimeFlags) -> Result<Self, Self::Error> {
         time_frame_from_date_and_time_flags_with_time_zone_kind(
@@ -167,7 +168,7 @@ impl TryFrom<&TimeFlags> for PaceTimeFrame {
 }
 
 impl TryFrom<PaceTimeZoneKind> for PaceTimeFrame {
-    type Error = PaceTimeErrorKind;
+    type Error = BoxedPaceError;
 
     fn try_from(tz: PaceTimeZoneKind) -> Result<Self, Self::Error> {
         time_frame_from_date_and_time_flags_with_time_zone_kind(
@@ -200,7 +201,7 @@ pub(crate) fn time_frame_from_date_and_time_flags_with_time_zone_kind(
     date_flags: Option<&DateFlags>,
     tz: PaceTimeZoneKind,
     tz_config: PaceTimeZoneKind,
-) -> Result<PaceTimeFrame, PaceTimeErrorKind> {
+) -> PaceResult<PaceTimeFrame> {
     let time_zone = match (tz, tz_config) {
         (tzk, _) | (PaceTimeZoneKind::NotSet, tzk) if !tzk.is_not_set() => tzk,
         _ => PaceTimeZoneKind::default(),
@@ -275,7 +276,7 @@ pub(crate) fn time_frame_from_date_and_time_flags_with_time_zone_kind(
         _ => PaceTimeFrame::default(),
     };
 
-    debug!("Converted Time frame: {:?}", time_frame);
+    debug!("Converted Time frame: {time_frame:?}");
 
     Ok(time_frame)
 }

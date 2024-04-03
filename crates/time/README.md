@@ -42,6 +42,12 @@ This crate exposes a few features for controlling dependency usage:
 - **cli** - Enables support for CLI features by enabling `merge` and `clap`
   features. *This feature is enabled by default*.
 
+- **db** - Enables support for database features by enabling `rusqlite`
+  features. *This feature is enabled by default*.
+
+- **rusqlite** - Enables a dependency on the `rusqlite` crate and enables
+  database support. *This feature is enabled by default*.
+
 ## Examples
 
 TODO!

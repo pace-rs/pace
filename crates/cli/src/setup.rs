@@ -22,8 +22,11 @@ use pace_core::{
 };
 
 use crate::{
-    prompt::{prompt_activity_log_path, prompt_config_file_path},
-    prompt_time_zone, PACE_ART,
+    prompt::{
+        confirmation_or_break_default_true, prompt_activity_log_path, prompt_config_file_path,
+        prompt_time_zone,
+    },
+    PACE_ART,
 };
 
 #[derive(Debug, TypedBuilder, Getters)]
@@ -279,33 +282,6 @@ Use Q, ESC, or Ctrl-C to exit gracefully at any time.";
     Ok(())
 }
 
-/// Prompts the user to confirm their choices or break the setup assistant
-///
-/// # Arguments
-///
-/// * `prompt` - The prompt to display to the user
-///
-/// # Errors
-///
-/// Returns an error if the wants to break the setup assistant or
-/// if the prompt fails
-///
-/// # Returns
-///
-/// Returns `Ok(())` if the user confirms their choices
-pub fn confirmation_or_break(prompt: &str) -> Result<()> {
-    let confirmation = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt(prompt)
-        .default(true)
-        .interact()?;
-
-    if !confirmation {
-        eyre::bail!("Setup exited without changes. No changes were made.");
-    }
-
-    Ok(())
-}
-
 /// The `setup` commands interior for the pace application
 ///
 /// # Arguments
@@ -355,7 +331,7 @@ pub fn setup_config(term: &Term, path_opts: &PathOptions) -> Result<()> {
 
     let prompt = "Do you want the files to be written?";
 
-    confirmation_or_break(prompt)?;
+    confirmation_or_break_default_true(prompt)?;
 
     term.clear_screen()?;
 

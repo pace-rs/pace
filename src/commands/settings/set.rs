@@ -1,7 +1,7 @@
 use abscissa_core::{Command, Runnable};
 use clap::{Parser, Subcommand};
 
-use pace_cli::prompt_time_zone;
+use pace_cli::prompt::prompt_time_zone;
 use pace_core::prelude::PaceConfig;
 
 use crate::prelude::PACE_APP;

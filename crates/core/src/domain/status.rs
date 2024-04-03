@@ -1,4 +1,6 @@
+use sea_orm::DeriveActiveEnum;
 use serde_derive::{Deserialize, Serialize};
+use strum::EnumString;
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
@@ -16,34 +18,59 @@ pub enum TaskStatus {
     Waiting,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    EnumString,
+    sea_orm::EnumIter,
+    strum::Display,
+    DeriveActiveEnum,
+)]
 #[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
 pub enum ActivityStatusKind {
     /// The initial state of an activity once it's created in the system but not yet started.
     #[default]
+    #[sea_orm(num_value = 0)]
     Created,
 
     /// The activity is scheduled to start at a specific time.
     /// It remains in this state until the activity begins.
+    #[sea_orm(num_value = 1)]
     Scheduled,
 
     /// The active state of an activity. It transitions to this state from "Scheduled" when
     /// the activity begins or from "Paused" when it's resumed. The start time is recorded
     /// upon entering this state for the first time, and the resume time is noted for
     /// subsequent entries.
+    #[sea_orm(num_value = 2)]
     InProgress,
 
     /// Represents an activity that has been temporarily halted.
     /// This could apply to tasks being paused for a break or intermission.
     /// The activity can move back to "InProgress" when work on it resumes.
+    #[sea_orm(num_value = 3)]
     Paused,
 
     /// The final state of an activity, indicating it has been finished.
     /// The end time of the activity is recorded, marking its completion.
+    #[sea_orm(num_value = 4)]
     Completed,
 
+    #[sea_orm(num_value = 98)]
+    Unarchived,
+
+    #[sea_orm(num_value = 99)]
     Archived,
-    Unarchived, // TODO: Do we need this or can be unarchiving done without it?
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]

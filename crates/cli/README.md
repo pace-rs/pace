@@ -33,6 +33,16 @@ You can ask questions in the
 | Discord       | [![Discord](https://dcbadge.vercel.app/api/server/RKSWrAcYdG?style=flat-square)](https://discord.gg/RKSWrAcYdG) |
 | Discussions   | [GitHub Discussions](https://github.com/orgs/pace-rs/discussions)                                               |
 
+## Crate features
+
+This crate exposes a few features for controlling dependency usage:
+
+- **clap** - Enables a dependency on the `clap` crate and enables parsing from
+  the commandline. *This feature is enabled by default*.
+
+- **cli** - Enables support for CLI features by enabling `merge` and `clap`
+  features. *This feature is enabled by default*.
+
 ## Examples
 
 TODO!

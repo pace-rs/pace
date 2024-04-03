@@ -1,0 +1,18 @@
+---
+source: tests/journey/cli.rs
+info:
+  program: pace
+  args:
+    - "--config"
+    - tests/fixtures/configs/pace.toml
+    - "--activity-log"
+    - "./tests/fixtures/activity_tracker/activities.pace.toml"
+    - reflect
+    - current-month
+---
+success: true
+exit_code: 0
+----- stdout -----
+No activities found for the specified time frame
+
+----- stderr -----

@@ -8,17 +8,20 @@ use pace_time::{
     date_time::PaceDateTime,
     duration::{calculate_duration, duration_to_str, PaceDuration},
 };
+use sea_orm::DeriveActiveEnum;
+
 use serde_derive::{Deserialize, Serialize};
-use std::{collections::HashSet, fmt::Display};
+use std::fmt::Display;
 use strum_macros::EnumString;
 use tracing::debug;
 use typed_builder::TypedBuilder;
-use ulid::Ulid;
 
-use crate::{
-    domain::status::ActivityStatusKind,
-    error::{ActivityLogErrorKind, PaceResult},
+use crate::domain::{
+    category::PaceCategory, description::PaceDescription, id::ActivityGuid,
+    status::ActivityStatusKind, tag::PaceTagCollection,
 };
+
+use pace_error::{ActivityLogErrorKind, PaceResult};
 
 #[derive(
     Debug, TypedBuilder, Serialize, Getters, Setters, MutGetters, Clone, Eq, PartialEq, Default,
@@ -81,25 +84,35 @@ impl From<(ActivityGuid, Activity)> for ActivityItem {
     PartialOrd,
     Ord,
     EnumString,
+    sea_orm::EnumIter,
+    strum::Display,
+    DeriveActiveEnum,
 )]
 #[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
 // #[serde(untagged)]
 pub enum ActivityKind {
     /// A generic activity
     #[default]
+    #[sea_orm(num_value = 0)]
     Activity,
 
-    /// A task
-    Task,
-
     /// A break
+    #[sea_orm(num_value = 1)]
     Intermission,
 
+    /// A pomodoro break
+    #[sea_orm(num_value = 2)]
+    PomodoroIntermission,
+
     /// A pomodoro work session
+    #[sea_orm(num_value = 3)]
     PomodoroWork,
 
-    /// A pomodoro break
-    PomodoroIntermission,
+    /// A task
+    #[sea_orm(num_value = 4)]
+    Task,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -199,14 +212,14 @@ pub struct Activity {
     #[getset(get = "pub", get_mut = "pub")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    category: Option<String>,
+    category: Option<PaceCategory>,
 
     /// The description of the activity
     // This needs to be an Optional, because we use the whole activity struct
     // as well for intermissions, which don't have a description
     #[builder(setter(into))]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    description: String,
+    description: PaceDescription,
 
     /// The start date and time of the activity
     #[builder(default, setter(into))]
@@ -234,7 +247,12 @@ pub struct Activity {
     /// Tags for the activity
     #[builder(default, setter(into))]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
-    tags: Option<HashSet<String>>,
+    tags: Option<PaceTagCollection>,
+
+    #[serde(default)]
+    #[builder(default)]
+    #[merge(strategy = crate::util::overwrite_left_with_right)]
+    status: ActivityStatusKind,
 
     // Pomodoro-specific attributes
     /// The pomodoro cycle of the activity
@@ -242,11 +260,6 @@ pub struct Activity {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::util::overwrite_left_with_right)]
     pomodoro_cycle_options: Option<PomodoroCycle>,
-
-    #[serde(default)]
-    #[builder(default)]
-    #[merge(strategy = crate::util::overwrite_left_with_right)]
-    status: ActivityStatusKind,
 }
 
 #[derive(
@@ -269,6 +282,11 @@ impl ActivityEndOptions {
     #[must_use]
     pub const fn new(end: PaceDateTime, duration: PaceDuration) -> Self {
         Self { end, duration }
+    }
+
+    #[must_use]
+    pub const fn as_tuple(&self) -> (PaceDateTime, PaceDuration) {
+        (self.end, self.duration)
     }
 }
 
@@ -303,28 +321,12 @@ impl ActivityKindOptions {
     }
 }
 
-/// The unique identifier of an activity
-#[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialEq, PartialOrd, Eq, Copy, Hash)]
-pub struct ActivityGuid(Ulid);
-
-impl Display for ActivityGuid {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Default for ActivityGuid {
-    fn default() -> Self {
-        Self(Ulid::new())
-    }
-}
-
 impl Display for Activity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let time = self.begin.and_local_timezone(&Local);
         let utc_offset = time.offset();
         let symbol = self.kind.as_symbol();
-        let nop_cat = "Uncategorized".to_string();
+        let nop_cat = PaceCategory::new("Uncategorized");
         let description = self.description();
         let category = self.category().as_ref().unwrap_or(&nop_cat);
         let started_at = duration_to_str(time);
@@ -341,10 +343,7 @@ impl Activity {
     /// an already ended/archived/etc. activity
     #[must_use]
     pub fn new_from_self(&self) -> Self {
-        debug!(
-            "Creating a new activity from the current activity: {:?}.",
-            self
-        );
+        debug!("Creating a new activity from the current activity: {self:?}.");
 
         Self::builder()
             .description(self.description.clone())
@@ -358,7 +357,7 @@ impl Activity {
 
     /// If the activity is held
     pub fn is_paused(&self) -> bool {
-        debug!("Checking if activity is held: {:?}", self);
+        debug!("Checking if activity is held: {self:?}");
         self.status.is_paused()
     }
 
@@ -367,7 +366,7 @@ impl Activity {
     /// [`is_active_intermission`] for that
     #[must_use]
     pub fn is_in_progress(&self) -> bool {
-        debug!("Checking if activity is active: {:?}", self);
+        debug!("Checking if activity is active: {self:?}");
         self.activity_end_options().is_none()
             && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
             && self.status.is_in_progress()
@@ -375,13 +374,13 @@ impl Activity {
 
     /// Make the activity active
     pub fn make_active(&mut self) {
-        debug!("Making activity active: {:?}", self);
+        debug!("Making activity active: {self:?}");
         self.status = ActivityStatusKind::InProgress;
     }
 
     /// Make the activity inactive
     pub fn make_inactive(&mut self) {
-        debug!("Making activity inactive: {:?}", self);
+        debug!("Making activity inactive: {self:?}");
         self.status = ActivityStatusKind::Created;
     }
 
@@ -389,7 +388,7 @@ impl Activity {
     /// This is only possible if the activity is not active and has ended
     pub fn archive(&mut self) {
         if !self.is_in_progress() && self.is_completed() {
-            debug!("Archiving activity: {:?}", self);
+            debug!("Archiving activity: {self:?}");
             self.status = ActivityStatusKind::Archived;
         }
     }
@@ -398,21 +397,21 @@ impl Activity {
     /// This is only possible if the activity is archived
     pub fn unarchive(&mut self) {
         if self.is_archived() {
-            debug!("Unarchiving activity: {:?}", self);
+            debug!("Unarchiving activity: {self:?}");
             self.status = ActivityStatusKind::Unarchived;
         }
     }
 
     /// If the activity is endable, meaning if it is active or held
     pub fn is_completable(&self) -> bool {
-        debug!("Checking if activity is endable: {:?}", self);
+        debug!("Checking if activity is endable: {self:?}");
         self.is_in_progress() || self.is_paused()
     }
 
     /// If the activity is an active intermission
     #[must_use]
     pub fn is_active_intermission(&self) -> bool {
-        debug!("Checking if activity is an active intermission: {:?}", self);
+        debug!("Checking if activity is an active intermission: {self:?}");
         self.activity_end_options().is_none()
             && (self.kind.is_intermission() || self.kind.is_pomodoro_intermission())
             && self.status.is_in_progress()
@@ -421,21 +420,21 @@ impl Activity {
     /// If the activity is archived
     #[must_use]
     pub fn is_archived(&self) -> bool {
-        debug!("Checking if activity is archived: {:?}", self);
+        debug!("Checking if activity is archived: {self:?}");
         self.status.is_archived()
     }
 
     /// If the activity is inactive
     #[must_use]
     pub fn is_inactive(&self) -> bool {
-        debug!("Checking if activity is inactive: {:?}", self);
+        debug!("Checking if activity is inactive: {self:?}");
         self.status.is_created()
     }
 
     /// If the activity has ended and is not archived
     #[must_use]
     pub fn is_completed(&self) -> bool {
-        debug!("Checking if activity has ended: {:?}", self);
+        debug!("Checking if activity has ended: {self:?}");
         self.activity_end_options().is_some()
             && (!self.kind.is_intermission() || !self.kind.is_pomodoro_intermission())
             && !self.is_archived()
@@ -445,7 +444,7 @@ impl Activity {
     /// If the activity is resumable
     #[must_use]
     pub fn is_resumable(&self) -> bool {
-        debug!("Checking if activity is resumable: {:?}", self);
+        debug!("Checking if activity is resumable: {self:?}");
         self.is_inactive() || self.is_archived() || self.is_paused() || self.is_completed()
     }
 
@@ -530,7 +529,7 @@ impl Activity {
 #[getset(get = "pub")]
 pub struct ActivitySession {
     /// A description of the activity group
-    description: String,
+    description: PaceDescription,
 
     /// Root Activity within the activity group
     root_activity: ActivityItem,
@@ -589,7 +588,7 @@ impl ActivitySession {
 #[getset(get = "pub")]
 pub struct ActivityGroup {
     /// A description of the activity group
-    description: String,
+    description: PaceDescription,
 
     /// Duration spent on the grouped activities, essentially the sum of all durations
     /// of the activities within the group and their children. Intermissions are counting
@@ -622,7 +621,7 @@ impl ActivityGroup {
     }
 
     pub fn with_multiple_sessions(
-        description: String,
+        description: PaceDescription,
         activity_sessions: Vec<ActivitySession>,
     ) -> Self {
         debug!("Creating new activity group");
@@ -651,7 +650,7 @@ impl ActivityGroup {
     pub fn add_session(&mut self, session: ActivitySession) {
         debug!("Adding session to activity session");
 
-        debug!("Session: {:#?}", session);
+        debug!("Session: {session:#?}");
 
         self.intermission_duration += *session.intermission_duration();
         self.adjusted_duration -= *session.adjusted_duration();
@@ -676,7 +675,7 @@ mod tests {
     use eyre::{eyre, OptionExt};
     use pace_time::time_zone::PaceTimeZoneKind;
 
-    use crate::error::TestResult;
+    use pace_error::TestResult;
 
     use super::*;
 
@@ -693,13 +692,19 @@ mod tests {
 
         let activity: Activity = toml::from_str(toml)?;
 
-        assert_eq!(activity.category.as_ref().ok_or("No category.")?, "Work");
+        assert_eq!(
+            activity.category.as_ref().ok_or("No category.")?,
+            &PaceCategory::new("Work")
+        );
 
-        assert_eq!(activity.description, "This is an example activity");
+        assert_eq!(
+            activity.description,
+            PaceDescription::new("This is an example activity")
+        );
 
         let ActivityEndOptions { end, duration } = activity
             .activity_end_options()
-            .clone()
+            .as_ref()
             .ok_or("No end options")?;
 
         let begin_time = PaceDateTime::try_from((
@@ -724,9 +729,9 @@ mod tests {
 
         assert_eq!(activity.begin, begin_time);
 
-        assert_eq!(end, end_time);
+        assert_eq!(end, &end_time);
 
-        assert_eq!(duration, PaceDuration::from_str("19")?);
+        assert_eq!(duration, &PaceDuration::from_str("19")?);
 
         assert_eq!(activity.kind, ActivityKind::Activity);
 

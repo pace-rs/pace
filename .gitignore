@@ -13,4 +13,4 @@ logs/*
 .cargo/config.toml
 
 # Database
-data/pace.sqlite3
+db/activities.pace.sqlite3*

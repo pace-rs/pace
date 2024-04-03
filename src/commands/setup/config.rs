@@ -6,7 +6,7 @@ use abscissa_core::{status_warn, Application, Command, Runnable, Shutdown};
 use clap::Parser;
 
 use dialoguer::console::Term;
-use pace_cli::{setup_config, PathOptions};
+use pace_cli::setup::{setup_config, PathOptions};
 
 use crate::prelude::PACE_APP;
 

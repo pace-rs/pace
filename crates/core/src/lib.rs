@@ -1,13 +1,11 @@
 //! # Pace Core
 
-pub(crate) mod commands;
-pub(crate) mod config;
-pub(crate) mod domain;
-pub(crate) mod error;
-pub(crate) mod service;
-pub(crate) mod storage;
-pub(crate) mod template;
-pub(crate) mod util;
+pub mod config;
+pub mod domain;
+pub mod options;
+pub mod storage;
+pub mod template;
+pub mod util;
 
 // Constants
 pub mod constants {
@@ -28,45 +26,37 @@ pub use toml;
 pub mod prelude {
     // Public Prelude API
     pub use crate::{
-        commands::{
-            adjust::AdjustCommandOptions,
-            begin::BeginCommandOptions,
-            docs::DocsCommandOptions,
-            end::EndCommandOptions,
-            hold::{HoldCommandOptions, HoldOptions},
-            now::NowCommandOptions,
-            reflect::{ExpensiveFlags, ReflectCommandOptions},
-            resume::{ResumeCommandOptions, ResumeOptions},
-            DeleteOptions, EndOptions, KeywordOptions, UpdateOptions,
-        },
         config::{
             find_root_config_file_path, find_root_project_file, get_activity_log_paths,
             get_config_paths, get_home_activity_log_path, get_home_config_path,
-            ActivityLogFormatKind, ActivityLogStorageKind, AutoArchivalConfig, DatabaseConfig,
-            ExportConfig, GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig,
-            ReflectionsConfig,
+            ActivityLogStorageKind, AutoArchivalConfig, DatabaseEngineKind, ExportConfig,
+            GeneralConfig, InboxConfig, PaceConfig, PomodoroConfig, ReflectionsConfig,
+            StorageConfig,
         },
         domain::{
             activity::{
-                Activity, ActivityEndOptions, ActivityGroup, ActivityGuid, ActivityItem,
-                ActivityKind, ActivityKindOptions, ActivitySession,
+                Activity, ActivityEndOptions, ActivityGroup, ActivityItem, ActivityKind,
+                ActivityKindOptions, ActivitySession,
             },
             activity_log::ActivityLog,
-            category::split_category_by_category_separator,
-            filter::{ActivityFilterKind, FilterOptions, FilteredActivities},
+            category::{split_category_by_category_separator, PaceCategory},
+            description::PaceDescription,
+            filter::{ActivityFilterKind, FilteredActivities},
+            id::{
+                ActivityGuid, ActivityKindGuid, ActivityStatusGuid, CategoryGuid, DescriptionGuid,
+                Guid, TagGuid,
+            },
             intermission::IntermissionAction,
             reflection::{
                 Highlights, ReflectionSummary, ReflectionsFormatKind, SummaryActivityGroup,
                 SummaryCategories, SummaryGroupByCategory,
             },
             status::ActivityStatusKind,
+            tag::{PaceTag, PaceTagCollection},
         },
-        error::{PaceError, PaceErrorKind, PaceOptResult, PaceResult, TestResult, UserMessage},
-        service::{activity_store::ActivityStore, activity_tracker::ActivityTracker},
         storage::{
-            file::TomlActivityStorage, get_storage_from_config, in_memory::InMemoryActivityStorage,
             ActivityQuerying, ActivityReadOps, ActivityStateManagement, ActivityStorage,
-            ActivityWriteOps, StorageKind, SyncStorage,
+            ActivityWriteOps, SyncStorage,
         },
         util::overwrite_left_with_right,
     };

@@ -2,7 +2,10 @@
 members = [
   "crates/cli",
   "crates/core",
+  "crates/error",
   "crates/server",
+  "crates/service",
+  "crates/storage",
   "crates/time",
 ]
 
@@ -26,9 +29,9 @@ clap_complete = "4.5.1"
 clap_complete_nushell = "4.5.1"
 derive_more = { version = "0.99.17", default-features = false }
 dialoguer = "0.11.0"
-diesel = "2.1.5"
 directories = "5.0.1"
 displaydoc = "0.2.4"
+dotenvy = "0.15.7"
 enum_dispatch = "0.3.12"
 eyre = "0.6.12"
 getset = "0.1.2"
@@ -37,18 +40,23 @@ humantime = "2.1.0"
 insta = "1.36.1"
 insta-cmd = "0.5.0"
 itertools = "0.12.1"
-libsqlite3-sys = "0.27"
+libsqlite3-sys = "0.27.0"
 merge = "0.1.0"
 miette = "7.2.0"
 once_cell = "1.19.0"
 open = "5.1.2"
 pace_cli = { path = "crates/cli", version = "0" }
 pace_core = { path = "crates/core", version = "0" }
+pace_error = { path = "crates/error", version = "0" }
+pace_service = { path = "crates/service", version = "0" }
+pace_storage = { path = "crates/storage", version = "0" }
 pace_time = { path = "crates/time", version = "0" }
 parking_lot = "0.12.1"
 predicates = "3.1.0"
 rayon = "1.10.0"
 rstest = "0.18.2"
+sea-orm = { version = "0.12.15" }
+sea-orm-migration = "0.12.15"
 serde = "1.0.197"
 serde_derive = "1.0.197"
 serde_json = "1.0.114"
@@ -60,6 +68,7 @@ tabled = "0.15.0"
 tempfile = "3.10.1"
 tera = "1.19.1"
 thiserror = "1.0.58"
+tokio = { version = "1.37.0", default-features = false }
 toml = "0.8.12"
 tracing = "0.1.40"
 typed-builder = "0.18.1"
@@ -100,12 +109,13 @@ clap = { workspace = true, features = ["env", "wrap_help", "derive"] }
 clap_complete = { workspace = true }
 clap_complete_nushell = { workspace = true }
 dialoguer = { workspace = true, features = ["history", "fuzzy-select"] }
-diesel = { workspace = true, features = ["sqlite"] }
 directories = { workspace = true }
 eyre = { workspace = true }
 human-panic = { workspace = true }
 pace_cli = { workspace = true }
 pace_core = { workspace = true, features = ["cli"] }
+pace_error = { workspace = true }
+pace_service = { workspace = true }
 pace_time = { workspace = true, features = ["cli"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
@@ -125,8 +135,11 @@ assert_cmd = { workspace = true }
 insta = { workspace = true, features = ["toml"] }
 insta-cmd = { workspace = true }
 once_cell = { workspace = true }
+pace_storage = { workspace = true }
 predicates = { workspace = true }
+rstest = { workspace = true }
 similar-asserts = { workspace = true }
+strum = { workspace = true }
 tempfile = { workspace = true }
 
 # The profile that 'cargo dist' will build with

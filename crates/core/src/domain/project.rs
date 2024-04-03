@@ -8,6 +8,8 @@ use serde_derive::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 use ulid::Ulid;
 
+use crate::domain::description::PaceDescription;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectList {
     /// The tasks in the list
@@ -18,14 +20,14 @@ pub struct ProjectList {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DefaultOptions {
-    categories: Option<Vec<Category>>,
+    categories: Option<Vec<ProjectCategory>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Category {
+pub struct ProjectCategory {
     id: Ulid,
     name: String,
-    description: Option<String>,
+    description: Option<PaceDescription>,
 }
 
 #[derive(Debug, TypedBuilder, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -34,7 +36,7 @@ pub struct Project {
     name: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    description: Option<PaceDescription>,
 
     tasks_file: PathBuf,
 
@@ -69,7 +71,7 @@ impl Default for ProjectGuid {
 #[cfg(test)]
 mod tests {
 
-    use crate::error::TestResult;
+    use pace_error::TestResult;
 
     use super::*;
     use rstest::*;

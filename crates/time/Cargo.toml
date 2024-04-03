@@ -9,7 +9,15 @@ keywords = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
-description = "pace-time - a library for handling date times, ranges, and durations for pace"
+description = "pace-time - a library handling date times, ranges, and durations for pace"
+
+include = [
+  "LICENSE",
+  "README.md",
+  "CHANGELOG.md",
+  "src/**/*",
+  "Cargo.toml",
+]
 
 [features]
 default = ["cli"]
@@ -24,6 +32,7 @@ derive_more = { workspace = true, features = ["add", "add_assign"] }
 displaydoc = { workspace = true }
 getset = { workspace = true }
 humantime = { workspace = true }
+pace_error = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 thiserror = { workspace = true }

@@ -30,7 +30,7 @@ use std::path::PathBuf;
 
 use pace_core::{
     constants::PACE_CONFIG_FILENAME,
-    prelude::{get_config_paths, ActivityLogFormatKind, PaceConfig},
+    prelude::{get_config_paths, PaceConfig},
 };
 
 /// Pace Subcommands
@@ -112,7 +112,11 @@ pub struct EntryPoint {
 
     /// Use the specified activity log file
     #[arg(long, env = "PACE_ACTIVITY_LOG_FILE", value_hint = clap::ValueHint::FilePath)]
-    pub activity_log_file: Option<PathBuf>,
+    pub activity_log: Option<PathBuf>,
+
+    /// Use the specified database URL for activity storage
+    #[arg(long, env = "PACE_ACTIVITY_DATABASE_URL", value_hint = clap::ValueHint::Url)]
+    pub database_url: Option<PathBuf>,
 
     /// Pace Home Directory
     #[arg(long, env = "PACE_HOME", value_hint = clap::ValueHint::DirPath)]
@@ -129,8 +133,8 @@ impl Runnable for EntryPoint {
 impl Override<PaceConfig> for EntryPoint {
     fn override_config(&self, mut config: PaceConfig) -> Result<PaceConfig, FrameworkError> {
         // Override the activity log file if it's set
-        if let Some(activity_log_file) = &self.activity_log_file {
-            debug!("Overriding activity log file with: {:?}", activity_log_file);
+        if let Some(activity_log_file) = &self.activity_log {
+            debug!("Overriding activity log file with: {activity_log_file:?}");
 
             // Handle not existing activity log file and parent directory
             match (activity_log_file.parent(), activity_log_file.exists()) {
@@ -144,18 +148,10 @@ impl Override<PaceConfig> for EntryPoint {
                 _ => {}
             };
 
-            *config.general_mut().activity_log_options_mut().path_mut() =
-                activity_log_file.to_path_buf();
-
-            // Set the activity log format to TOML
-            // TODO: This should be configurable
-            *config
-                .general_mut()
-                .activity_log_options_mut()
-                .format_kind_mut() = Some(ActivityLogFormatKind::Toml);
+            config.set_activity_log_path(activity_log_file);
         };
 
-        debug!("Overridden config: {:?}", config);
+        debug!("Overridden config: {config:?}");
 
         Ok(config)
     }
@@ -212,7 +208,7 @@ impl Configurable<PaceConfig> for EntryPoint {
             _ => None,
         };
 
-        debug!("Using config path: {:?}", config_path);
+        debug!("Using config path: {config_path:?}");
 
         config_path
     }

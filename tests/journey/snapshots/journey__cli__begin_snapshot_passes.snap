@@ -1,0 +1,22 @@
+---
+source: tests/journey/cli.rs
+info:
+  program: pace
+  args:
+    - "--config"
+    - tests/fixtures/configs/pace.toml
+    - "--activity-log"
+    - "D:\\a\\pace\\pace\\./tests/generated\\.tmpg9o2J7\\activities.pace.toml"
+    - begin
+    - MyActivity
+    - "--tags"
+    - "tag1,tag2"
+    - "--category"
+    - "MyCategory::SubCategory"
+---
+success: true
+exit_code: 0
+----- stdout -----
+📆  Activity: "MyActivity" (MyCategory::SubCategory) started just now in UTC+00:00
+
+----- stderr -----

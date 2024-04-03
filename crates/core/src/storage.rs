@@ -1,88 +1,37 @@
-use std::{collections::BTreeMap, fmt::Display, sync::Arc};
+// #[cfg(feature = "rusqlite")]
+// pub mod rusqlite;
 
-use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
-use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
+use std::{
+    collections::BTreeMap,
+    fmt::{self, Debug, Formatter},
+};
 use tracing::debug;
 
+use pace_error::{PaceOptResult, PaceResult};
+use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
+
 use crate::{
-    commands::{
-        hold::HoldOptions, resume::ResumeOptions, DeleteOptions, EndOptions, KeywordOptions,
-        UpdateOptions,
-    },
-    config::{ActivityLogStorageKind, PaceConfig},
     domain::{
-        activity::{Activity, ActivityGuid, ActivityItem, ActivityKind},
+        activity::{Activity, ActivityItem, ActivityKind},
         filter::{ActivityFilterKind, FilteredActivities},
+        id::ActivityGuid,
         status::ActivityStatusKind,
     },
-    error::{PaceErrorKind, PaceOptResult, PaceResult},
-    service::activity_store::ActivityStore,
-    storage::{file::TomlActivityStorage, in_memory::InMemoryActivityStorage},
+    options::{
+        DeleteOptions, EndOptions, HoldOptions, KeywordOptions, ResumeOptions, UpdateOptions,
+    },
 };
 
-/// A type of storage that can be synced to a persistent medium - a file
-pub mod file;
-
-/// An in-memory storage backend for activities.
-pub mod in_memory;
-// TODO: Implement conversion FromSQL and ToSQL
-// #[cfg(feature = "sqlite")]
-// pub mod sqlite;
-
-/// Get the storage backend from the configuration.
-///
-/// # Arguments
-///
-/// * `config` - The application configuration.
-///
-/// # Errors
-///
-/// This function should return an error if the storage backend cannot be created or is not supported.
-///
-/// # Returns
-///
-/// The storage backend.
-pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<StorageKind>> {
-    let storage: StorageKind = match config.general().activity_log_options().storage_kind() {
-        ActivityLogStorageKind::File => {
-            TomlActivityStorage::new(config.general().activity_log_options().path())?.into()
-        }
-        ActivityLogStorageKind::Database => {
-            return Err(PaceErrorKind::DatabaseStorageNotImplemented.into())
-        }
-        #[cfg(test)]
-        ActivityLogStorageKind::InMemory => InMemoryActivityStorage::new().into(),
-    };
-
-    debug!("Using storage backend: {}", storage);
-
-    Ok(Arc::new(storage))
-}
-
-#[enum_dispatch]
-pub enum StorageKind {
-    ActivityStore,
-    InMemoryActivityStorage,
-    TomlActivityStorage,
-}
-
-impl Display for StorageKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ActivityStore(_) => write!(f, "StorageKind: ActivityStore"),
-            Self::InMemoryActivityStorage(_) => {
-                write!(f, "StorageKind: InMemoryActivityStorage")
-            }
-            Self::TomlActivityStorage(_) => write!(f, "StorageKind: TomlActivityStorage"),
-        }
+impl Debug for dyn ActivityStorage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "ActivityStorage: {}", self.identify())
     }
 }
 
 /// A type of storage that can be synced to a persistent medium.
 ///
 /// This is useful for in-memory storage that needs to be persisted to disk or a database.
-#[enum_dispatch(StorageKind)]
 pub trait SyncStorage {
     /// Sync the storage to a persistent medium.
     ///
@@ -101,7 +50,6 @@ pub trait SyncStorage {
 ///
 /// Storage backends can be in-memory, on-disk, or in a database. They can be any kind of
 /// persistent storage that can be used to store activities.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityStorage:
     ActivityReadOps + ActivityWriteOps + ActivityStateManagement + SyncStorage + ActivityQuerying
 // TODO!: Implement other traits
@@ -120,7 +68,29 @@ pub trait ActivityStorage:
     /// # Errors
     ///
     /// This function should return an error if the storage backend cannot be setup.
-    fn setup_storage(&self) -> PaceResult<()>;
+    fn setup(&self) -> PaceResult<()>;
+
+    /// Teardown the storage backend. This is called once when the application stops.
+    ///
+    /// This is where you would close the database connection, save the file, etc.
+    ///
+    /// # Errors
+    ///
+    /// This function should return an error if the storage backend cannot be torn down.
+    ///
+    /// # Returns
+    ///
+    /// If the storage backend was torn down successfully it should return `Ok(())`.
+    fn teardown(&self) -> PaceResult<()>;
+
+    /// Identify the storage backend.
+    ///
+    /// This is useful for logging and debugging purposes.
+    ///
+    /// # Returns
+    ///
+    /// The identifier of the storage backend.
+    fn identify(&self) -> String;
 }
 
 /// Basic Read Operations for Activities in the storage backend.
@@ -128,7 +98,6 @@ pub trait ActivityStorage:
 /// Read operations are essential for loading activities from the storage backend.
 /// These operations are used to get activities by their ID, list all activities, or filter activities by a specific criterion.
 /// They are also used to get the current state of activities, such as the currently active activities.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityReadOps {
     /// Read an activity from the storage backend.
     ///
@@ -143,7 +112,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// The activity that was read from the storage backend. If no activity is found, it should return `Ok(None)`.
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem>;
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceOptResult<ActivityItem>;
 
     /// List activities from the storage backend.
     ///
@@ -165,7 +134,6 @@ pub trait ActivityReadOps {
 ///
 /// CUD stands for Create, Update, and Delete. These are the basic operations that can be performed on activities.
 /// These operations are essential for managing activities in the storage backend.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityWriteOps: ActivityReadOps {
     /// Create an activity in the storage backend.
     ///
@@ -238,7 +206,6 @@ pub trait ActivityWriteOps: ActivityReadOps {
 /// This is useful for keeping track of the current state of activities and making sure they are properly managed.
 ///
 /// For example, you might want to start a new activity, end an activity that is currently running, or hold an activity temporarily.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + ActivityQuerying {
     /// Begin an activity in the storage backend. This makes the activity active.
     ///
@@ -423,7 +390,6 @@ pub trait ActivityStateManagement: ActivityReadOps + ActivityWriteOps + Activity
 ///
 /// For example, you might want to list all activities that are currently active,
 /// find all activities within a specific date range, or get a specific activity by its ID.
-#[enum_dispatch(StorageKind)]
 pub trait ActivityQuerying: ActivityReadOps {
     /// Group activities by predefined duration ranges (e.g., short, medium, long).
     ///
@@ -619,10 +585,7 @@ pub trait ActivityQuerying: ActivityReadOps {
         };
 
         if filtered.len() > count {
-            debug!(
-                "Found more than {} recent activities, dropping some...",
-                count
-            );
+            debug!("Found more than {count} recent activities, dropping some...");
 
             Ok(Some(
                 (*filtered)
@@ -654,19 +617,21 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// If the activity is active, it should return `Ok(true)`. If it is not active, it should return `Ok(false)`.
     fn is_activity_active(&self, activity_id: ActivityGuid) -> PaceResult<bool> {
-        let activity = self.read_activity(activity_id)?;
+        if let Some(activity) = self.read_activity(activity_id)? {
+            debug!(
+                "Checking if Activity with id {:?} is active: {}",
+                activity_id,
+                if activity.activity().is_in_progress() {
+                    "yes"
+                } else {
+                    "no"
+                }
+            );
 
-        debug!(
-            "Checking if Activity with id {:?} is active: {}",
-            activity_id,
-            if activity.activity().is_in_progress() {
-                "yes"
-            } else {
-                "no"
-            }
-        );
-
-        Ok(activity.activity().is_in_progress())
+            Ok(activity.activity().is_in_progress())
+        } else {
+            Ok(false)
+        }
     }
 
     /// List all intermissions for an activity id from the storage backend.
@@ -698,27 +663,26 @@ pub trait ActivityQuerying: ActivityReadOps {
         let intermissions = filtered
             .iter()
             .filter_map(|activity| {
-                let activity_item = self.read_activity(*activity).ok()?;
-
-                if activity_item.activity().parent_id() == Some(activity_id) {
-                    debug!("Found intermission for activity: {}", activity_id);
-                    Some(activity_item)
+                if let Some(activity_item) = self.read_activity(*activity).ok()? {
+                    if activity_item.activity().parent_id() == Some(activity_id) {
+                        debug!("Found intermission for activity: {activity_id}");
+                        Some(activity_item)
+                    } else {
+                        debug!("Not an intermission for activity: {activity_id}");
+                        None
+                    }
                 } else {
-                    debug!("Not an intermission for activity: {}", activity_id);
                     None
                 }
             })
             .collect::<Vec<ActivityItem>>();
 
         if intermissions.is_empty() {
-            debug!("No intermissions found for activity: {}", activity_id);
+            debug!("No intermissions found for activity: {activity_id}");
             return Ok(None);
         }
 
-        debug!(
-            "Activity with id {:?} has intermissions: {:?}",
-            activity_id, intermissions
-        );
+        debug!("Activity with id {activity_id:?} has intermissions: {intermissions:?}");
 
         Ok(Some(intermissions))
     }
@@ -744,27 +708,22 @@ pub trait ActivityQuerying: ActivityReadOps {
         let guids = self.list_active_intermissions()?.map(|log| {
             log.iter()
                 .filter_map(|active_intermission_id| {
-                    if self
-                        .read_activity(*active_intermission_id)
-                        .ok()?
-                        .activity()
-                        .parent_id()
-                        == Some(activity_id)
-                    {
-                        debug!("Found active intermission for activity: {}", activity_id);
-                        Some(*active_intermission_id)
+                    if let Some(activity) = self.read_activity(*active_intermission_id).ok()? {
+                        if activity.activity().parent_id() == Some(activity_id) {
+                            debug!("Found active intermission for activity: {activity_id}");
+                            Some(*active_intermission_id)
+                        } else {
+                            debug!("No active intermission found for activity: {activity_id}");
+                            None
+                        }
                     } else {
-                        debug!("No active intermission found for activity: {}", activity_id);
                         None
                     }
                 })
                 .collect::<Vec<ActivityGuid>>()
         });
 
-        debug!(
-            "Activity with id {:?} has active intermissions: {:?}",
-            activity_id, guids
-        );
+        debug!("Activity with id {activity_id:?} has active intermissions: {guids:?}");
 
         Ok(guids)
     }
@@ -787,21 +746,23 @@ pub trait ActivityQuerying: ActivityReadOps {
             return Ok(None);
         };
 
-        current
+        Ok(current
             .into_iter()
             .sorted()
             .rev()
             .find(|activity_id| {
                 self.read_activity(*activity_id)
-                    .map(|activity| {
+                    .ok()
+                    .flatten()
+                    .is_some_and(|activity| {
                         activity.activity().is_in_progress()
                             && activity.activity().kind().is_activity()
                             && !activity.activity().is_active_intermission()
                     })
-                    .unwrap_or(false)
             })
             .map(|activity_id| self.read_activity(activity_id))
-            .transpose()
+            .transpose()?
+            .flatten())
     }
 
     /// Get the latest held activity.
@@ -822,21 +783,23 @@ pub trait ActivityQuerying: ActivityReadOps {
             return Ok(None);
         };
 
-        current
+        Ok(current
             .into_iter()
             .sorted()
             .rev()
             .find(|activity_id| {
                 self.read_activity(*activity_id)
-                    .map(|activity| {
+                    .ok()
+                    .flatten()
+                    .is_some_and(|activity| {
                         activity.activity().is_paused()
                             && activity.activity().kind().is_activity()
                             && !activity.activity().is_active_intermission()
                     })
-                    .unwrap_or(false)
             })
             .map(|activity_id| self.read_activity(activity_id))
-            .transpose()
+            .transpose()?
+            .flatten())
     }
 }
 
