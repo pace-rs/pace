@@ -112,7 +112,7 @@ pub trait ActivityReadOps {
     /// # Returns
     ///
     /// The activity that was read from the storage backend. If no activity is found, it should return `Ok(None)`.
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem>;
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceOptResult<ActivityItem>;
 
     /// List activities from the storage backend.
     ///
@@ -617,19 +617,21 @@ pub trait ActivityQuerying: ActivityReadOps {
     ///
     /// If the activity is active, it should return `Ok(true)`. If it is not active, it should return `Ok(false)`.
     fn is_activity_active(&self, activity_id: ActivityGuid) -> PaceResult<bool> {
-        let activity = self.read_activity(activity_id)?;
+        if let Some(activity) = self.read_activity(activity_id)? {
+            debug!(
+                "Checking if Activity with id {:?} is active: {}",
+                activity_id,
+                if activity.activity().is_in_progress() {
+                    "yes"
+                } else {
+                    "no"
+                }
+            );
 
-        debug!(
-            "Checking if Activity with id {:?} is active: {}",
-            activity_id,
-            if activity.activity().is_in_progress() {
-                "yes"
-            } else {
-                "no"
-            }
-        );
-
-        Ok(activity.activity().is_in_progress())
+            Ok(activity.activity().is_in_progress())
+        } else {
+            Ok(false)
+        }
     }
 
     /// List all intermissions for an activity id from the storage backend.
@@ -661,13 +663,15 @@ pub trait ActivityQuerying: ActivityReadOps {
         let intermissions = filtered
             .iter()
             .filter_map(|activity| {
-                let activity_item = self.read_activity(*activity).ok()?;
-
-                if activity_item.activity().parent_id() == Some(activity_id) {
-                    debug!("Found intermission for activity: {activity_id}");
-                    Some(activity_item)
+                if let Some(activity_item) = self.read_activity(*activity).ok()? {
+                    if activity_item.activity().parent_id() == Some(activity_id) {
+                        debug!("Found intermission for activity: {activity_id}");
+                        Some(activity_item)
+                    } else {
+                        debug!("Not an intermission for activity: {activity_id}");
+                        None
+                    }
                 } else {
-                    debug!("Not an intermission for activity: {activity_id}");
                     None
                 }
             })
@@ -704,17 +708,15 @@ pub trait ActivityQuerying: ActivityReadOps {
         let guids = self.list_active_intermissions()?.map(|log| {
             log.iter()
                 .filter_map(|active_intermission_id| {
-                    if self
-                        .read_activity(*active_intermission_id)
-                        .ok()?
-                        .activity()
-                        .parent_id()
-                        == Some(activity_id)
-                    {
-                        debug!("Found active intermission for activity: {activity_id}");
-                        Some(*active_intermission_id)
+                    if let Some(activity) = self.read_activity(*active_intermission_id).ok()? {
+                        if activity.activity().parent_id() == Some(activity_id) {
+                            debug!("Found active intermission for activity: {activity_id}");
+                            Some(*active_intermission_id)
+                        } else {
+                            debug!("No active intermission found for activity: {activity_id}");
+                            None
+                        }
                     } else {
-                        debug!("No active intermission found for activity: {activity_id}");
                         None
                     }
                 })
@@ -744,21 +746,23 @@ pub trait ActivityQuerying: ActivityReadOps {
             return Ok(None);
         };
 
-        current
+        Ok(current
             .into_iter()
             .sorted()
             .rev()
             .find(|activity_id| {
                 self.read_activity(*activity_id)
-                    .map(|activity| {
+                    .ok()
+                    .flatten()
+                    .is_some_and(|activity| {
                         activity.activity().is_in_progress()
                             && activity.activity().kind().is_activity()
                             && !activity.activity().is_active_intermission()
                     })
-                    .unwrap_or(false)
             })
             .map(|activity_id| self.read_activity(activity_id))
-            .transpose()
+            .transpose()?
+            .flatten())
     }
 
     /// Get the latest held activity.
@@ -779,21 +783,23 @@ pub trait ActivityQuerying: ActivityReadOps {
             return Ok(None);
         };
 
-        current
+        Ok(current
             .into_iter()
             .sorted()
             .rev()
             .find(|activity_id| {
                 self.read_activity(*activity_id)
-                    .map(|activity| {
+                    .ok()
+                    .flatten()
+                    .is_some_and(|activity| {
                         activity.activity().is_paused()
                             && activity.activity().kind().is_activity()
                             && !activity.activity().is_active_intermission()
                     })
-                    .unwrap_or(false)
             })
             .map(|activity_id| self.read_activity(activity_id))
-            .transpose()
+            .transpose()?
+            .flatten())
     }
 }
 

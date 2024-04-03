@@ -134,7 +134,7 @@ impl ActivityStorage for TomlActivityStorage {
 
 impl ActivityReadOps for TomlActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceOptResult<ActivityItem> {
         self.cache.read_activity(activity_id)
     }
 

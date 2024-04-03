@@ -4,6 +4,7 @@ use sea_orm::{EntityTrait, IntoActiveModel};
 use crate::entity::categories::{Entity as CategoryEntity, Model as CategoryModel};
 use crate::repository::Repository;
 
+#[derive(Debug)]
 pub struct CategoryRepository<'conn, C> {
     connection: &'conn C,
 }

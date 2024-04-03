@@ -13,7 +13,7 @@ use pace_error::{DatabaseStorageErrorKind, PaceResult};
 use tracing::debug;
 
 use pace_storage::storage::{
-    file::TomlActivityStorage, in_memory::InMemoryActivityStorage, sqlite::DatabaseActivityStorage,
+    file::TomlActivityStorage, in_memory::InMemoryActivityStorage, sqlite::SQLiteActivityStorage,
 };
 
 /// Get the storage backend from the configuration.
@@ -35,7 +35,7 @@ pub fn get_storage_from_config(config: &PaceConfig) -> PaceResult<Arc<dyn Activi
         ActivityLogStorageKind::Database { kind, url } => {
             debug!("Connecting to SQLite database: {url}");
 
-            Arc::new(DatabaseActivityStorage::new(*kind, url)?)
+            Arc::new(SQLiteActivityStorage::new(*kind, url)?)
         }
         ActivityLogStorageKind::InMemory => Arc::new(InMemoryActivityStorage::new()),
         _ => return Err(DatabaseStorageErrorKind::StorageNotImplemented.into()),

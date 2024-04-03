@@ -4,6 +4,7 @@ use sea_orm::{EntityTrait, IntoActiveModel};
 use crate::entity::tags::{Entity as TagEntity, Model as TagModel};
 use crate::repository::Repository;
 
+#[derive(Debug)]
 pub struct TagRepository<'conn, C> {
     connection: &'conn C,
 }

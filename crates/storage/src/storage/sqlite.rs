@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, fs::File, path::PathBuf};
 
 // use itertools::Itertools;
-use sea_orm::{Database, DatabaseConnection, EntityTrait, ModelTrait};
+use sea_orm::{ConnectionTrait, Database, DatabaseConnection, EntityTrait, ModelTrait};
 use tracing::debug;
 
 use pace_core::{
@@ -19,17 +19,17 @@ use pace_error::{DatabaseStorageErrorKind, PaceOptResult, PaceResult};
 use pace_time::{date::PaceDate, duration::PaceDurationRange, time_range::TimeRangeOptions};
 
 use crate::{
-    entity::prelude::Activities,
     migration::{Migrator, MigratorTrait},
+    repository::{Repository, SeaOrmRepository},
     runtime,
 };
 
 #[derive(Debug)]
-pub struct DatabaseActivityStorage {
+pub struct SQLiteActivityStorage {
     connection: DatabaseConnection,
 }
 
-impl DatabaseActivityStorage {
+impl SQLiteActivityStorage {
     /// Create a new database activity storage instance.
     ///
     /// # Arguments
@@ -79,7 +79,7 @@ impl DatabaseActivityStorage {
     }
 }
 
-impl ActivityStorage for DatabaseActivityStorage {
+impl ActivityStorage for SQLiteActivityStorage {
     fn setup(&self) -> PaceResult<()> {
         runtime().block_on(async {
             Migrator::up(&self.connection, None)
@@ -100,7 +100,7 @@ impl ActivityStorage for DatabaseActivityStorage {
     }
 }
 
-impl SyncStorage for DatabaseActivityStorage {
+impl SyncStorage for SQLiteActivityStorage {
     fn sync(&self) -> PaceResult<()> {
         // We sync activities to the database in each operation
         // so we don't need to do anything here
@@ -109,26 +109,29 @@ impl SyncStorage for DatabaseActivityStorage {
     }
 }
 
-impl ActivityReadOps for DatabaseActivityStorage {
+impl ActivityReadOps for SQLiteActivityStorage {
     #[tracing::instrument]
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceOptResult<ActivityItem> {
         runtime().block_on(async {
-            let Ok(Some(activity)) = Activities::find_by_id(activity_id.to_string())
-                .one(&self.connection)
-                .await
-            else {
-                return Err(DatabaseStorageErrorKind::ActivityNotFound {
+            let repo = SeaOrmRepository::new(&self.connection);
+            let activity_model = repo
+                .activity()
+                .read(&activity_id.to_string())
+                .await?
+                .ok_or_else(|| DatabaseStorageErrorKind::ActivityNotFound {
                     guid: activity_id.to_string(),
-                }
-                .into());
-            };
+                })?;
 
-            // let _description = activity
-            //     .find_related(descriptions::Entity)
-            //     .one(&self.connection)
-            //     .await;
+            unimplemented!("implement read_activity for sqlite");
 
-            todo!("implement read_activity for sqlite");
+            let activity = Activity::builder()
+            // TODO: Implement conversion from model to activity
+                ;
+
+            let activity_item = ActivityItem::builder()
+                .guid(activity_id)
+                .activity(todo!("activity from model"))
+                .build();
 
             // Ok(ActivityItem::default())
         })
@@ -170,7 +173,7 @@ impl ActivityReadOps for DatabaseActivityStorage {
     }
 }
 
-impl ActivityWriteOps for DatabaseActivityStorage {
+impl ActivityWriteOps for SQLiteActivityStorage {
     fn create_activity(&self, _activity: Activity) -> PaceResult<ActivityItem> {
         // let tx = self.connection.transaction()?;
 
@@ -215,7 +218,7 @@ impl ActivityWriteOps for DatabaseActivityStorage {
         todo!("implement delete_activity for sqlite")
     }
 }
-impl ActivityStateManagement for DatabaseActivityStorage {
+impl ActivityStateManagement for SQLiteActivityStorage {
     fn hold_activity(
         &self,
         _activity_id: ActivityGuid,
@@ -270,7 +273,7 @@ impl ActivityStateManagement for DatabaseActivityStorage {
     }
 }
 
-impl ActivityQuerying for DatabaseActivityStorage {
+impl ActivityQuerying for SQLiteActivityStorage {
     fn group_activities_by_duration_range(
         &self,
     ) -> PaceOptResult<BTreeMap<PaceDurationRange, Vec<ActivityItem>>> {

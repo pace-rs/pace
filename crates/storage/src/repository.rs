@@ -2,6 +2,7 @@ pub mod activity;
 pub mod category;
 pub mod tag;
 
+use getset::Getters;
 use pace_error::{PaceOptResult, PaceResult};
 
 pub(crate) trait Repository<T> {
@@ -79,6 +80,8 @@ pub(crate) trait Repository<T> {
     async fn delete(&self, id: &str) -> PaceOptResult<T>;
 }
 
+#[derive(Debug, Getters)]
+#[getset(get = "pub")]
 pub struct SeaOrmRepository<'conn> {
     activity: activity::ActivityRepository<'conn, sea_orm::DatabaseConnection>,
     category: category::CategoryRepository<'conn, sea_orm::DatabaseConnection>,

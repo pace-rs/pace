@@ -106,7 +106,7 @@ impl SyncStorage for InMemoryActivityStorage {
 
 impl ActivityReadOps for InMemoryActivityStorage {
     #[tracing::instrument(skip(self))]
-    fn read_activity(&self, activity_id: ActivityGuid) -> PaceResult<ActivityItem> {
+    fn read_activity(&self, activity_id: ActivityGuid) -> PaceOptResult<ActivityItem> {
         let activities = self.log.read();
 
         let activity =
@@ -121,7 +121,7 @@ impl ActivityReadOps for InMemoryActivityStorage {
 
         debug!("Activity with id {activity_id:?} found: {activity:?}");
 
-        Ok((activity_id, activity).into())
+        Ok(Some((activity_id, activity).into()))
     }
 
     #[tracing::instrument(skip(self))]
@@ -300,7 +300,9 @@ impl ActivityStateManagement for InMemoryActivityStorage {
 
         drop(activities);
 
-        self.read_activity(activity_id)
+        Ok(self
+            .read_activity(activity_id)?
+            .ok_or_else(|| ActivityLogErrorKind::ActivityNotFound(activity_id.to_string()))?)
     }
 
     #[tracing::instrument(skip(self))]
@@ -415,7 +417,9 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         activity_id: ActivityGuid,
         resume_opts: ResumeOptions,
     ) -> PaceResult<ActivityItem> {
-        let resumable_activity = self.read_activity(activity_id)?;
+        let resumable_activity = self
+            .read_activity(activity_id)?
+            .ok_or_else(|| ActivityLogErrorKind::ActivityNotFound(activity_id.to_string()))?;
 
         debug!("Resumable activity: {resumable_activity:?}");
 
@@ -469,7 +473,9 @@ impl ActivityStateManagement for InMemoryActivityStorage {
         hold_opts: HoldOptions,
     ) -> PaceResult<ActivityItem> {
         // Get ActivityItem for activity that
-        let active_activity = self.read_activity(activity_id)?;
+        let active_activity = self
+            .read_activity(activity_id)?
+            .ok_or_else(|| ActivityLogErrorKind::ActivityNotFound(activity_id.to_string()))?;
 
         debug!("Active activity: {active_activity:?}");
 
@@ -650,7 +656,9 @@ impl ActivityQuerying for InMemoryActivityStorage {
         Some(intermissions.into_iter().try_fold(
             BTreeMap::new(),
             |mut acc: BTreeMap<ActivityGuid, Vec<ActivityItem>>, intermission_id| {
-                let intermission = self.read_activity(intermission_id)?;
+                let intermission = self.read_activity(intermission_id)?.ok_or_else(|| {
+                    ActivityLogErrorKind::ActivityNotFound(intermission_id.to_string())
+                })?;
 
                 debug!("Intermission: {intermission:?}");
 
@@ -668,7 +676,9 @@ impl ActivityQuerying for InMemoryActivityStorage {
 
                 debug!("Parent id: {parent_id:?}");
 
-                let parent_activity = self.read_activity(parent_id)?;
+                let parent_activity = self
+                    .read_activity(parent_id)?
+                    .ok_or_else(|| ActivityLogErrorKind::ActivityNotFound(parent_id.to_string()))?;
 
                 debug!("Parent activity: {parent_activity:?}");
 
@@ -869,7 +879,12 @@ mod tests {
             "Activity was not created."
         );
 
-        let stored_activity = storage.read_activity(*item.guid())?;
+        let stored_activity = storage.read_activity(*item.guid())?.ok_or_else(|| {
+            format!(
+                "Activity with ID {} was not found.",
+                item.guid().to_string()
+            )
+        })?;
 
         assert_eq!(
             activity,
@@ -911,7 +926,14 @@ mod tests {
             "Amount of activities is not the same as the amount of created activities."
         );
 
-        let stored_activity = storage.read_activity(filtered_activities[0])?;
+        let stored_activity = storage
+            .read_activity(filtered_activities[0])?
+            .ok_or_else(|| {
+                format!(
+                    "Activity with ID {} was not found.",
+                    filtered_activities[0].to_string()
+                )
+            })?;
 
         assert_eq!(
             activity,
@@ -942,7 +964,14 @@ mod tests {
 
         let activity_item = storage.create_activity(og_activity.clone())?;
 
-        let read_activity = storage.read_activity(*activity_item.guid())?;
+        let read_activity = storage
+            .read_activity(*activity_item.guid())?
+            .ok_or_else(|| {
+                format!(
+                    "Activity with ID {} was not found.",
+                    activity_item.guid().to_string()
+                )
+            })?;
 
         assert_eq!(
             og_activity,
@@ -980,7 +1009,15 @@ mod tests {
             "Stored activity is not the same as the original activity."
         );
 
-        let new_stored_activity = storage.read_activity(*activity_item.guid())?;
+        let new_stored_activity =
+            storage
+                .read_activity(*activity_item.guid())?
+                .ok_or_else(|| {
+                    format!(
+                        "Activity with ID {} was not found.",
+                        activity_item.guid().to_string()
+                    )
+                })?;
 
         assert_eq!(
             old_activity.guid(),
@@ -1054,7 +1091,14 @@ mod tests {
         );
 
         // Read activity
-        let stored_activity = storage.read_activity(*activity_item.guid())?;
+        let stored_activity = storage
+            .read_activity(*activity_item.guid())?
+            .ok_or_else(|| {
+                format!(
+                    "Activity with ID {} was not found.",
+                    activity_item.guid().to_string()
+                )
+            })?;
 
         // Make sure the activity is active now, as begin_activity should make it active automatically
         activity.make_active();
@@ -1096,7 +1140,15 @@ mod tests {
             UpdateOptions::default(),
         )?;
 
-        let new_stored_activity = storage.read_activity(*activity_item.guid())?;
+        let new_stored_activity =
+            storage
+                .read_activity(*activity_item.guid())?
+                .ok_or_else(|| {
+                    format!(
+                        "Activity with ID {} was not found.",
+                        activity_item.guid().to_string()
+                    )
+                })?;
 
         assert_eq!(
             new_stored_activity.activity().description(),
@@ -1186,7 +1238,14 @@ mod tests {
 
         assert!(ended_activity.activity().activity_end_options().is_some());
 
-        let ended_activity = storage.read_activity(*activity_item.guid())?;
+        let ended_activity = storage
+            .read_activity(*activity_item.guid())?
+            .ok_or_else(|| {
+                format!(
+                    "Activity with ID {} was not found.",
+                    activity_item.guid().to_string()
+                )
+            })?;
 
         assert!(
             ended_activity.activity().is_completed(),
@@ -1311,7 +1370,14 @@ mod tests {
         // Begin the second activity, the first one should be ended automatically now
         let activity_item2 = storage.begin_activity(activity2)?;
 
-        let ended_activity = storage.read_activity(*activity_item.guid())?;
+        let ended_activity = storage
+            .read_activity(*activity_item.guid())?
+            .ok_or_else(|| {
+                format!(
+                    "Activity with ID {} was not found.",
+                    activity_item.guid().to_string()
+                )
+            })?;
 
         assert!(
             ended_activity.activity().is_completed(),
@@ -1329,7 +1395,14 @@ mod tests {
             "End time was not set."
         );
 
-        let ended_activity2 = storage.read_activity(*activity_item2.guid())?;
+        let ended_activity2 = storage
+            .read_activity(*activity_item2.guid())?
+            .ok_or_else(|| {
+                format!(
+                    "Activity with ID {} was not found.",
+                    activity_item2.guid().to_string()
+                )
+            })?;
 
         assert!(
             ended_activity2.activity().is_in_progress(),
@@ -1394,7 +1467,14 @@ mod tests {
 
         assert_eq!(intermission_guids.len(), 1, "Intermission was not created.");
 
-        let intermission_item = storage.read_activity(intermission_guids[0])?;
+        let intermission_item = storage
+            .read_activity(intermission_guids[0])?
+            .ok_or_else(|| {
+                format!(
+                    "Intermission with ID {} was not found.",
+                    intermission_guids[0].to_string()
+                )
+            })?;
 
         assert_eq!(
             *intermission_item.activity().kind(),
@@ -1446,7 +1526,14 @@ mod tests {
             .hold_most_recent_active_activity(hold_opts)?
             .ok_or("Activity was not held.")?;
 
-        let held_activity = storage.read_activity(*active_activity_item.guid())?;
+        let held_activity = storage
+            .read_activity(*active_activity_item.guid())?
+            .ok_or_else(|| {
+                format!(
+                    "Activity with ID {} was not found.",
+                    active_activity_item.guid().to_string()
+                )
+            })?;
 
         assert_eq!(
             *held_activity.activity().status(),
@@ -1481,7 +1568,14 @@ mod tests {
             "Intermission was created again."
         );
 
-        let intermission_item = storage.read_activity(intermission_guids[0])?;
+        let intermission_item = storage
+            .read_activity(intermission_guids[0])?
+            .ok_or_else(|| {
+                format!(
+                    "Intermission with ID {} was not found.",
+                    intermission_guids[0].to_string()
+                )
+            })?;
 
         assert_eq!(
             *intermission_item.activity().kind(),
@@ -1538,7 +1632,15 @@ mod tests {
             "Not all intermissions were ended."
         );
 
-        let ended_intermission = storage.read_activity(intermission_guids[0])?;
+        let ended_intermission =
+            storage
+                .read_activity(intermission_guids[0])?
+                .ok_or_else(|| {
+                    format!(
+                        "Intermission with ID {} was not found.",
+                        intermission_guids[0].to_string()
+                    )
+                })?;
 
         assert!(
             ended_intermission.activity().is_completed(),

@@ -2,8 +2,10 @@ use pace_error::{DatabaseStorageErrorKind, PaceOptResult, PaceResult};
 use sea_orm::{EntityTrait, IntoActiveModel};
 
 use crate::entity::activities::{Entity as ActivityEntity, Model as ActivityModel};
+use crate::entity::categories::{Entity as CategoryEntity, Model as CategoryModel};
 use crate::repository::Repository;
 
+#[derive(Debug)]
 pub struct ActivityRepository<'conn, C> {
     connection: &'conn C,
 }
@@ -14,6 +16,7 @@ impl<'conn, C> ActivityRepository<'conn, C> {
     }
 }
 
+// TODO!: Implement query for related entities
 impl<'conn> Repository<ActivityModel> for ActivityRepository<'conn, sea_orm::DatabaseConnection> {
     async fn read(&self, id: &str) -> PaceOptResult<ActivityModel> {
         Ok(ActivityEntity::find_by_id(id)

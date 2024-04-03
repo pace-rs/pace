@@ -1,5 +1,4 @@
 // pub mod convert;
-// pub mod entities;
 pub mod entity;
 pub mod migration;
 pub mod query;
