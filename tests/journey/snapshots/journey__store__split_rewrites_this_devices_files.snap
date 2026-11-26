@@ -1,0 +1,41 @@
+---
+source: tests/journey/store.rs
+expression: output
+---
+$ pace store split --by week   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Split this device's 2 events by week instead of month, into 2 files.
+Other devices keep their split; `pace store split --by week` on each of them matches it.
+
+----- stderr -----
+
+$ pace store split --by week   # at 09:31
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × this device's events are already split by week
+  help: name another period with `--by`
+
+
+$ pace store split --by fortnight   # at 09:32
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `fortnight` is not a split
+  help: split by `year`, `month`, `week` or `day`
+
+
+$ pace now   # at 09:33
+success: true
+exit_code: 0
+----- stdout -----
+Running: 9b59 "November", since 09:00 (33 minutes ago).
+  33m net so far.
+
+----- stderr -----

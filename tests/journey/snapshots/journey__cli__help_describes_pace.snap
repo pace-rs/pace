@@ -23,6 +23,7 @@ Commands:
   undo    Take back the last command of this device
   forget  Remove an entry for good
   config  Look at pace's configuration
+  store   Look after how pace keeps its data
   help    Print this message or the help of the given subcommand(s)
 
 Options:

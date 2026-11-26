@@ -7,5 +7,6 @@ mod directories;
 mod now;
 mod project;
 mod settings;
+mod store;
 mod support;
 mod tracking;

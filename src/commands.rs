@@ -4,6 +4,7 @@ pub mod config;
 pub mod corrections;
 pub mod edit;
 pub mod now;
+pub mod store;
 pub mod tracking;
 
 use std::path::PathBuf;
@@ -15,6 +16,7 @@ use self::{
     corrections::{AdjustCmd, ForgetCmd, LogCmd, UndoCmd},
     edit::EditCmd,
     now::NowCmd,
+    store::StoreCmd,
     tracking::{BeginCmd, CatchCmd, EndCmd, HoldCmd, PauseCmd, ResumeCmd},
 };
 use crate::application::exit_on_error;
@@ -104,6 +106,10 @@ pub enum PaceCmd {
     /// Look at pace's configuration.
     #[command(subcommand)]
     Config(ConfigCmd),
+
+    /// Look after how pace keeps its data.
+    #[command(subcommand)]
+    Store(StoreCmd),
 }
 
 /// Bare `pace` shows what is running and how to get help.

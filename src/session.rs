@@ -7,7 +7,7 @@ use abscissa_core::Application;
 use abscissa_tokio::TokioComponent;
 use pace_core::{Command, DeviceId, Outcome, Policy, Tracker};
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_store::{FilesStore, device_id};
+use pace_store::{FilesStore, Resplit, Split, device_id};
 use pace_time::TimeRange;
 
 use crate::{
@@ -84,6 +84,15 @@ impl Session {
     /// If the store fails.
     pub fn state(&self, range: &TimeRange) -> PaceResult<pace_core::State> {
         block_on(self.tracker.state(range))?
+    }
+
+    /// Rewrite this device's event files split by `split`.
+    ///
+    /// # Errors
+    ///
+    /// If a file can't be read, written or removed.
+    pub fn resplit(&self, split: Split) -> PaceResult<Resplit> {
+        self.tracker.store().resplit(split)
     }
 
     /// A note for the first run that created the data directory.

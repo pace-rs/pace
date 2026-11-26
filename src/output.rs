@@ -19,6 +19,16 @@ pub fn clock(moment: &ZonedDateTime, now: &ZonedDateTime) -> String {
     }
 }
 
+/// `1 event`, `2 events`.
+#[must_use]
+pub fn count(count: usize, noun: &str) -> String {
+    if count == 1 {
+        format!("1 {noun}")
+    } else {
+        format!("{count} {noun}s")
+    }
+}
+
 /// The short ID of an entry, unique among the entries of `state`.
 #[must_use]
 pub fn short(state: &State, id: EntryId) -> String {

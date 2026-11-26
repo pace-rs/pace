@@ -14,6 +14,6 @@ mod machine;
 mod split;
 pub mod toml_file;
 
-pub use files::FilesStore;
+pub use files::{FilesStore, Resplit};
 pub use machine::{DeviceIdentity, device_id};
 pub use split::Split;

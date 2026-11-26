@@ -54,6 +54,12 @@ impl<S: EventStore> Tracker<S> {
         }
     }
 
+    /// The store the tracker works on, for what only its backend does.
+    #[must_use]
+    pub const fn store(&self) -> &S {
+        &self.store
+    }
+
     /// Now, by the tracker's clock.
     #[must_use]
     pub fn now(&self) -> ZonedDateTime {

@@ -393,3 +393,149 @@ fn an_event_type_from_a_newer_pace_asks_for_an_update() -> TestResult {
     );
     Ok(())
 }
+
+/// A device with entries in October and November, split by month.
+fn two_months(setup: &Setup) -> TestResult {
+    let tracker = setup.tracker(Split::Month);
+    setup.clock.set(at("2026-10-30T09:00[Europe/Berlin]")?);
+    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    setup.clock.set(at("2026-10-30T10:00[Europe/Berlin]")?);
+    _ = pollster::block_on(tracker.run(&Command::End(End::default())))?;
+    setup.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
+    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    Ok(())
+}
+
+#[test]
+fn resplitting_rewrites_this_devices_files_and_keeps_the_events() -> TestResult {
+    let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
+    two_months(&setup)?;
+    let before = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
+
+    let resplit = setup.store(Split::Month).resplit(Split::Day)?;
+
+    assert_eq!((resplit.from, resplit.to), (Split::Month, Split::Day));
+    assert_eq!(
+        (resplit.files_before, resplit.files_after, resplit.events),
+        (2, 2, 3)
+    );
+    assert_eq!(
+        setup.files()?,
+        [
+            "2026/10/2026-10-30.toml",
+            "2026/11/2026-11-26.toml",
+            "device.toml"
+        ]
+    );
+    let after = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
+    assert_eq!(after, before);
+    let device_file = std::fs::read_to_string(setup.device_dir().join("device.toml"))?;
+    assert!(device_file.contains("split = \"day\""), "{device_file}");
+    Ok(())
+}
+
+#[test]
+fn after_resplitting_new_events_go_into_the_new_files() -> TestResult {
+    let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
+    two_months(&setup)?;
+    _ = setup.store(Split::Month).resplit(Split::Year)?;
+
+    setup.clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
+    _ = pollster::block_on(
+        setup
+            .tracker(Split::Month)
+            .run(&Command::End(End::default())),
+    )?;
+
+    assert_eq!(setup.files()?, ["2026.toml", "device.toml"]);
+    Ok(())
+}
+
+#[test]
+fn resplitting_to_the_same_split_changes_nothing() -> TestResult {
+    let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
+    two_months(&setup)?;
+
+    let resplit = setup.store(Split::Month).resplit(Split::Month)?;
+
+    assert_eq!(
+        (resplit.from, resplit.to, resplit.events),
+        (Split::Month, Split::Month, 0)
+    );
+    assert_eq!(
+        setup.files()?,
+        ["2026/2026-10.toml", "2026/2026-11.toml", "device.toml"]
+    );
+    Ok(())
+}
+
+#[test]
+fn resplitting_leaves_other_devices_alone() -> TestResult {
+    let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
+    two_months(&setup)?;
+    let other = device(2)?;
+    let other_store = FilesStore::new(
+        setup.home(),
+        setup.dir.path().join("other-machine"),
+        other,
+        setup.clock.clone(),
+        Split::Month,
+    );
+    let other_tracker = Tracker::new(
+        other_store,
+        setup.clock.clone(),
+        Arc::new(SequentialIds::starting_at(&setup.clock.now(), 2)),
+        Policy::default(),
+        other,
+    );
+    setup.clock.set(at("2026-11-26T09:30[Europe/Berlin]")?);
+    let other_dir = setup.home().join("events").join(other.to_string());
+    _ = pollster::block_on(other_tracker.run(&Command::Log(Log::new(
+        at("2026-11-25T09:00[Europe/Berlin]")?,
+        at("2026-11-25T10:00[Europe/Berlin]")?,
+    ))))?;
+
+    _ = setup.store(Split::Month).resplit(Split::Week)?;
+
+    let mut files = Vec::new();
+    collect(&other_dir, &other_dir, &mut files)?;
+    files.sort();
+    assert_eq!(files, ["2026/2026-11.toml", "device.toml"]);
+    Ok(())
+}
+
+#[test]
+fn a_device_without_events_takes_the_new_split_for_its_first() -> TestResult {
+    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+
+    let resplit = setup.store(Split::Month).resplit(Split::Week)?;
+
+    assert_eq!(
+        (resplit.from, resplit.to, resplit.events),
+        (Split::Month, Split::Week, 0)
+    );
+    _ = pollster::block_on(
+        setup
+            .tracker(Split::Month)
+            .run(&Command::Begin(Begin::default())),
+    )?;
+    assert_eq!(setup.files()?, ["2026/2026-W48.toml", "device.toml"]);
+    Ok(())
+}
+
+#[test]
+fn an_event_in_two_files_is_read_once() -> TestResult {
+    let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
+    two_months(&setup)?;
+    // What a crash in the middle of a resplit leaves: the same events under
+    // the old and the new file name.
+    _ = std::fs::copy(
+        setup.device_dir().join("2026/2026-10.toml"),
+        setup.device_dir().join("2026/2026-W44.toml"),
+    )?;
+
+    let events = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
+
+    assert_eq!(events.len(), 3);
+    Ok(())
+}

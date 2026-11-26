@@ -1,0 +1,12 @@
+---
+source: tests/journey/store.rs
+expression: output
+---
+$ pace store split   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Split this device's 1 event by day instead of month, into 1 file.
+Other devices keep their split; `pace store split --by day` on each of them matches it.
+
+----- stderr -----

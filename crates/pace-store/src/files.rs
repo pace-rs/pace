@@ -45,6 +45,21 @@ pub struct FilesStore {
     split: Split,
 }
 
+/// What [`FilesStore::resplit`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Resplit {
+    /// The split the device's files had.
+    pub from: Split,
+    /// The split they have now.
+    pub to: Split,
+    /// How many event files the device had.
+    pub files_before: usize,
+    /// How many it has now.
+    pub files_after: usize,
+    /// How many events were rewritten; none if the split stayed.
+    pub events: usize,
+}
+
 /// `events/<device>/device.toml`
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -190,6 +205,80 @@ impl FilesStore {
         Ok(recorded)
     }
 
+    /// Rewrite this device's event files split by `split`, and record the
+    /// split in its `device.toml`. Other devices' files stay as they are;
+    /// pace reads each device with its own split.
+    ///
+    /// The new files are written before the old ones are removed; if pace
+    /// stops in between, both hold the same events, and reading counts each
+    /// event once.
+    ///
+    /// # Errors
+    ///
+    /// If a file can't be read, written or removed.
+    pub fn resplit(&self, split: Split) -> PaceResult<Resplit> {
+        let now = self.clock.now();
+        let dir = self.device_dir(self.device);
+        create_dir(&dir)?;
+        create_dir(&self.machine)?;
+        let _lock = lock(&self.machine.join("lock"))?;
+
+        let mut device_file = self.device_file(&dir, &now)?;
+        let from = device_file.split;
+        let old_files = event_files(&dir)?;
+        if from == split {
+            return Ok(Resplit {
+                from,
+                to: split,
+                files_before: old_files.len(),
+                files_after: old_files.len(),
+                events: 0,
+            });
+        }
+
+        let mut by_file: BTreeMap<String, Vec<RecordedEvent>> = BTreeMap::new();
+        let mut count = 0;
+        for path in &old_files {
+            let text =
+                std::fs::read_to_string(path).map_err(|error| io_error("read", path, error))?;
+            for recorded in format::parse(path, &text, self.device)? {
+                count += 1;
+                by_file
+                    .entry(split.file(&recorded.event.about))
+                    .or_default()
+                    .push(recorded);
+            }
+        }
+        let mut written = Vec::new();
+        for (relative, events) in &mut by_file {
+            events.sort_by_key(|recorded| recorded.hlc);
+            let mut text = format::header();
+            text.push('\n');
+            text.push_str(&format::serialize(events)?);
+            written.push(prepare(&dir.join(relative), &text)?);
+        }
+        let new_files: BTreeSet<PathBuf> = written.iter().map(|(_, path)| path.clone()).collect();
+        for (temporary, path) in written {
+            _ = temporary
+                .persist(&path)
+                .map_err(|error| io_error("write", &path, error.error))?;
+        }
+
+        device_file.split = split;
+        write_device_file(&dir.join(DEVICE_FILE), &device_file)?;
+        for path in old_files.iter().filter(|path| !new_files.contains(*path)) {
+            std::fs::remove_file(path).map_err(|error| io_error("remove", path, error))?;
+        }
+        remove_empty_dirs(&dir)?;
+        Ok(Resplit {
+            from,
+            to: split,
+            files_before: old_files.len(),
+            files_after: new_files.len(),
+            events: count,
+        })
+    }
+
     /// Remove the events of a forgotten entry from this device's own file of
     /// the entry's period; the tombstone stays. Other devices' files are
     /// theirs to clean.
@@ -247,23 +336,26 @@ impl FilesStore {
             created: now.clone(),
             split: self.split,
         };
-        let text = toml::to_string(&file).map_err(|error| {
-            PaceError::with_source(ErrorKind::Internal, "cannot write device.toml", error)
-                .ask_report()
-        })?;
-        write_atomically(&path, &text)?;
+        write_device_file(&path, &file)?;
         Ok(file)
     }
 
-    /// The events of the files `range` needs, through the index.
+    /// The events of the files `range` needs, through the index; an event
+    /// in two files (left by an interrupted resplit) counts once.
     fn read_now(&self, range: &TimeRange) -> PaceResult<Vec<RecordedEvent>> {
         let (index, mut parsed) = self.refreshed_index()?;
         let mut events = Vec::new();
+        let mut seen = BTreeSet::new();
         for name in select(&index.files, range) {
-            match parsed.remove(&name) {
-                Some(file_events) => events.extend(file_events),
-                None => events.extend(self.parse_file(&name)?),
-            }
+            let file_events = match parsed.remove(&name) {
+                Some(file_events) => file_events,
+                None => self.parse_file(&name)?,
+            };
+            events.extend(
+                file_events
+                    .into_iter()
+                    .filter(|recorded| seen.insert((recorded.device, recorded.event.id))),
+            );
         }
         Ok(events)
     }
@@ -428,6 +520,32 @@ impl EventStore for FilesStore {
     fn marker(&self) -> impl Future<Output = PaceResult<ChangeMarker>> + Send {
         std::future::ready(self.marker_now())
     }
+}
+
+fn write_device_file(path: &Path, file: &DeviceFile) -> PaceResult<()> {
+    let text = toml::to_string(file).map_err(|error| {
+        PaceError::with_source(ErrorKind::Internal, "cannot write device.toml", error).ask_report()
+    })?;
+    write_atomically(path, &text)
+}
+
+/// Remove the empty directories below `dir`, deepest first; `dir` stays.
+fn remove_empty_dirs(dir: &Path) -> PaceResult<()> {
+    for entry in std::fs::read_dir(dir).map_err(|error| io_error("read", dir, error))? {
+        let path = entry.map_err(|error| io_error("read", dir, error))?.path();
+        if !path.is_dir() {
+            continue;
+        }
+        remove_empty_dirs(&path)?;
+        let empty = std::fs::read_dir(&path)
+            .map_err(|error| io_error("read", &path, error))?
+            .next()
+            .is_none();
+        if empty {
+            std::fs::remove_dir(&path).map_err(|error| io_error("remove", &path, error))?;
+        }
+    }
+    Ok(())
 }
 
 fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {
