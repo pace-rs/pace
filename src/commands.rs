@@ -1,12 +1,16 @@
 //! The command line: the entry point and its subcommands.
 
 pub mod config;
+pub mod tracking;
 
 use std::path::PathBuf;
 
 use abscissa_core::{Command, Configurable, Runnable};
 
-use self::config::ConfigCmd;
+use self::{
+    config::ConfigCmd,
+    tracking::{BeginCmd, CatchCmd, EndCmd, HoldCmd, PauseCmd, ResumeCmd},
+};
 
 /// pace: a local-first command-line time tracker for work and daily life.
 #[derive(clap::Parser, Command, Debug)]
@@ -35,7 +39,7 @@ pub struct EntryPoint {
         long,
         global = true,
         value_name = "KEY",
-        help = "Work on the project KEY instead of the one of the working directory [env: PACE_PROJECT]"
+        help = "The project to work on, instead of discovering it [env: PACE_PROJECT]"
     )]
     pub(crate) project: Option<String>,
 
@@ -46,6 +50,30 @@ pub struct EntryPoint {
 /// The subcommands.
 #[derive(clap::Subcommand, Command, Debug, Runnable)]
 pub enum PaceCmd {
+    /// Begin an entry; a running entry ends at the new start
+    #[command(visible_alias = "b")]
+    Begin(BeginCmd),
+
+    /// Note an interruption of the running entry
+    #[command(visible_alias = "h")]
+    Hold(HoldCmd),
+
+    /// Take a planned break from the running entry
+    #[command(visible_alias = "p")]
+    Pause(PauseCmd),
+
+    /// Go on after a hold or a pause
+    #[command(visible_alias = "r")]
+    Resume(ResumeCmd),
+
+    /// Write a distraction down without breaking off
+    #[command(visible_alias = "c")]
+    Catch(CatchCmd),
+
+    /// End the running entry
+    #[command(visible_alias = "e")]
+    End(EndCmd),
+
     /// Look at pace's configuration.
     #[command(subcommand)]
     Config(ConfigCmd),

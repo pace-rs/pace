@@ -1,0 +1,12 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace catch an idea   # at 09:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × nothing is running to note the thought on
+  help: `pace begin` starts an entry; notes without an entry come with the inbox

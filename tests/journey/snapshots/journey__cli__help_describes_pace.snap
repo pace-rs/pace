@@ -10,14 +10,19 @@ pace: a local-first command-line time tracker for work and daily life
 Usage: pace [OPTIONS] <COMMAND>
 
 Commands:
+  begin   Begin an entry; a running entry ends at the new start [alias: b]
+  hold    Note an interruption of the running entry [alias: h]
+  pause   Take a planned break from the running entry [alias: p]
+  resume  Go on after a hold or a pause [alias: r]
+  catch   Write a distraction down without breaking off [alias: c]
+  end     End the running entry [alias: e]
   config  Look at pace's configuration
   help    Print this message or the help of the given subcommand(s)
 
 Options:
       --config <FILE>  Read the global configuration from FILE [env: PACE_CONFIG]
       --home <DIR>     Keep pace's data in DIR [env: PACE_HOME]
-      --project <KEY>  Work on the project KEY instead of the one of the working directory [env:
-                       PACE_PROJECT]
+      --project <KEY>  The project to work on, instead of discovering it [env: PACE_PROJECT]
       --plain          Plain output: no colour, no symbols
   -h, --help           Print help
   -V, --version        Print version

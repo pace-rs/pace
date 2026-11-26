@@ -26,7 +26,7 @@
 //! | `duration`: `calculate_duration_fails` | `durations::an_end_before_the_start_is_rejected` |
 //! | `duration`: `from_str_passes` (seconds) | `durations::durations_are_typed_with_units`; a bare number now asks for a unit: `durations::a_bare_number_asks_for_a_unit` |
 //! | `duration`: `from_str_fails` | `durations::text_that_is_no_duration_is_rejected` |
-//! | `date_time`: `begin_date_time_default` (now in whole seconds) | the `Clock` port in `pace_core` |
+//! | `date_time`: `begin_date_time_default` (now in whole seconds) | the system clock in the app: `clock::tests::the_system_clock_shows_whole_seconds_in_its_zone` |
 //! | `duration`: `duration_to_str` ("just now") | `display::moments_read_relative_to_now` |
 //! | `date`: `try_from_ymd_passes`, `try_from_fails` | dropped: the same parsing as `from_str` |
 //! | `date`: `with_start`, `from_pace_date_time`, `from_pace_date_time_ref`, `deref`, `eq`, `ne` | dropped: wrapper type |

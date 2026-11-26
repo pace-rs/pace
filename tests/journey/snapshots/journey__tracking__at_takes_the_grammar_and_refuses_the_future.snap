@@ -1,0 +1,41 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace begin --at soon   # at 09:30
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `soon` is not a time pace understands
+  help: use `HH:MM`, `yesterday HH:MM`, `YYYY-MM-DD HH:MM` or a time back from now like `-15m`
+
+
+$ pace begin --at 10:00   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Began 923a at 2026-11-25 10:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace begin --at +15m   # at 09:30
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `+15m` lies in the future
+  help: did you mean `-15m`?
+
+
+$ pace begin --at -15m   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Ended 923a at 09:15 after 23h 15m.
+Began f372 at 09:15.
+
+----- stderr -----

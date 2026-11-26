@@ -1,0 +1,13 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace begin Checkout flow   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began ad5e "Checkout flow" at 09:00.
+Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----

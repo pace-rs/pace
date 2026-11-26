@@ -17,6 +17,7 @@ rust-version = "1.98"
 
 [workspace.dependencies]
 abscissa_core = { version = "0.9.0", default-features = false }
+abscissa_tokio = "0.9.0"
 clap = "4.6.10"
 directories = "6.0.0"
 gethostname = "1.1.0"
@@ -62,6 +63,7 @@ harness = false
 
 [dependencies]
 abscissa_core = { workspace = true, features = ["application"] }
+abscissa_tokio = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 directories = { workspace = true }
 jiff = { workspace = true }
@@ -69,7 +71,9 @@ miette = { workspace = true, features = ["fancy-no-backtrace"] }
 pace_core = { workspace = true }
 pace_error = { workspace = true }
 pace_store = { workspace = true }
+pace_time = { workspace = true }
 toml = { workspace = true }
+uuid = { workspace = true, features = ["v7"] }
 
 [dev-dependencies]
 insta = { workspace = true }

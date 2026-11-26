@@ -1,0 +1,22 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace end   # at 09:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing is running
+  help: `pace begin` starts an entry
+
+
+$ pace resume   # at 09:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing is running
+  help: `pace begin` starts an entry

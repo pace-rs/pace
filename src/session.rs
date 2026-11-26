@@ -1,0 +1,87 @@
+//! What a tracking command works with: the tracker over the files backend,
+//! with this machine's device ID, the clock and the settings.
+
+use std::path::PathBuf;
+
+use pace_core::{Command, Outcome, Policy, Tracker};
+use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_store::{FilesStore, Split, device_id};
+use pace_time::TimeRange;
+
+use crate::{
+    application::{Context, PACE_APP},
+    clock::{self, TEST_NOW},
+};
+
+/// A tracker for this run.
+pub struct Session {
+    tracker: Tracker<FilesStore>,
+    data: PathBuf,
+    data_existed: bool,
+}
+
+impl Session {
+    /// Open the store of this machine; creates the device ID on first use.
+    ///
+    /// # Errors
+    ///
+    /// If the clock, the device ID or the store can't be set up.
+    pub fn open(context: &Context) -> PaceResult<Self> {
+        let (clock, ids) = clock::ports(
+            &context.settings.settings.time_zone,
+            std::env::var_os(TEST_NOW),
+        )?;
+        let data = context.dirs.data.path.clone();
+        let machine = context.dirs.machine.path.clone();
+        let device = device_id(&machine, &*ids)?;
+        let store = FilesStore::new(
+            data.clone(),
+            machine,
+            device.id,
+            clock.clone(),
+            Split::Month,
+        );
+        Ok(Self {
+            tracker: Tracker::new(store, clock, ids, Policy::default(), device.id),
+            data_existed: data.exists(),
+            data,
+        })
+    }
+
+    /// Now, by the session's clock.
+    #[must_use]
+    pub fn now(&self) -> jiff::ZonedDateTime {
+        self.tracker.now()
+    }
+
+    /// Run `command` through the tracker.
+    ///
+    /// # Errors
+    ///
+    /// If the command doesn't fit the state, or the store fails.
+    pub fn run(&self, command: &Command) -> PaceResult<Outcome> {
+        block_on(self.tracker.run(command))?
+    }
+
+    /// The state of the entries that overlap `range`, and of the open ones.
+    ///
+    /// # Errors
+    ///
+    /// If the store fails.
+    pub fn state(&self, range: &TimeRange) -> PaceResult<pace_core::State> {
+        block_on(self.tracker.state(range))?
+    }
+
+    /// A note for the first run that created the data directory.
+    #[must_use]
+    pub fn first_use_note(&self) -> Option<String> {
+        (!self.data_existed && self.data.exists())
+            .then(|| format!("pace keeps its data in {}.", self.data.display()))
+    }
+}
+
+/// Run a future on the application's runtime.
+fn block_on<F: Future>(future: F) -> PaceResult<F::Output> {
+    abscissa_tokio::run(&PACE_APP, future)
+        .map_err(|error| PaceError::from(ErrorKind::Internal, error).ask_report())
+}

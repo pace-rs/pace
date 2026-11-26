@@ -1,0 +1,17 @@
+---
+source: tests/journey/tracking.rs
+expression: transcript
+---
+success: true
+exit_code: 0
+----- stdout -----
+Began ad5e "Flight" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+success: true
+exit_code: 0
+----- stdout -----
+Ended ad5e "Flight" at 05:00 after 2h.
+
+----- stderr -----

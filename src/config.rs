@@ -49,11 +49,12 @@ const KEYS: [Key; 2] = [
 const PROJECT_PATHS: &str = "project-paths";
 
 /// Environment variables that are not settings.
-const OTHER_VARIABLES: [&str; 4] = [
+const OTHER_VARIABLES: [&str; 5] = [
     "PACE_CONFIG",
     "PACE_HOME",
     "PACE_MACHINE_DIR",
     "PACE_PROJECT",
+    crate::clock::TEST_NOW,
 ];
 
 /// The version of `pace.global.toml` this pace reads and writes.

@@ -46,11 +46,11 @@ pub trait Ids: Send + Sync {
     fn next_id(&self) -> Uuid;
 }
 
-/// Deterministic IDs: the timestamp of a fixed moment, then a seed and a
-/// counter where a UUIDv7 has random bits.
+/// Deterministic IDs: the timestamp of a fixed moment, and where a UUIDv7
+/// has random bits, a mix of that moment, a seed and a counter.
 ///
-/// IDs are distinct for distinct moments or seeds; simulated devices take
-/// different seeds.
+/// IDs differ in their last characters, like random ones, so short IDs stay
+/// short; simulated devices take different seeds.
 #[derive(Debug)]
 pub struct SequentialIds {
     millis: u64,
@@ -70,12 +70,21 @@ impl SequentialIds {
     }
 }
 
+/// A well-mixed, deterministic 64-bit value (the `SplitMix64` finalizer).
+const fn mix(mut value: u64) -> u64 {
+    value = value.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    value = (value ^ (value >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    value = (value ^ (value >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    value ^ (value >> 31)
+}
+
 impl Ids for SequentialIds {
     fn next_id(&self) -> Uuid {
         let count = self.counter.fetch_add(1, Ordering::Relaxed) + 1;
+        let mixed = mix(self.millis ^ (u64::from(self.seed) << 48) ^ count);
         let mut bytes = [0; 10];
         bytes[..2].copy_from_slice(&self.seed.to_be_bytes());
-        bytes[2..].copy_from_slice(&count.to_be_bytes());
+        bytes[2..].copy_from_slice(&mixed.to_be_bytes());
         Builder::from_unix_timestamp_millis(self.millis, &bytes).into_uuid()
     }
 }

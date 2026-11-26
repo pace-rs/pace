@@ -76,6 +76,22 @@ impl Sandbox {
         command
     }
 
+    /// [`Sandbox::pace`] with the clock fixed at `time` (`HH:MM` on
+    /// 2026-11-26 in Berlin, or a full RFC 9557 time) and Berlin as the
+    /// configured time zone.
+    pub fn pace_at(&self, time: &str) -> Command {
+        let now = if time.contains('[') {
+            time.to_owned()
+        } else {
+            format!("2026-11-26T{time}[Europe/Berlin]")
+        };
+        let mut command = self.pace();
+        _ = command
+            .env("PACE_TEST_NOW", now)
+            .env("PACE_TIME_ZONE", "Europe/Berlin");
+        command
+    }
+
     /// [`Sandbox::pace`] run in `work/<relative>`.
     pub fn pace_in(&self, relative: &str) -> Command {
         let mut command = self.pace();
