@@ -27,4 +27,5 @@ developer guide (`dev-docs/src/architecture/`, `dev-docs/src/development/`).
 ## Status
 
 Moved from `/work/CLAUDE.md` on 2026-11-26, when the guides MCP and codegate
-were set up for pace. A rule that is pace's own goes here, not into `CLAUDE.md`.
+were set up for pace; in `.guides/` since guides 0.3.0. A rule that is pace's
+own goes here, not into `CLAUDE.md`.

@@ -55,7 +55,7 @@ codegate's quality gates (`just gate`, `.config/codegate.toml`); `just` lists
 the other tasks (`bench`, `cov`, `deny`, `hack`). After cloning, `codegate
 setup` installs the pre-commit hook that runs the fast gates. Every source
 folder has a README, and the conventions are the project guide in
-`.workbench/guides/pace/`.
+`.guides/pace/`.
 
 ## License
 
