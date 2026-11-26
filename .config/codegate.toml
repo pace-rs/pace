@@ -23,3 +23,9 @@ threshold = 700
 
 [module-paths]
 # An own function is imported by its name; no path goes through `super`.
+
+[crap]
+# No function scores above CRAP 30. A `tests.rs` is test code, as for
+# file-length; cargo-llvm-cov leaves it out of its report.
+threshold = 30
+exclude = ["**/tests.rs"]
