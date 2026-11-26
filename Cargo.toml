@@ -20,7 +20,11 @@ abscissa_core = { version = "0.9.0", default-features = false }
 clap = "4.6.10"
 insta = "1.49.0"
 insta-cmd = "0.7.0"
+jiff = "1.0.3"
 miette = { version = "7.6.0", default-features = false }
+pace_error = { path = "crates/pace-error" }
+rstest = "0.29.0"
+strsim = "0.11.1"
 
 [package]
 name = "pace-rs"
@@ -75,3 +79,6 @@ expect_used = "warn"
 unwrap_used = "warn"
 enum_glob_use = "warn"
 module_name_repetitions = "allow"
+# PaceError guidance has {placeholders} that are filled from the attached
+# context (the rustic_core error design), not format arguments.
+literal_string_with_formatting_args = "allow"
