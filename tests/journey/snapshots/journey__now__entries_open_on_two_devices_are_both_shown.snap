@@ -1,0 +1,15 @@
+---
+source: tests/journey/now.rs
+expression: output
+---
+$ pace now   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Running: ad5e "on this machine", since 09:00 (1 hour ago).
+  1h net so far.
+Running: f372 "on the other machine", since 09:30 (30 minutes ago).
+  30m net so far; on another device.
+2 entries are open; `pace end <id>` ends one.
+
+----- stderr -----

@@ -3,7 +3,9 @@
 
 use std::path::PathBuf;
 
-use pace_core::{Command, Outcome, Policy, Tracker};
+use abscissa_core::Application;
+use abscissa_tokio::TokioComponent;
+use pace_core::{Command, DeviceId, Outcome, Policy, Tracker};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_store::{FilesStore, Split, device_id};
 use pace_time::TimeRange;
@@ -16,6 +18,7 @@ use crate::{
 /// A tracker for this run.
 pub struct Session {
     tracker: Tracker<FilesStore>,
+    device: DeviceId,
     data: PathBuf,
     data_existed: bool,
 }
@@ -43,9 +46,16 @@ impl Session {
         );
         Ok(Self {
             tracker: Tracker::new(store, clock, ids, Policy::default(), device.id),
+            device: device.id,
             data_existed: data.exists(),
             data,
         })
+    }
+
+    /// This machine's device ID.
+    #[must_use]
+    pub const fn device(&self) -> DeviceId {
+        self.device
     }
 
     /// Now, by the session's clock.
@@ -80,8 +90,18 @@ impl Session {
     }
 }
 
-/// Run a future on the application's runtime.
+/// Run a future on the application's one runtime, borrowed from its
+/// component, so a command can run several futures.
 fn block_on<F: Future>(future: F) -> PaceResult<F::Output> {
-    abscissa_tokio::run(&PACE_APP, future)
-        .map_err(|error| PaceError::from(ErrorKind::Internal, error).ask_report())
+    let components = PACE_APP.state().components();
+    let runtime = components
+        .get_downcast_ref::<TokioComponent>()
+        .ok_or_else(|| {
+            PaceError::new(ErrorKind::Internal, "the runtime component is missing").ask_report()
+        })?
+        .runtime()
+        .map_err(|error| PaceError::from(ErrorKind::Internal, error).ask_report())?;
+    let output = runtime.block_on(future);
+    drop(components);
+    Ok(output)
 }

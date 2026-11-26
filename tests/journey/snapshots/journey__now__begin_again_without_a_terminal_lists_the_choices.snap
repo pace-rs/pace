@@ -1,0 +1,66 @@
+---
+source: tests/journey/now.rs
+expression: output
+---
+$ pace begin --again   # at 08:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × there is no recent entry to begin again
+  help: `pace begin <note>` begins a new one
+
+
+$ pace begin Write offer --tag offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began 9b59 "Write offer" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace end   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Ended 9b59 "Write offer" at 10:00 after 1h.
+
+----- stderr -----
+
+$ pace begin --again   # at 10:30
+success: true
+exit_code: 0
+----- stdout -----
+Began 9654 "Write offer" at 10:30.
+
+----- stderr -----
+
+$ pace begin Call ACME   # at 11:00
+success: true
+exit_code: 0
+----- stdout -----
+Ended 9654 "Write offer" at 11:00 after 30m.
+Began 88ed "Call ACME" at 11:00.
+
+----- stderr -----
+
+$ pace end   # at 11:20
+success: true
+exit_code: 0
+----- stdout -----
+Ended 88ed "Call ACME" at 11:20 after 20m.
+
+----- stderr -----
+
+$ pace begin --again   # at 11:30
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × `pace begin --again` needs a choice of 2 recent entries:
+  │ 1. "Call ACME", last 30 minutes ago
+  │ 2. "Write offer", tags offer, last 1 hour ago
+  help: run it in a terminal to pick one, or begin with `pace begin <note>`

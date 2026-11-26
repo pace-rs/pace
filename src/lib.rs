@@ -14,4 +14,6 @@ pub mod dirs;
 pub mod origin;
 pub mod output;
 pub mod project;
+pub mod prompt;
+pub mod select;
 pub mod session;

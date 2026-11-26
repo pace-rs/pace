@@ -1,6 +1,7 @@
 //! The command line: the entry point and its subcommands.
 
 pub mod config;
+pub mod now;
 pub mod tracking;
 
 use std::path::PathBuf;
@@ -9,15 +10,17 @@ use abscissa_core::{Command, Configurable, Runnable};
 
 use self::{
     config::ConfigCmd,
+    now::NowCmd,
     tracking::{BeginCmd, CatchCmd, EndCmd, HoldCmd, PauseCmd, ResumeCmd},
 };
+use crate::application::exit_on_error;
 
 /// pace: a local-first command-line time tracker for work and daily life.
 #[derive(clap::Parser, Command, Debug)]
-#[command(name = "pace", version, about, arg_required_else_help = true)]
+#[command(name = "pace", version, about)]
 pub struct EntryPoint {
     #[command(subcommand)]
-    cmd: PaceCmd,
+    cmd: Option<PaceCmd>,
 
     #[arg(
         long,
@@ -74,14 +77,24 @@ pub enum PaceCmd {
     #[command(visible_alias = "e")]
     End(EndCmd),
 
+    /// Show what is running, held or paused
+    #[command(visible_alias = "n")]
+    Now(NowCmd),
+
     /// Look at pace's configuration.
     #[command(subcommand)]
     Config(ConfigCmd),
 }
 
+/// Bare `pace` shows what is running and how to get help.
 impl Runnable for EntryPoint {
     fn run(&self) {
-        self.cmd.run();
+        match &self.cmd {
+            Some(cmd) => cmd.run(),
+            None => exit_on_error(now::show(false).map(|()| {
+                println!("Run `pace help` to see all commands.");
+            })),
+        }
     }
 }
 

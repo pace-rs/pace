@@ -13,9 +13,3 @@ fn help_describes_pace() -> TestResult {
     insta::assert_snapshot!(run(pace().arg("--help"))?);
     Ok(())
 }
-
-#[test]
-fn pace_without_arguments_shows_the_help_as_a_usage_error() -> TestResult {
-    insta::assert_snapshot!(run(&mut pace())?);
-    Ok(())
-}

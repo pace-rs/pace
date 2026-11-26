@@ -1,0 +1,67 @@
+---
+source: tests/journey/now.rs
+expression: output
+---
+$ pace begin Write offer --tag offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began ad5e "Write offer" at 09:00.
+Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace now   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Running: ad5e "Write offer", since 09:00 (1 hour ago).
+  1h net so far; project acme-webshop; tags offer.
+New entries here go to acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+
+----- stderr -----
+
+$ pace hold --outer --reason phone call   # at 10:15
+success: true
+exit_code: 0
+----- stdout -----
+Held ad5e at 10:15, interrupted from outside: phone call.
+
+----- stderr -----
+
+$ pace now   # at 10:30
+success: true
+exit_code: 0
+----- stdout -----
+Held: ad5e "Write offer", since 10:15 (15 minutes ago): phone call.
+  1h 15m net so far; begun at 09:00; held 15m; project acme-webshop; tags offer.
+New entries here go to acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+
+----- stderr -----
+
+$ pace resume   # at 10:45
+success: true
+exit_code: 0
+----- stdout -----
+Resumed ad5e at 10:45 after 30m held.
+
+----- stderr -----
+
+$ pace pause --lunch   # at 12:00
+success: true
+exit_code: 0
+----- stdout -----
+Paused ad5e at 12:00 for lunch.
+
+----- stderr -----
+
+$ pace now   # at 12:10
+success: true
+exit_code: 0
+----- stdout -----
+Paused: ad5e "Write offer", since 12:00 (10 minutes ago).
+  2h 30m net so far; begun at 09:00; held 30m; paused 10m; project acme-webshop; tags offer.
+New entries here go to acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+
+----- stderr -----

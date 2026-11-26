@@ -1,0 +1,11 @@
+---
+source: tests/journey/now.rs
+expression: output
+---
+$ pace now   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Nothing is running.
+
+----- stderr -----

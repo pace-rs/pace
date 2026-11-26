@@ -1,0 +1,13 @@
+---
+source: tests/journey/now.rs
+expression: output
+---
+$ pace begin --at 02:30   # at 2026-10-25T12:00[Europe/Berlin]
+success: true
+exit_code: 0
+----- stdout -----
+Began ffa1 at 02:30.
+02:30 happened twice, because the clocks were set back; pace took the first one, 02:30 (+02:00), not 02:30 (+01:00).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----

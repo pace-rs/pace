@@ -1,0 +1,22 @@
+---
+source: tests/journey/now.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began ad5e "Write offer" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace    # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Running: ad5e "Write offer", since 09:00 (30 minutes ago).
+  30m net so far.
+Run `pace help` to see all commands.
+
+----- stderr -----

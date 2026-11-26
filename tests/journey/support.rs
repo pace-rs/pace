@@ -56,6 +56,15 @@ impl Sandbox {
         std::fs::write(path, content)
     }
 
+    /// Copy the device directories of another data directory in the sandbox
+    /// into `home/events`, as a file sync would.
+    pub fn sync_events_from(&self, other_home: &str) -> std::io::Result<()> {
+        copy_dir(
+            &self.path(other_home).join("events"),
+            &self.path("home/events"),
+        )
+    }
+
     /// Replace the content of the global config file.
     pub fn write_config(&self, content: &str) -> std::io::Result<()> {
         std::fs::write(self.path("config/pace.global.toml"), content)
@@ -133,6 +142,22 @@ impl Sandbox {
         settings.add_filter(r"\\\\?", "/");
         settings
     }
+}
+
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let path = entry?.path();
+        let Some(name) = path.file_name() else {
+            continue;
+        };
+        if path.is_dir() {
+            copy_dir(&path, &to.join(name))?;
+        } else {
+            _ = std::fs::copy(&path, to.join(name))?;
+        }
+    }
+    Ok(())
 }
 
 fn regex_escape(text: &str) -> String {
