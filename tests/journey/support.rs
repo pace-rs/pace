@@ -1,6 +1,7 @@
 //! A sandbox for running `pace` without touching the real user directories.
 
 use std::{
+    fmt::Write as _,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -99,6 +100,20 @@ impl Sandbox {
             .env("PACE_TEST_NOW", now)
             .env("PACE_TIME_ZONE", "Europe/Berlin");
         command
+    }
+
+    /// Run `steps` one after another, each a time as for
+    /// [`Sandbox::pace_at`] and the arguments, and describe them for a
+    /// snapshot: a line with the command and its time, then [`run`]'s
+    /// outcome.
+    pub fn journey(&self, steps: &[(&str, &[&str])]) -> Result<String, Box<dyn std::error::Error>> {
+        let mut transcript = String::new();
+        for (time, args) in steps {
+            writeln!(transcript, "$ pace {}   # at {time}", args.join(" "))?;
+            transcript.push_str(&run(self.pace_at(time).args(*args))?);
+            transcript.push('\n');
+        }
+        Ok(transcript)
     }
 
     /// [`Sandbox::pace`] run in `work/<relative>`.

@@ -1,30 +1,15 @@
 //! Tracking with a fixed clock: begin, hold, pause, resume, catch, end.
 
-use std::fmt::Write as _;
-
 use crate::support::{Sandbox, run};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 /// Run each step at its time and snapshot all outputs together.
-fn journey(
-    sandbox: &Sandbox,
-    steps: &[(&str, &[&str])],
-) -> Result<String, Box<dyn std::error::Error>> {
-    let mut transcript = String::new();
-    for (time, args) in steps {
-        writeln!(transcript, "$ pace {}   # at {time}", args.join(" "))?;
-        transcript.push_str(&run(sandbox.pace_at(time).args(*args))?);
-        transcript.push('\n');
-    }
-    Ok(transcript)
-}
-
 #[test]
 fn the_first_entry_creates_the_data_directory_and_says_where() -> TestResult {
     let sandbox = Sandbox::new()?;
 
-    let output = journey(&sandbox, &[("09:00", &["begin", "Write", "offer"])])?;
+    let output = sandbox.journey(&[("09:00", &["begin", "Write", "offer"])])?;
 
     assert!(sandbox.path("home/events").is_dir());
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
@@ -35,19 +20,16 @@ fn the_first_entry_creates_the_data_directory_and_says_where() -> TestResult {
 fn a_working_morning_with_an_interruption_and_lunch() -> TestResult {
     let sandbox = Sandbox::new()?;
 
-    let output = journey(
-        &sandbox,
-        &[
-            ("09:00", &["begin", "Write offer", "--tag", "offer"]),
-            ("10:00", &["hold", "--outer", "--reason", "phone call"]),
-            ("10:05", &["hold", "--reason", "Slack"]),
-            ("10:20", &["resume"]),
-            ("11:00", &["catch", "call", "the", "tax", "office"]),
-            ("12:00", &["pause", "--lunch"]),
-            ("12:30", &["resume"]),
-            ("13:00", &["end"]),
-        ],
-    )?;
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer", "--tag", "offer"]),
+        ("10:00", &["hold", "--outer", "--reason", "phone call"]),
+        ("10:05", &["hold", "--reason", "Slack"]),
+        ("10:20", &["resume"]),
+        ("11:00", &["catch", "call", "the", "tax", "office"]),
+        ("12:00", &["pause", "--lunch"]),
+        ("12:30", &["resume"]),
+        ("13:00", &["end"]),
+    ])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
@@ -56,13 +38,10 @@ fn a_working_morning_with_an_interruption_and_lunch() -> TestResult {
 fn begin_while_running_switches() -> TestResult {
     let sandbox = Sandbox::new()?;
 
-    let output = journey(
-        &sandbox,
-        &[
-            ("09:00", &["begin", "Write offer"]),
-            ("10:30", &["begin", "Call ACME", "--at", "10:15"]),
-        ],
-    )?;
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("10:30", &["begin", "Call ACME", "--at", "10:15"]),
+    ])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
@@ -71,7 +50,7 @@ fn begin_while_running_switches() -> TestResult {
 fn nothing_to_do_exits_with_three() -> TestResult {
     let sandbox = Sandbox::new()?;
 
-    let output = journey(&sandbox, &[("09:00", &["end"]), ("09:00", &["resume"])])?;
+    let output = sandbox.journey(&[("09:00", &["end"]), ("09:00", &["resume"])])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
@@ -110,15 +89,12 @@ fn begin_and_end_in_different_time_zones() -> TestResult {
 fn at_takes_the_grammar_and_refuses_the_future() -> TestResult {
     let sandbox = Sandbox::new()?;
 
-    let output = journey(
-        &sandbox,
-        &[
-            ("09:30", &["begin", "--at", "soon"]),
-            ("09:30", &["begin", "--at", "10:00"]),
-            ("09:30", &["begin", "--at", "+15m"]),
-            ("09:30", &["begin", "--at", "-15m"]),
-        ],
-    )?;
+    let output = sandbox.journey(&[
+        ("09:30", &["begin", "--at", "soon"]),
+        ("09:30", &["begin", "--at", "10:00"]),
+        ("09:30", &["begin", "--at", "+15m"]),
+        ("09:30", &["begin", "--at", "-15m"]),
+    ])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
@@ -127,7 +103,7 @@ fn at_takes_the_grammar_and_refuses_the_future() -> TestResult {
 fn catch_without_a_running_entry_is_an_error() -> TestResult {
     let sandbox = Sandbox::new()?;
 
-    let output = journey(&sandbox, &[("09:00", &["catch", "an idea"])])?;
+    let output = sandbox.journey(&[("09:00", &["catch", "an idea"])])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
@@ -137,7 +113,7 @@ fn begin_names_the_project_and_why() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write("work/.pace.toml", "[project]\nkey = \"acme-webshop\"\n")?;
 
-    let output = journey(&sandbox, &[("09:00", &["begin", "Checkout flow"])])?;
+    let output = sandbox.journey(&[("09:00", &["begin", "Checkout flow"])])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

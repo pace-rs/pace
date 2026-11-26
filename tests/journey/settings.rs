@@ -1,23 +1,8 @@
 //! The settings that shape tracking, and the project ID of a manifest.
 
-use std::fmt::Write as _;
-
 use crate::support::{Sandbox, run};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
-
-fn journey(
-    sandbox: &Sandbox,
-    steps: &[(&str, &[&str])],
-) -> Result<String, Box<dyn std::error::Error>> {
-    let mut transcript = String::new();
-    for (time, args) in steps {
-        writeln!(transcript, "$ pace {}   # at {time}", args.join(" "))?;
-        transcript.push_str(&run(sandbox.pace_at(time).args(*args))?);
-        transcript.push('\n');
-    }
-    Ok(transcript)
-}
 
 /// The paths of the event files below `home/events`, without the device.
 fn event_files(sandbox: &Sandbox) -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -48,10 +33,7 @@ fn a_hold_without_a_source_takes_the_setting() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write_config("[holds]\ndefault-source = \"outer\"\n")?;
 
-    let output = journey(
-        &sandbox,
-        &[("09:00", &["begin", "Write offer"]), ("10:00", &["hold"])],
-    )?;
+    let output = sandbox.journey(&[("09:00", &["begin", "Write offer"]), ("10:00", &["hold"])])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
@@ -61,15 +43,12 @@ fn begin_again_offers_the_most_recent_count() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write_config("most-recent-count = 1\n")?;
 
-    let output = journey(
-        &sandbox,
-        &[
-            ("09:00", &["begin", "Write offer"]),
-            ("10:00", &["begin", "Call ACME"]),
-            ("10:30", &["end"]),
-            ("11:00", &["begin", "--again"]),
-        ],
-    )?;
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("10:00", &["begin", "Call ACME"]),
+        ("10:30", &["end"]),
+        ("11:00", &["begin", "--again"]),
+    ])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
@@ -93,13 +72,10 @@ fn a_manifest_with_an_id_records_the_project_id() -> TestResult {
         "[project]\nid = \"0193a7c4-0000-7000-8000-000000000001\"\nkey = \"acme-webshop\"\n",
     )?;
 
-    let output = journey(
-        &sandbox,
-        &[
-            ("09:00", &["begin", "Write offer"]),
-            ("09:30", &["now", "--json"]),
-        ],
-    )?;
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("09:30", &["now", "--json"]),
+    ])?;
     let events = std::fs::read_to_string(
         std::fs::read_dir(sandbox.path("home/events"))?
             .next()
