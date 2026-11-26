@@ -1,3 +1,5 @@
+//! The time between two moments, and durations as people type them.
+
 use jiff::{SignedDuration, ZonedDateTime};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 

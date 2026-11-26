@@ -1,3 +1,5 @@
+//! Short IDs: the last characters of an entry ID that tell it apart.
+
 use std::collections::HashMap;
 
 use crate::EntryId;

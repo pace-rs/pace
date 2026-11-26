@@ -1,3 +1,6 @@
+//! Entries: a stretch of tracked time with its note, project and tags, its
+//! holds, pauses and catches, and what it is doing now.
+
 use std::collections::BTreeSet;
 
 use jiff::{SignedDuration, ZonedDateTime};

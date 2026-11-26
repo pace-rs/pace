@@ -1,3 +1,6 @@
+//! The ports of the core: the clock, the source of IDs, the event store and
+//! the notifier.
+
 use std::{
     future::Future,
     sync::atomic::{AtomicU64, Ordering},

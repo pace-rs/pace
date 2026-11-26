@@ -1,3 +1,5 @@
+//! The IDs of events, batches, devices and entries, each a UUIDv7.
+
 use std::{fmt, str::FromStr};
 
 use pace_error::{ErrorKind, PaceError};

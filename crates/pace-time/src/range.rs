@@ -1,3 +1,5 @@
+//! Half-open ranges of time, `[start, end)`, whose bounds may be open.
+
 use jiff::ZonedDateTime;
 use pace_error::{ErrorKind, PaceError, PaceResult};
 

@@ -1,3 +1,6 @@
+//! How a device's event log is split into files: by year, month, week or
+//! day.
+
 use std::{fmt, str::FromStr};
 
 use jiff::ZonedDateTime;

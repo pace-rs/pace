@@ -29,3 +29,13 @@ threshold = 700
 # file-length; cargo-llvm-cov leaves it out of its report.
 threshold = 30
 exclude = ["**/tests.rs"]
+
+[readmes]
+# Every source folder has a README: its prose by hand, its tables generated.
+src = [
+  "src",
+  "crates/pace-core/src",
+  "crates/pace-error/src",
+  "crates/pace-store/src",
+  "crates/pace-time/src",
+]

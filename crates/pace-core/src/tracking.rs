@@ -1,3 +1,5 @@
+//! Where a hold came from, and what kind of break a pause is.
+
 use serde::{Deserialize, Serialize};
 
 /// Where an interruption came from.

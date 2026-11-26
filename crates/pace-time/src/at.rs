@@ -1,3 +1,6 @@
+//! The `--at` grammar: `09:30`, `yesterday 17:00`, `2026-11-26 09:00`,
+//! `-15m`.
+
 use jiff::{
     SignedDuration, ZonedDateTime,
     civil::{Date, DateTime, Time},

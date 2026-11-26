@@ -1,3 +1,5 @@
+//! The state of the entries, built from the events in merged order.
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use jiff::ZonedDateTime;

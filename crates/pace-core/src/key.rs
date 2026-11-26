@@ -1,3 +1,5 @@
+//! The names people type: project keys such as `acme-webshop`, and tags.
+
 use std::{fmt, str::FromStr};
 
 use pace_error::{ErrorKind, PaceError};

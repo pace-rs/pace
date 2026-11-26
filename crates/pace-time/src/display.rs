@@ -1,3 +1,5 @@
+//! Durations and moments as pace shows them: `1h 5m`, `25 minutes ago`.
+
 use jiff::{SignedDuration, ZonedDateTime};
 
 /// A duration in hours and minutes, as pace shows it: `45s`, `5m`, `1h`,

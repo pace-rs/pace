@@ -1,3 +1,6 @@
+//! Periods for reports: named frames such as `today` and `last-week`, or the
+//! days from `--from` to `--to`.
+
 use std::{fmt, str::FromStr};
 
 use jiff::{

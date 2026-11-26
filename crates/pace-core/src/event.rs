@@ -1,3 +1,6 @@
+//! The events of the log: what happened to an entry or a batch, as the core
+//! decided it.
+
 use std::collections::BTreeSet;
 
 use jiff::{Timestamp, ZonedDateTime};

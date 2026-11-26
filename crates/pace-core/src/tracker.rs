@@ -1,3 +1,5 @@
+//! The tracker: runs a command over the ports and says what it did.
+
 use std::sync::Arc;
 
 use jiff::ZonedDateTime;
