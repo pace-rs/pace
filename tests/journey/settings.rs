@@ -29,7 +29,7 @@ fn event_files(sandbox: &Sandbox) -> Result<Vec<String>, Box<dyn std::error::Err
 }
 
 #[test]
-fn a_hold_without_a_source_takes_the_setting() -> TestResult {
+fn hold_without_source_takes_the_setting() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write_config("[holds]\ndefault-source = \"outer\"\n")?;
 
@@ -54,7 +54,7 @@ fn begin_again_offers_the_most_recent_count() -> TestResult {
 }
 
 #[test]
-fn a_new_device_splits_its_events_as_the_setting_says() -> TestResult {
+fn new_device_splits_its_events_as_the_setting_says() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write_config("[storage]\nsplit = \"week\"\n")?;
 
@@ -65,7 +65,7 @@ fn a_new_device_splits_its_events_as_the_setting_says() -> TestResult {
 }
 
 #[test]
-fn a_manifest_with_an_id_records_the_project_id() -> TestResult {
+fn manifest_with_an_id_records_the_project_id() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write(
         "work/.pace.toml",
@@ -94,7 +94,7 @@ fn a_manifest_with_an_id_records_the_project_id() -> TestResult {
 }
 
 #[test]
-fn a_manifest_id_must_be_an_id() -> TestResult {
+fn manifest_id_must_be_an_id() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write(
         "work/.pace.toml",

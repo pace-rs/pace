@@ -153,7 +153,7 @@ fn only_entry(state: &State) -> Result<EntryId, Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn after_a_sync_both_devices_see_the_same_state() -> TestResult {
+fn after_sync_both_devices_see_the_same_state() -> TestResult {
     let Pair {
         laptop, desktop, ..
     } = pair(Split::Week)?;
@@ -270,7 +270,7 @@ fn entries_logged_apart_can_overlap_and_pace_finds_them() -> TestResult {
 }
 
 #[test]
-fn a_forgotten_entry_leaves_the_own_files_of_every_device() -> TestResult {
+fn forgotten_entry_leaves_the_own_files_of_every_device() -> TestResult {
     let Pair {
         laptop, desktop, ..
     } = pair(Split::Week)?;

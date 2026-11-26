@@ -382,7 +382,7 @@ mod tests {
     }
 
     #[test]
-    fn other_words_and_the_ids_a_test_wrote_stay() -> TestResult {
+    fn other_words_and_the_ids_test_wrote_stay() -> TestResult {
         let sandbox = two_entries()?;
         sandbox.write(
             "work/.pace.toml",
@@ -398,7 +398,7 @@ mod tests {
     }
 
     #[test]
-    fn a_short_id_that_fits_two_entries_is_refused() -> TestResult {
+    fn short_id_that_fits_two_entries_is_refused() -> TestResult {
         let sandbox = two_entries()?;
         sandbox.write(
             &format!("home/events/{DEVICE}/2026/2026-10.toml"),

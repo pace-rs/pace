@@ -96,7 +96,7 @@ fn an_unknown_time_zone_suggests_the_closest() -> TestResult {
 }
 
 #[test]
-fn a_value_of_the_wrong_type_says_what_fits() -> TestResult {
+fn value_of_the_wrong_type_says_what_fits() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write_config("week-start = 1\n")?;
 
@@ -106,7 +106,7 @@ fn a_value_of_the_wrong_type_says_what_fits() -> TestResult {
 }
 
 #[test]
-fn a_wrong_value_in_the_environment_names_the_variable() -> TestResult {
+fn wrong_value_in_the_environment_names_the_variable() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = run(sandbox
@@ -128,7 +128,7 @@ fn broken_toml_points_at_the_spot() -> TestResult {
 }
 
 #[test]
-fn a_newer_file_version_is_refused() -> TestResult {
+fn newer_file_version_is_refused() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write_config("version = 2\n")?;
 
@@ -138,7 +138,7 @@ fn a_newer_file_version_is_refused() -> TestResult {
 }
 
 #[test]
-fn a_given_config_file_must_exist() -> TestResult {
+fn given_config_file_must_exist() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = run(sandbox
@@ -177,7 +177,7 @@ fn tables_hold_the_hold_and_storage_settings() -> TestResult {
 }
 
 #[test]
-fn an_unknown_key_in_a_table_suggests_the_closest() -> TestResult {
+fn an_unknown_key_in_table_suggests_the_closest() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write_config("[storage]\nsplitt = \"week\"\n")?;
 
@@ -187,7 +187,7 @@ fn an_unknown_key_in_a_table_suggests_the_closest() -> TestResult {
 }
 
 #[test]
-fn a_count_is_a_whole_number_from_one() -> TestResult {
+fn count_is_whole_number_from_one() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     sandbox.write_config("most-recent-count = 0\n")?;

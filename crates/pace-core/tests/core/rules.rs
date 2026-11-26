@@ -136,7 +136,7 @@ fn failure(
 // begin
 
 #[test]
-fn begin_starts_a_running_entry_now() -> TestResult {
+fn begin_starts_running_entry_now() -> TestResult {
     let mut world = World::new()?;
 
     let batch = world.run("09:00", &begin("Write offer"))?;
@@ -310,7 +310,7 @@ fn hold_interrupts_the_running_entry() -> TestResult {
 }
 
 #[test]
-fn hold_without_a_source_takes_the_setting() -> TestResult {
+fn hold_without_source_takes_the_setting() -> TestResult {
     let mut world = World::new()?;
     world.policy.default_hold_source = HoldSource::Inner;
     _ = world.run("09:00", &begin("Write offer"))?;
@@ -339,7 +339,7 @@ fn hold_while_nothing_runs_has_nothing_to_do() -> TestResult {
 
 // old pace: hold_last_unfinished_activity_with_existing_intermission_does_nothing
 #[test]
-fn a_second_hold_without_a_reason_has_nothing_to_do() -> TestResult {
+fn second_hold_without_reason_has_nothing_to_do() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;
     _ = world.run("10:00", &Command::Hold(Hold::default()))?;
@@ -352,7 +352,7 @@ fn a_second_hold_without_a_reason_has_nothing_to_do() -> TestResult {
 }
 
 #[test]
-fn a_second_hold_with_a_reason_updates_it() -> TestResult {
+fn second_hold_with_reason_updates_it() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;
     _ = world.run("10:00", &Command::Hold(Hold::default()))?;
@@ -392,7 +392,7 @@ fn hold_before_the_entry_began_is_refused() -> TestResult {
 }
 
 #[test]
-fn pause_while_held_turns_the_hold_into_a_pause() -> TestResult {
+fn pause_while_held_turns_the_hold_into_pause() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;
     _ = world.run("10:00", &Command::Hold(Hold::default()))?;
@@ -441,7 +441,7 @@ fn resume_while_running_has_nothing_to_do() -> TestResult {
 // catch
 
 #[test]
-fn catch_notes_a_thought_on_the_running_entry() -> TestResult {
+fn catch_notes_thought_on_the_running_entry() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;
 
@@ -678,7 +678,7 @@ fn adjust_changes_the_open_entry() -> TestResult {
 }
 
 #[test]
-fn adjust_without_a_change_has_nothing_to_do() -> TestResult {
+fn adjust_without_change_has_nothing_to_do() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;
 
@@ -847,7 +847,7 @@ fn undo_is_filed_with_every_period_its_batch_touched() -> TestResult {
 // forget
 
 #[test]
-fn forget_writes_a_tombstone_that_undo_skips() -> TestResult {
+fn forget_writes_tombstone_that_undo_skips() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;
     let entry = world.only_entry(EntryState::Running)?;

@@ -39,7 +39,7 @@ fn everything() -> Result<TimeRange, Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn a_command_is_decided_appended_and_shown_in_the_new_state() -> TestResult {
+fn command_is_decided_appended_and_shown_in_the_new_state() -> TestResult {
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
     let store = MemoryStore::new(device(1)?, clock.clone());
     let tracker = tracker(store, &clock, 1)?;
@@ -54,7 +54,7 @@ fn a_command_is_decided_appended_and_shown_in_the_new_state() -> TestResult {
 }
 
 #[test]
-fn a_rejected_command_appends_nothing() -> TestResult {
+fn rejected_command_appends_nothing() -> TestResult {
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
     let store = MemoryStore::new(device(1)?, clock.clone());
     let tracker = tracker(store, &clock, 1)?;
@@ -163,7 +163,7 @@ fn an_outcome_shows_the_state_before_and_what_an_undo_took_back() -> TestResult 
 }
 
 #[test]
-fn a_log_that_ends_before_it_starts_is_refused_by_the_rules() -> TestResult {
+fn log_that_ends_before_it_starts_is_refused_by_the_rules() -> TestResult {
     let clock = Arc::new(TestClock::new(at("2026-11-26T18:00[Europe/Berlin]")?));
     let store = MemoryStore::new(device(1)?, clock.clone());
     let tracker = tracker(store, &clock, 1)?;

@@ -91,7 +91,7 @@ fn catch_carries_the_thought() -> TestResult {
 }
 
 #[test]
-fn a_project_is_named_by_id_or_by_key() -> TestResult {
+fn project_is_named_by_id_or_by_key() -> TestResult {
     let command = Command::Begin(Begin {
         project: Some(ProjectRef::Id(
             "0193a7c4-6c1e-7f3a-9b2d-4e5f60718293".parse()?,
@@ -121,7 +121,7 @@ fn log_carries_start_and_end() -> TestResult {
 }
 
 #[test]
-fn adjust_sets_with_a_value_and_clears_with_null() -> TestResult {
+fn adjust_sets_with_value_and_clears_with_null() -> TestResult {
     let command = Command::Adjust(Adjust {
         note: Change::Set("Write offer".to_owned()),
         project: Change::Clear,

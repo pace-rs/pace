@@ -50,7 +50,7 @@ fn frames_are_named_as_on_the_command_line(
 #[case(Some("2026-11-01"), None, "from 2026-11-01")]
 #[case(None, Some("2026-11-01"), "until 2026-11-01")]
 #[case(None, None, "all")]
-fn days_between_read_as_a_sentence(
+fn days_between_read_as_sentence(
     #[case] from: Option<&str>,
     #[case] to: Option<&str>,
     #[case] text: &str,
@@ -65,7 +65,7 @@ fn days_between_read_as_a_sentence(
 }
 
 #[test]
-fn a_misspelled_frame_suggests_the_closest_name() {
+fn misspelled_frame_suggests_the_closest_name() {
     let error = "this-wek"
         .parse::<TimeFrame>()
         .err()
@@ -95,13 +95,13 @@ fn a_misspelled_frame_suggests_the_closest_name() {
     "2026-11-30T00:00:00+01:00[Europe/Berlin]"
 )]
 // The old pace returned the previous week on Mondays.
-#[case::this_week_on_a_monday(
+#[case::this_week_on_monday(
     TimeFrame::ThisWeek,
     "2026-11-30T08:00[Europe/Berlin]",
     "2026-11-30T00:00:00+01:00[Europe/Berlin]",
     "2026-12-07T00:00:00+01:00[Europe/Berlin]"
 )]
-#[case::this_week_late_on_a_sunday(
+#[case::this_week_late_on_sunday(
     TimeFrame::ThisWeek,
     "2026-11-29T23:59[Europe/Berlin]",
     "2026-11-23T00:00:00+01:00[Europe/Berlin]",
@@ -113,7 +113,7 @@ fn a_misspelled_frame_suggests_the_closest_name() {
     "2026-11-16T00:00:00+01:00[Europe/Berlin]",
     "2026-11-23T00:00:00+01:00[Europe/Berlin]"
 )]
-#[case::last_week_on_a_monday(
+#[case::last_week_on_monday(
     TimeFrame::LastWeek,
     "2026-11-30T08:00[Europe/Berlin]",
     "2026-11-23T00:00:00+01:00[Europe/Berlin]",
@@ -205,10 +205,7 @@ fn frames_use_the_zone_of_now() -> TestResult {
 #[rstest]
 #[case::spring_forward("2026-03-29T12:00[Europe/Berlin]", 23)]
 #[case::fall_back("2026-10-25T12:00[Europe/Berlin]", 25)]
-fn a_day_with_a_clock_change_has_its_real_length(
-    #[case] now: &str,
-    #[case] hours: i64,
-) -> TestResult {
+fn day_with_clock_change_has_its_real_length(#[case] now: &str, #[case] hours: i64) -> TestResult {
     let range = TimeFrame::Today.resolve(&at(now)?, Weekday::Monday)?;
     let (Some(start), Some(end)) = (range.start(), range.end()) else {
         return Err("today must be bounded".into());
@@ -220,7 +217,7 @@ fn a_day_with_a_clock_change_has_its_real_length(
 
 // Chile springs forward at midnight: 2026-09-06 begins at 01:00.
 #[test]
-fn a_day_without_midnight_starts_at_its_first_moment() -> TestResult {
+fn day_without_midnight_starts_at_its_first_moment() -> TestResult {
     assert_eq!(
         resolve(
             &TimeFrame::Today,
@@ -267,7 +264,7 @@ fn from_and_to_include_both_days() -> TestResult {
 
 // The old pace ended a single day at 23:59:59 and lost its last second.
 #[test]
-fn a_single_day_ends_at_the_next_midnight() -> TestResult {
+fn single_day_ends_at_the_next_midnight() -> TestResult {
     let day = "2021-02-02".parse()?;
     let frame = TimeFrame::Between {
         from: Some(day),
@@ -338,7 +335,7 @@ fn from_after_to_is_rejected() -> TestResult {
 }
 
 #[test]
-fn a_range_contains_its_start_but_not_its_end() -> TestResult {
+fn range_contains_its_start_but_not_its_end() -> TestResult {
     let range = TimeRange::new(
         Some(at("2021-02-02T00:00[Europe/Berlin]")?),
         Some(at("2021-02-04T00:00[Europe/Berlin]")?),
@@ -361,7 +358,7 @@ fn an_open_range_contains_everything_on_its_open_side() -> TestResult {
 }
 
 #[test]
-fn a_range_that_ends_before_it_starts_is_rejected() -> TestResult {
+fn range_that_ends_before_it_starts_is_rejected() -> TestResult {
     let result = TimeRange::new(
         Some(at("2021-02-04T00:00[Europe/Berlin]")?),
         Some(at("2021-02-02T00:00[Europe/Berlin]")?),

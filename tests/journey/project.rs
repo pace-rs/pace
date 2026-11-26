@@ -8,7 +8,7 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 const ACME: &str = "[project]\nkey = \"acme-webshop\"\nname = \"Webshop relaunch\"\n";
 
 #[test]
-fn without_a_project_pace_says_what_it_looked_for() -> TestResult {
+fn without_project_pace_says_what_it_looked_for() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = run(sandbox.pace().args(["config", "show", "--origin"]))?;
@@ -81,7 +81,7 @@ fn the_variable_wins_over_the_manifest() -> TestResult {
 }
 
 #[test]
-fn a_path_mapping_covers_a_directory_without_a_manifest() -> TestResult {
+fn path_mapping_covers_directory_without_manifest() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.mkdir("work/clients/repo/src")?;
     sandbox.write_config(&format!(
@@ -98,7 +98,7 @@ fn a_path_mapping_covers_a_directory_without_a_manifest() -> TestResult {
 }
 
 #[test]
-fn a_manifest_wins_over_a_path_mapping() -> TestResult {
+fn manifest_wins_over_path_mapping() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write("work/acme/.pace.toml", ACME)?;
     sandbox.write_config(&format!(
@@ -113,7 +113,7 @@ fn a_manifest_wins_over_a_path_mapping() -> TestResult {
 
 #[cfg(unix)]
 #[test]
-fn a_path_mapping_may_start_at_home() -> TestResult {
+fn path_mapping_may_start_at_home() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.mkdir("work/repo")?;
     sandbox.write_config("[project-paths]\n\"~/work/repo\" = \"client-repo\"\n")?;
@@ -127,7 +127,7 @@ fn a_path_mapping_may_start_at_home() -> TestResult {
 }
 
 #[test]
-fn a_relative_path_mapping_is_refused() -> TestResult {
+fn relative_path_mapping_is_refused() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write_config("[project-paths]\n\"work/repo\" = \"client-repo\"\n")?;
 
@@ -150,7 +150,7 @@ fn an_unknown_key_in_the_manifest_names_the_line() -> TestResult {
 }
 
 #[test]
-fn a_manifest_key_must_be_a_project_key() -> TestResult {
+fn manifest_key_must_be_project_key() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write("work/.pace.toml", "[project]\nkey = \"Acme Webshop\"\n")?;
 
@@ -160,7 +160,7 @@ fn a_manifest_key_must_be_a_project_key() -> TestResult {
 }
 
 #[test]
-fn a_manifest_without_a_key_is_refused() -> TestResult {
+fn manifest_without_key_is_refused() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write("work/.pace.toml", "[project]\nname = \"Webshop\"\n")?;
 
@@ -170,7 +170,7 @@ fn a_manifest_without_a_key_is_refused() -> TestResult {
 }
 
 #[test]
-fn a_flag_that_is_no_project_key_is_a_usage_error() -> TestResult {
+fn flag_that_is_no_project_key_is_usage_error() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = run(sandbox

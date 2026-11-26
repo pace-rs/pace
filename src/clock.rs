@@ -113,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn a_test_time_is_seen_in_the_configured_zone() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_time_is_seen_in_the_configured_zone() -> Result<(), Box<dyn std::error::Error>> {
         let clock = clock(
             &TimeZoneSetting::Named("America/New_York".to_owned()),
             Some("2026-11-26T09:00[Europe/Berlin]".into()),

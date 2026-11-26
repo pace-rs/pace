@@ -25,7 +25,7 @@ fn the_origin_says_where_each_place_comes_from() -> TestResult {
 }
 
 #[test]
-fn a_flag_wins_over_the_environment() -> TestResult {
+fn flag_wins_over_the_environment() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = run(sandbox
@@ -38,7 +38,7 @@ fn a_flag_wins_over_the_environment() -> TestResult {
 }
 
 #[test]
-fn a_relative_path_starts_in_the_working_directory() -> TestResult {
+fn relative_path_starts_in_the_working_directory() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = run(sandbox.pace().args(["--home", "data", "config", "show"]))?;
@@ -61,7 +61,7 @@ fn an_empty_variable_counts_as_unset() -> TestResult {
 }
 
 #[test]
-fn a_machine_directory_inside_the_data_is_refused() -> TestResult {
+fn machine_directory_inside_the_data_is_refused() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = run(sandbox

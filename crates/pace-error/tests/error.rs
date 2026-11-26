@@ -119,7 +119,7 @@ fn the_source_is_kept_as_the_cause() {
 }
 
 #[test]
-fn a_context_value_can_be_looked_up() {
+fn context_value_can_be_looked_up() {
     let error = PaceError::new(ErrorKind::Project, "no project").attach_context("dir", "/w");
 
     assert_eq!(error.context_value("dir"), Some("/w"));
@@ -127,7 +127,7 @@ fn a_context_value_can_be_looked_up() {
 }
 
 #[test]
-fn a_bug_asks_to_be_reported_at_the_issue_tracker() {
+fn bug_asks_to_be_reported_at_the_issue_tracker() {
     let error = PaceError::new(ErrorKind::Internal, "the event log is out of order").ask_report();
 
     assert!(
@@ -152,7 +152,7 @@ fn severities_map_onto_the_diagnostic() {
 }
 
 #[test]
-fn a_snippet_points_at_the_offending_line() -> TestResult {
+fn snippet_points_at_the_offending_line() -> TestResult {
     let source = "version = 1\ntime-zon = \"Europe/Berlin\"\n";
     let error = PaceError::new(ErrorKind::Configuration, "unknown key `time-zon`")
         .attach_hint("did you mean `time-zone`?")

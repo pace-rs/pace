@@ -68,7 +68,7 @@ fn begun(entry: EntryId) -> EventKind {
 }
 
 #[test]
-fn a_begun_entry_without_an_end_is_unended() -> TestResult {
+fn begun_entry_without_an_end_is_unended() -> TestResult {
     let mut events = Events::new();
     _ = events.add(1, "11-26T09:00", "11-26T09:00", begun(entry(1)?))?;
 

@@ -36,7 +36,7 @@ fn the_first_run_creates_the_device_id_and_later_runs_keep_it() -> TestResult {
 }
 
 #[test]
-fn a_broken_device_file_says_how_to_get_a_new_id() -> TestResult {
+fn broken_device_file_says_how_to_get_new_id() -> TestResult {
     let dir = tempfile::tempdir()?;
     let machine = dir.path().join("machine");
     std::fs::create_dir_all(&machine)?;
@@ -81,7 +81,7 @@ fn machine(
 }
 
 #[test]
-fn a_device_id_used_by_two_machines_stops_writing() -> TestResult {
+fn device_id_used_by_two_machines_stops_writing() -> TestResult {
     let dir = tempfile::tempdir()?;
     let home = dir.path().join("home");
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));

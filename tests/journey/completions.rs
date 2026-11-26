@@ -28,7 +28,7 @@ fn completions_cover_every_shell(#[case] shell: &str, #[case] marker: &str) -> T
 }
 
 #[test]
-fn an_unknown_shell_is_a_usage_error() -> TestResult {
+fn an_unknown_shell_is_usage_error() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = sandbox.pace().args(["completions", "cmd"]).output()?;

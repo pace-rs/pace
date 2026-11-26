@@ -39,7 +39,7 @@ fn rejected(input: &str, now: &str) -> Result<(String, String), Box<dyn std::err
     "2026-11-27T00:15[Europe/Berlin]",
     "2026-11-26T23:30:00+01:00[Europe/Berlin]"
 )]
-fn a_clock_time_means_the_most_recent_such_time(
+fn clock_time_means_the_most_recent_such_time(
     #[case] input: &str,
     #[case] now: &str,
     #[case] expected: &str,
@@ -62,7 +62,7 @@ fn yesterday_names_the_day_before(#[case] input: &str, #[case] expected: &str) -
 #[case("2026-11-25T17:00", "2026-11-25T17:00:00+01:00[Europe/Berlin]")]
 #[case("2021-01-01 12:00", "2021-01-01T12:00:00+01:00[Europe/Berlin]")]
 #[case("2026-07-01 08:00", "2026-07-01T08:00:00+02:00[Europe/Berlin]")]
-fn a_date_and_time_is_taken_as_is_in_the_zone_of_now(
+fn date_and_time_is_taken_as_is_in_the_zone_of_now(
     #[case] input: &str,
     #[case] expected: &str,
 ) -> TestResult {
@@ -74,7 +74,7 @@ fn a_date_and_time_is_taken_as_is_in_the_zone_of_now(
 #[case("-15m", "2026-11-26T14:15:15+01:00[Europe/Berlin]")]
 #[case("-1h30m", "2026-11-26T13:00:15+01:00[Europe/Berlin]")]
 #[case("15m ago", "2026-11-26T14:15:15+01:00[Europe/Berlin]")]
-fn a_relative_time_counts_back_from_now_in_whole_seconds(
+fn relative_time_counts_back_from_now_in_whole_seconds(
     #[case] input: &str,
     #[case] expected: &str,
 ) -> TestResult {
@@ -83,7 +83,7 @@ fn a_relative_time_counts_back_from_now_in_whole_seconds(
 }
 
 #[test]
-fn a_time_in_the_future_is_rejected() -> TestResult {
+fn time_in_the_future_is_rejected() -> TestResult {
     let (message, hint) = rejected("2079-01-02 10:00", NOW)?;
 
     assert_eq!(
@@ -100,7 +100,7 @@ fn a_time_in_the_future_is_rejected() -> TestResult {
 #[rstest]
 #[case("15m")]
 #[case("+15m")]
-fn a_relative_time_forward_suggests_going_back(#[case] input: &str) -> TestResult {
+fn relative_time_forward_suggests_going_back(#[case] input: &str) -> TestResult {
     let (_, hint) = rejected(input, NOW)?;
 
     assert_eq!(hint, "did you mean `-15m`?");
@@ -111,7 +111,7 @@ fn a_relative_time_forward_suggests_going_back(#[case] input: &str) -> TestResul
 #[case::no_such_day("2021-01-32 12:00")]
 #[case::no_such_hour("25:00")]
 #[case::no_such_minute("12:60")]
-#[case::yesterday_without_a_time("yesterday")]
+#[case::yesterday_without_time("yesterday")]
 #[case::words("soon")]
 #[case::empty("")]
 fn text_that_is_no_time_explains_the_grammar(#[case] input: &str) -> TestResult {
@@ -128,7 +128,7 @@ fn text_that_is_no_time_explains_the_grammar(#[case] input: &str) -> TestResult 
 
 // 2026-03-29 02:30 does not exist in Berlin: clocks jump from 02:00 to 03:00.
 #[test]
-fn a_time_skipped_by_a_clock_change_moves_forward() -> TestResult {
+fn time_skipped_by_clock_change_moves_forward() -> TestResult {
     assert_eq!(
         exact("02:30", "2026-03-29T12:00[Europe/Berlin]")?,
         "2026-03-29T03:30:00+02:00[Europe/Berlin]"
@@ -138,7 +138,7 @@ fn a_time_skipped_by_a_clock_change_moves_forward() -> TestResult {
 
 // 2026-10-25 02:30 happens twice in Berlin: first at +02:00, then at +01:00.
 #[test]
-fn a_time_that_happened_twice_offers_both() -> TestResult {
+fn time_that_happened_twice_offers_both() -> TestResult {
     let both = parse_at("02:30", &at("2026-10-25T12:00[Europe/Berlin]")?)?;
 
     assert_eq!(
@@ -156,7 +156,7 @@ fn a_time_that_happened_twice_offers_both() -> TestResult {
 }
 
 #[test]
-fn a_time_that_happened_twice_is_exact_while_the_second_lies_ahead() -> TestResult {
+fn time_that_happened_twice_is_exact_while_the_second_lies_ahead() -> TestResult {
     assert_eq!(
         exact("02:30", "2026-10-25T02:45+02:00[Europe/Berlin]")?,
         "2026-10-25T02:30:00+02:00[Europe/Berlin]"
@@ -171,7 +171,7 @@ proptest! {
     }
 
     #[test]
-    fn a_clock_time_lies_within_the_last_day(hour in 0u8..24, minute in 0u8..60) {
+    fn clock_time_lies_within_the_last_day(hour in 0u8..24, minute in 0u8..60) {
         let now = at(NOW).map_err(|e| TestCaseError::fail(e.to_string()))?;
         let moment = parse_at(&format!("{hour:02}:{minute:02}"), &now)
             .map_err(|e| TestCaseError::fail(e.to_string()))?

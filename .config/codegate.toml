@@ -17,3 +17,6 @@ threshold = 700
 
 [slow-tests]
 # A test slower than 0.5 s lives in a module named `expensive`.
+
+[casing]
+# Every name follows RFC 430: no single-letter word before the last.

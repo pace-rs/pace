@@ -83,7 +83,7 @@ fn begun(entry: EntryId) -> EventKind {
 const NOW: &str = "2026-11-26T12:00[Europe/Berlin]";
 
 #[test]
-fn a_begun_entry_runs_and_counts_up_to_now() -> TestResult {
+fn begun_entry_runs_and_counts_up_to_now() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
     _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
@@ -101,7 +101,7 @@ fn a_begun_entry_runs_and_counts_up_to_now() -> TestResult {
 }
 
 #[test]
-fn a_hold_interrupts_until_resumed_and_is_not_net_time() -> TestResult {
+fn hold_interrupts_until_resumed_and_is_not_net_time() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
     _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
@@ -135,7 +135,7 @@ fn a_hold_interrupts_until_resumed_and_is_not_net_time() -> TestResult {
 }
 
 #[test]
-fn a_pause_is_no_interruption_but_no_net_time_either() -> TestResult {
+fn pause_is_no_interruption_but_no_net_time_either() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
     _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
@@ -162,7 +162,7 @@ fn a_pause_is_no_interruption_but_no_net_time_either() -> TestResult {
 }
 
 #[test]
-fn pausing_while_held_turns_the_hold_into_a_pause() -> TestResult {
+fn pausing_while_held_turns_the_hold_into_pause() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
     _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
@@ -193,7 +193,7 @@ fn pausing_while_held_turns_the_hold_into_a_pause() -> TestResult {
 }
 
 #[test]
-fn a_second_hold_while_held_only_updates_the_reason() -> TestResult {
+fn second_hold_while_held_only_updates_the_reason() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
     _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
@@ -218,7 +218,7 @@ fn a_second_hold_while_held_only_updates_the_reason() -> TestResult {
 }
 
 #[test]
-fn ending_a_held_entry_closes_the_hold_first() -> TestResult {
+fn ending_held_entry_closes_the_hold_first() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
     _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
@@ -274,7 +274,7 @@ fn an_entry_keeps_the_zones_it_was_recorded_in() -> TestResult {
 }
 
 #[test]
-fn a_catch_is_noted_without_changing_the_state() -> TestResult {
+fn catch_is_noted_without_changing_the_state() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
     _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
@@ -296,7 +296,7 @@ fn a_catch_is_noted_without_changing_the_state() -> TestResult {
 }
 
 #[test]
-fn a_logged_entry_is_ended_from_the_start() -> TestResult {
+fn logged_entry_is_ended_from_the_start() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
     _ = log.push(
@@ -416,7 +416,7 @@ fn an_undone_batch_counts_as_never_written() -> TestResult {
 }
 
 #[test]
-fn a_forgotten_entry_is_gone() -> TestResult {
+fn forgotten_entry_is_gone() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
     _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;

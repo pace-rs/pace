@@ -171,7 +171,7 @@ fn the_platform_is_not_asked_when_every_path_is_given() -> PaceResult<()> {
 }
 
 #[test]
-fn a_missing_home_directory_says_which_variables_help() {
+fn missing_home_directory_says_which_variables_help() {
     let error = resolve(Inputs::default(), || Err(super::no_home())).err();
 
     assert_eq!(

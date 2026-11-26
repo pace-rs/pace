@@ -80,7 +80,7 @@ pub fn parse_at(input: &str, now: &ZonedDateTime) -> PaceResult<At> {
         return back_from_now(input, duration, now);
     }
 
-    Err(not_a_time(input))
+    Err(no_time(input))
 }
 
 /// `H:MM` or `HH:MM`.
@@ -145,7 +145,7 @@ fn in_the_future(moment: &ZonedDateTime, now: &ZonedDateTime) -> Box<PaceError> 
         ))
 }
 
-fn not_a_time(input: &str) -> Box<PaceError> {
+fn no_time(input: &str) -> Box<PaceError> {
     PaceError::new(
         ErrorKind::InvalidInput,
         "`{input}` is not a time pace understands",

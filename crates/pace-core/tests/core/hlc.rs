@@ -26,7 +26,7 @@ fn the_first_tick_is_the_wall_time_in_milliseconds() -> TestResult {
 }
 
 #[test]
-fn a_tick_in_the_same_millisecond_counts_up() -> TestResult {
+fn tick_in_the_same_millisecond_counts_up() -> TestResult {
     let now: Timestamp = "2026-11-26T08:02:11.204Z".parse()?;
     let first = Hlc::tick(None, now);
 
@@ -36,7 +36,7 @@ fn a_tick_in_the_same_millisecond_counts_up() -> TestResult {
 
 proptest! {
     #[test]
-    fn a_tick_comes_after_the_last(last_wall in RANGE, counter in 0u32..1000, now in RANGE) {
+    fn tick_comes_after_the_last(last_wall in RANGE, counter in 0u32..1000, now in RANGE) {
         let last = Hlc::new(timestamp(last_wall)?, counter);
         let next = Hlc::tick(Some(last), timestamp(now)?);
 

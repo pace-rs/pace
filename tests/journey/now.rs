@@ -89,7 +89,7 @@ fn entries_open_on_two_devices_are_both_shown() -> TestResult {
 }
 
 #[test]
-fn end_takes_a_short_id() -> TestResult {
+fn end_takes_short_id() -> TestResult {
     let sandbox = Sandbox::new()?;
     _ = run(sandbox.pace_at("09:00").args(["begin", "on this machine"]))?;
     begin_apart(&sandbox, "09:30", "on the other machine")?;
@@ -105,7 +105,7 @@ fn end_takes_a_short_id() -> TestResult {
 }
 
 #[test]
-fn begin_again_without_a_terminal_lists_the_choices() -> TestResult {
+fn begin_again_without_terminal_lists_the_choices() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = sandbox.journey(&[
@@ -122,7 +122,7 @@ fn begin_again_without_a_terminal_lists_the_choices() -> TestResult {
 }
 
 #[test]
-fn a_time_that_happened_twice_takes_the_earlier_without_a_terminal() -> TestResult {
+fn time_that_happened_twice_takes_the_earlier_without_terminal() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = sandbox.journey(&[(

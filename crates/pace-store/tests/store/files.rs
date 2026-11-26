@@ -341,7 +341,7 @@ fn an_unknown_key_in_an_event_file_names_the_file_and_line() -> TestResult {
 }
 
 #[test]
-fn an_event_missing_a_field_is_named() -> TestResult {
+fn an_event_missing_field_is_named() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
     _ = pollster::block_on(
         setup
@@ -365,7 +365,7 @@ fn an_event_missing_a_field_is_named() -> TestResult {
 }
 
 #[test]
-fn an_event_type_from_a_newer_pace_asks_for_an_update() -> TestResult {
+fn an_event_type_from_newer_pace_asks_for_an_update() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
     _ = pollster::block_on(
         setup
@@ -505,7 +505,7 @@ fn resplitting_leaves_other_devices_alone() -> TestResult {
 }
 
 #[test]
-fn a_device_without_events_takes_the_new_split_for_its_first() -> TestResult {
+fn device_without_events_takes_the_new_split_for_its_first() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
 
     let resplit = setup.store(Split::Month).resplit(Split::Week)?;

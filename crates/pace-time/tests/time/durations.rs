@@ -53,7 +53,7 @@ fn elapsed_time_counts_seconds() -> TestResult {
 }
 
 #[test]
-fn elapsed_time_counts_the_real_hours_across_a_clock_change() -> TestResult {
+fn elapsed_time_counts_the_real_hours_across_clock_change() -> TestResult {
     assert_eq!(
         elapsed(
             &at("2026-03-29T01:00[Europe/Berlin]")?,
@@ -93,7 +93,7 @@ fn durations_are_typed_with_units(#[case] input: &str, #[case] seconds: i64) -> 
 }
 
 #[test]
-fn a_bare_number_asks_for_a_unit() {
+fn bare_number_asks_for_unit() {
     let hint = parse_duration("90")
         .err()
         .and_then(|error| error.hint().map(ToOwned::to_owned));

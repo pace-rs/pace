@@ -110,7 +110,7 @@ fn log_enters_time_afterwards() -> TestResult {
 }
 
 #[test]
-fn undo_goes_back_one_command_at_a_time() -> TestResult {
+fn undo_goes_back_one_command_at_time() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = sandbox.journey(&[
@@ -126,7 +126,7 @@ fn undo_goes_back_one_command_at_a_time() -> TestResult {
 }
 
 #[test]
-fn forget_asks_for_good_without_a_terminal() -> TestResult {
+fn forget_asks_for_good_without_terminal() -> TestResult {
     let sandbox = Sandbox::new()?;
     _ = run(sandbox.pace_at("09:00").args(["begin", "secret meeting"]))?;
     _ = run(sandbox.pace_at("10:00").arg("end"))?;

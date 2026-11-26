@@ -9,7 +9,7 @@ use crate::TestResult;
 #[case("acme-webshop")]
 #[case("garden")]
 #[case("2026-taxes")]
-fn a_project_key_is_lowercase_words_with_dashes(#[case] key: &str) -> TestResult {
+fn project_key_is_lowercase_words_with_dashes(#[case] key: &str) -> TestResult {
     assert_eq!(key.parse::<ProjectKey>()?.as_str(), key);
     Ok(())
 }
@@ -39,7 +39,7 @@ fn other_project_keys_are_rejected_with_an_example(#[case] key: &str) {
 #[case("dev")]
 #[case("deep-work")]
 #[case("Café")]
-fn a_tag_is_one_word(#[case] tag: &str) -> TestResult {
+fn tag_is_one_word(#[case] tag: &str) -> TestResult {
     assert_eq!(tag.parse::<Tag>()?.as_str(), tag);
     Ok(())
 }
@@ -48,6 +48,6 @@ fn a_tag_is_one_word(#[case] tag: &str) -> TestResult {
 #[case::empty("")]
 #[case::space("deep work")]
 #[case::comma("dev,ops")]
-fn a_tag_with_spaces_or_commas_is_rejected(#[case] tag: &str) {
+fn tag_with_spaces_or_commas_is_rejected(#[case] tag: &str) {
     assert!(tag.parse::<Tag>().is_err());
 }

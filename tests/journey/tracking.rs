@@ -17,7 +17,7 @@ fn the_first_entry_creates_the_data_directory_and_says_where() -> TestResult {
 }
 
 #[test]
-fn a_working_morning_with_an_interruption_and_lunch() -> TestResult {
+fn working_morning_with_an_interruption_and_lunch() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = sandbox.journey(&[
@@ -101,7 +101,7 @@ fn at_takes_the_grammar_and_refuses_the_future() -> TestResult {
 }
 
 #[test]
-fn catch_without_a_running_entry_is_an_error() -> TestResult {
+fn catch_without_running_entry_is_an_error() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = sandbox.journey(&[("09:00", &["catch", "an idea"])])?;
