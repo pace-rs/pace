@@ -27,6 +27,18 @@ struct BatchRecord {
     undone: bool,
     /// Undo and forget can't be undone.
     undoable: bool,
+    /// The moments its events are filed under, each once.
+    abouts: Vec<ZonedDateTime>,
+}
+
+/// What `undo` reverts: a batch and the moments its events are filed under,
+/// so the undo is filed with each of them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UndoTarget {
+    /// The batch.
+    pub batch: BatchId,
+    /// The moments its events are filed under.
+    pub abouts: Vec<ZonedDateTime>,
 }
 
 impl State {
@@ -67,30 +79,38 @@ impl State {
             recorded.event.kind,
             EventKind::BatchUndone { .. } | EventKind::EntryForgotten { .. }
         );
+        let about = &recorded.event.about;
         if let Some(batch) = self
             .batches
             .iter_mut()
             .find(|batch| batch.id == recorded.batch)
         {
             batch.undoable &= undoable;
+            if !batch.abouts.contains(about) {
+                batch.abouts.push(about.clone());
+            }
         } else {
             self.batches.push(BatchRecord {
                 id: recorded.batch,
                 device: recorded.device,
                 undone,
                 undoable,
+                abouts: vec![about.clone()],
             });
         }
     }
 
     /// The last batch of `device` that can be undone and isn't yet.
     #[must_use]
-    pub fn last_undoable(&self, device: DeviceId) -> Option<BatchId> {
+    pub fn last_undoable(&self, device: DeviceId) -> Option<UndoTarget> {
         self.batches
             .iter()
             .rev()
             .find(|batch| batch.device == device && batch.undoable && !batch.undone)
-            .map(|batch| batch.id)
+            .map(|batch| UndoTarget {
+                batch: batch.id,
+                abouts: batch.abouts.clone(),
+            })
     }
 
     /// The entries other than `except` whose time overlaps `[start, end)`;

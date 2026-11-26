@@ -53,9 +53,14 @@ impl World {
     }
 
     /// Decide `command` at `now` (Berlin time) and append its batch.
+    /// `now` is `HH:MM` on 2026-11-26 in Berlin, or a full RFC 9557 time.
     fn run(&mut self, now: &str, command: &Command) -> Result<Batch, Box<PaceError>> {
-        let now =
-            berlin(now).map_err(|error| PaceError::from(pace_error::ErrorKind::Internal, error))?;
+        let now = if now.contains('[') {
+            at(now)
+        } else {
+            berlin(now)
+        }
+        .map_err(|error| PaceError::from(pace_error::ErrorKind::Internal, error))?;
         let state = self.state();
         let batch = Rules {
             state: &state,
@@ -752,6 +757,34 @@ fn undo_leaves_other_devices_alone() -> TestResult {
     let error = failure(laptop.run("10:00", &Command::Undo))?;
 
     assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
+fn undo_is_filed_with_every_period_its_batch_touched() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("2026-10-31T23:00[Europe/Berlin]", &begin("late"))?;
+    let switch = world.run("2026-11-01T00:30[Europe/Berlin]", &begin("early"))?;
+
+    let undo = world.run("2026-11-01T00:31[Europe/Berlin]", &Command::Undo)?;
+
+    assert_eq!(kinds(&undo), ["batch.undone", "batch.undone"]);
+    let abouts: Vec<_> = undo
+        .events
+        .iter()
+        .map(|event| event.about.clone())
+        .collect();
+    assert_eq!(
+        abouts,
+        [
+            at("2026-10-31T23:00[Europe/Berlin]")?,
+            at("2026-11-01T00:30[Europe/Berlin]")?
+        ]
+    );
+    assert!(undo.events.iter().all(|event| matches!(
+        event.kind,
+        EventKind::BatchUndone { batch } if batch == switch.id
+    )));
     Ok(())
 }
 

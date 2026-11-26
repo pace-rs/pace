@@ -17,6 +17,9 @@ mod port;
 mod rules;
 mod short_id;
 mod state;
+#[cfg(feature = "testing")]
+pub mod testing;
+mod tracker;
 mod tracking;
 
 pub use command::Command;
@@ -29,5 +32,6 @@ pub use key::{ProjectKey, Tag};
 pub use port::{Clock, EventStore, FixedClock, Ids, Notice, Notifier, SequentialIds};
 pub use rules::{Policy, Rules};
 pub use short_id::short_ids;
-pub use state::State;
+pub use state::{State, UndoTarget};
+pub use tracker::{Outcome, Tracker};
 pub use tracking::{HoldSource, PauseKind};

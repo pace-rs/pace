@@ -1,0 +1,148 @@
+//! The tracker reads the state through the store port, decides, and appends.
+
+use std::sync::Arc;
+
+use jiff::ZonedDateTime;
+use pace_core::{
+    Clock, Command, DeviceId, EntryState, EventStore, Policy, SequentialIds, State, Tracker,
+    command::{Adjust, Begin, End, Log},
+    testing::{MemoryStore, TestClock, contract},
+};
+use pace_time::TimeRange;
+
+use crate::TestResult;
+
+fn at(rfc9557: &str) -> Result<ZonedDateTime, jiff::Error> {
+    rfc9557.parse()
+}
+
+fn device(number: u16) -> Result<DeviceId, Box<dyn std::error::Error>> {
+    Ok(format!("0193a8d0-000d-7000-8000-{number:012x}").parse()?)
+}
+
+fn tracker(
+    store: MemoryStore,
+    clock: &Arc<TestClock>,
+    number: u16,
+) -> Result<Tracker<MemoryStore>, Box<dyn std::error::Error>> {
+    Ok(Tracker::new(
+        store,
+        clock.clone(),
+        Arc::new(SequentialIds::starting_at(&clock.now(), number)),
+        Policy::default(),
+        device(number)?,
+    ))
+}
+
+fn everything() -> Result<TimeRange, Box<dyn std::error::Error>> {
+    Ok(TimeRange::new(None, None)?)
+}
+
+#[test]
+fn a_command_is_decided_appended_and_shown_in_the_new_state() -> TestResult {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let store = MemoryStore::new(device(1)?, clock.clone());
+    let tracker = tracker(store, &clock, 1)?;
+
+    let outcome = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+
+    assert_eq!(outcome.recorded.len(), 1);
+    assert_eq!(outcome.state.open().count(), 1);
+    let stored = pollster::block_on(tracker.state(&everything()?))?;
+    assert_eq!(stored.open().count(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_rejected_command_appends_nothing() -> TestResult {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let store = MemoryStore::new(device(1)?, clock.clone());
+    let tracker = tracker(store, &clock, 1)?;
+
+    let result = pollster::block_on(tracker.run(&Command::End(End::default())));
+
+    assert!(result.is_err());
+    assert_eq!(
+        pollster::block_on(tracker.state(&everything()?))?
+            .entries()
+            .count(),
+        0
+    );
+    Ok(())
+}
+
+#[test]
+fn two_devices_on_one_storage_see_each_others_entries() -> TestResult {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let laptop_store = MemoryStore::new(device(1)?, clock.clone());
+    let desktop_store = laptop_store.for_device(device(2)?);
+    let laptop = tracker(laptop_store, &clock, 1)?;
+    let desktop = tracker(desktop_store, &clock, 2)?;
+
+    _ = pollster::block_on(laptop.run(&Command::Begin(Begin::default())))?;
+    clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
+    _ = pollster::block_on(desktop.run(&Command::End(End::default())))?;
+
+    let state = pollster::block_on(laptop.state(&everything()?))?;
+    let entry = state.entries().next().ok_or("entry")?;
+    assert_eq!(entry.state(), EntryState::Ended);
+    assert_eq!(entry.device, device(1)?);
+    Ok(())
+}
+
+#[test]
+fn per_field_the_later_change_wins_between_devices() -> TestResult {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let laptop_store = MemoryStore::new(device(1)?, clock.clone());
+    let desktop_store = laptop_store.for_device(device(2)?);
+    let laptop = tracker(laptop_store, &clock, 1)?;
+    let desktop = tracker(desktop_store, &clock, 2)?;
+    _ = pollster::block_on(laptop.run(&Command::Log(Log::new(
+        at("2026-11-26T07:00[Europe/Berlin]")?,
+        at("2026-11-26T08:00[Europe/Berlin]")?,
+    ))))?;
+    let entry = pollster::block_on(laptop.state(&everything()?))?
+        .entries()
+        .next()
+        .map(|entry| entry.id)
+        .ok_or("entry")?;
+    let note = |text: &str| {
+        Command::Adjust(Adjust {
+            entry: Some(entry),
+            note: pace_core::Change::Set(text.to_owned()),
+            ..Adjust::default()
+        })
+    };
+
+    clock.set(at("2026-11-26T09:10[Europe/Berlin]")?);
+    _ = pollster::block_on(laptop.run(&note("from the laptop")))?;
+    clock.set(at("2026-11-26T09:05[Europe/Berlin]")?);
+    _ = pollster::block_on(desktop.run(&note("from the desktop")))?;
+
+    let state: State = pollster::block_on(desktop.state(&everything()?))?;
+    assert_eq!(
+        state.entry(entry).and_then(|entry| entry.note.as_deref()),
+        Some("from the desktop"),
+        "the desktop wrote after reading the laptop's change, so its HLC is later"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_memory_store_keeps_the_store_contract() -> TestResult {
+    pollster::block_on(contract::run(MemoryStore::opener))?;
+    Ok(())
+}
+
+#[test]
+fn the_marker_tells_whether_the_store_changed() -> TestResult {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let store = MemoryStore::new(device(1)?, clock.clone());
+    let before = pollster::block_on(store.marker())?;
+    let tracker = tracker(store.clone(), &clock, 1)?;
+
+    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+
+    assert_ne!(pollster::block_on(store.marker())?, before);
+    Ok(())
+}

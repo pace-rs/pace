@@ -292,18 +292,28 @@ impl Rules<'_> {
         )?])
     }
 
+    /// One `batch.undone` per moment the batch's events are filed under, so
+    /// a store that reads a period sees the undo with the batch.
     fn undo(&self) -> PaceResult<Vec<Event>> {
-        let batch = self.state.last_undoable(self.device).ok_or_else(|| {
+        let target = self.state.last_undoable(self.device).ok_or_else(|| {
             nothing_to_do(
                 "this device has nothing left to undo",
                 "`pace undo` reverts the commands of this device, newest first",
             )
         })?;
-        Ok(vec![self.event(
-            self.now,
-            self.now,
-            EventKind::BatchUndone { batch },
-        )?])
+        target
+            .abouts
+            .iter()
+            .map(|about| {
+                self.event(
+                    self.now,
+                    about,
+                    EventKind::BatchUndone {
+                        batch: target.batch,
+                    },
+                )
+            })
+            .collect()
     }
 
     fn forget(&self, forget: &Forget) -> PaceResult<Vec<Event>> {

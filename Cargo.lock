@@ -742,8 +742,11 @@ name = "pace_core"
 version = "0.0.0"
 dependencies = [
  "jiff",
+ "pace_core",
  "pace_error",
  "pace_time",
+ "pollster",
+ "proptest",
  "rstest",
  "serde",
  "serde_json",
@@ -773,6 +776,12 @@ name = "pin-project-lite"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c938015719552d665fd0553b90d96cd7ff58e83e4c061ca99e6bb78865a72752"
+
+[[package]]
+name = "pollster"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e9b9cf600136f5b976fbc5727d58c26e1ecab8ee23088d44ef1c7af793550ab"
 
 [[package]]
 name = "portable-atomic"

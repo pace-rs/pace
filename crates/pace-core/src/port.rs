@@ -88,12 +88,16 @@ impl Ids for SequentialIds {
 /// picked through an enum, not a trait object.
 pub trait EventStore: Send + Sync {
     /// Append the events of one command to this device's log, all or none,
-    /// under the store's lock. The store gives each event its [`Hlc`](crate::Hlc).
-    fn append(&self, batch: Batch) -> impl Future<Output = PaceResult<()>> + Send;
+    /// under the store's lock, and return them as recorded. The store gives
+    /// each event its [`Hlc`](crate::Hlc): later than every event of every
+    /// device it knows, even if this machine's clock is behind.
+    fn append(&self, batch: Batch) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send;
 
-    /// The events filed under `range` from the logs of all devices, merged
-    /// in [`Hlc`](crate::Hlc) order. A backend may return more events than
-    /// the range (whole files), never fewer.
+    /// From the logs of all devices: every event of every entry whose time
+    /// overlaps `range` (an open entry lasts until now, whatever the range),
+    /// and the `batch.undone` events of their batches. A backend may return
+    /// more events, never fewer; their order doesn't matter. The contract
+    /// tests in `testing::contract` check this.
     fn read(
         &self,
         range: &TimeRange,

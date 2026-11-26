@@ -25,6 +25,7 @@ miette = { version = "7.6.0", default-features = false }
 pace_core = { path = "crates/pace-core" }
 pace_error = { path = "crates/pace-error" }
 pace_time = { path = "crates/pace-time" }
+pollster = "1.0.3"
 proptest = "1.12.0"
 rstest = "0.29.0"
 serde = "1.0.229"

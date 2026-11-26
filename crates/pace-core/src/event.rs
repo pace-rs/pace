@@ -215,6 +215,30 @@ impl Hlc {
     pub const fn counter(&self) -> u32 {
         self.counter
     }
+
+    /// The reading for the next event: later than `last`, the latest reading
+    /// of all devices' logs, and not before the wall clock `now`, in
+    /// milliseconds. If the clock has jumped back, the counter goes on.
+    #[must_use]
+    pub fn tick(last: Option<Self>, now: Timestamp) -> Self {
+        let wall = Timestamp::from_millisecond(now.as_millisecond()).unwrap_or(now);
+        let Some(last) = last.filter(|last| last.wall >= wall) else {
+            return Self { wall, counter: 0 };
+        };
+        last.counter.checked_add(1).map_or_else(
+            || Self {
+                wall: last
+                    .wall
+                    .checked_add(jiff::SignedDuration::from_millis(1))
+                    .unwrap_or(last.wall),
+                counter: 0,
+            },
+            |counter| Self {
+                wall: last.wall,
+                counter,
+            },
+        )
+    }
 }
 
 /// A device that writes its own log, as listed by `pace device list`.
