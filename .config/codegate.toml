@@ -1,0 +1,19 @@
+# codegate's quality gates for the pace workspace. `codegate check` runs the
+# fast gates (the pre-commit hook), `codegate check --full` the slow ones too
+# (docs, crap, slow-tests; `just check`).
+
+[file-length]
+# No hand-written Rust file holds more than 700 production lines.
+threshold = 700
+
+[lint-allows]
+# No lint is turned off where it was not before: `.config/lint-allows.json`.
+
+[ignores]
+# Every `#[ignore]` names its reason.
+
+[docs]
+# The docs build without a warning, so every intra-doc link resolves.
+
+[slow-tests]
+# A test slower than 0.5 s lives in a module named `expensive`.

@@ -1,0 +1,8 @@
+{
+    "clippy::literal_string_with_formatting_args": {
+        "Cargo.toml": 1
+    },
+    "clippy::module_name_repetitions": {
+        "Cargo.toml": 1
+    }
+}
