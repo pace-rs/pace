@@ -11,7 +11,7 @@
 //! and then renamed over it.
 
 use std::{
-    collections::{BTreeMap, hash_map::DefaultHasher},
+    collections::{BTreeMap, BTreeSet, HashMap, hash_map::DefaultHasher},
     fs::{File, OpenOptions},
     future::Future,
     hash::{Hash, Hasher},
@@ -27,7 +27,11 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
 
-use crate::{Split, format};
+use crate::{
+    Split, format,
+    index::{INDEX_VERSION, Index, select, summarize},
+    machine,
+};
 
 /// The files backend for one device.
 pub struct FilesStore {
@@ -49,6 +53,10 @@ struct DeviceFile {
 }
 
 const DEVICE_FILE: &str = "device.toml";
+const INDEX_FILE: &str = "index.json";
+
+/// Events parsed while refreshing the index, by file.
+type Parsed = HashMap<String, Vec<RecordedEvent>>;
 
 impl FilesStore {
     /// The store of `device`, with its data in `home` (`PACE_HOME`) and its
@@ -86,8 +94,27 @@ impl FilesStore {
         create_dir(&self.machine)?;
         let _lock = lock(&self.machine.join("lock"))?;
 
+        let (index, _) = self.refreshed_index()?;
+        let own_prefix = format!("{}/", self.device);
+        let own_last = index
+            .files
+            .iter()
+            .filter(|(name, _)| name.starts_with(&own_prefix))
+            .filter_map(|(_, summary)| summary.max_hlc())
+            .max();
+        if let (Some(own_last), Some(remembered)) =
+            (own_last, machine::last_written(&self.machine)?)
+            && own_last > remembered
+        {
+            return Err(machine::clone_detected(&self.machine));
+        }
+
         let device_file = self.device_file(&dir, &now)?;
-        let mut last = self.read_all()?.iter().map(|recorded| recorded.hlc).max();
+        let mut last = index
+            .files
+            .values()
+            .filter_map(crate::index::FileSummary::max_hlc)
+            .max();
         let recorded: Vec<RecordedEvent> = batch
             .events
             .into_iter()
@@ -130,6 +157,9 @@ impl FilesStore {
                 .persist(&path)
                 .map_err(|error| io_error("write", &path, error.error))?;
         }
+        if let Some(last) = recorded.last() {
+            machine::remember_written(&self.machine, last.hlc)?;
+        }
         Ok(recorded)
     }
 
@@ -154,24 +184,98 @@ impl FilesStore {
             PaceError::with_source(ErrorKind::Internal, "cannot write device.toml", error)
                 .ask_report()
         })?;
-        let (temporary, path) = prepare(&path, &text)?;
-        _ = temporary
-            .persist(&path)
-            .map_err(|error| io_error("write", &path, error.error))?;
+        write_atomically(&path, &text)?;
         Ok(file)
     }
 
-    /// Every event of every device.
-    fn read_all(&self) -> PaceResult<Vec<RecordedEvent>> {
+    /// The events of the files `range` needs, through the index.
+    fn read_now(&self, range: &TimeRange) -> PaceResult<Vec<RecordedEvent>> {
+        let (index, mut parsed) = self.refreshed_index()?;
         let mut events = Vec::new();
-        for (device, dir) in self.device_dirs()? {
-            for path in event_files(&dir)? {
-                let text = std::fs::read_to_string(&path)
-                    .map_err(|error| io_error("read", &path, error))?;
-                events.extend(format::parse(&path, &text, device)?);
+        for name in select(&index.files, range) {
+            match parsed.remove(&name) {
+                Some(file_events) => events.extend(file_events),
+                None => events.extend(self.parse_file(&name)?),
             }
         }
         Ok(events)
+    }
+
+    fn parse_file(&self, name: &str) -> PaceResult<Vec<RecordedEvent>> {
+        let path = self.events_dir().join(name);
+        let device = name
+            .split('/')
+            .next()
+            .and_then(|device| device.parse::<DeviceId>().ok())
+            .ok_or_else(|| {
+                PaceError::new(
+                    ErrorKind::Internal,
+                    "the index names {name}, outside a device directory",
+                )
+                .attach_context("name", name)
+                .ask_report()
+            })?;
+        let text =
+            std::fs::read_to_string(&path).map_err(|error| io_error("read", &path, error))?;
+        format::parse(&path, &text, device)
+    }
+
+    /// The index, brought up to date with the files: changed and new files
+    /// are parsed and summarized, gone files dropped. Returns what it parsed.
+    fn refreshed_index(&self) -> PaceResult<(Index, Parsed)> {
+        let index_path = self.machine.join(INDEX_FILE);
+        let mut index: Index = std::fs::read_to_string(&index_path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .filter(|index: &Index| index.version == INDEX_VERSION)
+            .unwrap_or_else(|| Index {
+                version: INDEX_VERSION,
+                files: BTreeMap::new(),
+            });
+        let mut parsed = Parsed::new();
+        let mut seen = BTreeSet::new();
+        let mut changed = false;
+
+        for (device, dir) in self.device_dirs()? {
+            for path in event_files(&dir)? {
+                let name = relative_name(&self.events_dir(), &path);
+                let metadata =
+                    std::fs::metadata(&path).map_err(|error| io_error("read", &path, error))?;
+                let modified = metadata
+                    .modified()
+                    .ok()
+                    .and_then(|time| time.duration_since(SystemTime::UNIX_EPOCH).ok())
+                    .map(|since| since.as_nanos());
+                _ = seen.insert(name.clone());
+                if index.files.get(&name).is_some_and(|summary| {
+                    summary.len == metadata.len() && summary.modified == modified
+                }) {
+                    continue;
+                }
+                let text = std::fs::read_to_string(&path)
+                    .map_err(|error| io_error("read", &path, error))?;
+                let events = format::parse(&path, &text, device)?;
+                let mut summary = summarize(&events);
+                summary.len = metadata.len();
+                summary.modified = modified;
+                _ = index.files.insert(name.clone(), summary);
+                _ = parsed.insert(name, events);
+                changed = true;
+            }
+        }
+        let before = index.files.len();
+        index.files.retain(|name, _| seen.contains(name));
+        changed |= index.files.len() != before;
+
+        if changed {
+            create_dir(&self.machine)?;
+            let text = serde_json::to_string(&index).map_err(|error| {
+                PaceError::with_source(ErrorKind::Internal, "cannot write the index", error)
+                    .ask_report()
+            })?;
+            write_atomically(&index_path, &text)?;
+        }
+        Ok((index, parsed))
     }
 
     /// The directories under `events/`, by device.
@@ -245,9 +349,9 @@ impl EventStore for FilesStore {
 
     fn read(
         &self,
-        _range: &TimeRange,
+        range: &TimeRange,
     ) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send {
-        std::future::ready(self.read_all())
+        std::future::ready(self.read_now(range))
     }
 
     fn devices(&self) -> impl Future<Output = PaceResult<Vec<Device>>> + Send {
@@ -316,6 +420,26 @@ fn lock(path: &Path) -> PaceResult<File> {
         .map_err(|error| io_error("open", path, error))?;
     file.lock().map_err(|error| io_error("lock", path, error))?;
     Ok(file)
+}
+
+/// The name of an event file in the index: its path below `events/`, with
+/// `/` as separator on every OS.
+fn relative_name(events: &Path, path: &Path) -> String {
+    path.strip_prefix(events)
+        .unwrap_or(path)
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// Write `text` to `path` through a temporary file next to it.
+pub fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
+    let (temporary, path) = prepare(path, text)?;
+    _ = temporary
+        .persist(&path)
+        .map_err(|error| io_error("write", &path, error.error))?;
+    Ok(())
 }
 
 /// `text` in a temporary file next to `path`, ready to be renamed over it.

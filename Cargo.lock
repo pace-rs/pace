@@ -783,6 +783,7 @@ dependencies = [
  "pollster",
  "rstest",
  "serde",
+ "serde_json",
  "strsim",
  "tempfile",
  "toml 1.2.3+spec-1.1.0",
