@@ -3,16 +3,19 @@
 //! - [`TimeFrame`]: the named report periods (`today`, `this-week`, …) and
 //!   `--from`/`--to`, resolved to a half-open [`TimeRange`] in the report
 //!   time zone.
+//! - [`parse_at`]: the `--at` grammar of the tracking commands.
 //! - [`elapsed`] and [`parse_duration`]: elapsed time between two moments,
 //!   and durations as people type them (`1h30m`).
 //!
 //! Nothing here reads the clock: every function that needs "now" takes it as
 //! an argument, so callers decide which clock to use.
 
+mod at;
 mod duration;
 mod frame;
 mod range;
 
+pub use at::{At, parse_at};
 pub use duration::{elapsed, parse_duration};
 pub use frame::TimeFrame;
 pub use range::TimeRange;

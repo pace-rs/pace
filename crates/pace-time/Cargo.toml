@@ -18,6 +18,7 @@ pace_error = { workspace = true }
 strsim = { workspace = true }
 
 [dev-dependencies]
+proptest = { workspace = true }
 rstest = { workspace = true }
 
 [lints]
