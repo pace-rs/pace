@@ -1,0 +1,2 @@
+# ".." keeps clippy's default list.
+doc-valid-idents = ["UUIDv7", ".."]
