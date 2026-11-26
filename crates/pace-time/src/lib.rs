@@ -6,16 +6,20 @@
 //! - [`parse_at`]: the `--at` grammar of the tracking commands.
 //! - [`elapsed`] and [`parse_duration`]: elapsed time between two moments,
 //!   and durations as people type them (`1h30m`).
+//! - [`format_duration`] and [`relative_time`]: durations and moments as
+//!   pace shows them (`1h 5m`, `25 minutes ago`).
 //!
 //! Nothing here reads the clock: every function that needs "now" takes it as
 //! an argument, so callers decide which clock to use.
 
 mod at;
+mod display;
 mod duration;
 mod frame;
 mod range;
 
 pub use at::{At, parse_at};
+pub use display::{format_duration, relative_time};
 pub use duration::{elapsed, parse_duration};
 pub use frame::TimeFrame;
 pub use range::TimeRange;

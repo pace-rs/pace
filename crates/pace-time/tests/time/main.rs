@@ -27,13 +27,14 @@
 //! | `duration`: `from_str_passes` (seconds) | `durations::durations_are_typed_with_units`; a bare number now asks for a unit: `durations::a_bare_number_asks_for_a_unit` |
 //! | `duration`: `from_str_fails` | `durations::text_that_is_no_duration_is_rejected` |
 //! | `date_time`: `begin_date_time_default` (now in whole seconds) | the `Clock` port in `pace_core` |
-//! | `duration`: `duration_to_str` ("just now") | moves to the output of `pace now` (phase 2) |
+//! | `duration`: `duration_to_str` ("just now") | `display::moments_read_relative_to_now` |
 //! | `date`: `try_from_ymd_passes`, `try_from_fails` | dropped: the same parsing as `from_str` |
 //! | `date`: `with_start`, `from_pace_date_time`, `from_pace_date_time_ref`, `deref`, `eq`, `ne` | dropped: wrapper type |
 //! | `time`: all 6 (`from_pace_date_time`, `…_ref`, `from_naive_time`, `deref`, `eq`, `ord`) | dropped: wrapper type |
 //! | `duration`: `from_duration`, `from_chrono_duration`, `try_from`, `default`, `zero`, `from_seconds`, `add`, `add_assign`, `sub`, `sub_assign`, `sub_assign_with_u64`, `sub_assign_below_zero`, `as_secs`, `as_duration`, `as_minutes`, `as_hours`, `as_days`, `as_weeks` | dropped: wrapper type; `SignedDuration` does this |
 
 mod at;
+mod display;
 mod durations;
 mod frames;
 
