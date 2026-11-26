@@ -1,0 +1,74 @@
+[workspace]
+resolver = "3"
+
+[workspace.package]
+version = "0.0.0"
+authors = ["the pace-rs team"]
+categories = ["command-line-utilities"]
+edition = "2024"
+homepage = "https://pace.cli.rs"
+keywords = ["cli", "time-tracking", "productivity"]
+license = "AGPL-3.0-or-later"
+publish = false
+repository = "https://github.com/pace-rs/pace"
+rust-version = "1.98"
+
+[workspace.dependencies]
+abscissa_core = { version = "0.9.0", default-features = false }
+clap = "4.6.10"
+insta = "1.49.0"
+insta-cmd = "0.7.0"
+
+[package]
+name = "pace-rs"
+version = { workspace = true }
+authors = { workspace = true }
+categories = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+readme = "README.md"
+repository = { workspace = true }
+rust-version = { workspace = true }
+description = "pace: a local-first command-line time tracker for work and daily life"
+
+[[bin]]
+name = "pace"
+path = "src/bin/pace.rs"
+
+[dependencies]
+abscissa_core = { workspace = true, features = ["application"] }
+clap = { workspace = true, features = ["derive", "env", "wrap_help"] }
+
+[dev-dependencies]
+insta = { workspace = true }
+insta-cmd = { workspace = true }
+
+[lints]
+workspace = true
+
+[profile.release]
+lto = "thin"
+strip = true
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unused_lifetimes = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+expect_used = "warn"
+unwrap_used = "warn"
+enum_glob_use = "warn"
+module_name_repetitions = "allow"

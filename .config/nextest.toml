@@ -1,0 +1,7 @@
+[profile.default]
+status-level = "slow"
+fail-fast = false
+
+[profile.ci]
+failure-output = "immediate-final"
+fail-fast = false

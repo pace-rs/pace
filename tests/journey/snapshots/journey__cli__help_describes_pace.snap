@@ -1,0 +1,19 @@
+---
+source: tests/journey/cli.rs
+info:
+  program: pace
+  args:
+    - "--help"
+---
+success: true
+exit_code: 0
+----- stdout -----
+pace: a local-first command-line time tracker for work and daily life
+
+Usage: pace
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+
+----- stderr -----

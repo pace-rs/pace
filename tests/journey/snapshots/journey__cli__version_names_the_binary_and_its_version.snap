@@ -1,0 +1,13 @@
+---
+source: tests/journey/cli.rs
+info:
+  program: pace
+  args:
+    - "--version"
+---
+success: true
+exit_code: 0
+----- stdout -----
+pace 0.0.0
+
+----- stderr -----
