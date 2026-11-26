@@ -12,5 +12,12 @@ exit_code: 0
 
 time-zone = "America/New_York"  # from PACE_TIME_ZONE
 week-start = "saturday"         # from PACE_WEEK_START
+most-recent-count = 9           # default
+
+[holds]
+default-source = "unknown"  # default
+
+[storage]
+split = "month"  # default
 
 ----- stderr -----

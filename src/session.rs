@@ -7,7 +7,7 @@ use abscissa_core::Application;
 use abscissa_tokio::TokioComponent;
 use pace_core::{Command, DeviceId, Outcome, Policy, Tracker};
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_store::{FilesStore, Split, device_id};
+use pace_store::{FilesStore, device_id};
 use pace_time::TimeRange;
 
 use crate::{
@@ -37,15 +37,19 @@ impl Session {
         let data = context.dirs.data.path.clone();
         let machine = context.dirs.machine.path.clone();
         let device = device_id(&machine, &*ids)?;
+        let settings = &context.settings.settings;
         let store = FilesStore::new(
             data.clone(),
             machine,
             device.id,
             clock.clone(),
-            Split::Month,
+            settings.split,
         );
+        let policy = Policy {
+            default_hold_source: settings.default_hold_source,
+        };
         Ok(Self {
-            tracker: Tracker::new(store, clock, ids, Policy::default(), device.id),
+            tracker: Tracker::new(store, clock, ids, policy, device.id),
             device: device.id,
             data_existed: data.exists(),
             data,

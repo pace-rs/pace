@@ -127,15 +127,13 @@ pub struct BeginCmd {
     again: bool,
 }
 
-/// How many recent entries `begin --again` offers.
-const MOST_RECENT_COUNT: usize = 9;
-
 impl Runnable for BeginCmd {
     fn run(&self) {
         exit_on_error(track(|session, notes| {
             let at = at(self.at.as_deref(), &session.now(), notes)?;
             if self.again {
-                let again = again(session)?;
+                let count = PACE_APP.context()?.settings.settings.most_recent_count;
+                let again = again(session, count)?;
                 return Ok(UseCase::Begin(Begin {
                     at,
                     allow_overlap: self.allow_overlap,
@@ -145,7 +143,7 @@ impl Runnable for BeginCmd {
             let context = PACE_APP.context()?;
             let project = context.project.as_ref().map(|project| {
                 notes.push(format!("Project: {} ({}).", project.key, project.reason));
-                ProjectRef::Key(project.key.clone())
+                project.reference()
             });
             Ok(UseCase::Begin(Begin {
                 at,
@@ -159,7 +157,7 @@ impl Runnable for BeginCmd {
 }
 
 /// Note, project and tags of a recent entry, picked by the user.
-fn again(session: &Session) -> PaceResult<Begin> {
+fn again(session: &Session, count: usize) -> PaceResult<Begin> {
     let now = session.now();
     let recent = TimeRange::new(
         Some(super::now::recent_range_start(&now)),
@@ -182,7 +180,7 @@ fn again(session: &Session) -> PaceResult<Begin> {
         }
         labels.push(label(entry, &now));
         candidates.push(candidate);
-        if candidates.len() == MOST_RECENT_COUNT {
+        if candidates.len() == count {
             break;
         }
     }

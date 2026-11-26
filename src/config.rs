@@ -14,8 +14,9 @@ use std::{
 };
 
 use jiff::civil::Weekday;
-use pace_core::ProjectKey;
+use pace_core::{HoldSource, ProjectKey};
 use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
+use pace_store::Split;
 use toml::{
     Spanned,
     de::{DeString, DeValue},
@@ -25,23 +26,52 @@ use pace_store::toml_file::{TomlFile, closest, in_file_order};
 
 use crate::{dirs::Located, origin::Origin};
 
-/// A setting pace knows, and the variable that sets it.
+/// A setting pace knows, and the variable that sets it. A key in a table
+/// is written `table.key`.
 struct Key {
     name: &'static str,
     variable: &'static str,
     expects: &'static str,
+    kind: Kind,
 }
 
-const KEYS: [Key; 2] = [
+/// What a setting's value is in TOML.
+#[derive(Clone, Copy)]
+enum Kind {
+    Text,
+    Number,
+}
+
+const KEYS: [Key; 5] = [
     Key {
         name: "time-zone",
         variable: "PACE_TIME_ZONE",
         expects: "a time zone name like `Europe/Berlin`, or `system`",
+        kind: Kind::Text,
     },
     Key {
         name: "week-start",
         variable: "PACE_WEEK_START",
         expects: "a day name like `monday`",
+        kind: Kind::Text,
+    },
+    Key {
+        name: "most-recent-count",
+        variable: "PACE_MOST_RECENT_COUNT",
+        expects: "a whole number from 1, like `9`",
+        kind: Kind::Number,
+    },
+    Key {
+        name: "holds.default-source",
+        variable: "PACE_HOLDS__DEFAULT_SOURCE",
+        expects: "`inner`, `outer` or `unknown`",
+        kind: Kind::Text,
+    },
+    Key {
+        name: "storage.split",
+        variable: "PACE_STORAGE__SPLIT",
+        expects: "`year`, `month`, `week` or `day`",
+        kind: Kind::Text,
     },
 ];
 
@@ -86,6 +116,13 @@ pub struct Settings {
     /// `week-start`: the first day of the week, for `this-week` and
     /// `last-week`.
     pub week_start: Weekday,
+    /// `most-recent-count`: how many recent entries `begin --again` offers.
+    pub most_recent_count: usize,
+    /// `holds.default-source`: the source of a hold without `--inner` or
+    /// `--outer`.
+    pub default_hold_source: HoldSource,
+    /// `storage.split`: how a new device splits its event files.
+    pub split: Split,
 }
 
 impl Default for Settings {
@@ -93,6 +130,9 @@ impl Default for Settings {
         Self {
             time_zone: TimeZoneSetting::System,
             week_start: Weekday::Monday,
+            most_recent_count: 9,
+            default_hold_source: HoldSource::Unknown,
+            split: Split::Month,
         }
     }
 }
@@ -109,6 +149,14 @@ impl Settings {
         match key {
             "time-zone" => self.time_zone = parse_time_zone(value)?,
             "week-start" => self.week_start = parse_weekday(value)?,
+            "most-recent-count" => self.most_recent_count = parse_count(value)?,
+            "holds.default-source" => self.default_hold_source = parse_hold_source(value)?,
+            "storage.split" => {
+                self.split = value.parse().map_err(|error: Box<PaceError>| Invalid {
+                    message: error.to_string(),
+                    hint: error.hint().unwrap_or_default().to_owned(),
+                })?;
+            }
             _ => {
                 return Err(Invalid {
                     message: format!("`{key}` has no parser"),
@@ -119,13 +167,57 @@ impl Settings {
         Ok(())
     }
 
-    fn get(&self, key: &str) -> String {
-        match key {
+    fn get(&self, key: &str) -> toml::Value {
+        let text = match key {
             "time-zone" => self.time_zone.to_string(),
             "week-start" => weekday_name(self.week_start).to_owned(),
+            "most-recent-count" => {
+                return toml::Value::Integer(
+                    i64::try_from(self.most_recent_count).unwrap_or(i64::MAX),
+                );
+            }
+            "holds.default-source" => hold_source_name(self.default_hold_source).to_owned(),
+            "storage.split" => self.split.to_string(),
             _ => String::new(),
-        }
+        };
+        toml::Value::String(text)
     }
+}
+
+fn parse_count(value: &str) -> Result<usize, Invalid> {
+    value
+        .parse::<usize>()
+        .ok()
+        .filter(|count| *count > 0)
+        .ok_or_else(|| Invalid {
+            message: format!("`{value}` is not a whole number from 1"),
+            hint: "write a number like `9`".to_owned(),
+        })
+}
+
+const HOLD_SOURCES: [(&str, HoldSource); 3] = [
+    ("inner", HoldSource::Inner),
+    ("outer", HoldSource::Outer),
+    ("unknown", HoldSource::Unknown),
+];
+
+fn parse_hold_source(value: &str) -> Result<HoldSource, Invalid> {
+    HOLD_SOURCES
+        .iter()
+        .find(|(name, _)| *name == value)
+        .map(|(_, source)| *source)
+        .ok_or_else(|| Invalid {
+            message: format!("`{value}` is not a source of holds"),
+            hint: "use `inner` (you broke off), `outer` (someone interrupted) or `unknown`"
+                .to_owned(),
+        })
+}
+
+fn hold_source_name(source: HoldSource) -> &'static str {
+    HOLD_SOURCES
+        .iter()
+        .find(|(_, known)| *known == source)
+        .map_or("unknown", |(name, _)| name)
 }
 
 fn parse_time_zone(value: &str) -> Result<TimeZoneSetting, Invalid> {
@@ -211,9 +303,9 @@ pub struct Loaded {
 
 impl Loaded {
     /// Each setting as `(key, value, origin)`, in the order pace documents
-    /// them.
+    /// them; a key in a table is written `table.key`.
     #[must_use]
-    pub fn entries(&self) -> Vec<(&'static str, String, &Origin)> {
+    pub fn entries(&self) -> Vec<(&'static str, toml::Value, &Origin)> {
         self.origins
             .iter()
             .map(|(key, origin)| (*key, self.settings.get(key), origin))
@@ -326,11 +418,17 @@ fn file_values(
     project_paths: &mut Vec<ProjectPath>,
 ) -> PaceResult<Vec<(&'static str, String, Range<usize>)>> {
     let table = file.parse()?;
-    let known: Vec<&str> = KEYS
-        .iter()
-        .map(|key| key.name)
-        .chain([PROJECT_PATHS, "version"])
-        .collect();
+    let mut known: Vec<&str> = Vec::new();
+    for key in &KEYS {
+        let top = key
+            .name
+            .split_once('.')
+            .map_or(key.name, |(table, _)| table);
+        if !known.contains(&top) {
+            known.push(top);
+        }
+    }
+    known.extend([PROJECT_PATHS, "version"]);
 
     let mut values = Vec::new();
     for (key, value) in in_file_order(table.get_ref()) {
@@ -342,13 +440,58 @@ fn file_values(
                 project_paths.push(project_path(file, home, dir, project)?);
             }
         } else if let Some(setting) = KEYS.iter().find(|setting| setting.name == name) {
-            let text = file.string(name, value, setting.expects)?;
-            values.push((setting.name, text.to_owned(), value.span()));
+            values.push((
+                setting.name,
+                scalar(file, name, setting, value)?,
+                value.span(),
+            ));
+        } else if let Some(in_table) = table_keys(name) {
+            for (key, value) in in_file_order(file.table(name, value)?) {
+                let inner = key.get_ref().as_ref();
+                let Some(setting) = KEYS.iter().find(|setting| {
+                    setting
+                        .name
+                        .strip_prefix(name)
+                        .and_then(|rest| rest.strip_prefix('.'))
+                        == Some(inner)
+                }) else {
+                    return Err(file.unknown_key(inner, key.span(), &in_table));
+                };
+                values.push((
+                    setting.name,
+                    scalar(file, inner, setting, value)?,
+                    value.span(),
+                ));
+            }
         } else {
             return Err(file.unknown_key(name, key.span(), &known));
         }
     }
     Ok(values)
+}
+
+/// The keys of the settings table `table`, if pace knows the table.
+fn table_keys(table: &str) -> Option<Vec<&'static str>> {
+    let keys: Vec<&str> = KEYS
+        .iter()
+        .filter_map(|key| key.name.strip_prefix(table)?.strip_prefix('.'))
+        .collect();
+    (!keys.is_empty()).then_some(keys)
+}
+
+/// A setting's value as text, checked for its TOML type; `name` is the key
+/// as written.
+fn scalar(
+    file: &TomlFile<'_>,
+    name: &str,
+    setting: &Key,
+    value: &Spanned<DeValue<'_>>,
+) -> PaceResult<String> {
+    let text = match setting.kind {
+        Kind::Text => file.string(name, value, setting.expects)?,
+        Kind::Number => file.integer(name, value, setting.expects)?,
+    };
+    Ok(text.to_owned())
 }
 
 fn project_path(

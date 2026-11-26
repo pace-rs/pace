@@ -9,11 +9,11 @@ exit_code: 1
 ----- stderr -----
 pace::config::unknown-key
 
-  × `storage` is not a setting pace knows
+  × `reports` is not a setting pace knows
    ╭─[[SANDBOX]/config/pace.global.toml:1:2]
- 1 │ [storage]
+ 1 │ [reports]
    ·  ───┬───
    ·     ╰── unknown key
- 2 │ backend = "files"
+ 2 │ format = "table"
    ╰────
-  help: pace knows these settings here: time-zone, week-start, project-paths, version
+  help: pace knows these settings here: time-zone, week-start, most-recent-count, holds, storage, project-paths, version

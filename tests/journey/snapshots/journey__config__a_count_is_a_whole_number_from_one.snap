@@ -1,0 +1,45 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::invalid-value
+
+  × `0` is not a whole number from 1
+   ╭─[[SANDBOX]/config/pace.global.toml:1:21]
+ 1 │ most-recent-count = 0
+   ·                     ┬
+   ·                     ╰── this value
+   ╰────
+  help: write a number like `9`
+
+
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::invalid-value
+
+  × `most-recent-count` takes a whole number from 1, like `9`
+   ╭─[[SANDBOX]/config/pace.global.toml:1:21]
+ 1 │ most-recent-count = "nine"
+   ·                     ───┬──
+   ·                        ╰── a string
+   ╰────
+  help: write it as a number, for example `most-recent-count = 9`
+
+
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::invalid-value
+
+  × PACE_MOST_RECENT_COUNT: `-3` is not a whole number from 1
+  help: write a number like `9`

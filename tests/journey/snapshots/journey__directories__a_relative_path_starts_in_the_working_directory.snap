@@ -12,5 +12,12 @@ exit_code: 0
 
 time-zone = "system"
 week-start = "monday"
+most-recent-count = 9
+
+[holds]
+default-source = "unknown"
+
+[storage]
+split = "month"
 
 ----- stderr -----

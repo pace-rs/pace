@@ -78,7 +78,7 @@ fn an_unknown_key_names_the_line_and_the_closest_key() -> TestResult {
 #[test]
 fn an_unknown_table_points_to_the_known_settings() -> TestResult {
     let sandbox = Sandbox::new()?;
-    sandbox.write_config("[storage]\nbackend = \"files\"\n")?;
+    sandbox.write_config("[reports]\nformat = \"table\"\n")?;
 
     let output = run(sandbox.pace().args(["config", "show"]))?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
@@ -157,6 +157,50 @@ fn an_unknown_pace_variable_warns_and_goes_on() -> TestResult {
         .pace()
         .env("PACE_TIMEZONE", "Europe/Berlin")
         .args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn tables_hold_the_hold_and_storage_settings() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config(
+        "most-recent-count = 5\n\n[holds]\ndefault-source = \"outer\"\n\n[storage]\nsplit = \"week\"\n",
+    )?;
+
+    let output = run(sandbox
+        .pace()
+        .env("PACE_STORAGE__SPLIT", "day")
+        .args(["config", "show", "--origin"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn an_unknown_key_in_a_table_suggests_the_closest() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("[storage]\nsplitt = \"week\"\n")?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn a_count_is_a_whole_number_from_one() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    sandbox.write_config("most-recent-count = 0\n")?;
+    let zero = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.write_config("most-recent-count = \"nine\"\n")?;
+    let text = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.write_config("")?;
+    let variable = run(sandbox
+        .pace()
+        .env("PACE_MOST_RECENT_COUNT", "-3")
+        .args(["config", "show"]))?;
+
+    let output = format!("{zero}\n{text}\n{variable}");
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

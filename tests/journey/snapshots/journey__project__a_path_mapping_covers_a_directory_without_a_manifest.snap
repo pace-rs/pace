@@ -12,6 +12,13 @@ exit_code: 0
 
 time-zone = "system"   # default
 week-start = "monday"  # default
+most-recent-count = 9  # default
+
+[holds]
+default-source = "unknown"  # default
+
+[storage]
+split = "month"  # default
 
 [project-paths]
 '[SANDBOX]/work/clients' = "clients"           # from [SANDBOX]/config/pace.global.toml:2

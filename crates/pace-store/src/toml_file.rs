@@ -137,6 +137,32 @@ impl<'a> TomlFile<'a> {
         })
     }
 
+    /// The value as a whole number, as written.
+    ///
+    /// # Errors
+    ///
+    /// If it is no integer; the error says what `name` takes (`expects`).
+    pub fn integer<'v>(
+        &self,
+        name: &str,
+        value: &'v Spanned<DeValue<'_>>,
+        expects: &str,
+    ) -> PaceResult<&'v str> {
+        value
+            .get_ref()
+            .as_integer()
+            .map(toml::de::DeInteger::as_str)
+            .ok_or_else(|| {
+                self.error_at(
+                    value.span(),
+                    format!("`{name}` takes {expects}"),
+                    format!("write it as a number, for example `{name} = 9`"),
+                    &with_article(value.get_ref().type_str()),
+                )
+                .attach_error_code(format!("{}::invalid-value", self.code))
+            })
+    }
+
     /// The value as a table.
     ///
     /// # Errors

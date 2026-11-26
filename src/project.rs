@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pace_core::ProjectKey;
+use pace_core::{ProjectId, ProjectKey, ProjectRef};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 
 use pace_store::toml_file::{TomlFile, in_file_order};
@@ -27,12 +27,23 @@ const MANIFEST_VERSION: i64 = 1;
 /// The project the working directory belongs to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Project {
+    /// Its ID, once `project init` wrote it into the manifest.
+    pub id: Option<ProjectId>,
     /// Its key.
     pub key: ProjectKey,
     /// Its readable name, if the manifest gives one.
     pub name: Option<String>,
     /// Why this project was picked.
     pub reason: Reason,
+}
+
+impl Project {
+    /// How entries refer to the project: by its ID, else by its key.
+    #[must_use]
+    pub fn reference(&self) -> ProjectRef {
+        self.id
+            .map_or_else(|| ProjectRef::Key(self.key.clone()), ProjectRef::Id)
+    }
 }
 
 /// Why a project was picked.
@@ -91,6 +102,7 @@ pub fn discover(
     if let Some(key) = flag {
         let key = parse_key(key, "--project")?;
         return Ok(Some(Project {
+            id: None,
             key,
             name: None,
             reason: Reason::Flag,
@@ -101,6 +113,7 @@ pub fn discover(
         let key = parse_key(&key.to_string_lossy(), "PACE_PROJECT")
             .map_err(|error| error.attach_exit_code(ExitCode::Error))?;
         return Ok(Some(Project {
+            id: None,
             key,
             name: None,
             reason: Reason::Variable,
@@ -108,8 +121,9 @@ pub fn discover(
     }
 
     if let Some(path) = nearest_manifest(cwd)? {
-        let (key, name) = read_manifest(&path)?;
+        let (id, key, name) = read_manifest(&path)?;
         return Ok(Some(Project {
+            id,
             key,
             name,
             reason: Reason::Manifest(path),
@@ -117,6 +131,7 @@ pub fn discover(
     }
 
     Ok(mapped(cwd, project_paths).map(|mapping| Project {
+        id: None,
         key: mapping.key.clone(),
         name: None,
         reason: Reason::Mapping {
@@ -163,7 +178,7 @@ fn nearest_manifest(cwd: &Path) -> PaceResult<Option<PathBuf>> {
     Ok(None)
 }
 
-fn read_manifest(path: &Path) -> PaceResult<(ProjectKey, Option<String>)> {
+fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Option<String>)> {
     let text = std::fs::read_to_string(path).map_err(|error| {
         PaceError::with_source(ErrorKind::Project, "cannot read the manifest {path}", error)
             .attach_context("path", path.display().to_string())
@@ -188,6 +203,7 @@ fn read_manifest(path: &Path) -> PaceResult<(ProjectKey, Option<String>)> {
         }
     }
 
+    let mut id = None;
     let mut project_key = None;
     let mut name = None;
     for (key, value) in project.map_or_else(Vec::new, in_file_order) {
@@ -204,8 +220,24 @@ fn read_manifest(path: &Path) -> PaceResult<(ProjectKey, Option<String>)> {
                     .attach_error_code("pace::project::invalid-value")
                 })?);
             }
+            "id" => {
+                let text = file.string(
+                    "id",
+                    value,
+                    "the project's ID, written by `pace project init`",
+                )?;
+                id = Some(text.parse::<ProjectId>().map_err(|_| {
+                    file.error_at(
+                        value.span(),
+                        format!("`{text}` is no project ID"),
+                        "`pace project init` writes the ID; remove the line to go by the key",
+                        "this ID",
+                    )
+                    .attach_error_code("pace::project::invalid-value")
+                })?);
+            }
             "name" => name = Some(file.string("name", value, "the project's name")?.to_owned()),
-            other => return Err(file.unknown_key(other, key.span(), &["key", "name"])),
+            other => return Err(file.unknown_key(other, key.span(), &["id", "key", "name"])),
         }
     }
 
@@ -218,7 +250,7 @@ fn read_manifest(path: &Path) -> PaceResult<(ProjectKey, Option<String>)> {
         .attach_hint("add `key = \"acme-webshop\"` under `[project]`")
         .attach_error_code("pace::project::no-key")
     })?;
-    Ok((key, name))
+    Ok((id, key, name))
 }
 
 /// The mapping with the longest directory that contains `cwd`.

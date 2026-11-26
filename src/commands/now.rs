@@ -194,6 +194,8 @@ struct OpenJson<'a> {
 
 #[derive(Serialize)]
 struct ProjectJson {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
     key: String,
     reason: String,
 }
@@ -249,6 +251,7 @@ fn as_json(
         now: now.to_string(),
         open,
         project: context.project.as_ref().map(|project| ProjectJson {
+            id: project.id.map(|id| id.to_string()),
             key: project.key.to_string(),
             reason: project.reason.to_string(),
         }),

@@ -2,7 +2,7 @@
 
 use abscissa_core::{Command, Runnable};
 use pace_core::{
-    Change, Command as UseCase, ProjectRef,
+    Change, Command as UseCase,
     command::{Adjust, Forget, Log},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -69,9 +69,7 @@ impl Runnable for AdjustCmd {
             // Only an explicit `--project` moves the entry; a discovered
             // project or PACE_PROJECT doesn't.
             let project = match &PACE_APP.context()?.project {
-                Some(project) if project.reason == Reason::Flag => {
-                    Change::Set(ProjectRef::Key(project.key.clone()))
-                }
+                Some(project) if project.reason == Reason::Flag => Change::Set(project.reference()),
                 _ => Change::Keep,
             };
             let note = match self.note.as_deref() {
@@ -160,7 +158,7 @@ impl Runnable for LogCmd {
             };
             let project = PACE_APP.context()?.project.as_ref().map(|project| {
                 notes.push(format!("Project: {} ({}).", project.key, project.reason));
-                ProjectRef::Key(project.key.clone())
+                project.reference()
             });
             Ok(UseCase::Log(Log {
                 note: text(&self.note),

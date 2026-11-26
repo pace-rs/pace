@@ -1,0 +1,49 @@
+---
+source: tests/journey/settings.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began ad5e "Write offer" at 09:00.
+Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace now --json   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+{
+  "version": 1,
+  "now": "2026-11-26T09:30:00+01:00[Europe/Berlin]",
+  "open": [
+    {
+      "id": "01a216de-5800-7000-ae6b-c7a4e9c4ad5e",
+      "short": "ad5e",
+      "state": "running",
+      "note": "Write offer",
+      "project": {
+        "id": "0193a7c4-0000-7000-8000-000000000001"
+      },
+      "tags": [],
+      "start": "2026-11-26T09:00:00+01:00[Europe/Berlin]",
+      "since": "2026-11-26T09:00:00+01:00[Europe/Berlin]",
+      "net_seconds": 1800,
+      "net": "30m",
+      "gross_seconds": 1800,
+      "held_seconds": 0,
+      "paused_seconds": 0,
+      "this_device": true
+    }
+  ],
+  "project": {
+    "id": "0193a7c4-0000-7000-8000-000000000001",
+    "key": "acme-webshop",
+    "reason": "from [SANDBOX]/work/.pace.toml, the nearest manifest"
+  }
+}
+
+----- stderr -----

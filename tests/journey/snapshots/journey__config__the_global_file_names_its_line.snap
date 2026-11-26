@@ -12,5 +12,12 @@ exit_code: 0
 
 time-zone = "Europe/Berlin"  # from [SANDBOX]/config/pace.global.toml:3
 week-start = "sunday"        # from [SANDBOX]/config/pace.global.toml:4
+most-recent-count = 9        # default
+
+[holds]
+default-source = "unknown"  # default
+
+[storage]
+split = "month"  # default
 
 ----- stderr -----

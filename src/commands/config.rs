@@ -50,12 +50,29 @@ impl ShowCmd {
 
         let loaded = &context.settings;
         println!();
-        self.print_toml(loaded.entries().into_iter().map(|(key, value, origin)| {
-            (
-                format!("{key} = {}", toml::Value::String(value)),
-                origin.to_string(),
-            )
-        }));
+        // Top-level keys first, then each table: TOML needs that order.
+        let entries = loaded.entries();
+        let mut tables: Vec<&str> = Vec::new();
+        for (key, _, _) in &entries {
+            if let Some((table, _)) = key.split_once('.')
+                && !tables.contains(&table)
+            {
+                tables.push(table);
+            }
+        }
+        self.print_toml(
+            entries
+                .iter()
+                .filter(|(key, _, _)| !key.contains('.'))
+                .map(|(key, value, origin)| (format!("{key} = {value}"), origin.to_string())),
+        );
+        for table in tables {
+            println!("\n[{table}]");
+            self.print_toml(entries.iter().filter_map(|(key, value, origin)| {
+                let inner = key.strip_prefix(table)?.strip_prefix('.')?;
+                Some((format!("{inner} = {value}"), origin.to_string()))
+            }));
+        }
 
         if !loaded.project_paths.is_empty() {
             println!("\n[project-paths]");
