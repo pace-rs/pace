@@ -1,0 +1,18 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::invalid-value
+
+  × `week-start` takes a day name like `monday`
+   ╭─[[SANDBOX]/config/pace.global.toml:1:14]
+ 1 │ week-start = 1
+   ·              ┬
+   ·              ╰── an integer
+   ╰────
+  help: write it as text, for example `week-start = "…"`

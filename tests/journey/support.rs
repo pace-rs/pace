@@ -26,8 +26,9 @@ pub fn run(command: &mut Command) -> std::io::Result<String> {
     ))
 }
 
-/// A temporary directory with a working directory `work/` inside, and
-/// `PACE_CONFIG`, `PACE_HOME` and `PACE_MACHINE_DIR` pointing into it.
+/// A temporary directory with a working directory `work/` and an empty
+/// `config/pace.global.toml` inside, and `PACE_CONFIG`, `PACE_HOME` and
+/// `PACE_MACHINE_DIR` pointing into it.
 pub struct Sandbox {
     root: TempDir,
 }
@@ -36,7 +37,14 @@ impl Sandbox {
     pub fn new() -> std::io::Result<Self> {
         let root = tempfile::tempdir()?;
         std::fs::create_dir(root.path().join("work"))?;
+        std::fs::create_dir(root.path().join("config"))?;
+        std::fs::write(root.path().join("config/pace.global.toml"), "")?;
         Ok(Self { root })
+    }
+
+    /// Replace the content of the global config file.
+    pub fn write_config(&self, content: &str) -> std::io::Result<()> {
+        std::fs::write(self.path("config/pace.global.toml"), content)
     }
 
     pub fn path(&self, relative: impl AsRef<Path>) -> PathBuf {

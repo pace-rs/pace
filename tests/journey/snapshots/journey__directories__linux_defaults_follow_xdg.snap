@@ -9,4 +9,7 @@ exit_code: 0
 # data:        [SANDBOX]/me/.local/share/pace (default, not there yet)
 # machine:     [SANDBOX]/me/.local/state/pace (default, not there yet)
 
+time-zone = "system"   # default
+week-start = "monday"  # default
+
 ----- stderr -----

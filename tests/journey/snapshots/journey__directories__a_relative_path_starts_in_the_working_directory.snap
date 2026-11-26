@@ -9,4 +9,7 @@ exit_code: 0
 # data:        [SANDBOX]/work/data
 # machine:     [SANDBOX]/machine
 
+time-zone = "system"
+week-start = "monday"
+
 ----- stderr -----

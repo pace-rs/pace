@@ -18,7 +18,7 @@ dependencies = [
  "semver",
  "serde",
  "termcolor",
- "toml",
+ "toml 0.9.12+spec-1.1.0",
  "tracing",
  "tracing-log",
  "tracing-subscriber",
@@ -728,9 +728,12 @@ dependencies = [
  "clap",
  "directories",
  "insta",
+ "jiff",
  "miette",
  "pace_error",
+ "strsim",
  "tempfile",
+ "toml 1.2.3+spec-1.1.0",
 ]
 
 [[package]]
@@ -1273,6 +1276,21 @@ dependencies = [
  "toml_parser",
  "toml_writer",
  "winnow 0.7.15",
+]
+
+[[package]]
+name = "toml"
+version = "1.2.3+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26b1f26e9485c1fa43ee89fe76e9f3fb9e2e52bb227f8594b4d687496b83d073"
+dependencies = [
+ "indexmap",
+ "serde_core",
+ "serde_spanned",
+ "toml_datetime 1.1.3+spec-1.1.0",
+ "toml_parser",
+ "toml_writer",
+ "winnow 1.0.5",
 ]
 
 [[package]]

@@ -1,0 +1,19 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::syntax
+
+  × [SANDBOX]/config/pace.global.toml is not valid TOML
+   ╭─[[SANDBOX]/config/pace.global.toml:1:27]
+ 1 │ time-zone = "Europe/Berlin
+   ·                           ▲
+   ·                           ╰── invalid basic string, expected `"`
+ 2 │ week-start = "monday"
+   ╰────
+  help: fix the TOML at the marked spot

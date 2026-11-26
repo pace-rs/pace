@@ -9,13 +9,14 @@ use std::{ffi::OsString, fmt, process};
 use abscissa_core::{
     Application, FrameworkError, Shutdown, StandardPaths,
     application::{self, AppCell},
-    config::{self, CfgCell},
+    config::{CfgCell, Reader},
 };
 use miette::{MietteHandler, MietteHandlerOpts, ReportHandler};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 
 use crate::{
     commands::EntryPoint,
+    config::{self, Loaded},
     dirs::{self, Dirs, Inputs, Platform},
 };
 
@@ -28,6 +29,7 @@ pub struct PaceApp {
     config: CfgCell<()>,
     state: application::State<Self>,
     dirs: Option<Dirs>,
+    settings: Option<Loaded>,
     plain: bool,
 }
 
@@ -47,6 +49,21 @@ impl PaceApp {
         })
     }
 
+    /// The settings and where each comes from.
+    ///
+    /// # Errors
+    ///
+    /// Only if called before the application is initialised, which is a bug.
+    pub fn settings(&self) -> PaceResult<&Loaded> {
+        self.settings.as_ref().ok_or_else(|| {
+            PaceError::new(
+                ErrorKind::Internal,
+                "the settings were used before they were loaded",
+            )
+            .ask_report()
+        })
+    }
+
     fn try_init(&mut self, command: &EntryPoint) -> PaceResult<()> {
         self.plain = command.plain;
         self.register_components(command)
@@ -57,7 +74,17 @@ impl PaceApp {
             command.home.as_deref(),
             |name: &str| -> Option<OsString> { std::env::var_os(name) },
         )?;
-        self.dirs = Some(dirs::resolve(inputs, Platform::current)?);
+        let dirs = dirs::resolve(inputs, Platform::current)?;
+        let settings = config::load(
+            &dirs.config_file,
+            |name: &str| -> Option<OsString> { std::env::var_os(name) },
+            std::env::vars_os().map(|(name, _)| name),
+        )?;
+        for warning in &settings.warnings {
+            eprint!("{}", render(warning, self.plain));
+        }
+        self.dirs = Some(dirs);
+        self.settings = Some(settings);
 
         self.after_config(())
             .map_err(|error| PaceError::from(ErrorKind::Internal, error).ask_report())
@@ -69,7 +96,7 @@ impl Application for PaceApp {
     type Cfg = ();
     type Paths = StandardPaths;
 
-    fn config(&self) -> config::Reader<()> {
+    fn config(&self) -> Reader<()> {
         self.config.read()
     }
 

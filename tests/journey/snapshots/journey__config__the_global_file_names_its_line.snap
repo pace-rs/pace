@@ -1,0 +1,15 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+# config file: [SANDBOX]/config/pace.global.toml (from PACE_CONFIG)
+# data:        [SANDBOX]/home (from PACE_HOME, not there yet)
+# machine:     [SANDBOX]/machine (from PACE_MACHINE_DIR, not there yet)
+
+time-zone = "Europe/Berlin"  # from [SANDBOX]/config/pace.global.toml:3
+week-start = "sunday"        # from [SANDBOX]/config/pace.global.toml:4
+
+----- stderr -----

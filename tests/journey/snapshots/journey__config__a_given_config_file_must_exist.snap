@@ -1,0 +1,13 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::missing-file
+
+  × the config file [SANDBOX]/config/typo.toml does not exist
+  help: create it, or drop PACE_CONFIG to use the default location

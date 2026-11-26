@@ -1,0 +1,17 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+# config file: [SANDBOX]/config/pace.global.toml
+# data:        [SANDBOX]/home
+# machine:     [SANDBOX]/machine
+
+time-zone = "system"
+week-start = "monday"
+
+----- stderr -----
+  ⚠ the variable PACE_TIMEZONE is not one pace knows
+  help: did you mean PACE_TIME_ZONE? pace ignores PACE_TIMEZONE

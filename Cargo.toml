@@ -30,6 +30,7 @@ serde = "1.0.229"
 serde_json = "1.0.154"
 strsim = "0.11.1"
 tempfile = "3.27.0"
+toml = "1.2.3"
 uuid = "1.29.3"
 
 [package]
@@ -55,8 +56,11 @@ path = "src/bin/pace.rs"
 abscissa_core = { workspace = true, features = ["application"] }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 directories = { workspace = true }
+jiff = { workspace = true }
 miette = { workspace = true, features = ["fancy-no-backtrace"] }
 pace_error = { workspace = true }
+strsim = { workspace = true }
+toml = { workspace = true }
 
 [dev-dependencies]
 insta = { workspace = true }

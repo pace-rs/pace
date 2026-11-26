@@ -11,7 +11,7 @@ use crate::{
 /// Look at pace's configuration.
 #[derive(clap::Subcommand, Command, Debug, Runnable)]
 pub enum ConfigCmd {
-    /// Show where pace keeps its files.
+    /// Show where pace keeps its files and the settings in effect.
     Show(ShowCmd),
 }
 
@@ -43,6 +43,26 @@ impl ShowCmd {
         ];
         for (label, located, exists) in lines {
             println!("{}", self.describe(label, located, exists));
+        }
+
+        println!();
+        let settings: Vec<_> = PACE_APP
+            .settings()?
+            .entries()
+            .into_iter()
+            .map(|(key, value, origin)| (format!("{key} = {}", toml::Value::String(value)), origin))
+            .collect();
+        let width = settings
+            .iter()
+            .map(|(line, _)| line.len())
+            .max()
+            .unwrap_or(0);
+        for (line, origin) in settings {
+            if self.origin {
+                println!("{line:<width$}  # {origin}");
+            } else {
+                println!("{line}");
+            }
         }
         Ok(())
     }
