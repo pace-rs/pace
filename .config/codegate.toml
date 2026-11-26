@@ -3,8 +3,8 @@
 # (docs, crap, slow-tests; `just check`).
 
 [file-length]
-# No hand-written Rust file holds more than 700 production lines.
-threshold = 700
+# No hand-written Rust file holds more than 700 production lines, codegate's
+# default threshold.
 
 [lint-allows]
 # No lint is turned off where it was not before: `.config/lint-allows.json`.
@@ -25,10 +25,8 @@ threshold = 700
 # An own function is imported by its name; no path goes through `super`.
 
 [crap]
-# No function scores above CRAP 30. A `tests.rs` is test code, as for
-# file-length; cargo-llvm-cov leaves it out of its report.
-threshold = 30
-exclude = ["**/tests.rs"]
+# No function scores above CRAP 30, codegate's default threshold. Test code
+# such as a `tests.rs` is left out, as for file-length.
 
 [readmes]
 # Every source folder has a README: its prose by hand, its tables generated.
