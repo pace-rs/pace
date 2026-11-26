@@ -42,6 +42,10 @@ fn the_environment_wins_over_the_file() -> TestResult {
 #[test]
 fn shown_settings_read_back_the_same() -> TestResult {
     let sandbox = Sandbox::new()?;
+    sandbox.write_config(&format!(
+        "[project-paths]\n'{}' = \"client-repo\"\n",
+        sandbox.path("clients/repo").display()
+    ))?;
     let shown = run(sandbox
         .pace()
         .env("PACE_TIME_ZONE", "Asia/Tokyo")
@@ -57,6 +61,7 @@ fn shown_settings_read_back_the_same() -> TestResult {
 
     assert_eq!(again, shown);
     assert!(again.contains("time-zone = \"Asia/Tokyo\""), "{again}");
+    assert!(again.contains("= \"client-repo\""), "{again}");
     Ok(())
 }
 

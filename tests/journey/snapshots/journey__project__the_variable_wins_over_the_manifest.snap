@@ -1,0 +1,16 @@
+---
+source: tests/journey/project.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+# config file: [SANDBOX]/config/pace.global.toml (from PACE_CONFIG)
+# data:        [SANDBOX]/home (from PACE_HOME, not there yet)
+# machine:     [SANDBOX]/machine (from PACE_MACHINE_DIR, not there yet)
+# project:     garden (from PACE_PROJECT)
+
+time-zone = "system"   # default
+week-start = "monday"  # default
+
+----- stderr -----

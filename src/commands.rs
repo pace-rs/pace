@@ -31,6 +31,14 @@ pub struct EntryPoint {
     )]
     pub(crate) home: Option<PathBuf>,
 
+    #[arg(
+        long,
+        global = true,
+        value_name = "KEY",
+        help = "Work on the project KEY instead of the one of the working directory [env: PACE_PROJECT]"
+    )]
+    pub(crate) project: Option<String>,
+
     #[arg(long, global = true, help = "Plain output: no colour, no symbols")]
     pub(crate) plain: bool,
 }

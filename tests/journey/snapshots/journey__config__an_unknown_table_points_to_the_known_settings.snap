@@ -16,4 +16,4 @@ pace::config::unknown-key
    ·     ╰── unknown key
  2 │ backend = "files"
    ╰────
-  help: pace knows these settings: time-zone, week-start
+  help: pace knows these settings here: time-zone, week-start, project-paths, version

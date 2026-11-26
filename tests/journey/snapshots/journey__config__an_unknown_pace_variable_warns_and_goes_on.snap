@@ -8,6 +8,7 @@ exit_code: 0
 # config file: [SANDBOX]/config/pace.global.toml
 # data:        [SANDBOX]/home
 # machine:     [SANDBOX]/machine
+# project:     none
 
 time-zone = "system"
 week-start = "monday"

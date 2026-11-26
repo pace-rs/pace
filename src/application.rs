@@ -18,6 +18,7 @@ use crate::{
     commands::EntryPoint,
     config::{self, Loaded},
     dirs::{self, Dirs, Inputs, Platform},
+    project::{self, Project},
 };
 
 /// The application state.
@@ -28,37 +29,32 @@ pub static PACE_APP: AppCell<PaceApp> = AppCell::new();
 pub struct PaceApp {
     config: CfgCell<()>,
     state: application::State<Self>,
-    dirs: Option<Dirs>,
-    settings: Option<Loaded>,
+    context: Option<Context>,
     plain: bool,
 }
 
-impl PaceApp {
+/// What pace found out before running a command.
+#[derive(Debug)]
+pub struct Context {
     /// Where pace keeps its files.
-    ///
-    /// # Errors
-    ///
-    /// Only if called before the application is initialised, which is a bug.
-    pub fn dirs(&self) -> PaceResult<&Dirs> {
-        self.dirs.as_ref().ok_or_else(|| {
-            PaceError::new(
-                ErrorKind::Internal,
-                "the directories were used before they were resolved",
-            )
-            .ask_report()
-        })
-    }
-
+    pub dirs: Dirs,
     /// The settings and where each comes from.
+    pub settings: Loaded,
+    /// The project of the working directory, if any.
+    pub project: Option<Project>,
+}
+
+impl PaceApp {
+    /// What pace found out before running the command.
     ///
     /// # Errors
     ///
     /// Only if called before the application is initialised, which is a bug.
-    pub fn settings(&self) -> PaceResult<&Loaded> {
-        self.settings.as_ref().ok_or_else(|| {
+    pub fn context(&self) -> PaceResult<&Context> {
+        self.context.as_ref().ok_or_else(|| {
             PaceError::new(
                 ErrorKind::Internal,
-                "the settings were used before they were loaded",
+                "the context was used before the application was initialised",
             )
             .ask_report()
         })
@@ -75,16 +71,35 @@ impl PaceApp {
             |name: &str| -> Option<OsString> { std::env::var_os(name) },
         )?;
         let dirs = dirs::resolve(inputs, Platform::current)?;
+        let home = directories::BaseDirs::new().map(|base| base.home_dir().to_path_buf());
         let settings = config::load(
             &dirs.config_file,
+            home.as_deref(),
             |name: &str| -> Option<OsString> { std::env::var_os(name) },
             std::env::vars_os().map(|(name, _)| name),
         )?;
         for warning in &settings.warnings {
             eprint!("{}", render(warning, self.plain));
         }
-        self.dirs = Some(dirs);
-        self.settings = Some(settings);
+        let cwd = std::env::current_dir().map_err(|error| {
+            PaceError::with_source(
+                ErrorKind::Project,
+                "cannot read the working directory",
+                error,
+            )
+            .attach_hint("change into a directory that exists")
+        })?;
+        let project = project::discover(
+            command.project.as_deref(),
+            std::env::var_os("PACE_PROJECT"),
+            &cwd,
+            &settings.project_paths,
+        )?;
+        self.context = Some(Context {
+            dirs,
+            settings,
+            project,
+        });
 
         self.after_config(())
             .map_err(|error| PaceError::from(ErrorKind::Internal, error).ask_report())

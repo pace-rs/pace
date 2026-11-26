@@ -42,6 +42,20 @@ impl Sandbox {
         Ok(Self { root })
     }
 
+    /// Create a directory and its parents inside the sandbox.
+    pub fn mkdir(&self, relative: &str) -> std::io::Result<()> {
+        std::fs::create_dir_all(self.path(relative))
+    }
+
+    /// Write a file inside the sandbox, creating its directory.
+    pub fn write(&self, relative: &str, content: &str) -> std::io::Result<()> {
+        let path = self.path(relative);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(path, content)
+    }
+
     /// Replace the content of the global config file.
     pub fn write_config(&self, content: &str) -> std::io::Result<()> {
         std::fs::write(self.path("config/pace.global.toml"), content)
@@ -59,6 +73,13 @@ impl Sandbox {
             .env("PACE_CONFIG", self.path("config/pace.global.toml"))
             .env("PACE_HOME", self.path("home"))
             .env("PACE_MACHINE_DIR", self.path("machine"));
+        command
+    }
+
+    /// [`Sandbox::pace`] run in `work/<relative>`.
+    pub fn pace_in(&self, relative: &str) -> Command {
+        let mut command = self.pace();
+        _ = command.current_dir(self.path("work").join(relative));
         command
     }
 
@@ -83,6 +104,14 @@ impl Sandbox {
     /// use `/` as the path separator on every OS.
     pub fn settings(&self) -> insta::Settings {
         let mut settings = insta::Settings::clone_current();
+        // The working directory of a child is the canonical path: on macOS
+        // /private/var/… for /var/…, on Windows with a \\?\ prefix.
+        if let Ok(canonical) = std::fs::canonicalize(self.root.path()) {
+            let canonical = canonical.display().to_string();
+            let plain = canonical.trim_start_matches(r"\\?\").to_owned();
+            settings.add_filter(&regex_escape(&canonical), "[SANDBOX]");
+            settings.add_filter(&regex_escape(&plain), "[SANDBOX]");
+        }
         let root = self.root.path().display().to_string();
         settings.add_filter(&regex_escape(&root), "[SANDBOX]");
         settings.add_filter(r"\\\\?", "/");

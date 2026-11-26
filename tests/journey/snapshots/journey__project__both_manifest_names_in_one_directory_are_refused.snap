@@ -1,0 +1,13 @@
+---
+source: tests/journey/project.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project::two-manifests
+
+  × [SANDBOX]/work has both a pace.toml and a .pace.toml
+  help: keep one of them: pace reads either name, but not both

@@ -6,13 +6,26 @@
 //! flag. A key pace doesn't know stops pace with the file, the line and the
 //! closest known key; an unknown `PACE_*` variable only warns.
 
-use std::{ffi::OsString, fmt, ops::Range, path::Path};
+use std::{
+    ffi::OsString,
+    fmt,
+    ops::Range,
+    path::{Path, PathBuf},
+};
 
 use jiff::civil::Weekday;
-use pace_error::{ErrorKind, PaceError, PaceResult, Severity, Snippet};
-use toml::de::{DeTable, DeValue};
+use pace_core::ProjectKey;
+use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
+use toml::{
+    Spanned,
+    de::{DeString, DeValue},
+};
 
-use crate::{dirs::Located, origin::Origin};
+use crate::{
+    dirs::Located,
+    origin::Origin,
+    toml_file::{TomlFile, in_file_order},
+};
 
 /// A setting pace knows, and the variable that sets it.
 struct Key {
@@ -34,8 +47,16 @@ const KEYS: [Key; 2] = [
     },
 ];
 
+/// The table that maps directories to projects.
+const PROJECT_PATHS: &str = "project-paths";
+
 /// Environment variables that are not settings.
-const OTHER_VARIABLES: [&str; 3] = ["PACE_CONFIG", "PACE_HOME", "PACE_MACHINE_DIR"];
+const OTHER_VARIABLES: [&str; 4] = [
+    "PACE_CONFIG",
+    "PACE_HOME",
+    "PACE_MACHINE_DIR",
+    "PACE_PROJECT",
+];
 
 /// The version of `pace.global.toml` this pace reads and writes.
 const FILE_VERSION: i64 = 1;
@@ -173,12 +194,27 @@ pub(crate) fn closest<'a>(input: &str, names: impl Iterator<Item = &'a str>) -> 
         .map(|(_, name)| name)
 }
 
+/// A directory mapped to a project in `[project-paths]`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectPath {
+    /// The directory as written, for example `~/work/client-repo`.
+    pub written: String,
+    /// The directory, with `~` expanded.
+    pub dir: PathBuf,
+    /// The project.
+    pub key: ProjectKey,
+    /// The line it was written on.
+    pub origin: Origin,
+}
+
 /// The settings, where each value comes from, and warnings to show.
 #[derive(Debug)]
 pub struct Loaded {
     /// The effective settings.
     pub settings: Settings,
     origins: Vec<(&'static str, Origin)>,
+    /// `[project-paths]`, in file order.
+    pub project_paths: Vec<ProjectPath>,
     /// Problems that don't stop pace, such as an unknown `PACE_*` variable.
     pub warnings: Vec<PaceError>,
 }
@@ -196,6 +232,7 @@ impl Loaded {
 }
 
 /// Load the settings: defaults, then the global file, then the environment.
+/// `home` expands a leading `~` in `[project-paths]`.
 ///
 /// # Errors
 ///
@@ -204,34 +241,34 @@ impl Loaded {
 /// variable has a value that doesn't fit.
 pub fn load(
     config_file: &Located,
+    home: Option<&Path>,
     env: impl Fn(&str) -> Option<OsString>,
     variables: impl Iterator<Item = OsString>,
 ) -> PaceResult<Loaded> {
     let mut settings = Settings::default();
     let mut origins: Vec<_> = KEYS.iter().map(|key| (key.name, Origin::Default)).collect();
-    let mut set_origin = |name: &str, origin: Origin| {
-        if let Some(entry) = origins.iter_mut().find(|(key, _)| *key == name) {
-            entry.1 = origin;
-        }
-    };
+    let mut project_paths = Vec::new();
 
     if let Some(text) = read_config_file(config_file)? {
-        for value in file_values(&config_file.path, &text)? {
-            settings.set(value.key, &value.text).map_err(|invalid| {
-                error_at(
-                    &config_file.path,
-                    &text,
-                    value.span.clone(),
-                    invalid,
-                    "this value",
-                )
-                .attach_error_code("pace::config::invalid-value")
+        let file = TomlFile {
+            path: &config_file.path,
+            text: &text,
+            what: "the global config file",
+            noun: "setting",
+            code: "pace::config",
+            version: FILE_VERSION,
+        };
+        for (name, value, span) in file_values(&file, home, &mut project_paths)? {
+            settings.set(name, &value).map_err(|invalid| {
+                file.error_at(span.clone(), invalid.message, invalid.hint, "this value")
+                    .attach_error_code("pace::config::invalid-value")
             })?;
             set_origin(
-                value.key,
+                &mut origins,
+                name,
                 Origin::File {
                     path: config_file.path.clone(),
-                    line: line_of(&text, value.span.start),
+                    line: file.line_of(span.start),
                 },
             );
         }
@@ -249,12 +286,13 @@ pub fn load(
                 .attach_hint(invalid.hint)
                 .attach_error_code("pace::config::invalid-value")
         })?;
-        set_origin(key.name, Origin::Env(key.variable));
+        set_origin(&mut origins, key.name, Origin::Env(key.variable));
     }
 
     Ok(Loaded {
         settings,
         origins,
+        project_paths,
         warnings: unknown_variables(variables),
     })
 }
@@ -284,144 +322,101 @@ fn read_config_file(config_file: &Located) -> PaceResult<Option<String>> {
     }
 }
 
-/// A setting found in a file.
-struct FileValue {
-    key: &'static str,
-    text: String,
-    span: Range<usize>,
+fn set_origin(origins: &mut [(&'static str, Origin)], name: &str, origin: Origin) {
+    if let Some(entry) = origins.iter_mut().find(|(key, _)| *key == name) {
+        entry.1 = origin;
+    }
 }
 
-fn file_values(path: &Path, text: &str) -> PaceResult<Vec<FileValue>> {
-    let table = DeTable::parse(text).map_err(|error| {
-        PaceError::new(ErrorKind::Configuration, "{file} is not valid TOML")
-            .attach_context("file", path.display().to_string())
-            .attach_hint("fix the TOML at the marked spot")
-            .attach_error_code("pace::config::syntax")
-            .attach_snippet(Snippet::new(
-                path.display().to_string(),
-                text,
-                error.span().unwrap_or(0..0),
-                error.message().trim(),
-            ))
-    })?;
-
-    let mut entries: Vec<_> = table.get_ref().iter().collect();
-    entries.sort_by_key(|(key, _)| key.span().start);
+/// The scalar settings of the file as `(key, value, span)`; the entries of
+/// `[project-paths]` go into `project_paths`.
+fn file_values(
+    file: &TomlFile<'_>,
+    home: Option<&Path>,
+    project_paths: &mut Vec<ProjectPath>,
+) -> PaceResult<Vec<(&'static str, String, Range<usize>)>> {
+    let table = file.parse()?;
+    let known: Vec<&str> = KEYS
+        .iter()
+        .map(|key| key.name)
+        .chain([PROJECT_PATHS, "version"])
+        .collect();
 
     let mut values = Vec::new();
-    for (key, value) in entries {
+    for (key, value) in in_file_order(table.get_ref()) {
         let name = key.get_ref().as_ref();
         if name == "version" {
-            check_version(path, text, value.get_ref(), value.span())?;
-            continue;
+            file.check_version(value)?;
+        } else if name == PROJECT_PATHS {
+            for (dir, project) in in_file_order(file.table(name, value)?) {
+                project_paths.push(project_path(file, home, dir, project)?);
+            }
+        } else if let Some(setting) = KEYS.iter().find(|setting| setting.name == name) {
+            let text = file.string(name, value, setting.expects)?;
+            values.push((setting.name, text.to_owned(), value.span()));
+        } else {
+            return Err(file.unknown_key(name, key.span(), &known));
         }
-        let Some(known) = KEYS.iter().find(|known| known.name == name) else {
-            return Err(unknown_key(path, text, name, key.span()));
-        };
-        let Some(string) = value.get_ref().as_str() else {
-            return Err(error_at(
-                path,
-                text,
-                value.span(),
-                Invalid {
-                    message: format!("`{name}` takes {}", known.expects),
-                    hint: format!("write it as text, for example `{name} = \"…\"`"),
-                },
-                &with_article(value.get_ref().type_str()),
-            )
-            .attach_error_code("pace::config::invalid-value"));
-        };
-        values.push(FileValue {
-            key: known.name,
-            text: string.to_owned(),
-            span: value.span(),
-        });
     }
     Ok(values)
 }
 
-fn check_version(
-    path: &Path,
-    text: &str,
-    value: &DeValue<'_>,
-    span: Range<usize>,
-) -> PaceResult<()> {
-    let version = value
-        .as_integer()
-        .and_then(|integer| integer.as_str().parse::<i64>().ok());
-    if version == Some(FILE_VERSION) {
-        return Ok(());
-    }
-    Err(error_at(
-        path,
-        text,
-        span,
-        Invalid {
-            message: format!("this pace reads version {FILE_VERSION} of the global config file"),
-            hint: if version.is_some_and(|version| version > FILE_VERSION) {
-                "a newer pace wrote this file; update pace".to_owned()
-            } else {
-                format!("write `version = {FILE_VERSION}`")
-            },
-        },
-        "this version",
-    )
-    .attach_error_code("pace::config::version"))
-}
-
-fn unknown_key(path: &Path, text: &str, name: &str, span: Range<usize>) -> Box<PaceError> {
-    let names = KEYS.iter().map(|key| key.name).chain(["version"]);
-    let hint = closest(name, names).map_or_else(
-        || {
-            format!(
-                "pace knows these settings: {}",
-                KEYS.iter()
-                    .map(|key| key.name)
-                    .collect::<Vec<_>>()
-                    .join(", ")
+fn project_path(
+    file: &TomlFile<'_>,
+    home: Option<&Path>,
+    dir: &Spanned<DeString<'_>>,
+    project: &Spanned<DeValue<'_>>,
+) -> PaceResult<ProjectPath> {
+    let written = dir.get_ref().as_ref();
+    let key = file
+        .string(written, project, "a project key like `acme-webshop`")?
+        .parse::<ProjectKey>()
+        .map_err(|error| {
+            file.error_at(
+                project.span(),
+                error.to_string(),
+                error.hint().unwrap_or_default(),
+                "this key",
             )
-        },
-        |known| format!("did you mean `{known}`?"),
-    );
-    error_at(
-        path,
-        text,
-        span,
-        Invalid {
-            message: format!("`{name}` is not a setting pace knows"),
-            hint,
-        },
-        "unknown key",
-    )
-    .attach_error_code("pace::config::unknown-key")
-}
+            .attach_error_code("pace::config::invalid-value")
+        })?;
 
-/// An error about a spot in a file; the snippet shows the file and the line.
-fn error_at(
-    path: &Path,
-    text: &str,
-    span: Range<usize>,
-    invalid: Invalid,
-    label: &str,
-) -> Box<PaceError> {
-    PaceError::new(ErrorKind::Configuration, invalid.message)
-        .attach_hint(invalid.hint)
-        .attach_snippet(Snippet::new(path.display().to_string(), text, span, label))
-}
-
-fn with_article(noun: &str) -> String {
-    let article = if noun.starts_with(['a', 'e', 'i', 'o', 'u']) {
-        "an"
-    } else {
-        "a"
+    let relative_to_home = written
+        .strip_prefix("~/")
+        .or_else(|| written.strip_prefix("~\\"))
+        .or_else(|| (written == "~").then_some(""));
+    let expanded = match (relative_to_home, home) {
+        (Some(rest), Some(home)) => home.join(rest),
+        (Some(_), None) => {
+            return Err(file.error_at(
+                dir.span(),
+                "pace cannot find your home directory to expand `~`",
+                "write the full path",
+                "this path",
+            ));
+        }
+        (None, _) => PathBuf::from(written),
     };
-    format!("{article} {noun}")
-}
+    if !expanded.is_absolute() {
+        return Err(file
+            .error_at(
+                dir.span(),
+                format!("`{written}` is not an absolute path"),
+                "write the full path, or start it with `~/`",
+                "relative path",
+            )
+            .attach_error_code("pace::config::invalid-value"));
+    }
 
-fn line_of(text: &str, offset: usize) -> usize {
-    text.get(..offset)
-        .map_or(0, |before| before.matches('\n').count())
-        + 1
+    Ok(ProjectPath {
+        written: written.to_owned(),
+        dir: expanded,
+        key,
+        origin: Origin::File {
+            path: file.path.to_path_buf(),
+            line: file.line_of(dir.span().start),
+        },
+    })
 }
 
 fn unknown_variables(variables: impl Iterator<Item = OsString>) -> Vec<PaceError> {

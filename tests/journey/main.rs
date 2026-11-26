@@ -3,4 +3,5 @@
 mod cli;
 mod config;
 mod directories;
+mod project;
 mod support;

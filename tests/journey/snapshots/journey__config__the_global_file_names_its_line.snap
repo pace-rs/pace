@@ -8,6 +8,7 @@ exit_code: 0
 # config file: [SANDBOX]/config/pace.global.toml (from PACE_CONFIG)
 # data:        [SANDBOX]/home (from PACE_HOME, not there yet)
 # machine:     [SANDBOX]/machine (from PACE_MACHINE_DIR, not there yet)
+# project:     none (no --project, PACE_PROJECT, manifest or path mapping)
 
 time-zone = "Europe/Berlin"  # from [SANDBOX]/config/pace.global.toml:3
 week-start = "sunday"        # from [SANDBOX]/config/pace.global.toml:4

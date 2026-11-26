@@ -730,6 +730,7 @@ dependencies = [
  "insta",
  "jiff",
  "miette",
+ "pace_core",
  "pace_error",
  "strsim",
  "tempfile",

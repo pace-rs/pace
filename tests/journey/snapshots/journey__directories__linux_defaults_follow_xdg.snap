@@ -8,6 +8,7 @@ exit_code: 0
 # config file: [SANDBOX]/me/.config/pace/pace.global.toml (default, not there yet)
 # data:        [SANDBOX]/me/.local/share/pace (default, not there yet)
 # machine:     [SANDBOX]/me/.local/state/pace (default, not there yet)
+# project:     none (no --project, PACE_PROJECT, manifest or path mapping)
 
 time-zone = "system"   # default
 week-start = "monday"  # default

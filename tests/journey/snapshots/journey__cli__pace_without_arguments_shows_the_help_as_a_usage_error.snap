@@ -18,6 +18,8 @@ Commands:
 Options:
       --config <FILE>  Read the global configuration from FILE [env: PACE_CONFIG]
       --home <DIR>     Keep pace's data in DIR [env: PACE_HOME]
+      --project <KEY>  Work on the project KEY instead of the one of the working directory [env:
+                       PACE_PROJECT]
       --plain          Plain output: no colour, no symbols
   -h, --help           Print help
   -V, --version        Print version
