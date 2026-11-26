@@ -269,6 +269,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.6.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a35200383f20018d41c14d1ab19c1727c697f544492143f7d93aa39f0187848"
+dependencies = [
+ "clap",
+]
+
+[[package]]
+name = "clap_complete_nushell"
+version = "4.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2572c7b66e6c875ce4f4b57b852a3238e3f6dadd209798c714d9408a4f892131"
+dependencies = [
+ "clap",
+ "clap_complete",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -846,6 +865,8 @@ dependencies = [
  "abscissa_core",
  "abscissa_tokio",
  "clap",
+ "clap_complete",
+ "clap_complete_nushell",
  "dialoguer",
  "directories",
  "insta",
@@ -855,6 +876,7 @@ dependencies = [
  "pace_error",
  "pace_store",
  "pace_time",
+ "rstest",
  "serde",
  "serde_json",
  "shell-words",

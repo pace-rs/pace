@@ -1,5 +1,6 @@
 //! The command line: the entry point and its subcommands.
 
+pub mod completions;
 pub mod config;
 pub mod corrections;
 pub mod edit;
@@ -12,6 +13,7 @@ use std::path::PathBuf;
 use abscissa_core::{Command, Configurable, Runnable};
 
 use self::{
+    completions::CompletionsCmd,
     config::ConfigCmd,
     corrections::{AdjustCmd, ForgetCmd, LogCmd, UndoCmd},
     edit::EditCmd,
@@ -110,6 +112,9 @@ pub enum PaceCmd {
     /// Look after how pace keeps its data.
     #[command(subcommand)]
     Store(StoreCmd),
+
+    /// Print the completion script for your shell
+    Completions(CompletionsCmd),
 }
 
 /// Bare `pace` shows what is running and how to get help.
