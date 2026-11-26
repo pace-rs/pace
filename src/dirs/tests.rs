@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use pace_error::{ErrorKind, PaceResult};
 
-use super::{Dirs, Inputs, Located, Platform, resolve};
+use crate::dirs::{Dirs, Inputs, Located, Platform, no_home, resolve_dirs};
 use crate::origin::Origin;
 
 fn path(text: &str) -> PathBuf {
@@ -34,7 +34,7 @@ fn paths(dirs: &Dirs) -> [&Path; 3] {
 
 #[test]
 fn linux_follows_the_xdg_directories() -> PaceResult<()> {
-    let dirs = resolve(Inputs::default(), || Ok(linux()))?;
+    let dirs = resolve_dirs(Inputs::default(), || Ok(linux()))?;
 
     assert_eq!(
         paths(&dirs),
@@ -59,7 +59,7 @@ fn linux_follows_the_xdg_directories() -> PaceResult<()> {
 // state directory, so pace adds its own subdirectories.
 #[test]
 fn macos_keeps_three_subdirectories_of_application_support() -> PaceResult<()> {
-    let dirs = resolve(Inputs::default(), || {
+    let dirs = resolve_dirs(Inputs::default(), || {
         Ok(Platform::macos(Path::new(
             "/Users/me/Library/Application Support",
         )))
@@ -78,7 +78,7 @@ fn macos_keeps_three_subdirectories_of_application_support() -> PaceResult<()> {
 
 #[test]
 fn windows_keeps_the_machine_directory_out_of_the_roaming_profile() -> PaceResult<()> {
-    let dirs = resolve(Inputs::default(), || {
+    let dirs = resolve_dirs(Inputs::default(), || {
         Ok(Platform::windows(
             Path::new("C:/Users/me/AppData/Roaming"),
             Path::new("C:/Users/me/AppData/Local"),
@@ -105,7 +105,7 @@ fn given_paths_win_over_the_defaults() -> PaceResult<()> {
         portable: None,
     };
 
-    let dirs = resolve(inputs, || Ok(linux()))?;
+    let dirs = resolve_dirs(inputs, || Ok(linux()))?;
 
     assert_eq!(
         paths(&dirs),
@@ -126,7 +126,7 @@ fn portable_mode_keeps_everything_next_to_the_executable() -> PaceResult<()> {
         ..Inputs::default()
     };
 
-    let dirs = resolve(inputs, || Ok(linux()))?;
+    let dirs = resolve_dirs(inputs, || Ok(linux()))?;
 
     assert_eq!(
         paths(&dirs),
@@ -148,7 +148,7 @@ fn given_paths_win_over_portable_mode() -> PaceResult<()> {
         ..Inputs::default()
     };
 
-    let dirs = resolve(inputs, || Ok(linux()))?;
+    let dirs = resolve_dirs(inputs, || Ok(linux()))?;
 
     assert_eq!(dirs.data.path, path("/sync/pace"));
     assert_eq!(dirs.machine.path, path("/media/stick/pace/machine"));
@@ -164,7 +164,7 @@ fn the_platform_is_not_asked_when_every_path_is_given() -> PaceResult<()> {
         portable: None,
     };
 
-    let dirs = resolve(inputs, || Err(super::no_home()))?;
+    let dirs = resolve_dirs(inputs, || Err(no_home()))?;
 
     assert_eq!(dirs.machine.path, path("/m"));
     Ok(())
@@ -172,7 +172,7 @@ fn the_platform_is_not_asked_when_every_path_is_given() -> PaceResult<()> {
 
 #[test]
 fn missing_home_directory_says_which_variables_help() {
-    let error = resolve(Inputs::default(), || Err(super::no_home())).err();
+    let error = resolve_dirs(Inputs::default(), || Err(no_home())).err();
 
     assert_eq!(
         error.as_ref().and_then(|error| error.hint()),
@@ -191,7 +191,7 @@ fn the_machine_directory_must_not_be_inside_the_data_directory() {
             ..Inputs::default()
         };
 
-        let error = resolve(inputs, || Ok(linux())).err();
+        let error = resolve_dirs(inputs, || Ok(linux())).err();
 
         assert_eq!(
             error.as_ref().map(|error| error.kind()),

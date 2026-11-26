@@ -14,13 +14,15 @@ use pace_time::parse_at;
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
-use super::tracking::track;
+use crate::commands::tracking::track;
+use crate::editor::edit_in_editor;
+use crate::output::short_id;
+use crate::prompt::{confirm, interactive};
+use crate::select::chosen_entry;
 use crate::{
     application::{exit_on_error, print_error},
-    editor,
-    output::{self, clock},
-    prompt,
-    select::{self, Chosen},
+    output::clock,
+    select::Chosen,
 };
 
 /// What the snippet of a mistake in the edited file is called.
@@ -52,9 +54,9 @@ pub struct EditCmd {
 impl Runnable for EditCmd {
     fn run(&self) {
         exit_on_error(track(|session, _| {
-            let chosen = select::chosen(session, self.entry.as_deref(), self.last, "edit")?;
+            let chosen = chosen_entry(session, self.entry.as_deref(), self.last, "edit")?;
             let now = session.now();
-            let mut text = editor::edit(&write(&chosen, session.device(), &now)?, ".toml")?;
+            let mut text = edit_in_editor(&write(&chosen, session.device(), &now)?, ".toml")?;
             loop {
                 match read(&text, &chosen.entry, &now) {
                     Ok(adjust) => {
@@ -63,11 +65,9 @@ impl Runnable for EditCmd {
                             ..adjust
                         }));
                     }
-                    Err(error)
-                        if error.exit_code() != ExitCode::NothingToDo && prompt::interactive() =>
-                    {
+                    Err(error) if error.exit_code() != ExitCode::NothingToDo && interactive() => {
                         print_error(&error);
-                        if !prompt::confirm("Open the entry again to fix it?")? {
+                        if !confirm("Open the entry again to fix it?")? {
                             return Err(PaceError::new(
                                 ErrorKind::InvalidInput,
                                 "the entry stays as it was",
@@ -75,7 +75,7 @@ impl Runnable for EditCmd {
                             .attach_hint("`pace edit` opens it again")
                             .attach_exit_code(ExitCode::NothingToDo));
                         }
-                        text = editor::edit(&text, ".toml")?;
+                        text = edit_in_editor(&text, ".toml")?;
                     }
                     Err(error) => return Err(error),
                 }
@@ -132,7 +132,7 @@ fn write(chosen: &Chosen, device: DeviceId, now: &ZonedDateTime) -> PaceResult<S
     };
     let mut lines = vec![format!(
         "# pace edit: entry {}, {how} on {place}.",
-        output::short(&chosen.state, entry.id)
+        short_id(&chosen.state, entry.id)
     )];
     lines.push(HELP.trim_end().to_owned());
     let breaks = breaks(entry, now);

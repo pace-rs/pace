@@ -6,7 +6,9 @@ use pace_core::{Entry, EntryId, State};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::TimeRange;
 
-use crate::{output, prompt, session::Session};
+use crate::output::entry_label;
+use crate::prompt::{choose, interactive};
+use crate::session::Session;
 
 /// How far back pace looks for an entry first, in days, before it reads
 /// everything: recent entries are the likely ones, and reading less is
@@ -28,11 +30,15 @@ pub struct Chosen {
 /// # Errors
 ///
 /// If the text names no entry, or the store fails.
-pub fn target(session: &Session, text: Option<&str>, last: bool) -> PaceResult<Option<EntryId>> {
+pub fn target_entry(
+    session: &Session,
+    text: Option<&str>,
+    last: bool,
+) -> PaceResult<Option<EntryId>> {
     if text.is_some() || last {
-        return chosen(session, text, last, "").map(|chosen| Some(chosen.entry.id));
+        return chosen_entry(session, text, last, "").map(|chosen| Some(chosen.entry.id));
     }
-    if !prompt::interactive() {
+    if !interactive() {
         return Ok(None);
     }
     let state = session.state(&at_now(session)?)?;
@@ -50,7 +56,12 @@ pub fn target(session: &Session, text: Option<&str>, last: bool) -> PaceResult<O
 ///
 /// If nothing fits, several open entries do without a terminal, or the
 /// store fails.
-pub fn chosen(session: &Session, text: Option<&str>, last: bool, verb: &str) -> PaceResult<Chosen> {
+pub fn chosen_entry(
+    session: &Session,
+    text: Option<&str>,
+    last: bool,
+    verb: &str,
+) -> PaceResult<Chosen> {
     if let Some(text) = text {
         return named(session, text);
     }
@@ -68,14 +79,14 @@ pub fn chosen(session: &Session, text: Option<&str>, last: bool, verb: &str) -> 
                 .attach_exit_code(ExitCode::NothingToDo));
         }
         [entry] => (*entry).clone(),
-        several if prompt::interactive() => {
+        several if interactive() => {
             pick(&state, several, "Which open entry?", &session.now())?.clone()
         }
         several => {
             let now = session.now();
             let labels: Vec<String> = several
                 .iter()
-                .map(|entry| output::label(&state, entry, &now))
+                .map(|entry| entry_label(&state, entry, &now))
                 .collect();
             return Err(PaceError::new(
                 ErrorKind::InvalidInput,
@@ -117,7 +128,7 @@ fn named(session: &Session, text: &str) -> PaceResult<Chosen> {
         let entry = match fitting.as_slice() {
             [] => continue,
             [entry] => (*entry).clone(),
-            several if prompt::interactive() => {
+            several if interactive() => {
                 let question = format!("`{text}` fits several entries. Which one?");
                 pick(&state, several, &question, &session.now())?.clone()
             }
@@ -125,7 +136,7 @@ fn named(session: &Session, text: &str) -> PaceResult<Chosen> {
                 let now = session.now();
                 let labels: Vec<String> = several
                     .iter()
-                    .map(|entry| output::label(&state, entry, &now))
+                    .map(|entry| entry_label(&state, entry, &now))
                     .collect();
                 return Err(PaceError::new(
                     ErrorKind::InvalidInput,
@@ -174,9 +185,9 @@ fn pick<'s>(
 ) -> PaceResult<&'s Entry> {
     let labels: Vec<String> = entries
         .iter()
-        .map(|entry| output::label(state, entry, now))
+        .map(|entry| entry_label(state, entry, now))
         .collect();
-    let choice = prompt::choose(question, &labels)?;
+    let choice = choose(question, &labels)?;
     entries.get(choice).copied().ok_or_else(|| {
         PaceError::new(ErrorKind::Internal, "the picker returned no entry").ask_report()
     })

@@ -20,3 +20,6 @@ threshold = 700
 
 [casing]
 # Every name follows RFC 430: no single-letter word before the last.
+
+[module-paths]
+# An own function is imported by its name; no path goes through `super`.

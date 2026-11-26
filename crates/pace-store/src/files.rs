@@ -30,10 +30,12 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
 
+use crate::format::{file_header, parse_events, serialize_events};
+use crate::machine::clone_detected;
 use crate::{
-    Split, format,
+    Split,
     index::{INDEX_VERSION, Index, select, summarize},
-    machine::{self, Cursors},
+    machine::Cursors,
 };
 
 /// The files backend for one device.
@@ -124,7 +126,7 @@ impl FilesStore {
         if let (Some(own_last), Some(remembered)) = (own_last, cursors.last_written)
             && own_last > remembered
         {
-            return Err(machine::clone_detected(&self.machine));
+            return Err(clone_detected(&self.machine));
         }
 
         let device_file = self.device_file(&dir, &now)?;
@@ -160,11 +162,11 @@ impl FilesStore {
             let path = dir.join(relative);
             let mut text = match std::fs::read_to_string(&path) {
                 Ok(text) => text,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => format::header(),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => file_header(),
                 Err(error) => return Err(io_error("read", &path, error)),
             };
             text.push('\n');
-            text.push_str(&format::serialize(&events)?);
+            text.push_str(&serialize_events(&events)?);
             written.push(prepare(&path, &text)?);
         }
         // All files are written before any is renamed, so a failure leaves
@@ -241,7 +243,7 @@ impl FilesStore {
         for path in &old_files {
             let text =
                 std::fs::read_to_string(path).map_err(|error| io_error("read", path, error))?;
-            for recorded in format::parse(path, &text, self.device)? {
+            for recorded in parse_events(path, &text, self.device)? {
                 count += 1;
                 by_file
                     .entry(split.file(&recorded.event.about))
@@ -252,9 +254,9 @@ impl FilesStore {
         let mut written = Vec::new();
         for (relative, events) in &mut by_file {
             events.sort_by_key(|recorded| recorded.hlc);
-            let mut text = format::header();
+            let mut text = file_header();
             text.push('\n');
-            text.push_str(&format::serialize(events)?);
+            text.push_str(&serialize_events(events)?);
             written.push(prepare(&dir.join(relative), &text)?);
         }
         let new_files: BTreeSet<PathBuf> = written.iter().map(|(_, path)| path.clone()).collect();
@@ -298,7 +300,7 @@ impl FilesStore {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
             Err(error) => return Err(io_error("read", &path, error)),
         };
-        let events = format::parse(&path, &text, self.device)?;
+        let events = parse_events(&path, &text, self.device)?;
         let kept: Vec<RecordedEvent> = events
             .iter()
             .filter(|recorded| {
@@ -313,9 +315,9 @@ impl FilesStore {
         if kept.is_empty() {
             return std::fs::remove_file(&path).map_err(|error| io_error("remove", &path, error));
         }
-        let mut text = format::header();
+        let mut text = file_header();
         text.push('\n');
-        text.push_str(&format::serialize(&kept)?);
+        text.push_str(&serialize_events(&kept)?);
         write_atomically(&path, &text)
     }
 
@@ -376,7 +378,7 @@ impl FilesStore {
             })?;
         let text =
             std::fs::read_to_string(&path).map_err(|error| io_error("read", &path, error))?;
-        format::parse(&path, &text, device)
+        parse_events(&path, &text, device)
     }
 
     /// The index, brought up to date with the files: changed and new files
@@ -413,7 +415,7 @@ impl FilesStore {
                 }
                 let text = std::fs::read_to_string(&path)
                     .map_err(|error| io_error("read", &path, error))?;
-                let events = format::parse(&path, &text, device)?;
+                let events = parse_events(&path, &text, device)?;
                 let mut summary = summarize(&events);
                 summary.len = metadata.len();
                 summary.modified = modified;

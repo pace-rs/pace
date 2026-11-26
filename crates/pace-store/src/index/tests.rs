@@ -4,7 +4,7 @@ use jiff::ZonedDateTime;
 use pace_core::{BatchId, DeviceId, EntryId, Event, EventId, EventKind, Hlc, RecordedEvent};
 use pace_time::TimeRange;
 
-use super::{FileSummary, select, summarize};
+use crate::index::{FileSummary, select, summarize};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 

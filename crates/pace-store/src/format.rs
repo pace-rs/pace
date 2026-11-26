@@ -106,7 +106,7 @@ struct Chunk<'a> {
 
 /// The header of a new event file.
 #[must_use]
-pub fn header() -> String {
+pub fn file_header() -> String {
     format!("version = {FILE_VERSION}\n")
 }
 
@@ -115,7 +115,7 @@ pub fn header() -> String {
 /// # Errors
 ///
 /// If an event cannot be written as TOML, which is a bug.
-pub fn serialize(events: &[RecordedEvent]) -> PaceResult<String> {
+pub fn serialize_events(events: &[RecordedEvent]) -> PaceResult<String> {
     let records: Vec<Record> = events.iter().map(record).collect();
     toml::to_string(&Chunk { event: &records }).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write an event as TOML", error)
@@ -128,7 +128,7 @@ pub fn serialize(events: &[RecordedEvent]) -> PaceResult<String> {
 /// # Errors
 ///
 /// If the file is no valid event file; the error names the file and the line.
-pub fn parse(path: &Path, text: &str, device: DeviceId) -> PaceResult<Vec<RecordedEvent>> {
+pub fn parse_events(path: &Path, text: &str, device: DeviceId) -> PaceResult<Vec<RecordedEvent>> {
     let file: File = match toml::from_str(text) {
         Ok(file) => file,
         Err(error) => return Err(explain(path, text, &error)),

@@ -21,7 +21,7 @@ fn editor() -> String {
 ///
 /// If the editor can't be started or fails, or the file can't be written
 /// or read.
-pub fn edit(text: &str, suffix: &str) -> PaceResult<String> {
+pub fn edit_in_editor(text: &str, suffix: &str) -> PaceResult<String> {
     let editor = editor();
     let words = shell_words::split(&editor).map_err(|error| {
         PaceError::with_source(

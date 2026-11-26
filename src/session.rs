@@ -10,9 +10,10 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_store::{FilesStore, Resplit, Split, device_id};
 use pace_time::TimeRange;
 
+use crate::clock::clock;
 use crate::{
     application::{Context, PACE_APP},
-    clock::{self, RandomIds, TEST_NOW},
+    clock::{RandomIds, TEST_NOW},
 };
 
 /// A tracker for this run.
@@ -30,7 +31,7 @@ impl Session {
     ///
     /// If the clock, the device ID or the store can't be set up.
     pub fn open(context: &Context) -> PaceResult<Self> {
-        let clock = clock::clock(
+        let clock = clock(
             &context.settings.settings.time_zone,
             std::env::var_os(TEST_NOW),
         )?;

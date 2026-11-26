@@ -4,9 +4,9 @@ use abscissa_core::{Command, Runnable};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_store::Split;
 
+use crate::output::counted;
 use crate::{
     application::{PACE_APP, exit_on_error},
-    output,
     session::Session,
 };
 
@@ -61,10 +61,10 @@ impl SplitCmd {
         } else {
             println!(
                 "Split this device's {} by {} instead of {}, into {}.",
-                output::count(resplit.events, "event"),
+                counted(resplit.events, "event"),
                 resplit.to,
                 resplit.from,
-                output::count(resplit.files_after, "file")
+                counted(resplit.files_after, "file")
             );
             println!(
                 "Other devices keep their split; `pace store split --by {split}` on each of them matches it."

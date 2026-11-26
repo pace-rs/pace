@@ -5,7 +5,7 @@ use clap::{CommandFactory, ValueEnum};
 use clap_complete::generate;
 use clap_complete_nushell::Nushell;
 
-use super::EntryPoint;
+use crate::commands::EntryPoint;
 
 /// `pace completions`
 #[derive(clap::Args, Command, Debug)]

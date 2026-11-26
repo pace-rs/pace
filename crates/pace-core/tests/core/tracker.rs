@@ -3,10 +3,11 @@
 use std::sync::Arc;
 
 use jiff::ZonedDateTime;
+use pace_core::testing::contract::run_store_contract;
 use pace_core::{
     Clock, Command, DeviceId, EntryState, EventStore, Policy, SequentialIds, State, Tracker,
     command::{Adjust, Begin, End, Log},
-    testing::{MemoryStore, TestClock, contract},
+    testing::{MemoryStore, TestClock},
 };
 use pace_time::TimeRange;
 
@@ -130,7 +131,7 @@ fn per_field_the_later_change_wins_between_devices() -> TestResult {
 
 #[test]
 fn the_memory_store_keeps_the_store_contract() -> TestResult {
-    pollster::block_on(contract::run(MemoryStore::opener))?;
+    pollster::block_on(run_store_contract(MemoryStore::opener))?;
     Ok(())
 }
 

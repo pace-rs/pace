@@ -321,7 +321,7 @@ impl Loaded {
 /// If the global file was given but is missing, cannot be read, is no
 /// valid TOML, has an unknown key or a value that doesn't fit; or if a
 /// variable has a value that doesn't fit.
-pub fn load(
+pub fn load_settings(
     config_file: &Located,
     home: Option<&Path>,
     env: impl Fn(&str) -> Option<OsString>,

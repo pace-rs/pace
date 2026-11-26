@@ -4,10 +4,11 @@
 use std::{path::Path, sync::Arc};
 
 use jiff::ZonedDateTime;
+use pace_core::testing::contract::run_store_contract;
 use pace_core::{
     Clock, Command, DeviceId, EventStore, Policy, SequentialIds, Tracker,
     command::{Adjust, Begin, Catch, End, Hold, Log, Pause},
-    testing::{TestClock, contract},
+    testing::TestClock,
 };
 use pace_store::{FilesStore, Split};
 use pace_time::TimeRange;
@@ -94,7 +95,7 @@ fn everything() -> Result<TimeRange, Box<dyn std::error::Error>> {
 
 #[test]
 fn the_files_backend_keeps_the_store_contract() -> TestResult {
-    pollster::block_on(contract::run(|| {
+    pollster::block_on(run_store_contract(|| {
         let dir = tempfile::tempdir().ok();
         move |device: DeviceId, clock: Arc<TestClock>| {
             let root = dir

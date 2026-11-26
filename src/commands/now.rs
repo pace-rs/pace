@@ -7,9 +7,10 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::{TimeFrame, format_duration, relative_time};
 use serde::Serialize;
 
+use crate::output::{entry_name, project_name, short_id};
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
-    output::{self, clock},
+    output::clock,
     session::Session,
 };
 
@@ -71,8 +72,8 @@ fn as_text(
     for (first, second, start, end) in overlaps(state, now) {
         lines.push(format!(
             "Overlap: {} and {} both cover {}–{}; change one with `pace adjust <id>`.",
-            output::short(state, first.id),
-            output::short(state, second.id),
+            short_id(state, first.id),
+            short_id(state, second.id),
             clock(&start, now),
             clock(&end, now)
         ));
@@ -87,7 +88,7 @@ fn as_text(
 }
 
 fn headline(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
-    let name = output::name(state, entry);
+    let name = entry_name(state, entry);
     let since =
         |moment: &ZonedDateTime| format!("{} ({})", clock(moment, now), relative_time(moment, now));
     match entry.state() {
@@ -126,7 +127,7 @@ fn details(entry: &Entry, session: &Session, now: &ZonedDateTime) -> Vec<String>
         details.push(format!("paused {}", format_duration(paused)));
     }
     if let Some(project) = &entry.project {
-        details.push(format!("project {}", output::project_name(project)));
+        details.push(format!("project {}", project_name(project)));
     }
     if !entry.tags.is_empty() {
         let tags: Vec<&str> = entry.tags.iter().map(pace_core::Tag::as_str).collect();
@@ -225,7 +226,7 @@ fn as_json(
             .unwrap_or(&entry.start);
             OpenJson {
                 id: entry.id.to_string(),
-                short: output::short(state, entry.id),
+                short: short_id(state, entry.id),
                 state: match entry.state() {
                     EntryState::Running => "running",
                     EntryState::Held => "held",

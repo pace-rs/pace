@@ -322,7 +322,7 @@ fn regex_escape(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::Sandbox;
+    use crate::support::Sandbox;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 

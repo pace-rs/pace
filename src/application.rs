@@ -15,11 +15,14 @@ use abscissa_tokio::TokioComponent;
 use miette::{MietteHandler, MietteHandlerOpts, ReportHandler};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 
+use crate::config::load_settings;
+use crate::dirs::resolve_dirs;
+use crate::project::discover_project;
 use crate::{
     commands::EntryPoint,
-    config::{self, Loaded},
-    dirs::{self, Dirs, Inputs, Platform},
-    project::{self, Project},
+    config::Loaded,
+    dirs::{Dirs, Inputs, Platform},
+    project::Project,
 };
 
 /// The application state.
@@ -71,9 +74,9 @@ impl PaceApp {
             command.home.as_deref(),
             |name: &str| -> Option<OsString> { std::env::var_os(name) },
         )?;
-        let dirs = dirs::resolve(inputs, Platform::current)?;
+        let dirs = resolve_dirs(inputs, Platform::current)?;
         let home = directories::BaseDirs::new().map(|base| base.home_dir().to_path_buf());
-        let settings = config::load(
+        let settings = load_settings(
             &dirs.config_file,
             home.as_deref(),
             |name: &str| -> Option<OsString> { std::env::var_os(name) },
@@ -90,7 +93,7 @@ impl PaceApp {
             )
             .attach_hint("change into a directory that exists")
         })?;
-        let project = project::discover(
+        let project = discover_project(
             command.project.as_deref(),
             std::env::var_os("PACE_PROJECT"),
             &cwd,

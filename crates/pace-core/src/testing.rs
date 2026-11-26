@@ -86,7 +86,7 @@ impl MemoryStore {
     }
 
     /// Fresh storage, and a way to open it for a device with a clock; for
-    /// [`contract::run`].
+    /// [`contract::run_store_contract`].
     pub fn opener() -> impl Fn(DeviceId, Arc<TestClock>) -> Self + Sync {
         let storage: Arc<Mutex<Storage>> = Arc::default();
         move |device, clock| Self {
@@ -173,7 +173,7 @@ pub mod contract {
     use pace_error::{ErrorKind, PaceError, PaceResult};
     use pace_time::TimeRange;
 
-    use super::TestClock;
+    use crate::testing::TestClock;
     use crate::{
         Clock, Command, DeviceId, EntryState, EventStore, Policy, SequentialIds, State, Tracker,
         command::{Begin, End, Hold, Log},
@@ -186,7 +186,7 @@ pub mod contract {
     /// # Errors
     ///
     /// The first broken promise, naming the check.
-    pub async fn run<O, S>(new_storage: impl Fn() -> O) -> PaceResult<()>
+    pub async fn run_store_contract<O, S>(new_storage: impl Fn() -> O) -> PaceResult<()>
     where
         O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
         S: EventStore,

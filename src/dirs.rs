@@ -192,7 +192,7 @@ fn no_home() -> Box<PaceError> {
 ///
 /// If the platform's directories are needed but unknown, or the machine
 /// directory lies inside the data directory.
-pub fn resolve(
+pub fn resolve_dirs(
     inputs: Inputs,
     platform: impl FnOnce() -> PaceResult<Platform>,
 ) -> PaceResult<Dirs> {

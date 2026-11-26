@@ -21,7 +21,7 @@ pub fn clock(moment: &ZonedDateTime, now: &ZonedDateTime) -> String {
 
 /// `1 event`, `2 events`.
 #[must_use]
-pub fn count(count: usize, noun: &str) -> String {
+pub fn counted(count: usize, noun: &str) -> String {
     if count == 1 {
         format!("1 {noun}")
     } else {
@@ -31,7 +31,7 @@ pub fn count(count: usize, noun: &str) -> String {
 
 /// The short ID of an entry, unique among the entries of `state`.
 #[must_use]
-pub fn short(state: &State, id: EntryId) -> String {
+pub fn short_id(state: &State, id: EntryId) -> String {
     let ids: Vec<EntryId> = state.entries().map(|entry| entry.id).collect();
     short_ids(&ids)
         .remove(&id)
@@ -40,8 +40,8 @@ pub fn short(state: &State, id: EntryId) -> String {
 
 /// The entry's short ID and its note, for a sentence.
 #[must_use]
-pub fn name(state: &State, entry: &Entry) -> String {
-    let short = short(state, entry.id);
+pub fn entry_name(state: &State, entry: &Entry) -> String {
+    let short = short_id(state, entry.id);
     entry
         .note
         .as_ref()
@@ -50,8 +50,8 @@ pub fn name(state: &State, entry: &Entry) -> String {
 
 /// The entry for a list or a picker: short ID, note and times.
 #[must_use]
-pub fn label(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
-    format!("{} ({})", name(state, entry), times(entry, now))
+pub fn entry_label(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
+    format!("{} ({})", entry_name(state, entry), times(entry, now))
 }
 
 /// `09:00–10:00`, or `since 09:00` for an open entry.
@@ -75,7 +75,7 @@ pub fn project_name(project: &ProjectRef) -> String {
 /// One line per event the command appended; for an undo, what it took
 /// back.
 #[must_use]
-pub fn describe(outcome: &Outcome) -> Vec<String> {
+pub fn describe_outcome(outcome: &Outcome) -> Vec<String> {
     let state = &outcome.state;
     let before = &outcome.before;
     let now = &outcome.now;
@@ -87,7 +87,7 @@ pub fn describe(outcome: &Outcome) -> Vec<String> {
             let line = match &recorded.event.kind {
                 EventKind::EntryBegun { entry, .. } => {
                     let entry = state.entry(*entry)?;
-                    format!("Began {} at {}.", name(state, entry), clock(at, now))
+                    format!("Began {} at {}.", entry_name(state, entry), clock(at, now))
                 }
                 EventKind::EntryEnded { entry } => {
                     let entry = state.entry(*entry)?;
@@ -109,20 +109,20 @@ pub fn describe(outcome: &Outcome) -> Vec<String> {
                     let entry = state.entry(*entry)?;
                     format!(
                         "Paused {} at {} {}.",
-                        short(state, entry.id),
+                        short_id(state, entry.id),
                         clock(at, now),
                         pause_kind(*kind)
                     )
                 }
                 EventKind::EntryResumed { entry } => resumed(state, state.entry(*entry)?, at, now),
                 EventKind::CatchNoted { entry, text } => {
-                    format!("Caught \"{text}\" on {}.", short(state, *entry))
+                    format!("Caught \"{text}\" on {}.", short_id(state, *entry))
                 }
                 EventKind::EntryLogged { entry, .. } => {
                     let entry = state.entry(*entry)?;
                     format!(
                         "Logged {} from {} to {} ({}).",
-                        name(state, entry),
+                        entry_name(state, entry),
                         clock(&entry.start, now),
                         clock(entry.end.as_ref()?, now),
                         format_duration(entry.net(now))
@@ -140,7 +140,7 @@ pub fn describe(outcome: &Outcome) -> Vec<String> {
                     format!(
                         "Forgot {} ({}) for good. Its events are gone from this device; other \
                          devices remove theirs when they see this.",
-                        short(before, entry.id),
+                        short_id(before, entry.id),
                         times(entry, now)
                     )
                 }
@@ -165,20 +165,26 @@ fn undid(outcome: &Outcome) -> Vec<String> {
             let line = match &recorded.event.kind {
                 EventKind::EntryBegun { entry, .. } => format!(
                     "Took back the start of {} at {at}.",
-                    name(before, before.entry(*entry)?)
+                    entry_name(before, before.entry(*entry)?)
                 ),
                 EventKind::EntryEnded { entry } => format!(
                     "Took back the end of {} at {at}; it is open again.",
-                    name(before, before.entry(*entry)?)
+                    entry_name(before, before.entry(*entry)?)
                 ),
                 EventKind::EntryHeld { entry, .. } => {
-                    format!("Took back the hold of {} at {at}.", short(before, *entry))
+                    format!(
+                        "Took back the hold of {} at {at}.",
+                        short_id(before, *entry)
+                    )
                 }
                 EventKind::EntryPaused { entry, .. } => {
-                    format!("Took back the pause of {} at {at}.", short(before, *entry))
+                    format!(
+                        "Took back the pause of {} at {at}.",
+                        short_id(before, *entry)
+                    )
                 }
                 EventKind::EntryResumed { entry } => {
-                    format!("Took back resuming {} at {at}.", short(before, *entry))
+                    format!("Took back resuming {} at {at}.", short_id(before, *entry))
                 }
                 EventKind::CatchNoted { text, .. } => {
                     format!("Took back the caught thought \"{text}\".")
@@ -187,13 +193,13 @@ fn undid(outcome: &Outcome) -> Vec<String> {
                     let entry = before.entry(*entry)?;
                     format!(
                         "Took back the logged entry {}, {}.",
-                        name(before, entry),
+                        entry_name(before, entry),
                         times(entry, now)
                     )
                 }
                 EventKind::EntryAdjusted { entry, .. } => format!(
                     "Took back the adjustment of {}.",
-                    name(before, before.entry(*entry)?)
+                    entry_name(before, before.entry(*entry)?)
                 ),
                 _ => return None,
             };
@@ -253,7 +259,7 @@ fn adjusted(
     };
     format!(
         "Adjusted {}: {}{net}.",
-        name(state, after),
+        entry_name(state, after),
         parts.join(", ")
     )
 }
@@ -292,7 +298,7 @@ fn ended(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime) 
     };
     format!(
         "Ended {} at {} after {}{details}.",
-        name(state, entry),
+        entry_name(state, entry),
         clock(at, now),
         format_duration(entry.net(now))
     )
@@ -310,7 +316,7 @@ fn held(
     if let Some(hold) = hold.filter(|hold| hold.start < *at) {
         return format!(
             "{} is held since {}; the reason is now: {}.",
-            short(state, entry.id),
+            short_id(state, entry.id),
             clock(&hold.start, now),
             reason.unwrap_or_default()
         );
@@ -323,7 +329,7 @@ fn held(
     let why = reason.map_or_else(String::new, |reason| format!(": {reason}"));
     format!(
         "Held {} at {}{from}{why}.",
-        short(state, entry.id),
+        short_id(state, entry.id),
         clock(at, now)
     )
 }
@@ -353,7 +359,7 @@ fn resumed(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime
     });
     format!(
         "Resumed {} at {}{after}.",
-        short(state, entry.id),
+        short_id(state, entry.id),
         clock(at, now)
     )
 }

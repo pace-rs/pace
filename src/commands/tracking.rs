@@ -11,9 +11,12 @@ use pace_core::{
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{At, TimeRange, parse_at, relative_time};
 
+use crate::commands::now::recent_range_start;
+use crate::output::describe_outcome;
+use crate::prompt::{choose, interactive};
+use crate::select::target_entry;
 use crate::{
     application::{PACE_APP, exit_on_error},
-    output, prompt, select,
     session::Session,
 };
 
@@ -27,7 +30,7 @@ pub(super) fn track(
     let mut notes = Vec::new();
     let command = build(&session, &mut notes)?;
     let outcome = session.run(&command)?;
-    for line in output::describe(&outcome) {
+    for line in describe_outcome(&outcome) {
         println!("{line}");
     }
     for note in notes.iter().chain(session.first_use_note().iter()) {
@@ -57,8 +60,8 @@ pub(super) fn moment(
         At::Exact(moment) => Ok(moment),
         At::Ambiguous { earlier, later } => {
             let label = |moment: &ZonedDateTime| moment.strftime("%H:%M (%:z)").to_string();
-            if prompt::interactive() {
-                let choice = prompt::choose(
+            if interactive() {
+                let choice = choose(
                     &format!(
                         "{value} happened twice, because the clocks were set back. Which one?"
                     ),
@@ -159,10 +162,7 @@ impl Runnable for BeginCmd {
 /// Note, project and tags of a recent entry, picked by the user.
 fn again(session: &Session, count: usize) -> PaceResult<Begin> {
     let now = session.now();
-    let recent = TimeRange::new(
-        Some(super::now::recent_range_start(&now)),
-        Some(now.clone()),
-    )?;
+    let recent = TimeRange::new(Some(recent_range_start(&now)), Some(now.clone()))?;
     let state = session.state(&recent)?;
     let mut candidates: Vec<Begin> = Vec::new();
     let mut entries: Vec<&Entry> = state.entries().filter(|entry| !entry.is_open()).collect();
@@ -193,8 +193,8 @@ fn again(session: &Session, count: usize) -> PaceResult<Begin> {
         .attach_hint("`pace begin <note>` begins a new one")
         .attach_exit_code(ExitCode::NothingToDo)),
         1 => Ok(candidates.remove(0)),
-        _ if prompt::interactive() => {
-            let choice = prompt::choose("Begin which entry again?", &labels)?;
+        _ if interactive() => {
+            let choice = choose("Begin which entry again?", &labels)?;
             Ok(candidates.swap_remove(choice))
         }
         count => {
@@ -327,7 +327,7 @@ impl Runnable for ResumeCmd {
         exit_on_error(track(|session, notes| {
             Ok(UseCase::Resume(Resume {
                 at: at(self.at.as_deref(), &session.now(), notes)?,
-                entry: select::target(session, self.entry.as_deref(), false)?,
+                entry: target_entry(session, self.entry.as_deref(), false)?,
             }))
         }));
     }
@@ -377,7 +377,7 @@ impl Runnable for EndCmd {
         exit_on_error(track(|session, notes| {
             Ok(UseCase::End(End {
                 at: at(self.at.as_deref(), &session.now(), notes)?,
-                entry: select::target(session, self.entry.as_deref(), false)?,
+                entry: target_entry(session, self.entry.as_deref(), false)?,
             }))
         }));
     }

@@ -8,12 +8,13 @@ use pace_core::{
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::parse_duration;
 
-use super::tracking::{at, moment, tags, text, track};
+use crate::commands::tracking::{at, moment, tags, text, track};
+use crate::output::entry_label;
+use crate::prompt::{confirm, interactive};
+use crate::select::{chosen_entry, target_entry};
 use crate::{
     application::{PACE_APP, exit_on_error},
-    output,
     project::Reason,
-    prompt, select,
 };
 
 /// `pace adjust`
@@ -78,7 +79,7 @@ impl Runnable for AdjustCmd {
                 Some(note) => Change::Set(note.to_owned()),
             };
             Ok(UseCase::Adjust(Adjust {
-                entry: select::target(session, self.entry.as_deref(), self.last)?,
+                entry: target_entry(session, self.entry.as_deref(), self.last)?,
                 start: at(self.start.as_deref(), &now, notes)?,
                 end: at(self.end.as_deref(), &now, notes)?,
                 note,
@@ -201,9 +202,9 @@ pub struct ForgetCmd {
 impl Runnable for ForgetCmd {
     fn run(&self) {
         exit_on_error(track(|session, _| {
-            let chosen = select::chosen(session, self.entry.as_deref(), self.last, "forget")?;
+            let chosen = chosen_entry(session, self.entry.as_deref(), self.last, "forget")?;
             if !self.for_good {
-                confirm(&output::label(&chosen.state, &chosen.entry, &session.now()))?;
+                confirm_forget(&entry_label(&chosen.state, &chosen.entry, &session.now()))?;
             }
             Ok(UseCase::Forget(Forget {
                 entry: chosen.entry.id,
@@ -213,8 +214,8 @@ impl Runnable for ForgetCmd {
 }
 
 /// Ask before forgetting; without a terminal, `--for-good` must say so.
-fn confirm(label: &str) -> PaceResult<()> {
-    if !prompt::interactive() {
+fn confirm_forget(label: &str) -> PaceResult<()> {
+    if !interactive() {
         return Err(PaceError::new(
             ErrorKind::InvalidInput,
             "forgetting {entry} can't be undone, so pace asks first",
@@ -223,7 +224,7 @@ fn confirm(label: &str) -> PaceResult<()> {
         .attach_hint("add `--for-good` to forget it without being asked")
         .attach_exit_code(ExitCode::Usage));
     }
-    if prompt::confirm(&format!(
+    if confirm(&format!(
         "Forget {label} for good? `pace undo` can't bring it back."
     ))? {
         return Ok(());

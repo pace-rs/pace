@@ -93,7 +93,7 @@ impl fmt::Display for Reason {
 /// If `--project` or `PACE_PROJECT` is no project key, a directory has both
 /// manifest names, or the nearest manifest cannot be read or has an
 /// unknown key or a value that doesn't fit.
-pub fn discover(
+pub fn discover_project(
     flag: Option<&str>,
     variable: Option<OsString>,
     cwd: &Path,
