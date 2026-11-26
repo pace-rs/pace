@@ -24,3 +24,20 @@ check:
     dprint check
     just lint
     just test
+
+# The latency guard: fails if pace answers slower than 50 ms
+bench:
+    cargo bench --bench latency
+
+# Test coverage as lcov.info, as in CI
+cov:
+    cargo llvm-cov nextest --workspace --all-features --lcov --output-path lcov.info
+
+# Advisories, licenses, duplicate crates and sources
+deny:
+    cargo deny check
+
+# MSRV and feature powerset checks
+hack:
+    cargo hack check --rust-version --workspace --all-targets
+    cargo hack check --feature-powerset --workspace --all-targets

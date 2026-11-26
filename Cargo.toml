@@ -53,6 +53,10 @@ description = "pace: a local-first command-line time tracker for work and daily 
 name = "pace"
 path = "src/bin/pace.rs"
 
+[[bench]]
+name = "latency"
+harness = false
+
 [dependencies]
 abscissa_core = { workspace = true, features = ["application"] }
 clap = { workspace = true, features = ["derive", "wrap_help"] }

@@ -1,0 +1,29 @@
+name: Audit
+
+on:
+  pull_request:
+    paths: ["**/Cargo.toml", "Cargo.lock", "deny.toml"]
+  push:
+    branches: [main]
+    paths: ["**/Cargo.toml", "Cargo.lock", "deny.toml"]
+  schedule:
+    # Daily, so new advisories show up without a change in pace.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deny:
+    name: cargo deny (${{ matrix.checks }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        checks: [advisories, bans licenses sources]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check ${{ matrix.checks }}
