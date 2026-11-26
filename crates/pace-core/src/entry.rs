@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use jiff::{SignedDuration, ZonedDateTime};
+use serde::{Deserialize, Serialize};
 
 use crate::{DeviceId, EntryId, HoldSource, PauseKind, ProjectId, ProjectKey, Tag};
 
@@ -8,7 +9,8 @@ use crate::{DeviceId, EntryId, HoldSource, PauseKind, ProjectId, ProjectKey, Tag
 ///
 /// A project gets its ID from `pace project init`; until then entries record
 /// the key, and pace resolves it to the ID once the project has one.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ProjectRef {
     /// The project's ID.
     Id(ProjectId),
@@ -98,6 +100,9 @@ pub struct Entry {
     pub catches: Vec<Catch>,
     /// Recorded live or entered afterwards.
     pub origin: EntryOrigin,
+    /// The moment the entry's events are filed under: its first start,
+    /// which an adjusted start doesn't change.
+    pub filed: ZonedDateTime,
 }
 
 impl Entry {

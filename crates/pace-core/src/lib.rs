@@ -14,6 +14,8 @@ mod event;
 mod id;
 mod key;
 mod port;
+mod rules;
+mod short_id;
 mod state;
 mod tracking;
 
@@ -24,6 +26,8 @@ pub use event::{
 };
 pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId};
 pub use key::{ProjectKey, Tag};
-pub use port::{Clock, EventStore, FixedClock, Notice, Notifier};
+pub use port::{Clock, EventStore, FixedClock, Ids, Notice, Notifier, SequentialIds};
+pub use rules::{Policy, Rules};
+pub use short_id::short_ids;
 pub use state::State;
 pub use tracking::{HoldSource, PauseKind};

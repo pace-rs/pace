@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use jiff::ZonedDateTime;
 
 use crate::{
-    BatchId, Change, Entry, EntryChanges, EntryId, EntryOrigin, EventKind, HoldSource, PauseKind,
-    ProjectRef, RecordedEvent, Tag,
+    BatchId, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin, EventKind, HoldSource,
+    PauseKind, ProjectRef, RecordedEvent, Tag,
     entry::{Catch, Hold, Pause},
 };
 
@@ -16,6 +16,17 @@ use crate::{
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct State {
     entries: BTreeMap<EntryId, Entry>,
+    batches: Vec<BatchRecord>,
+}
+
+/// A batch as far as `undo` cares.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BatchRecord {
+    id: BatchId,
+    device: DeviceId,
+    undone: bool,
+    /// Undo and forget can't be undone.
+    undoable: bool,
 }
 
 impl State {
@@ -43,11 +54,60 @@ impl State {
 
         let mut state = Self::default();
         for recorded in ordered {
+            state.record_batch(recorded, undone.contains(&recorded.batch));
             if !undone.contains(&recorded.batch) {
                 state.apply(recorded, &forgotten);
             }
         }
         state
+    }
+
+    fn record_batch(&mut self, recorded: &RecordedEvent, undone: bool) {
+        let undoable = !matches!(
+            recorded.event.kind,
+            EventKind::BatchUndone { .. } | EventKind::EntryForgotten { .. }
+        );
+        if let Some(batch) = self
+            .batches
+            .iter_mut()
+            .find(|batch| batch.id == recorded.batch)
+        {
+            batch.undoable &= undoable;
+        } else {
+            self.batches.push(BatchRecord {
+                id: recorded.batch,
+                device: recorded.device,
+                undone,
+                undoable,
+            });
+        }
+    }
+
+    /// The last batch of `device` that can be undone and isn't yet.
+    #[must_use]
+    pub fn last_undoable(&self, device: DeviceId) -> Option<BatchId> {
+        self.batches
+            .iter()
+            .rev()
+            .find(|batch| batch.device == device && batch.undoable && !batch.undone)
+            .map(|batch| batch.id)
+    }
+
+    /// The entries other than `except` whose time overlaps `[start, end)`;
+    /// an open entry lasts until `now`.
+    pub fn overlapping<'s>(
+        &'s self,
+        start: &ZonedDateTime,
+        end: &ZonedDateTime,
+        except: &[EntryId],
+        now: &ZonedDateTime,
+    ) -> impl Iterator<Item = &'s Entry> {
+        let (start, end, now) = (start.clone(), end.clone(), now.clone());
+        let except = except.to_vec();
+        self.entries().filter(move |entry| {
+            let entry_end = entry.end.as_ref().unwrap_or(&now);
+            !except.contains(&entry.id) && entry.start < end && start < *entry_end
+        })
     }
 
     fn apply(&mut self, recorded: &RecordedEvent, forgotten: &BTreeSet<EntryId>) {
@@ -185,6 +245,7 @@ fn new_entry(
         } else {
             EntryOrigin::Live
         },
+        filed: recorded.event.about.clone(),
     }
 }
 

@@ -27,6 +27,28 @@ macro_rules! uuid_v7_id {
             }
         }
 
+        impl TryFrom<Uuid> for $name {
+            type Error = Box<PaceError>;
+
+            fn try_from(uuid: Uuid) -> Result<Self, Self::Error> {
+                if uuid.get_version() == Some(Version::SortRand) {
+                    Ok(Self(uuid))
+                } else {
+                    Err(PaceError::new(ErrorKind::Internal, "an ID source gave `{id}`, which is no UUIDv7")
+                        .attach_context("id", uuid.to_string())
+                        .ask_report())
+                }
+            }
+        }
+
+        impl $name {
+            /// The UUID.
+            #[must_use]
+            pub const fn uuid(&self) -> Uuid {
+                self.0
+            }
+        }
+
         impl From<$name> for String {
             fn from(id: $name) -> Self {
                 id.to_string()

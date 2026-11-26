@@ -4,8 +4,8 @@
 use std::collections::BTreeSet;
 
 use pace_core::{
-    Command, HoldSource, PauseKind,
-    command::{Begin, Catch, End, Hold, Pause, Resume},
+    Change, Command, HoldSource, PauseKind, ProjectRef,
+    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
 use rstest::rstest;
 
@@ -22,14 +22,14 @@ fn begin_carries_what_was_typed() -> TestResult {
     let command = Command::Begin(Begin {
         at: Some("2026-11-26T09:00:00+01:00[Europe/Berlin]".parse()?),
         note: Some("Write offer".to_owned()),
-        project: Some("acme-webshop".parse()?),
+        project: Some(ProjectRef::Key("acme-webshop".parse()?)),
         tags: BTreeSet::from(["dev".parse()?, "offer".parse()?]),
         allow_overlap: true,
     });
 
     assert_eq!(
         round_trip(&command)?,
-        r#"{"command":"begin","at":"2026-11-26T09:00:00+01:00[Europe/Berlin]","note":"Write offer","project":"acme-webshop","tags":["dev","offer"],"allow-overlap":true}"#
+        r#"{"command":"begin","at":"2026-11-26T09:00:00+01:00[Europe/Berlin]","note":"Write offer","project":{"key":"acme-webshop"},"tags":["dev","offer"],"allow-overlap":true}"#
     );
     Ok(())
 }
@@ -40,6 +40,8 @@ fn begin_carries_what_was_typed() -> TestResult {
 #[case::pause(Command::Pause(Pause::default()), r#"{"command":"pause"}"#)]
 #[case::resume(Command::Resume(Resume::default()), r#"{"command":"resume"}"#)]
 #[case::end(Command::End(End::default()), r#"{"command":"end"}"#)]
+#[case::adjust(Command::Adjust(Adjust::default()), r#"{"command":"adjust"}"#)]
+#[case::undo(Command::Undo, r#"{"command":"undo"}"#)]
 fn defaults_are_left_out(#[case] command: Command, #[case] json: &str) -> TestResult {
     assert_eq!(round_trip(&command)?, json);
     Ok(())
@@ -84,6 +86,65 @@ fn catch_carries_the_thought() -> TestResult {
     assert_eq!(
         round_trip(&command)?,
         r#"{"command":"catch","text":"call the tax office"}"#
+    );
+    Ok(())
+}
+
+#[test]
+fn a_project_is_named_by_id_or_by_key() -> TestResult {
+    let command = Command::Begin(Begin {
+        project: Some(ProjectRef::Id(
+            "0193a7c4-6c1e-7f3a-9b2d-4e5f60718293".parse()?,
+        )),
+        ..Begin::default()
+    });
+
+    assert_eq!(
+        round_trip(&command)?,
+        r#"{"command":"begin","project":{"id":"0193a7c4-6c1e-7f3a-9b2d-4e5f60718293"}}"#
+    );
+    Ok(())
+}
+
+#[test]
+fn log_carries_start_and_end() -> TestResult {
+    let command = Command::Log(Log::new(
+        "2026-11-25T14:00:00+01:00[Europe/Berlin]".parse()?,
+        "2026-11-25T15:30:00+01:00[Europe/Berlin]".parse()?,
+    ));
+
+    assert_eq!(
+        round_trip(&command)?,
+        r#"{"command":"log","start":"2026-11-25T14:00:00+01:00[Europe/Berlin]","end":"2026-11-25T15:30:00+01:00[Europe/Berlin]"}"#
+    );
+    Ok(())
+}
+
+#[test]
+fn adjust_sets_with_a_value_and_clears_with_null() -> TestResult {
+    let command = Command::Adjust(Adjust {
+        note: Change::Set("Write offer".to_owned()),
+        project: Change::Clear,
+        tag: BTreeSet::from(["dev".parse()?]),
+        ..Adjust::default()
+    });
+
+    assert_eq!(
+        round_trip(&command)?,
+        r#"{"command":"adjust","note":"Write offer","project":null,"tag":["dev"]}"#
+    );
+    Ok(())
+}
+
+#[test]
+fn forget_names_the_entry() -> TestResult {
+    let command = Command::Forget(Forget {
+        entry: "0193a8d0-6c1e-7f3a-9b2d-4e5f60718293".parse()?,
+    });
+
+    assert_eq!(
+        round_trip(&command)?,
+        r#"{"command":"forget","entry":"0193a8d0-6c1e-7f3a-9b2d-4e5f60718293"}"#
     );
     Ok(())
 }

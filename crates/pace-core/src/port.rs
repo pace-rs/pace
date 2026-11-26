@@ -1,8 +1,12 @@
-use std::future::Future;
+use std::{
+    future::Future,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 use jiff::ZonedDateTime;
 use pace_error::PaceResult;
 use pace_time::TimeRange;
+use uuid::{Builder, Uuid};
 
 use crate::{Batch, ChangeMarker, Device, RecordedEvent};
 
@@ -30,6 +34,49 @@ impl FixedClock {
 impl Clock for FixedClock {
     fn now(&self) -> ZonedDateTime {
         self.0.clone()
+    }
+}
+
+/// The source of new IDs, each a UUIDv7.
+///
+/// The CLI uses random IDs; tests and `PACE_TEST_NOW` use
+/// [`SequentialIds`], so snapshots stay the same.
+pub trait Ids: Send + Sync {
+    /// A new UUIDv7.
+    fn next_id(&self) -> Uuid;
+}
+
+/// Deterministic IDs: the timestamp of a fixed moment, then a seed and a
+/// counter where a UUIDv7 has random bits.
+///
+/// IDs are distinct for distinct moments or seeds; simulated devices take
+/// different seeds.
+#[derive(Debug)]
+pub struct SequentialIds {
+    millis: u64,
+    seed: u16,
+    counter: AtomicU64,
+}
+
+impl SequentialIds {
+    /// IDs with the timestamp of `moment` and the given seed.
+    #[must_use]
+    pub fn starting_at(moment: &ZonedDateTime, seed: u16) -> Self {
+        Self {
+            millis: u64::try_from(moment.timestamp().as_millisecond()).unwrap_or_default(),
+            seed,
+            counter: AtomicU64::new(0),
+        }
+    }
+}
+
+impl Ids for SequentialIds {
+    fn next_id(&self) -> Uuid {
+        let count = self.counter.fetch_add(1, Ordering::Relaxed) + 1;
+        let mut bytes = [0; 10];
+        bytes[..2].copy_from_slice(&self.seed.to_be_bytes());
+        bytes[2..].copy_from_slice(&count.to_be_bytes());
+        Builder::from_unix_timestamp_millis(self.millis, &bytes).into_uuid()
     }
 }
 
