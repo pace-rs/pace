@@ -241,7 +241,7 @@ impl Hlc {
     }
 }
 
-/// A device that writes its own log, as listed by `pace device list`.
+/// A device that writes its own log, as [`EventStore::devices`](crate::EventStore::devices) lists it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Device {
     /// Its identity.

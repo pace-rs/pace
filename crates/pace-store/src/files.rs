@@ -557,9 +557,7 @@ fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {
             error,
         )
         .attach_context("path", path.display().to_string())
-        .attach_hint(
-            "it holds `version`, `name`, `created` and `split`; `pace doctor` will repair it",
-        )
+        .attach_hint("it holds `version`, `name`, `created` and `split`; fix the file by hand")
     })
 }
 
