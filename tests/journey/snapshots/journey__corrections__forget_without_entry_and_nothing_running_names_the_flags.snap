@@ -1,0 +1,12 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace forget   # at 09:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing is running
+  help: name the entry with `pace forget <id>`, or take the last one with `pace forget --last`

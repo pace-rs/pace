@@ -1,0 +1,12 @@
+---
+source: tests/journey/now.rs
+expression: output
+---
+$ pace forget   # at 10:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × 2 entries are open: [ID-1] "on this machine" (since 09:00); [ID-2] "on the other machine" (since 09:30)
+  help: name one with `pace forget <id>`

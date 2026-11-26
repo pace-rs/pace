@@ -1,0 +1,18 @@
+---
+source: tests/journey/corrections.rs
+expression: transcript
+---
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write offer": note "Write offer" (was "Draft").
+
+----- stderr -----
+
+success: true
+exit_code: 0
+----- stdout -----
+Running: [ID-1] "Write offer", since 09:00 (31 minutes ago).
+  31m net so far.
+
+----- stderr -----

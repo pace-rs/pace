@@ -178,3 +178,31 @@ fn edit_turns_the_changes_into_an_adjustment() -> TestResult {
         .bind(|| insta::assert_snapshot!(transcript));
     Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn edit_without_entry_takes_the_open_one() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Draft"]))?;
+
+    let edited = run(sandbox
+        .pace_at("09:30")
+        .env("VISUAL", "sed -i -e 's/^note = .*/note = \"Write offer\"/'")
+        .arg("edit"))?;
+    let now = run(sandbox.pace_at("09:31").arg("now"))?;
+
+    let transcript = sandbox.redact_ids(&format!("{edited}\n{now}"))?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
+#[test]
+fn forget_without_entry_and_nothing_running_names_the_flags() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[("09:00", &["forget"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

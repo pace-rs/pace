@@ -154,3 +154,14 @@ fn two_machines_first_used_at_the_same_moment_keep_their_entries() -> TestResult
     assert_ne!(open[0]["id"], open[1]["id"]);
     Ok(())
 }
+
+#[test]
+fn forget_without_entry_lists_the_open_ones_without_terminal() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "on this machine"]))?;
+    begin_apart(&sandbox, "09:30", "on the other machine")?;
+
+    let output = sandbox.journey(&[("10:00", &["forget"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

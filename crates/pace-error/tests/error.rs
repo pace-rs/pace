@@ -187,3 +187,34 @@ fn the_log_line_names_message_kind_code_and_cause() {
          code: pace::io::read): caused by: permission denied"
     );
 }
+
+#[test]
+fn every_error_kind_names_what_failed() {
+    let names: Vec<String> = [
+        ErrorKind::Configuration,
+        ErrorKind::Directories,
+        ErrorKind::Project,
+        ErrorKind::InvalidInput,
+        ErrorKind::InputOutput,
+        ErrorKind::Time,
+        ErrorKind::Internal,
+        ErrorKind::Other,
+    ]
+    .iter()
+    .map(ToString::to_string)
+    .collect();
+
+    assert_eq!(
+        names,
+        [
+            "the configuration",
+            "pace's directories",
+            "the project context",
+            "invalid user input",
+            "input/output operations",
+            "time handling",
+            "internal operations",
+            "general operations",
+        ]
+    );
+}
