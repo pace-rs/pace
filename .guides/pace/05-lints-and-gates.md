@@ -12,8 +12,9 @@
 4. An `#[allow(clippy::expect_used)]` says why; every new allowance fails
    codegate's lint-allows gate until `codegate lint-allows --bless` records it.
 5. `unsafe_code` is forbidden, and `dead_code` is not allowed.
-6. The pre-commit hook (`.githooks/pre-commit`) runs `codegate check`; after a
-   fresh clone, `codegate setup` makes `.githooks` git's `core.hooksPath`.
+6. The pre-commit hook (`.githooks/pre-commit`) runs `codegate check`, the
+   pre-push hook `codegate check --full`; after a fresh clone, `codegate setup`
+   makes `.githooks` git's `core.hooksPath`.
 7. A hand-written Rust file holds at most 700 production lines; split a longer
    one into modules along its own structure.
 8. No function scores above CRAP 30: give it tests, or split it into named

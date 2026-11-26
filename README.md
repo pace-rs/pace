@@ -53,9 +53,9 @@ Ended ad5e "Write offer" at 12:00 after 2h 40m (3h in all, held 20m).
 `just check` runs formatting, clippy with warnings as errors, the tests and
 codegate's quality gates (`just gate`, `.config/codegate.toml`); `just` lists
 the other tasks (`bench`, `cov`, `deny`, `hack`). After cloning, `codegate
-setup` installs the pre-commit hook that runs the fast gates. Every source
-folder has a README, and the conventions are the project guide in
-`.guides/pace/`.
+setup` installs the git hooks: pre-commit runs the fast gates, pre-push all of
+them. Every source folder has a README, and the conventions are the project
+guide in `.guides/pace/`.
 
 ## License
 

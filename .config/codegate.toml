@@ -1,6 +1,6 @@
 # codegate's quality gates for the pace workspace. `codegate check` runs the
 # fast gates (the pre-commit hook), `codegate check --full` the slow ones too
-# (docs, crap, slow-tests; `just check`).
+# (docs, crap, slow-tests; the pre-push hook and `just check`).
 
 [file-length]
 # No hand-written Rust file holds more than 700 production lines, codegate's

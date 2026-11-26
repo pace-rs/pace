@@ -1,0 +1,8 @@
+#!/bin/sh
+# codegate: every gate, the slow ones too, before each push.
+# `codegate init` wrote this hook; `codegate setup` makes git run it.
+if ! command -v codegate >/dev/null 2>&1; then
+    echo "pre-push: codegate is not installed, so its gates don't run" >&2
+    exit 0
+fi
+exec codegate check --full
