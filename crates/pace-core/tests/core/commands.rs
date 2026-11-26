@@ -3,7 +3,10 @@
 
 use std::collections::BTreeSet;
 
-use pace_core::{Begin, Catch, Command, End, Hold, HoldSource, Pause, PauseKind, Resume};
+use pace_core::{
+    Command, HoldSource, PauseKind,
+    command::{Begin, Catch, End, Hold, Pause, Resume},
+};
 use rstest::rstest;
 
 use crate::TestResult;

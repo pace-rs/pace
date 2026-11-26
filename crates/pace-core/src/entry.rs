@@ -1,0 +1,190 @@
+use std::collections::BTreeSet;
+
+use jiff::{SignedDuration, ZonedDateTime};
+
+use crate::{DeviceId, EntryId, HoldSource, PauseKind, ProjectId, ProjectKey, Tag};
+
+/// A reference to a project: its ID, or its key while it has no ID yet.
+///
+/// A project gets its ID from `pace project init`; until then entries record
+/// the key, and pace resolves it to the ID once the project has one.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ProjectRef {
+    /// The project's ID.
+    Id(ProjectId),
+    /// The project's key, for a project without an ID.
+    Key(ProjectKey),
+}
+
+/// How an entry came to be.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryOrigin {
+    /// Recorded live with `pace begin`.
+    Live,
+    /// Entered afterwards with `pace log`.
+    Logged,
+}
+
+/// What an entry is doing; derived, never stored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryState {
+    /// No end, no open hold, no open pause.
+    Running,
+    /// An open hold.
+    Held,
+    /// An open pause.
+    Paused,
+    /// An end is set.
+    Ended,
+}
+
+/// An interruption inside an entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Hold {
+    /// When it began.
+    pub start: ZonedDateTime,
+    /// When the work went on; `None` while held.
+    pub end: Option<ZonedDateTime>,
+    /// Where it came from.
+    pub source: HoldSource,
+    /// Why.
+    pub reason: Option<String>,
+}
+
+/// A planned break inside an entry; never an interruption.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Pause {
+    /// When it began.
+    pub start: ZonedDateTime,
+    /// When the work went on; `None` while paused.
+    pub end: Option<ZonedDateTime>,
+    /// The kind of break.
+    pub kind: PauseKind,
+    /// Why.
+    pub reason: Option<String>,
+}
+
+/// A distraction written down instead of followed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Catch {
+    /// When it was written down.
+    pub at: ZonedDateTime,
+    /// The thought.
+    pub text: String,
+}
+
+/// A span of actual time.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Entry {
+    /// Its identity.
+    pub id: EntryId,
+    /// The device it was begun or logged on.
+    pub device: DeviceId,
+    /// When it began, in the zone it was recorded in.
+    pub start: ZonedDateTime,
+    /// When it ended; `None` while running, held or paused.
+    pub end: Option<ZonedDateTime>,
+    /// Its project.
+    pub project: Option<ProjectRef>,
+    /// What it is about.
+    pub note: Option<String>,
+    /// Its tags.
+    pub tags: BTreeSet<Tag>,
+    /// Its interruptions.
+    pub holds: Vec<Hold>,
+    /// Its planned breaks.
+    pub pauses: Vec<Pause>,
+    /// The distractions written down during it.
+    pub catches: Vec<Catch>,
+    /// Recorded live or entered afterwards.
+    pub origin: EntryOrigin,
+}
+
+impl Entry {
+    /// What the entry is doing.
+    #[must_use]
+    pub fn state(&self) -> EntryState {
+        if self.end.is_some() {
+            EntryState::Ended
+        } else if self.holds.iter().any(|hold| hold.end.is_none()) {
+            EntryState::Held
+        } else if self.pauses.iter().any(|pause| pause.end.is_none()) {
+            EntryState::Paused
+        } else {
+            EntryState::Running
+        }
+    }
+
+    /// Whether the entry has no end yet.
+    #[must_use]
+    pub const fn is_open(&self) -> bool {
+        self.end.is_none()
+    }
+
+    /// The end, or `now` for an open entry.
+    fn until<'a>(&'a self, now: &'a ZonedDateTime) -> &'a ZonedDateTime {
+        self.end.as_ref().unwrap_or(now)
+    }
+
+    /// End minus start; an open entry counts up to `now`.
+    #[must_use]
+    pub fn gross(&self, now: &ZonedDateTime) -> SignedDuration {
+        span(&self.start, self.until(now))
+    }
+
+    /// The time spent in holds.
+    #[must_use]
+    pub fn hold_time(&self, now: &ZonedDateTime) -> SignedDuration {
+        let until = self.until(now);
+        self.holds
+            .iter()
+            .map(|hold| span(&hold.start, hold.end.as_ref().unwrap_or(until)))
+            .sum()
+    }
+
+    /// The time spent in pauses.
+    #[must_use]
+    pub fn pause_time(&self, now: &ZonedDateTime) -> SignedDuration {
+        let until = self.until(now);
+        self.pauses
+            .iter()
+            .map(|pause| span(&pause.start, pause.end.as_ref().unwrap_or(until)))
+            .sum()
+    }
+
+    /// Gross time minus holds and pauses; what billing and target vs. actual
+    /// use.
+    #[must_use]
+    pub fn net(&self, now: &ZonedDateTime) -> SignedDuration {
+        (self.gross(now) - self.hold_time(now) - self.pause_time(now)).max(SignedDuration::ZERO)
+    }
+
+    /// How often the entry was interrupted; pauses and catches don't count.
+    #[must_use]
+    pub const fn interruptions(&self) -> usize {
+        self.holds.len()
+    }
+
+    pub(crate) fn open_hold(&mut self) -> Option<&mut Hold> {
+        self.holds.iter_mut().find(|hold| hold.end.is_none())
+    }
+
+    pub(crate) fn open_pause(&mut self) -> Option<&mut Pause> {
+        self.pauses.iter_mut().find(|pause| pause.end.is_none())
+    }
+
+    /// Close an open hold or pause at `at`.
+    pub(crate) fn close_breaks(&mut self, at: &ZonedDateTime) {
+        if let Some(hold) = self.open_hold() {
+            hold.end = Some(at.clone());
+        }
+        if let Some(pause) = self.open_pause() {
+            pause.end = Some(at.clone());
+        }
+    }
+}
+
+/// The time from `start` to `end`, never negative.
+fn span(start: &ZonedDateTime, end: &ZonedDateTime) -> SignedDuration {
+    start.duration_until(end).max(SignedDuration::ZERO)
+}

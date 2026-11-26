@@ -1,0 +1,247 @@
+use std::collections::{BTreeMap, BTreeSet};
+
+use jiff::ZonedDateTime;
+
+use crate::{
+    BatchId, Change, Entry, EntryChanges, EntryId, EntryOrigin, EventKind, HoldSource, PauseKind,
+    ProjectRef, RecordedEvent, Tag,
+    entry::{Catch, Hold, Pause},
+};
+
+/// The current state: the result of applying all events in merged order.
+///
+/// Building it never fails. Events in an undone batch count as never
+/// written, a forgotten entry is gone, and an event about an entry that
+/// doesn't exist, or that can't apply any more, changes nothing.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct State {
+    entries: BTreeMap<EntryId, Entry>,
+}
+
+impl State {
+    /// Apply `events`, from any number of devices, in merged order: by
+    /// [`Hlc`](crate::Hlc), ties broken by device ID.
+    #[must_use]
+    pub fn from_events(events: &[RecordedEvent]) -> Self {
+        let mut ordered: Vec<&RecordedEvent> = events.iter().collect();
+        ordered.sort_by_key(|recorded| recorded.merge_key());
+
+        let undone: BTreeSet<BatchId> = ordered
+            .iter()
+            .filter_map(|recorded| match recorded.event.kind {
+                EventKind::BatchUndone { batch } => Some(batch),
+                _ => None,
+            })
+            .collect();
+        let forgotten: BTreeSet<EntryId> = ordered
+            .iter()
+            .filter_map(|recorded| match recorded.event.kind {
+                EventKind::EntryForgotten { entry } => Some(entry),
+                _ => None,
+            })
+            .collect();
+
+        let mut state = Self::default();
+        for recorded in ordered {
+            if !undone.contains(&recorded.batch) {
+                state.apply(recorded, &forgotten);
+            }
+        }
+        state
+    }
+
+    fn apply(&mut self, recorded: &RecordedEvent, forgotten: &BTreeSet<EntryId>) {
+        let at = &recorded.event.at;
+        match &recorded.event.kind {
+            EventKind::EntryBegun {
+                entry,
+                project,
+                note,
+                tags,
+            } => self.insert(
+                new_entry(
+                    recorded,
+                    *entry,
+                    None,
+                    project.as_ref(),
+                    note.as_ref(),
+                    tags,
+                ),
+                forgotten,
+            ),
+            EventKind::EntryLogged {
+                entry,
+                end,
+                project,
+                note,
+                tags,
+            } => self.insert(
+                new_entry(
+                    recorded,
+                    *entry,
+                    Some(end),
+                    project.as_ref(),
+                    note.as_ref(),
+                    tags,
+                ),
+                forgotten,
+            ),
+            EventKind::EntryHeld {
+                entry,
+                source,
+                reason,
+            } => {
+                if let Some(entry) = self.open_entry(*entry) {
+                    hold(entry, at, *source, reason.as_ref());
+                }
+            }
+            EventKind::EntryPaused {
+                entry,
+                kind,
+                reason,
+            } => {
+                if let Some(entry) = self.open_entry(*entry) {
+                    pause(entry, at, *kind, reason.as_ref());
+                }
+            }
+            EventKind::EntryResumed { entry } => {
+                if let Some(entry) = self.open_entry(*entry) {
+                    entry.close_breaks(at);
+                }
+            }
+            EventKind::EntryEnded { entry } => {
+                if let Some(entry) = self.entries.get_mut(entry) {
+                    entry.close_breaks(at);
+                    entry.end = Some(at.clone());
+                }
+            }
+            EventKind::CatchNoted { entry, text } => {
+                if let Some(entry) = self.entries.get_mut(entry) {
+                    entry.catches.push(Catch {
+                        at: at.clone(),
+                        text: text.clone(),
+                    });
+                }
+            }
+            EventKind::EntryAdjusted { entry, changes } => {
+                if let Some(entry) = self.entries.get_mut(entry) {
+                    adjust(entry, changes);
+                }
+            }
+            EventKind::EntryForgotten { .. } | EventKind::BatchUndone { .. } => {}
+        }
+    }
+
+    fn insert(&mut self, entry: Entry, forgotten: &BTreeSet<EntryId>) {
+        if !forgotten.contains(&entry.id) {
+            _ = self.entries.entry(entry.id).or_insert(entry);
+        }
+    }
+
+    fn open_entry(&mut self, id: EntryId) -> Option<&mut Entry> {
+        self.entries.get_mut(&id).filter(|entry| entry.is_open())
+    }
+
+    /// An entry by its ID.
+    #[must_use]
+    pub fn entry(&self, id: EntryId) -> Option<&Entry> {
+        self.entries.get(&id)
+    }
+
+    /// All entries, by start.
+    pub fn entries(&self) -> impl Iterator<Item = &Entry> {
+        let mut entries: Vec<&Entry> = self.entries.values().collect();
+        entries.sort_by(|a, b| a.start.cmp(&b.start).then(a.id.cmp(&b.id)));
+        entries.into_iter()
+    }
+
+    /// The entries without an end: running, held or paused, by start.
+    pub fn open(&self) -> impl Iterator<Item = &Entry> {
+        self.entries().filter(|entry| entry.is_open())
+    }
+}
+
+fn new_entry(
+    recorded: &RecordedEvent,
+    id: EntryId,
+    end: Option<&ZonedDateTime>,
+    project: Option<&ProjectRef>,
+    note: Option<&String>,
+    tags: &BTreeSet<Tag>,
+) -> Entry {
+    Entry {
+        id,
+        device: recorded.device,
+        start: recorded.event.at.clone(),
+        end: end.cloned(),
+        project: project.cloned(),
+        note: note.cloned(),
+        tags: tags.clone(),
+        holds: Vec::new(),
+        pauses: Vec::new(),
+        catches: Vec::new(),
+        origin: if end.is_some() {
+            EntryOrigin::Logged
+        } else {
+            EntryOrigin::Live
+        },
+    }
+}
+
+/// A hold while held only updates the reason; a hold while paused turns the
+/// pause into a hold from `at`.
+fn hold(entry: &mut Entry, at: &ZonedDateTime, source: HoldSource, reason: Option<&String>) {
+    if let Some(open) = entry.open_hold() {
+        if let Some(reason) = reason {
+            open.reason = Some(reason.clone());
+        }
+        return;
+    }
+    entry.close_breaks(at);
+    entry.holds.push(Hold {
+        start: at.clone(),
+        end: None,
+        source,
+        reason: reason.cloned(),
+    });
+}
+
+/// A pause while paused only updates the reason; a pause while held turns the
+/// hold into a pause from `at`.
+fn pause(entry: &mut Entry, at: &ZonedDateTime, kind: PauseKind, reason: Option<&String>) {
+    if let Some(open) = entry.open_pause() {
+        if let Some(reason) = reason {
+            open.reason = Some(reason.clone());
+        }
+        return;
+    }
+    entry.close_breaks(at);
+    entry.pauses.push(Pause {
+        start: at.clone(),
+        end: None,
+        kind,
+        reason: reason.cloned(),
+    });
+}
+
+fn adjust(entry: &mut Entry, changes: &EntryChanges) {
+    if let Some(start) = &changes.start {
+        entry.start = start.clone();
+    }
+    if let Some(end) = &changes.end {
+        entry.end = Some(end.clone());
+    }
+    match &changes.note {
+        Change::Keep => {}
+        Change::Set(note) => entry.note = Some(note.clone()),
+        Change::Clear => entry.note = None,
+    }
+    match &changes.project {
+        Change::Keep => {}
+        Change::Set(project) => entry.project = Some(project.clone()),
+        Change::Clear => entry.project = None,
+    }
+    if let Some(tags) = &changes.tags {
+        entry.tags.clone_from(tags);
+    }
+}

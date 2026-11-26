@@ -8,16 +8,22 @@
 //! Every timestamp is a jiff [`ZonedDateTime`](jiff::ZonedDateTime), so
 //! entries keep the zone they were recorded in. All IDs are UUIDv7.
 
-mod command;
+pub mod command;
+mod entry;
 mod event;
 mod id;
 mod key;
 mod port;
+mod state;
 mod tracking;
 
-pub use command::{Begin, Catch, Command, End, Hold, Pause, Resume};
-pub use event::{Batch, ChangeMarker, Device, Event, EventKind, Hlc, RecordedEvent};
+pub use command::Command;
+pub use entry::{Catch, Entry, EntryOrigin, EntryState, Hold, Pause, ProjectRef};
+pub use event::{
+    Batch, Change, ChangeMarker, Device, EntryChanges, Event, EventKind, Hlc, RecordedEvent,
+};
 pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId};
 pub use key::{ProjectKey, Tag};
 pub use port::{Clock, EventStore, FixedClock, Notice, Notifier};
+pub use state::State;
 pub use tracking::{HoldSource, PauseKind};

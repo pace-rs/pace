@@ -1,3 +1,5 @@
+//! The use cases as data; see [`Command`].
+
 use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;

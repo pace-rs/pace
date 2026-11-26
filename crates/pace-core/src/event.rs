@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use jiff::{Timestamp, ZonedDateTime};
 
-use crate::{BatchId, DeviceId, EntryId, EventId, HoldSource, PauseKind, ProjectId, Tag};
+use crate::{BatchId, DeviceId, EntryId, EventId, HoldSource, PauseKind, ProjectRef, Tag};
 
 /// Something that happened, as the core decided it.
 ///
@@ -22,16 +22,17 @@ pub struct Event {
     pub kind: EventKind,
 }
 
-/// The event types of the tracking commands.
+/// The event types of the tracking commands. Each variant names its type as
+/// written in the event log.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EventKind {
-    /// `entry.begun`
+    /// `entry.begun`; `at` is the start.
     EntryBegun {
         /// The new entry.
         entry: EntryId,
         /// Its project.
-        project: Option<ProjectId>,
+        project: Option<ProjectRef>,
         /// What it is about.
         note: Option<String>,
         /// Its tags.
@@ -72,6 +73,85 @@ pub enum EventKind {
         /// The thought.
         text: String,
     },
+    /// `entry.logged`: an entry entered afterwards; `at` is the start.
+    EntryLogged {
+        /// The new entry.
+        entry: EntryId,
+        /// When it ended.
+        end: ZonedDateTime,
+        /// Its project.
+        project: Option<ProjectRef>,
+        /// What it was about.
+        note: Option<String>,
+        /// Its tags.
+        tags: BTreeSet<Tag>,
+    },
+    /// `entry.adjusted`: some fields of an entry changed. Per field, the
+    /// later change by HLC wins.
+    EntryAdjusted {
+        /// The entry.
+        entry: EntryId,
+        /// The fields that changed.
+        changes: EntryChanges,
+    },
+    /// `entry.forgotten`: a tombstone. Every device removes the entry's
+    /// events from its own files.
+    EntryForgotten {
+        /// The entry.
+        entry: EntryId,
+    },
+    /// `batch.undone`: the events of a batch count as never written.
+    BatchUndone {
+        /// The batch.
+        batch: BatchId,
+    },
+}
+
+/// What happens to a field in an adjustment.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum Change<T> {
+    /// The field stays as it is.
+    #[default]
+    Keep,
+    /// The field gets this value.
+    Set(T),
+    /// The field is emptied.
+    Clear,
+}
+
+impl<T> Change<T> {
+    /// Whether the field stays as it is.
+    #[must_use]
+    pub const fn is_keep(&self) -> bool {
+        matches!(self, Self::Keep)
+    }
+}
+
+/// The fields an `entry.adjusted` event changes; the others stay.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct EntryChanges {
+    /// A new start.
+    pub start: Option<ZonedDateTime>,
+    /// A new end, for an entry that has ended.
+    pub end: Option<ZonedDateTime>,
+    /// A new note, or none.
+    pub note: Change<String>,
+    /// A new project, or none.
+    pub project: Change<ProjectRef>,
+    /// The new set of tags.
+    pub tags: Option<BTreeSet<Tag>>,
+}
+
+impl EntryChanges {
+    /// Whether nothing changes.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.start.is_none()
+            && self.end.is_none()
+            && self.note.is_keep()
+            && self.project.is_keep()
+            && self.tags.is_none()
+    }
 }
 
 /// The events of one command. They are appended together and undone
@@ -95,6 +175,15 @@ pub struct RecordedEvent {
     pub hlc: Hlc,
     /// The event.
     pub event: Event,
+}
+
+impl RecordedEvent {
+    /// The key of the merged order: the HLC, ties broken by device ID. The
+    /// result is the same on every device.
+    #[must_use]
+    pub const fn merge_key(&self) -> (Hlc, DeviceId) {
+        (self.hlc, self.device)
+    }
 }
 
 /// A hybrid logical clock: the wall time of recording plus a counter.
