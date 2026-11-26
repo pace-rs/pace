@@ -66,7 +66,7 @@ fn an_older_entry_is_found_by_its_short_id_and_last() -> TestResult {
     let output = sandbox.journey(&[
         ("10:00", &["adjust", &short, "--note", "Offer for ACME"]),
         ("10:01", &["adjust", "--last", "--tag", "offer"]),
-        ("10:02", &["adjust", "beef", "--note", "nothing"]),
+        ("10:02", &["adjust", "deadbeef", "--note", "nothing"]),
         ("10:03", &["adjust", "no-id", "--note", "nothing"]),
     ])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));

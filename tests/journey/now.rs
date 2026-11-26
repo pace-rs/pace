@@ -96,7 +96,7 @@ fn end_takes_a_short_id() -> TestResult {
     let first = first_short_id(&sandbox, "10:00")?;
 
     let output = sandbox.journey(&[
-        ("10:00", &["end", "beef"]),
+        ("10:00", &["end", "deadbeef"]),
         ("10:00", &["end", &first]),
         ("10:01", &["now"]),
     ])?;
@@ -130,5 +130,27 @@ fn a_time_that_happened_twice_takes_the_earlier_without_a_terminal() -> TestResu
         &["begin", "--at", "02:30"],
     )])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn two_machines_first_used_at_the_same_moment_keep_their_entries() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "on this machine"]))?;
+    begin_apart(&sandbox, "09:00", "on the other machine")?;
+
+    let devices = std::fs::read_dir(sandbox.path("home/events"))?.count();
+    let output = sandbox.pace_at("10:00").args(["now", "--json"]).output()?;
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let open = json["open"].as_array().ok_or("a list of open entries")?;
+    let mut notes: Vec<&str> = open
+        .iter()
+        .filter_map(|entry| entry["note"].as_str())
+        .collect();
+    notes.sort_unstable();
+
+    assert_eq!(devices, 2, "each machine has its own device directory");
+    assert_eq!(notes, ["on the other machine", "on this machine"]);
+    assert_ne!(open[0]["id"], open[1]["id"]);
     Ok(())
 }

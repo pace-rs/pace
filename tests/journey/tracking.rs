@@ -129,3 +129,29 @@ fn config_show_does_not_create_anything() -> TestResult {
     assert!(!sandbox.path("machine").exists());
     Ok(())
 }
+
+#[test]
+fn every_event_has_its_own_id_also_at_the_same_moment() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("08:00").args(["begin", "Write offer"]))?;
+    for text in ["mail", "chat", "coffee"] {
+        _ = run(sandbox.pace_at("11:00").args(["catch", text]))?;
+    }
+
+    let mut ids = Vec::new();
+    for device in std::fs::read_dir(sandbox.path("home/events"))? {
+        let text = std::fs::read_to_string(device?.path().join("2026/2026-11.toml"))?;
+        ids.extend(
+            text.lines()
+                .filter_map(|line| line.strip_prefix("id = "))
+                .map(ToOwned::to_owned),
+        );
+    }
+    let count = ids.len();
+    ids.sort_unstable();
+    ids.dedup();
+
+    assert_eq!(count, 4, "one begin and three catches");
+    assert_eq!(ids.len(), count, "event IDs repeat: {ids:?}");
+    Ok(())
+}

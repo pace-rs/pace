@@ -1,18 +1,18 @@
 //! What a tracking command works with: the tracker over the files backend,
 //! with this machine's device ID, the clock and the settings.
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use abscissa_core::Application;
 use abscissa_tokio::TokioComponent;
-use pace_core::{Command, DeviceId, Outcome, Policy, Tracker};
+use pace_core::{Command, DeviceId, Ids, Outcome, Policy, Tracker};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_store::{FilesStore, Resplit, Split, device_id};
 use pace_time::TimeRange;
 
 use crate::{
     application::{Context, PACE_APP},
-    clock::{self, TEST_NOW},
+    clock::{self, RandomIds, TEST_NOW},
 };
 
 /// A tracker for this run.
@@ -30,10 +30,11 @@ impl Session {
     ///
     /// If the clock, the device ID or the store can't be set up.
     pub fn open(context: &Context) -> PaceResult<Self> {
-        let (clock, ids) = clock::ports(
+        let clock = clock::clock(
             &context.settings.settings.time_zone,
             std::env::var_os(TEST_NOW),
         )?;
+        let ids: Arc<dyn Ids> = Arc::new(RandomIds);
         let data = context.dirs.data.path.clone();
         let machine = context.dirs.machine.path.clone();
         let device = device_id(&machine, &*ids)?;

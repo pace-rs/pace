@@ -2,13 +2,14 @@
 //!
 //! The CLI uses the system clock in the configured time zone and random IDs.
 //! With `PACE_TEST_NOW` set to an RFC 9557 time, for journey tests, the clock
-//! stands still at that moment (seen in the configured zone) and IDs are
-//! deterministic.
+//! stands still at that moment (seen in the configured zone). IDs stay
+//! random, so machines and runs never share one; snapshots show them as
+//! numbered placeholders.
 
 use std::{ffi::OsString, sync::Arc};
 
 use jiff::{Timestamp, ZonedDateTime, tz::TimeZone};
-use pace_core::{Clock, FixedClock, Ids, SequentialIds};
+use pace_core::{Clock, FixedClock, Ids};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use uuid::Uuid;
 
@@ -70,18 +71,16 @@ pub fn zone(setting: &TimeZoneSetting) -> PaceResult<TimeZone> {
     }
 }
 
-/// The clock and the ID source for this run.
+/// The clock for this run: the system clock, or with `test_now` one that
+/// stands still.
 ///
 /// # Errors
 ///
 /// If `PACE_TEST_NOW` is set but no RFC 9557 time, or the zone is unknown.
-pub fn ports(
-    setting: &TimeZoneSetting,
-    test_now: Option<OsString>,
-) -> PaceResult<(Arc<dyn Clock>, Arc<dyn Ids>)> {
+pub fn clock(setting: &TimeZoneSetting, test_now: Option<OsString>) -> PaceResult<Arc<dyn Clock>> {
     let zone = zone(setting)?;
     let Some(test_now) = test_now.filter(|value| !value.is_empty()) else {
-        return Ok((Arc::new(SystemClock::new(zone)), Arc::new(RandomIds)));
+        return Ok(Arc::new(SystemClock::new(zone)));
     };
     let fixed: ZonedDateTime = test_now.to_string_lossy().parse().map_err(|error| {
         PaceError::with_source(
@@ -94,11 +93,7 @@ pub fn ports(
             "{TEST_NOW} is for tests; unset it to use the system clock"
         ))
     })?;
-    let now = fixed.with_time_zone(zone);
-    Ok((
-        Arc::new(FixedClock::new(now.clone())),
-        Arc::new(SequentialIds::starting_at(&now, 0)),
-    ))
+    Ok(Arc::new(FixedClock::new(fixed.with_time_zone(zone))))
 }
 
 #[cfg(test)]
@@ -119,7 +114,7 @@ mod tests {
 
     #[test]
     fn a_test_time_is_seen_in_the_configured_zone() -> Result<(), Box<dyn std::error::Error>> {
-        let (clock, _) = ports(
+        let clock = clock(
             &TimeZoneSetting::Named("America/New_York".to_owned()),
             Some("2026-11-26T09:00[Europe/Berlin]".into()),
         )?;

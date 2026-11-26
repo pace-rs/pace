@@ -39,8 +39,8 @@ impl Clock for FixedClock {
 
 /// The source of new IDs, each a UUIDv7.
 ///
-/// The CLI uses random IDs; tests and `PACE_TEST_NOW` use
-/// [`SequentialIds`], so snapshots stay the same.
+/// The CLI uses random IDs, also with `PACE_TEST_NOW`; tests that build a
+/// tracker in-process use [`SequentialIds`], one seed per simulated device.
 pub trait Ids: Send + Sync {
     /// A new UUIDv7.
     fn next_id(&self) -> Uuid;

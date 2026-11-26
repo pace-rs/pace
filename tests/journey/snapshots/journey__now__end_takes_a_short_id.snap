@@ -2,13 +2,13 @@
 source: tests/journey/now.rs
 expression: output
 ---
-$ pace end beef   # at 10:00
+$ pace end deadbeef   # at 10:00
 success: false
 exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-  × pace knows no entry beef
+  × pace knows no entry deadbeef
   help: `pace now` shows the IDs of the open entries
 
 

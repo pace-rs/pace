@@ -18,13 +18,13 @@ Adjusted [ID-1] "Offer for ACME": tagged offer.
 
 ----- stderr -----
 
-$ pace adjust beef --note nothing   # at 10:02
+$ pace adjust deadbeef --note nothing   # at 10:02
 success: false
 exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-  × pace knows no entry beef
+  × pace knows no entry deadbeef
   help: `pace now` shows the IDs of the open entries
 
 
