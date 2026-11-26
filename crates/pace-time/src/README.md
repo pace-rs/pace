@@ -14,7 +14,7 @@ ranges, and how pace shows durations and relative moments. Every moment is a
 | [`display.rs`](display.rs)   | Durations and moments as pace shows them: `1h 5m`, `25 minutes ago`.                                    |
 | [`duration.rs`](duration.rs) | The time between two moments, and durations as people type them.                                        |
 | [`frame.rs`](frame.rs)       | Periods for reports: named frames such as `today` and `last-week`, or the days from `--from` to `--to`. |
-| [`lib.rs`](lib.rs)           | Time handling for pace, on [jiff].                                                                      |
+| [`lib.rs`](lib.rs)           | Time handling for pace, on jiff.                                                                        |
 | [`range.rs`](range.rs)       | Half-open ranges of time, `[start, end)`, whose bounds may be open.                                     |
 
 <!-- /files -->

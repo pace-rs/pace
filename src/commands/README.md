@@ -25,7 +25,10 @@ declares the entry point and the subcommands. A tracking command opens a
 
 <!-- uses -->
 
-- Uses: [`dirs`](../dirs/).
-- Used by: no other module.
+- Uses: [`application`](../application.rs), [`dirs`](../dirs/),
+  [`editor`](../editor.rs), [`output`](../output.rs),
+  [`project`](../project.rs), [`prompt`](../prompt.rs),
+  [`select`](../select.rs), [`session`](../session.rs).
+- Used by: [`application`](../application.rs).
 
 <!-- /uses -->

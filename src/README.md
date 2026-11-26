@@ -25,9 +25,9 @@ opens the tracker over the `files` backend. What the user reads comes from
 | [`prompt.rs`](prompt.rs)           | Asking the user, only when a terminal is attached.                                                                                 |
 | [`select.rs`](select.rs)           | Choosing the entry a command acts on: by its ID or short ID, `--last`, or the open entry.                                          |
 | [`session.rs`](session.rs)         | What a tracking command works with: the tracker over the files backend, with this machine's device ID, the clock and the settings. |
-| [`bin/`](bin/)                     |                                                                                                                                    |
-| [`commands/`](commands/)           |                                                                                                                                    |
-| [`dirs/`](dirs/)                   |                                                                                                                                    |
+| [`bin/`](bin/)                     | The `pace` binary.                                                                                                                 |
+| [`commands/`](commands/)           | The command line: the entry point and its subcommands.                                                                             |
+| [`dirs/`](dirs/)                   | The three places pace keeps files: the global config file, the data directory (`PACE_HOME`) and the machine directory.             |
 
 <!-- /files -->
 

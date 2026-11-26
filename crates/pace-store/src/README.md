@@ -19,7 +19,7 @@ pace's TOML files with spans, so an error points at its line.
 | [`machine.rs`](machine.rs)     | The machine directory: this machine's device ID and how far it wrote its own log. |
 | [`split.rs`](split.rs)         | How a device's event log is split into files: by year, month, week or day.        |
 | [`toml_file.rs`](toml_file.rs) | pace's TOML files, read with spans so every error can point at its line.          |
-| [`index/`](index/)             |                                                                                   |
+| [`index/`](index/)             | The machine-local index of the event files.                                       |
 
 <!-- /files -->
 
