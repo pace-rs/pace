@@ -1,0 +1,12 @@
+---
+source: tests/journey/directories.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+# config file: [SANDBOX]/config/pace.global.toml
+# data:        [SANDBOX]/work/data
+# machine:     [SANDBOX]/machine
+
+----- stderr -----

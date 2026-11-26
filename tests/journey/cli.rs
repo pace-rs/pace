@@ -1,21 +1,21 @@
-use insta_cmd::{assert_cmd_snapshot, get_cargo_bin};
-use std::process::Command;
+use crate::support::{pace, run};
 
-fn pace() -> Command {
-    Command::new(get_cargo_bin("pace"))
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[test]
+fn version_names_the_binary_and_its_version() -> TestResult {
+    insta::assert_snapshot!(run(pace().arg("--version"))?);
+    Ok(())
 }
 
 #[test]
-fn version_names_the_binary_and_its_version() {
-    assert_cmd_snapshot!(pace().arg("--version"));
+fn help_describes_pace() -> TestResult {
+    insta::assert_snapshot!(run(pace().arg("--help"))?);
+    Ok(())
 }
 
 #[test]
-fn help_describes_pace() {
-    assert_cmd_snapshot!(pace().arg("--help"));
-}
-
-#[test]
-fn pace_without_arguments_shows_the_help_as_a_usage_error() {
-    assert_cmd_snapshot!(pace());
+fn pace_without_arguments_shows_the_help_as_a_usage_error() -> TestResult {
+    insta::assert_snapshot!(run(&mut pace())?);
+    Ok(())
 }

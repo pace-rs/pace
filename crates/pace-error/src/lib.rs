@@ -529,7 +529,7 @@ impl Diagnostic for PaceError {
                 .unwrap_or(constants::DEFAULT_ISSUE_URL);
             sections.push(format!(
                 "This is a bug in pace. Please report it at {url}, \
-                 and attach the output of the same command with `-v` if you can."
+                 with the command you ran."
             ));
         }
 

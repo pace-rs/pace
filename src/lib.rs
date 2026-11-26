@@ -8,3 +8,5 @@
 
 pub mod application;
 pub mod commands;
+pub mod dirs;
+pub mod origin;

@@ -1,9 +1,6 @@
 ---
 source: tests/journey/cli.rs
-info:
-  program: pace
-  args:
-    - "--version"
+expression: "run(pace().arg(\"--version\"))?"
 ---
 success: true
 exit_code: 0
