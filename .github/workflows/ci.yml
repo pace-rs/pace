@@ -64,6 +64,10 @@ jobs:
         with:
           tool: cargo-nextest
       - run: cargo nextest run --workspace --all-features --profile ci
+        env:
+          # In CI, insta writes `.snap.new` files only when asked; the step
+          # below uploads them.
+          INSTA_UPDATE: new
       - name: Upload snapshots of failed tests
         if: failure()
         uses: actions/upload-artifact@v4

@@ -93,8 +93,9 @@ impl Ids for SequentialIds {
 ///
 /// Backends: TOML files (default), SQLite, later Postgres. Every backend
 /// holds the same events, so the same command gives the same result with
-/// each. The methods are async because the SQL backends are; a backend is
-/// picked through an enum, not a trait object.
+/// each. The methods are async because the SQL backends are. Once there is
+/// more than one backend, the app picks it through an enum, not a trait
+/// object; so far it uses the files backend directly.
 pub trait EventStore: Send + Sync {
     /// Append the events of one command to this device's log, all or none,
     /// under the store's lock, and return them as recorded. The store gives
