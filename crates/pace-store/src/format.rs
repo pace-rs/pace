@@ -449,9 +449,38 @@ fn allowed(kind: &str) -> Option<&'static [&'static str]> {
     })
 }
 
+/// The event a record holds: its type, version and fields checked
+/// ([`check_record`]), its HLC parsed and its fields turned into an
+/// [`EventKind`] ([`event_kind`]).
 fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> {
-    let kind = record.kind.clone();
-    let allowed = allowed(&kind).ok_or_else(|| Invalid {
+    check_record(&record)?;
+    let hlc = parse_hlc(&record.hlc).ok_or_else(|| {
+        Invalid::new(format!(
+            "`{}` is no HLC like `2026-11-26T08:02:11.204Z/0`",
+            record.hlc
+        ))
+    })?;
+
+    let event_kind = event_kind(&record)?;
+
+    Ok(RecordedEvent {
+        device,
+        batch: record.batch,
+        hlc,
+        event: Event {
+            id: record.id,
+            about: record.about.unwrap_or_else(|| record.at.clone()),
+            at: record.at,
+            kind: event_kind,
+        },
+    })
+}
+
+/// A record of a type and version pace knows, with only the fields of its
+/// type, and a project either by ID or by key.
+fn check_record(record: &Record) -> Result<(), Invalid> {
+    let kind = &record.kind;
+    let allowed = allowed(kind).ok_or_else(|| Invalid {
         message: format!("pace doesn't know the event type `{kind}`"),
         hint: "a newer pace may have written it on another device; update pace".to_owned(),
     })?;
@@ -468,7 +497,7 @@ fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> 
             },
         });
     }
-    if let Some(foreign) = present(&record)
+    if let Some(foreign) = present(record)
         .into_iter()
         .find(|field| !allowed.contains(field))
     {
@@ -481,13 +510,12 @@ fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> 
             "an `{kind}` event has `project` and `project-key`; it needs one"
         )));
     }
-    let hlc = parse_hlc(&record.hlc).ok_or_else(|| {
-        Invalid::new(format!(
-            "`{}` is no HLC like `2026-11-26T08:02:11.204Z/0`",
-            record.hlc
-        ))
-    })?;
+    Ok(())
+}
 
+/// The event of a checked record; a field its type needs is missing.
+fn event_kind(record: &Record) -> Result<EventKind, Invalid> {
+    let kind = &record.kind;
     let needs = |field: &str| Invalid::new(format!("an `{kind}` event needs `{field}`"));
     let entry = record.entry.ok_or_else(|| needs("entry"));
     let project = record
@@ -496,7 +524,7 @@ fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> 
         .or_else(|| record.project_key.clone().map(ProjectRef::Key));
     let tags = record.tags.clone().unwrap_or_default();
 
-    let event_kind = match kind.as_str() {
+    Ok(match record.kind.as_str() {
         "entry.begun" => EventKind::EntryBegun {
             entry: entry?,
             project,
@@ -529,22 +557,10 @@ fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> 
         },
         "entry.adjusted" => EventKind::EntryAdjusted {
             entry: entry?,
-            changes: adjusted(&record, project)?,
+            changes: adjusted(record, project)?,
         },
         _ => EventKind::BatchUndone {
             batch: record.undoes.ok_or_else(|| needs("undoes"))?,
-        },
-    };
-
-    Ok(RecordedEvent {
-        device,
-        batch: record.batch,
-        hlc,
-        event: Event {
-            id: record.id,
-            about: record.about.unwrap_or_else(|| record.at.clone()),
-            at: record.at,
-            kind: event_kind,
         },
     })
 }
