@@ -45,6 +45,10 @@ pub struct FileSummary {
     pub unended: Vec<(EntryId, i64)>,
     /// Entries ended here but begun in another file.
     pub ends_elsewhere: Vec<EntryId>,
+    /// Tombstones in the file: the forgotten entry and the moment its events
+    /// are filed under, as RFC 9557 text.
+    #[serde(default)]
+    pub forgotten: Vec<(EntryId, String)>,
 }
 
 impl FileSummary {
@@ -125,6 +129,15 @@ pub fn summarize(events: &[RecordedEvent]) -> FileSummary {
             .iter()
             .filter(|entry| !begun.contains_key(entry) && !logged.contains(entry))
             .copied()
+            .collect(),
+        forgotten: events
+            .iter()
+            .filter_map(|recorded| match recorded.event.kind {
+                EventKind::EntryForgotten { entry } => {
+                    Some((entry, recorded.event.about.to_string()))
+                }
+                _ => None,
+            })
             .collect(),
     }
 }

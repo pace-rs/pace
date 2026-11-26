@@ -1,9 +1,9 @@
 //! The machine directory: this machine's device ID and how far it wrote its
 //! own log. Never synced.
 
-use std::path::Path;
+use std::{collections::BTreeSet, path::Path};
 
-use pace_core::{DeviceId, Hlc, Ids};
+use pace_core::{DeviceId, EntryId, Hlc, Ids};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
@@ -71,51 +71,73 @@ struct CursorsFile {
     own: Option<Own>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 struct Own {
     /// The HLC of the last event this machine wrote, as milliseconds and
     /// counter.
-    last_hlc: (i64, u32),
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_hlc: Option<(i64, u32)>,
+    /// Forgotten entries whose events this machine removed from its log.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    cleaned: BTreeSet<EntryId>,
 }
 
-/// The HLC of the last event this machine wrote to its own log, if it
-/// remembers one.
-pub fn last_written(machine: &Path) -> PaceResult<Option<Hlc>> {
-    let path = machine.join(CURSORS_FILE);
-    let text = match std::fs::read_to_string(&path) {
-        Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(io_error("read", &path, error)),
-    };
-    let file: CursorsFile = toml::from_str(&text).map_err(|error| {
-        PaceError::with_source(
-            ErrorKind::InputOutput,
-            "{path} is no valid cursors file",
-            error,
-        )
-        .attach_context("path", path.display().to_string())
-        .attach_hint(format!("remove {}; pace writes it again", path.display()))
-    })?;
-    Ok(file.own.and_then(|own| {
-        let (millis, counter) = own.last_hlc;
-        jiff::Timestamp::from_millisecond(millis)
-            .ok()
-            .map(|wall| Hlc::new(wall, counter))
-    }))
+/// How far this machine wrote its own log, and which tombstones it applied.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct Cursors {
+    /// The HLC of the last event this machine wrote, if it remembers one.
+    pub last_written: Option<Hlc>,
+    /// Forgotten entries whose events this machine removed from its log.
+    pub cleaned: BTreeSet<EntryId>,
 }
 
-/// Remember `hlc` as the last event this machine wrote.
-pub fn remember_written(machine: &Path, hlc: Hlc) -> PaceResult<()> {
-    write(
-        &machine.join(CURSORS_FILE),
-        &CursorsFile {
-            version: 1,
-            own: Some(Own {
-                last_hlc: (hlc.wall().as_millisecond(), hlc.counter()),
+impl Cursors {
+    /// The cursors in the machine directory; none if there is no file yet.
+    pub fn load(machine: &Path) -> PaceResult<Self> {
+        let path = machine.join(CURSORS_FILE);
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Self::default());
+            }
+            Err(error) => return Err(io_error("read", &path, error)),
+        };
+        let file: CursorsFile = toml::from_str(&text).map_err(|error| {
+            PaceError::with_source(
+                ErrorKind::InputOutput,
+                "{path} is no valid cursors file",
+                error,
+            )
+            .attach_context("path", path.display().to_string())
+            .attach_hint(format!("remove {}; pace writes it again", path.display()))
+        })?;
+        let own = file.own.unwrap_or_default();
+        Ok(Self {
+            last_written: own.last_hlc.and_then(|(millis, counter)| {
+                jiff::Timestamp::from_millisecond(millis)
+                    .ok()
+                    .map(|wall| Hlc::new(wall, counter))
             }),
-        },
-    )
+            cleaned: own.cleaned,
+        })
+    }
+
+    /// Write the cursors to the machine directory.
+    pub fn save(&self, machine: &Path) -> PaceResult<()> {
+        write(
+            &machine.join(CURSORS_FILE),
+            &CursorsFile {
+                version: 1,
+                own: Some(Own {
+                    last_hlc: self
+                        .last_written
+                        .map(|hlc| (hlc.wall().as_millisecond(), hlc.counter())),
+                    cleaned: self.cleaned.clone(),
+                }),
+            },
+        )
+    }
 }
 
 /// The error when this machine's own log has events it didn't write.

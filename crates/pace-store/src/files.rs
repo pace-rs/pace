@@ -22,7 +22,10 @@ use std::{
 };
 
 use jiff::ZonedDateTime;
-use pace_core::{Batch, ChangeMarker, Clock, Device, DeviceId, EventStore, Hlc, RecordedEvent};
+use pace_core::{
+    Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, EventKind, EventStore, Hlc,
+    RecordedEvent,
+};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
@@ -30,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Split, format,
     index::{INDEX_VERSION, Index, select, summarize},
-    machine,
+    machine::{self, Cursors},
 };
 
 /// The files backend for one device.
@@ -102,8 +105,8 @@ impl FilesStore {
             .filter(|(name, _)| name.starts_with(&own_prefix))
             .filter_map(|(_, summary)| summary.max_hlc())
             .max();
-        if let (Some(own_last), Some(remembered)) =
-            (own_last, machine::last_written(&self.machine)?)
+        let mut cursors = Cursors::load(&self.machine)?;
+        if let (Some(own_last), Some(remembered)) = (own_last, cursors.last_written)
             && own_last > remembered
         {
             return Err(machine::clone_detected(&self.machine));
@@ -157,10 +160,74 @@ impl FilesStore {
                 .persist(&path)
                 .map_err(|error| io_error("write", &path, error.error))?;
         }
-        if let Some(last) = recorded.last() {
-            machine::remember_written(&self.machine, last.hlc)?;
+        cursors.last_written = recorded
+            .last()
+            .map(|last| last.hlc)
+            .or(cursors.last_written);
+
+        let tombstones: Vec<(EntryId, String)> = index
+            .files
+            .values()
+            .flat_map(|summary| summary.forgotten.iter().cloned())
+            .chain(
+                recorded
+                    .iter()
+                    .filter_map(|recorded| match recorded.event.kind {
+                        EventKind::EntryForgotten { entry } => {
+                            Some((entry, recorded.event.about.to_string()))
+                        }
+                        _ => None,
+                    }),
+            )
+            .collect();
+        for (entry, about) in tombstones {
+            // On an error, the cursors aren't saved, so the cleaning is retried.
+            if cursors.cleaned.insert(entry) {
+                self.forget_in_own_log(&dir, device_file.split, entry, &about)?;
+            }
         }
+        cursors.save(&self.machine)?;
         Ok(recorded)
+    }
+
+    /// Remove the events of a forgotten entry from this device's own file of
+    /// the entry's period; the tombstone stays. Other devices' files are
+    /// theirs to clean.
+    fn forget_in_own_log(
+        &self,
+        dir: &Path,
+        split: Split,
+        entry: EntryId,
+        about: &str,
+    ) -> PaceResult<()> {
+        let Ok(about) = about.parse::<ZonedDateTime>() else {
+            return Ok(());
+        };
+        let path = dir.join(split.file(&about));
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(io_error("read", &path, error)),
+        };
+        let events = format::parse(&path, &text, self.device)?;
+        let kept: Vec<RecordedEvent> = events
+            .iter()
+            .filter(|recorded| {
+                matches!(recorded.event.kind, EventKind::EntryForgotten { .. })
+                    || mentioned_entry(&recorded.event.kind) != Some(entry)
+            })
+            .cloned()
+            .collect();
+        if kept.len() == events.len() {
+            return Ok(());
+        }
+        if kept.is_empty() {
+            return std::fs::remove_file(&path).map_err(|error| io_error("remove", &path, error));
+        }
+        let mut text = format::header();
+        text.push('\n');
+        text.push_str(&format::serialize(&kept)?);
+        write_atomically(&path, &text)
     }
 
     /// This device's `device.toml`, written with its split on first use.
@@ -462,4 +529,20 @@ fn io_error(verb: &str, path: &Path, error: std::io::Error) -> Box<PaceError> {
         .attach_context("verb", verb)
         .attach_context("path", path.display().to_string())
         .attach_hint("check that the path exists and that pace may write there")
+}
+
+/// The entry an event is about, if any.
+const fn mentioned_entry(kind: &EventKind) -> Option<EntryId> {
+    match kind {
+        EventKind::EntryBegun { entry, .. }
+        | EventKind::EntryHeld { entry, .. }
+        | EventKind::EntryPaused { entry, .. }
+        | EventKind::EntryResumed { entry }
+        | EventKind::EntryEnded { entry }
+        | EventKind::CatchNoted { entry, .. }
+        | EventKind::EntryLogged { entry, .. }
+        | EventKind::EntryAdjusted { entry, .. }
+        | EventKind::EntryForgotten { entry } => Some(*entry),
+        _ => None,
+    }
 }
