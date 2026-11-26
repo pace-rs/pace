@@ -2,6 +2,7 @@
 
 mod cli;
 mod config;
+mod corrections;
 mod directories;
 mod now;
 mod project;

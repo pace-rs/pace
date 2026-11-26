@@ -206,7 +206,7 @@ fn the_event_file_reads_like_the_plan() -> TestResult {
         "2026-11-26T18:00:00[Europe/Berlin]",
         Command::Log(Log::new(
             at("2026-11-26T14:00[Europe/Berlin]")?,
-            at("2026-11-26T15:30[America/New_York]")?,
+            at("2026-11-26T11:30[America/New_York]")?,
         )),
     )?;
     run("2026-11-26T18:01:00[Europe/Berlin]", Command::Undo)?;

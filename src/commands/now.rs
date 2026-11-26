@@ -126,7 +126,7 @@ fn details(entry: &Entry, session: &Session, now: &ZonedDateTime) -> Vec<String>
         details.push(format!("paused {}", format_duration(paused)));
     }
     if let Some(project) = &entry.project {
-        details.push(format!("project {}", project_name(project)));
+        details.push(format!("project {}", output::project_name(project)));
     }
     if !entry.tags.is_empty() {
         let tags: Vec<&str> = entry.tags.iter().map(pace_core::Tag::as_str).collect();
@@ -136,13 +136,6 @@ fn details(entry: &Entry, session: &Session, now: &ZonedDateTime) -> Vec<String>
         details.push("on another device".to_owned());
     }
     details
-}
-
-fn project_name(project: &ProjectRef) -> String {
-    match project {
-        ProjectRef::Key(key) => key.to_string(),
-        ProjectRef::Id(id) => id.to_string(),
-    }
 }
 
 /// Pairs of entries that overlap, unless both are open (that is the

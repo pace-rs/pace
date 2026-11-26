@@ -2,7 +2,7 @@
 
 use std::io::IsTerminal;
 
-use dialoguer::{Select, theme::SimpleTheme};
+use dialoguer::{Confirm, Select, theme::SimpleTheme};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 
 /// Whether pace may ask: stdin and stderr are terminals.
@@ -25,5 +25,21 @@ pub fn choose(prompt: &str, items: &[String]) -> PaceResult<usize> {
         .map_err(|error| {
             PaceError::with_source(ErrorKind::InvalidInput, "nothing was chosen", error)
                 .attach_hint("run the command again and pick one")
+        })
+}
+
+/// Ask a yes-or-no question; no is the default.
+///
+/// # Errors
+///
+/// If the terminal fails or the user cancels.
+pub fn confirm(question: &str) -> PaceResult<bool> {
+    Confirm::with_theme(&SimpleTheme)
+        .with_prompt(question)
+        .default(false)
+        .interact()
+        .map_err(|error| {
+            PaceError::with_source(ErrorKind::InvalidInput, "there was no answer", error)
+                .attach_hint("run the command again and answer the question")
         })
 }

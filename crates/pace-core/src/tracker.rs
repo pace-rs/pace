@@ -4,7 +4,9 @@ use jiff::ZonedDateTime;
 use pace_error::PaceResult;
 use pace_time::TimeRange;
 
-use crate::{Clock, Command, DeviceId, EventStore, Ids, Policy, RecordedEvent, Rules, State};
+use crate::{
+    Clock, Command, DeviceId, EventKind, EventStore, Ids, Policy, RecordedEvent, Rules, State,
+};
 
 /// The use cases over the ports: read the state, decide, append.
 ///
@@ -24,8 +26,12 @@ pub struct Tracker<S> {
 pub struct Outcome {
     /// The events it appended, as recorded.
     pub recorded: Vec<RecordedEvent>,
+    /// The state before the command, as far as it read it.
+    pub before: State,
     /// The state afterwards, as far as the command read it.
     pub state: State,
+    /// The events of the batches the command undid, if it was an undo.
+    pub undone: Vec<RecordedEvent>,
     /// When the command ran.
     pub now: ZonedDateTime,
 }
@@ -74,11 +80,25 @@ impl<S: EventStore> Tracker<S> {
         .decide(command)?;
         let recorded = self.store.append(batch).await?;
 
+        let undone_batches: Vec<_> = recorded
+            .iter()
+            .filter_map(|recorded| match recorded.event.kind {
+                EventKind::BatchUndone { batch } => Some(batch),
+                _ => None,
+            })
+            .collect();
+        let undone = events
+            .iter()
+            .filter(|event| undone_batches.contains(&event.batch))
+            .cloned()
+            .collect();
         let mut all = events;
         all.extend(recorded.iter().cloned());
         Ok(Outcome {
             recorded,
+            before: state,
             state: State::from_events(&all),
+            undone,
             now,
         })
     }
@@ -105,7 +125,12 @@ fn scope(command: &Command, now: &ZonedDateTime) -> PaceResult<TimeRange> {
         | Command::Resume(_)
         | Command::Catch(_)
         | Command::End(_) => TimeRange::new(Some(now.clone()), Some(now.clone())),
-        Command::Log(log) => TimeRange::new(Some(log.start.clone()), Some(log.end.clone())),
+        // The rules refuse a log that ends before it starts, with a better
+        // message than the range would.
+        Command::Log(log) => TimeRange::new(
+            Some((&log.start).min(&log.end).clone()),
+            Some((&log.start).max(&log.end).clone()),
+        ),
         Command::Adjust(_) | Command::Undo | Command::Forget(_) => TimeRange::new(None, None),
     }
 }

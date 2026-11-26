@@ -857,6 +857,7 @@ dependencies = [
  "pace_time",
  "serde",
  "serde_json",
+ "shell-words",
  "tempfile",
  "toml 1.2.3+spec-1.1.0",
  "uuid",

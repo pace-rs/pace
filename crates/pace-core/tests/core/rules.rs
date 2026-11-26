@@ -619,6 +619,26 @@ fn log_into_another_entry_is_an_overlap() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn log_into_the_future_is_refused() -> TestResult {
+    let mut world = World::new()?;
+
+    let error = failure(world.run(
+        "18:00",
+        &Command::Log(Log::new(berlin("17:30")?, berlin("18:30")?)),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would end at 18:30, in the future"
+    );
+    assert_eq!(
+        error.hint(),
+        Some("pace records what happened; `pace begin` starts an entry now")
+    );
+    Ok(())
+}
+
 // adjust
 
 #[test]
@@ -705,6 +725,42 @@ fn adjust_does_not_end_an_open_entry() -> TestResult {
     ))?;
 
     assert_eq!(error.hint(), Some("end it with `pace end --at 10:00`"));
+    Ok(())
+}
+
+#[test]
+fn adjust_into_the_future_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::End(End::default()))?;
+    let entry = world.only_entry(EntryState::Ended)?;
+
+    let error = failure(world.run(
+        "11:00",
+        &Command::Adjust(Adjust {
+            entry: Some(entry),
+            end: Some(berlin("11:30")?),
+            ..Adjust::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would end at 11:30, in the future"
+    );
+    Ok(())
+}
+
+#[test]
+fn begin_in_the_future_is_refused() -> TestResult {
+    let mut world = World::new()?;
+
+    let error = failure(world.run("09:00", &begin_at("Write offer", "09:30")?))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would start at 09:30, in the future"
+    );
     Ok(())
 }
 

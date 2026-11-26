@@ -1,0 +1,38 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace adjust 0dda --note Offer for ACME   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted 0dda "Offer for ACME": note "Offer for ACME" (was "Old offer").
+
+----- stderr -----
+
+$ pace adjust --last --tag offer   # at 10:01
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted 0dda "Offer for ACME": tagged offer.
+
+----- stderr -----
+
+$ pace adjust beef --note nothing   # at 10:02
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × pace knows no entry beef
+  help: `pace now` shows the IDs of the open entries
+
+
+$ pace adjust no-id --note nothing   # at 10:03
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `no-id` is no entry ID
+  help: use the short ID pace shows, at least four characters

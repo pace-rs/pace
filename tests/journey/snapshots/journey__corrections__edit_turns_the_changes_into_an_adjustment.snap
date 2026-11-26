@@ -1,0 +1,34 @@
+---
+source: tests/journey/corrections.rs
+expression: transcript
+---
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted ad5e "Write offer": note "Write offer" (was "Draft"), untagged draft.
+
+----- stderr -----
+
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × the entry is unchanged
+  help: change a value and save the file to adjust the entry
+
+
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × the edited entry has a mistake
+   ╭─[the edited entry:8:1]
+ 7 │ end = "2026-11-26T10:00:00+01:00[Europe/Berlin]"
+ 8 │ notes = "Write offer"
+   · ──┬──
+   ·   ╰── unknown field `notes`, expected one of `start`, `end`, `note`, `project`, `project-key`, `tags`
+ 9 │ # project-key = ""
+   ╰────
+  help: fix the marked spot; nothing was changed

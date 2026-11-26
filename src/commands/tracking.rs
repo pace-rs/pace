@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Command as UseCase, Entry, EntryId, HoldSource, PauseKind, ProjectRef, Tag,
+    Command as UseCase, Entry, HoldSource, PauseKind, ProjectRef, Tag,
     command::{Begin, Catch, End, Hold, Pause, Resume},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -19,7 +19,9 @@ use crate::{
 
 /// Run `build` with the session, print what happened, the notes `build`
 /// left, and the first-use note.
-fn track(build: impl FnOnce(&Session, &mut Vec<String>) -> PaceResult<UseCase>) -> PaceResult<()> {
+pub(super) fn track(
+    build: impl FnOnce(&Session, &mut Vec<String>) -> PaceResult<UseCase>,
+) -> PaceResult<()> {
     let context = PACE_APP.context()?;
     let session = Session::open(context)?;
     let mut notes = Vec::new();
@@ -34,18 +36,25 @@ fn track(build: impl FnOnce(&Session, &mut Vec<String>) -> PaceResult<UseCase>) 
     Ok(())
 }
 
-/// A `--at` value as a moment. A time that happened twice asks which one
-/// was meant; without a terminal, it takes the earlier one and says so.
-fn at(
+/// A `--at` value as a moment, if there is one.
+pub(super) fn at(
     value: Option<&str>,
     now: &ZonedDateTime,
     notes: &mut Vec<String>,
 ) -> PaceResult<Option<ZonedDateTime>> {
-    let Some(value) = value else {
-        return Ok(None);
-    };
+    value.map(|value| moment(value, now, notes)).transpose()
+}
+
+/// A time in the `--at` grammar as a moment. A time that happened twice
+/// asks which one was meant; without a terminal, it takes the earlier one
+/// and says so.
+pub(super) fn moment(
+    value: &str,
+    now: &ZonedDateTime,
+    notes: &mut Vec<String>,
+) -> PaceResult<ZonedDateTime> {
     match parse_at(value, now).map_err(|error| error.attach_exit_code(ExitCode::Usage))? {
-        At::Exact(moment) => Ok(Some(moment)),
+        At::Exact(moment) => Ok(moment),
         At::Ambiguous { earlier, later } => {
             let label = |moment: &ZonedDateTime| moment.strftime("%H:%M (%:z)").to_string();
             if prompt::interactive() {
@@ -58,34 +67,24 @@ fn at(
                         format!("the second {}", label(&later)),
                     ],
                 )?;
-                return Ok(Some(if choice == 0 { earlier } else { later }));
+                return Ok(if choice == 0 { earlier } else { later });
             }
             notes.push(format!(
                 "{value} happened twice, because the clocks were set back; pace took the first one, {}, not {}.",
                 label(&earlier),
                 label(&later)
             ));
-            Ok(Some(earlier))
+            Ok(earlier)
         }
     }
 }
 
-/// The entry an `[ENTRY]` argument names among the open and today's entries.
-fn entry(session: &Session, text: Option<&str>) -> PaceResult<Option<EntryId>> {
-    let Some(text) = text else {
-        return Ok(None);
-    };
-    let now = session.now();
-    let today = TimeRange::new(Some(now.clone()), Some(now))?;
-    select::resolve(&session.state(&today)?, text).map(Some)
-}
-
-fn text(words: &[String]) -> Option<String> {
+pub(super) fn text(words: &[String]) -> Option<String> {
     let text = words.join(" ");
     (!text.trim().is_empty()).then_some(text)
 }
 
-fn tags(values: &[String]) -> PaceResult<BTreeSet<Tag>> {
+pub(super) fn tags(values: &[String]) -> PaceResult<BTreeSet<Tag>> {
     values
         .iter()
         .map(|value| {
@@ -330,7 +329,7 @@ impl Runnable for ResumeCmd {
         exit_on_error(track(|session, notes| {
             Ok(UseCase::Resume(Resume {
                 at: at(self.at.as_deref(), &session.now(), notes)?,
-                entry: entry(session, self.entry.as_deref())?,
+                entry: select::target(session, self.entry.as_deref(), false)?,
             }))
         }));
     }
@@ -380,7 +379,7 @@ impl Runnable for EndCmd {
         exit_on_error(track(|session, notes| {
             Ok(UseCase::End(End {
                 at: at(self.at.as_deref(), &session.now(), notes)?,
-                entry: entry(session, self.entry.as_deref())?,
+                entry: select::target(session, self.entry.as_deref(), false)?,
             }))
         }));
     }

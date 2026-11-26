@@ -11,6 +11,7 @@ pub mod clock;
 pub mod commands;
 pub mod config;
 pub mod dirs;
+pub mod editor;
 pub mod origin;
 pub mod output;
 pub mod project;

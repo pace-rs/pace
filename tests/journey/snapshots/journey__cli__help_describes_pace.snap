@@ -17,6 +17,11 @@ Commands:
   catch   Write a distraction down without breaking off [alias: c]
   end     End the running entry [alias: e]
   now     Show what is running, held or paused [alias: n]
+  adjust  Change an entry: its start, end, note or tags; `--project` moves it [alias: a]
+  log     Enter an entry afterwards
+  edit    Change an entry in your editor
+  undo    Take back the last command of this device
+  forget  Remove an entry for good
   config  Look at pace's configuration
   help    Print this message or the help of the given subcommand(s)
 

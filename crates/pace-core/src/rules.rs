@@ -14,6 +14,8 @@ use crate::{
     short_ids,
 };
 
+const NOW_HINT: &str = "pace records what happened; `pace begin` starts an entry now";
+
 /// The settings the rules depend on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Policy {
@@ -72,6 +74,7 @@ impl Rules<'_> {
 
     fn begin(&self, begin: &Begin) -> PaceResult<Vec<Event>> {
         let start = begin.at.clone().unwrap_or_else(|| self.now.clone());
+        self.refuse_future("start", &start, "leave out `--at` to begin now")?;
         let mut events = Vec::new();
         let mut ending = Vec::new();
 
@@ -209,6 +212,7 @@ impl Rules<'_> {
     fn end(&self, end: &End) -> PaceResult<Vec<Event>> {
         let entry = self.open_entry(end.entry)?;
         let at = end.at.clone().unwrap_or_else(|| self.now.clone());
+        self.refuse_future("end", &at, "leave out `--at` to end it now")?;
         if at < entry.start {
             return Err(self.before(&entry.start, &at, "the entry began"));
         }
@@ -228,6 +232,7 @@ impl Rules<'_> {
         if log.end <= log.start {
             return Err(self.ends_before_start(&log.start, &log.end));
         }
+        self.refuse_future("end", &log.end, NOW_HINT)?;
         if !log.allow_overlap {
             self.refuse_overlap(&log.start, &log.end, &[], "log")?;
         }
@@ -264,6 +269,10 @@ impl Rules<'_> {
             && *end <= start
         {
             return Err(self.ends_before_start(&start, end));
+        }
+        self.refuse_future("start", &start, NOW_HINT)?;
+        if let Some(end) = &end {
+            self.refuse_future("end", end, NOW_HINT)?;
         }
         self.check_breaks_inside(entry, &start, end.as_ref())?;
 
@@ -432,12 +441,14 @@ impl Rules<'_> {
         } else {
             format!("move it, or allow it with `pace {verb} --allow-overlap`")
         };
-        Err(PaceError::new(
-            ErrorKind::InvalidInput,
-            "the new entry would overlap {list}",
-        )
-        .attach_context("list", list.join(", "))
-        .attach_hint(hint))
+        let guidance = if verb == "adjust" {
+            "the entry would overlap {list}"
+        } else {
+            "the new entry would overlap {list}"
+        };
+        Err(PaceError::new(ErrorKind::InvalidInput, guidance)
+            .attach_context("list", list.join(", "))
+            .attach_hint(hint))
     }
 
     /// A new hold or pause may not begin before the entry or before the end
@@ -522,6 +533,20 @@ impl Rules<'_> {
 
     /// A moment as the user reads it: `HH:MM` on the day of now, else with
     /// the date; in the zone of now.
+    /// pace records what happened, so nothing starts or ends after now.
+    fn refuse_future(&self, what: &str, moment: &ZonedDateTime, hint: &str) -> PaceResult<()> {
+        if moment <= self.now {
+            return Ok(());
+        }
+        Err(PaceError::new(
+            ErrorKind::InvalidInput,
+            "the entry would {what} at {moment}, in the future",
+        )
+        .attach_context("what", what)
+        .attach_context("moment", self.clock(moment))
+        .attach_hint(hint))
+    }
+
     fn clock(&self, moment: &ZonedDateTime) -> String {
         let local = moment.with_time_zone(self.now.time_zone().clone());
         if local.date() == self.now.date() {

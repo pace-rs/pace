@@ -153,9 +153,14 @@ impl Application for PaceApp {
 /// is an error.
 pub fn exit_on_error(result: PaceResult<()>) {
     if let Err(error) = result {
-        eprint!("{}", render(&error, PACE_APP.plain));
+        print_error(&error);
         PACE_APP.shutdown_with_exitcode(Shutdown::Crash, error.exit_code().into());
     }
+}
+
+/// Print an error the way pace prints errors, and go on.
+pub fn print_error(error: &PaceError) {
+    eprint!("{}", render(error, PACE_APP.plain));
 }
 
 /// Render an error with its hint, details and snippet. `--plain` means ASCII

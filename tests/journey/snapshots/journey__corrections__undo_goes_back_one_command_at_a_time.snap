@@ -1,0 +1,54 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began ad5e "Write offer" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace end   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Ended ad5e "Write offer" at 10:00 after 1h.
+
+----- stderr -----
+
+$ pace undo   # at 10:01
+success: true
+exit_code: 0
+----- stdout -----
+Took back the end of ad5e "Write offer" at 10:00; it is open again.
+
+----- stderr -----
+
+$ pace now   # at 10:02
+success: true
+exit_code: 0
+----- stdout -----
+Running: ad5e "Write offer", since 09:00 (1 hour ago).
+  1h 2m net so far.
+
+----- stderr -----
+
+$ pace undo   # at 10:03
+success: true
+exit_code: 0
+----- stdout -----
+Took back the start of ad5e "Write offer" at 09:00.
+
+----- stderr -----
+
+$ pace undo   # at 10:04
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × this device has nothing left to undo
+  help: `pace undo` reverts the commands of this device, newest first

@@ -146,3 +146,37 @@ fn the_marker_tells_whether_the_store_changed() -> TestResult {
     assert_ne!(pollster::block_on(store.marker())?, before);
     Ok(())
 }
+
+#[test]
+fn an_outcome_shows_the_state_before_and_what_an_undo_took_back() -> TestResult {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let store = MemoryStore::new(device(1)?, clock.clone());
+    let tracker = tracker(store, &clock, 1)?;
+    let begun = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+
+    let undo = pollster::block_on(tracker.run(&Command::Undo))?;
+
+    assert_eq!(undo.before.open().count(), 1);
+    assert_eq!(undo.state.open().count(), 0);
+    assert_eq!(undo.undone, begun.recorded);
+    Ok(())
+}
+
+#[test]
+fn a_log_that_ends_before_it_starts_is_refused_by_the_rules() -> TestResult {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T18:00[Europe/Berlin]")?));
+    let store = MemoryStore::new(device(1)?, clock.clone());
+    let tracker = tracker(store, &clock, 1)?;
+
+    let result = pollster::block_on(tracker.run(&Command::Log(Log::new(
+        at("2026-11-26T17:00[Europe/Berlin]")?,
+        at("2026-11-26T16:50[Europe/Berlin]")?,
+    ))));
+
+    let error = result.err().ok_or("the log must fail")?;
+    assert_eq!(
+        error.to_string(),
+        "the entry would end at 16:50, before it starts at 17:00"
+    );
+    Ok(())
+}

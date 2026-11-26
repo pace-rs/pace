@@ -1,0 +1,41 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace log Call with ACME --from 14:00 --to 15:30   # at 18:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged 5c48 "Call with ACME" from 14:00 to 15:30 (1h 30m).
+Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace log Review --from 16:00 --duration 45m --tag review   # at 18:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged fd7c "Review" from 16:00 to 16:45 (45m).
+Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+
+----- stderr -----
+
+$ pace log Overlap --from 15:00 --duration 1h   # at 18:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × the new entry would overlap 5c48 (14:00–15:30)
+  help: move it, or allow it with `pace log --allow-overlap`
+
+
+$ pace log Backwards --from 17:00 --to 16:50   # at 18:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × the entry would end at 16:50, before it starts at 17:00
+  help: give an end after the start

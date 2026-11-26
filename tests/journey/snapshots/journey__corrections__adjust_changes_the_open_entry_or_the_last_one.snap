@@ -1,0 +1,55 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace begin Draft --tag draft   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began ad5e "Draft" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace adjust --start 08:45 --note Write offer --tag offer --untag draft   # at 09:10
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted ad5e "Write offer": start 08:45 (was 09:00), note "Write offer" (was "Draft"), tagged offer, untagged draft; 25m net now.
+
+----- stderr -----
+
+$ pace adjust   # at 09:20
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing to change
+  help: give `--start`, `--end`, `--note`, `--project`, `--tag` or `--untag`
+
+
+$ pace end   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Ended ad5e "Write offer" at 10:00 after 1h 15m.
+
+----- stderr -----
+
+$ pace adjust --last --end 09:55   # at 10:05
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted ad5e "Write offer": end 09:55 (was 10:00); 1h 10m net now.
+
+----- stderr -----
+
+$ pace adjust --last --end 08:00   # at 10:06
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × the entry would end at 08:00, before it starts at 08:45
+  help: give an end after the start

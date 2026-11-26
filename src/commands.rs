@@ -1,6 +1,8 @@
 //! The command line: the entry point and its subcommands.
 
 pub mod config;
+pub mod corrections;
+pub mod edit;
 pub mod now;
 pub mod tracking;
 
@@ -10,6 +12,8 @@ use abscissa_core::{Command, Configurable, Runnable};
 
 use self::{
     config::ConfigCmd,
+    corrections::{AdjustCmd, ForgetCmd, LogCmd, UndoCmd},
+    edit::EditCmd,
     now::NowCmd,
     tracking::{BeginCmd, CatchCmd, EndCmd, HoldCmd, PauseCmd, ResumeCmd},
 };
@@ -80,6 +84,22 @@ pub enum PaceCmd {
     /// Show what is running, held or paused
     #[command(visible_alias = "n")]
     Now(NowCmd),
+
+    /// Change an entry: its start, end, note or tags; `--project` moves it
+    #[command(visible_alias = "a")]
+    Adjust(AdjustCmd),
+
+    /// Enter an entry afterwards
+    Log(LogCmd),
+
+    /// Change an entry in your editor
+    Edit(EditCmd),
+
+    /// Take back the last command of this device
+    Undo(UndoCmd),
+
+    /// Remove an entry for good
+    Forget(ForgetCmd),
 
     /// Look at pace's configuration.
     #[command(subcommand)]
