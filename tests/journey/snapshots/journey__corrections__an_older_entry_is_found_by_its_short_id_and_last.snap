@@ -2,11 +2,11 @@
 source: tests/journey/corrections.rs
 expression: output
 ---
-$ pace adjust 0dda --note Offer for ACME   # at 10:00
+$ pace adjust [ID-1] --note Offer for ACME   # at 10:00
 success: true
 exit_code: 0
 ----- stdout -----
-Adjusted 0dda "Offer for ACME": note "Offer for ACME" (was "Old offer").
+Adjusted [ID-1] "Offer for ACME": note "Offer for ACME" (was "Old offer").
 
 ----- stderr -----
 
@@ -14,7 +14,7 @@ $ pace adjust --last --tag offer   # at 10:01
 success: true
 exit_code: 0
 ----- stdout -----
-Adjusted 0dda "Offer for ACME": tagged offer.
+Adjusted [ID-1] "Offer for ACME": tagged offer.
 
 ----- stderr -----
 

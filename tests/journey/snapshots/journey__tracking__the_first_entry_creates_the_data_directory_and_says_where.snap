@@ -6,7 +6,7 @@ $ pace begin Write offer   # at 09:00
 success: true
 exit_code: 0
 ----- stdout -----
-Began ad5e "Write offer" at 09:00.
+Began [ID-1] "Write offer" at 09:00.
 pace keeps its data in [SANDBOX]/home.
 
 ----- stderr -----

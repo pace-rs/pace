@@ -6,7 +6,7 @@ $ pace begin Draft --tag draft   # at 09:00
 success: true
 exit_code: 0
 ----- stdout -----
-Began ad5e "Draft" at 09:00.
+Began [ID-1] "Draft" at 09:00.
 pace keeps its data in [SANDBOX]/home.
 
 ----- stderr -----
@@ -15,7 +15,7 @@ $ pace adjust --start 08:45 --note Write offer --tag offer --untag draft   # at 
 success: true
 exit_code: 0
 ----- stdout -----
-Adjusted ad5e "Write offer": start 08:45 (was 09:00), note "Write offer" (was "Draft"), tagged offer, untagged draft; 25m net now.
+Adjusted [ID-1] "Write offer": start 08:45 (was 09:00), note "Write offer" (was "Draft"), tagged offer, untagged draft; 25m net now.
 
 ----- stderr -----
 
@@ -33,7 +33,7 @@ $ pace end   # at 10:00
 success: true
 exit_code: 0
 ----- stdout -----
-Ended ad5e "Write offer" at 10:00 after 1h 15m.
+Ended [ID-1] "Write offer" at 10:00 after 1h 15m.
 
 ----- stderr -----
 
@@ -41,7 +41,7 @@ $ pace adjust --last --end 09:55   # at 10:05
 success: true
 exit_code: 0
 ----- stdout -----
-Adjusted ad5e "Write offer": end 09:55 (was 10:00); 1h 10m net now.
+Adjusted [ID-1] "Write offer": end 09:55 (was 10:00); 1h 10m net now.
 
 ----- stderr -----
 

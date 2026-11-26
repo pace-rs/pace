@@ -12,11 +12,11 @@ exit_code: 1
   help: `pace now` shows the IDs of the open entries
 
 
-$ pace end ad5e   # at 10:00
+$ pace end [ID-1]   # at 10:00
 success: true
 exit_code: 0
 ----- stdout -----
-Ended ad5e "on this machine" at 10:00 after 1h.
+Ended [ID-1] "on this machine" at 10:00 after 1h.
 
 ----- stderr -----
 
@@ -24,8 +24,8 @@ $ pace now   # at 10:01
 success: true
 exit_code: 0
 ----- stdout -----
-Running: f372 "on the other machine", since 09:30 (31 minutes ago).
+Running: [ID-2] "on the other machine", since 09:30 (31 minutes ago).
   31m net so far; on another device.
-Overlap: ad5e and f372 both cover 09:30–10:00; change one with `pace adjust <id>`.
+Overlap: [ID-1] and [ID-2] both cover 09:30–10:00; change one with `pace adjust <id>`.
 
 ----- stderr -----

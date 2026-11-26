@@ -172,7 +172,7 @@ fn edit_turns_the_changes_into_an_adjustment() -> TestResult {
         .env("VISUAL", "sed -i -e 's/^note/notes/'")
         .args(["edit", "--last"]))?;
 
-    let transcript = format!("{edited}\n{untouched}\n{broken}");
+    let transcript = sandbox.redact_ids(&format!("{edited}\n{untouched}\n{broken}"))?;
     sandbox
         .settings()
         .bind(|| insta::assert_snapshot!(transcript));

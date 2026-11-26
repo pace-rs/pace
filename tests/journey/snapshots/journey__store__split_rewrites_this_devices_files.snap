@@ -35,7 +35,7 @@ $ pace now   # at 09:33
 success: true
 exit_code: 0
 ----- stdout -----
-Running: 9b59 "November", since 09:00 (33 minutes ago).
+Running: [ID-1] "November", since 09:00 (33 minutes ago).
   33m net so far.
 
 ----- stderr -----

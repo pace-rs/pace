@@ -6,7 +6,7 @@ $ pace begin Write offer --tag offer   # at 09:00
 success: true
 exit_code: 0
 ----- stdout -----
-Began ad5e "Write offer" at 09:00.
+Began [ID-1] "Write offer" at 09:00.
 pace keeps its data in [SANDBOX]/home.
 
 ----- stderr -----
@@ -15,7 +15,7 @@ $ pace hold --outer --reason phone call   # at 10:00
 success: true
 exit_code: 0
 ----- stdout -----
-Held ad5e at 10:00, interrupted from outside: phone call.
+Held [ID-1] at 10:00, interrupted from outside: phone call.
 
 ----- stderr -----
 
@@ -23,7 +23,7 @@ $ pace hold --reason Slack   # at 10:05
 success: true
 exit_code: 0
 ----- stdout -----
-ad5e is held since 10:00; the reason is now: Slack.
+[ID-1] is held since 10:00; the reason is now: Slack.
 
 ----- stderr -----
 
@@ -31,7 +31,7 @@ $ pace resume   # at 10:20
 success: true
 exit_code: 0
 ----- stdout -----
-Resumed ad5e at 10:20 after 20m held.
+Resumed [ID-1] at 10:20 after 20m held.
 
 ----- stderr -----
 
@@ -39,7 +39,7 @@ $ pace catch call the tax office   # at 11:00
 success: true
 exit_code: 0
 ----- stdout -----
-Caught "call the tax office" on ad5e.
+Caught "call the tax office" on [ID-1].
 
 ----- stderr -----
 
@@ -47,7 +47,7 @@ $ pace pause --lunch   # at 12:00
 success: true
 exit_code: 0
 ----- stdout -----
-Paused ad5e at 12:00 for lunch.
+Paused [ID-1] at 12:00 for lunch.
 
 ----- stderr -----
 
@@ -55,7 +55,7 @@ $ pace resume   # at 12:30
 success: true
 exit_code: 0
 ----- stdout -----
-Resumed ad5e at 12:30 after 30m paused.
+Resumed [ID-1] at 12:30 after 30m paused.
 
 ----- stderr -----
 
@@ -63,6 +63,6 @@ $ pace end   # at 13:00
 success: true
 exit_code: 0
 ----- stdout -----
-Ended ad5e "Write offer" at 13:00 after 3h 10m (4h in all, held 20m, paused 30m).
+Ended [ID-1] "Write offer" at 13:00 after 3h 10m (4h in all, held 20m, paused 30m).
 
 ----- stderr -----

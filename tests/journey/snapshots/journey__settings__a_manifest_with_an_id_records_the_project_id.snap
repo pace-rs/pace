@@ -6,7 +6,7 @@ $ pace begin Write offer   # at 09:00
 success: true
 exit_code: 0
 ----- stdout -----
-Began ad5e "Write offer" at 09:00.
+Began [ID-1] "Write offer" at 09:00.
 Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
 pace keeps its data in [SANDBOX]/home.
 
@@ -21,8 +21,8 @@ exit_code: 0
   "now": "2026-11-26T09:30:00+01:00[Europe/Berlin]",
   "open": [
     {
-      "id": "01a216de-5800-7000-ae6b-c7a4e9c4ad5e",
-      "short": "ad5e",
+      "id": "[ID-1]",
+      "short": "[ID-1]",
       "state": "running",
       "note": "Write offer",
       "project": {

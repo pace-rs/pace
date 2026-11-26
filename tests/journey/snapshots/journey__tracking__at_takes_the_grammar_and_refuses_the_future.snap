@@ -16,7 +16,7 @@ $ pace begin --at 10:00   # at 09:30
 success: true
 exit_code: 0
 ----- stdout -----
-Began 923a at 2026-11-25 10:00.
+Began [ID-1] at 2026-11-25 10:00.
 pace keeps its data in [SANDBOX]/home.
 
 ----- stderr -----
@@ -35,7 +35,7 @@ $ pace begin --at -15m   # at 09:30
 success: true
 exit_code: 0
 ----- stdout -----
-Ended 923a at 09:15 after 23h 15m.
-Began f372 at 09:15.
+Ended [ID-1] at 09:15 after 23h 15m.
+Began [ID-2] at 09:15.
 
 ----- stderr -----

@@ -2,21 +2,21 @@
 source: tests/journey/corrections.rs
 expression: output
 ---
-$ pace forget ad5e   # at 10:05
+$ pace forget [ID-1]   # at 10:05
 success: false
 exit_code: 2
 ----- stdout -----
 
 ----- stderr -----
-  × forgetting ad5e "secret meeting" (09:00–10:00) can't be undone, so pace asks first
+  × forgetting [ID-1] "secret meeting" (09:00–10:00) can't be undone, so pace asks first
   help: add `--for-good` to forget it without being asked
 
 
-$ pace forget ad5e --for-good   # at 10:05
+$ pace forget [ID-1] --for-good   # at 10:05
 success: true
 exit_code: 0
 ----- stdout -----
-Forgot ad5e (09:00–10:00) for good. Its events are gone from this device; other devices remove theirs when they see this.
+Forgot [ID-1] (09:00–10:00) for good. Its events are gone from this device; other devices remove theirs when they see this.
 
 ----- stderr -----
 

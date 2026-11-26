@@ -1,12 +1,14 @@
 //! A sandbox for running `pace` without touching the real user directories.
 
 use std::{
+    collections::BTreeSet,
     fmt::Write as _,
     path::{Path, PathBuf},
     process::Command,
 };
 
 use tempfile::TempDir;
+use uuid::Uuid;
 
 /// The `pace` binary built for this test run.
 pub fn pace() -> Command {
@@ -105,7 +107,7 @@ impl Sandbox {
     /// Run `steps` one after another, each a time as for
     /// [`Sandbox::pace_at`] and the arguments, and describe them for a
     /// snapshot: a line with the command and its time, then [`run`]'s
-    /// outcome.
+    /// outcome, with the IDs redacted by [`Sandbox::redact_ids`].
     pub fn journey(&self, steps: &[(&str, &[&str])]) -> Result<String, Box<dyn std::error::Error>> {
         let mut transcript = String::new();
         for (time, args) in steps {
@@ -113,7 +115,44 @@ impl Sandbox {
             transcript.push_str(&run(self.pace_at(time).args(*args))?);
             transcript.push('\n');
         }
-        Ok(transcript)
+        self.redact_ids(&transcript)
+    }
+
+    /// `text` with every ID that pace made in this sandbox replaced by
+    /// `[ID-1]`, `[ID-2]`, …, numbered in the order they first appear.
+    /// pace's IDs are random, so a snapshot shows that an ID is there and
+    /// which ones are the same, not its value. An entry's short ID (four or
+    /// more of its last hex characters) gets the number of its full ID.
+    ///
+    /// The IDs come from the event files in the sandbox: device IDs and the
+    /// IDs of events, batches and entries. An ID that the test wrote itself,
+    /// such as a project ID in a manifest, stays.
+    pub fn redact_ids(&self, text: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let made = MadeIds::find(self.root.path())?;
+        let mut numbered: Vec<Uuid> = Vec::new();
+        let mut redacted = String::with_capacity(text.len());
+        let mut rest = text;
+        while let Some(start) = rest.find(is_word_char) {
+            redacted.push_str(&rest[..start]);
+            rest = &rest[start..];
+            let end = rest.find(|c| !is_word_char(c)).unwrap_or(rest.len());
+            let word = &rest[..end];
+            if let Some(id) = made.resolve(word)? {
+                let number = numbered
+                    .iter()
+                    .position(|known| *known == id)
+                    .unwrap_or_else(|| {
+                        numbered.push(id);
+                        numbered.len() - 1
+                    });
+                write!(redacted, "[ID-{}]", number + 1)?;
+            } else {
+                redacted.push_str(word);
+            }
+            rest = &rest[end..];
+        }
+        redacted.push_str(rest);
+        Ok(redacted)
     }
 
     /// [`Sandbox::pace`] run in `work/<relative>`.
@@ -159,6 +198,101 @@ impl Sandbox {
     }
 }
 
+/// A word that may be an ID: letters, digits and hyphens.
+const fn is_word_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '-'
+}
+
+/// The fields of an event that hold an ID pace made.
+const ID_FIELDS: [&str; 4] = ["id", "batch", "entry", "undoes"];
+
+/// The IDs pace made in a sandbox, read from every `events` directory in it.
+#[derive(Default)]
+struct MadeIds {
+    all: BTreeSet<Uuid>,
+    entries: BTreeSet<Uuid>,
+}
+
+impl MadeIds {
+    /// The IDs in the event files below `root`. Other TOML files, such as
+    /// manifests, hold IDs a test wrote, so they are not read.
+    fn find(root: &Path) -> std::io::Result<Self> {
+        let mut made = Self::default();
+        // Each directory, and whether it is an `events` directory or below one.
+        let mut pending = vec![(root.to_path_buf(), false)];
+        while let Some((dir, below_events)) = pending.pop() {
+            let is_events = dir.file_name().is_some_and(|name| name == "events");
+            for child in std::fs::read_dir(&dir)? {
+                let path = child?.path();
+                if path.is_dir() {
+                    if is_events
+                        && let Some(device) = path
+                            .file_name()
+                            .and_then(|name| Uuid::parse_str(&name.to_string_lossy()).ok())
+                    {
+                        _ = made.all.insert(device);
+                    }
+                    pending.push((path, below_events || is_events));
+                } else if below_events
+                    && path
+                        .extension()
+                        .is_some_and(|extension| extension == "toml")
+                {
+                    made.read(&std::fs::read_to_string(&path)?);
+                }
+            }
+        }
+        Ok(made)
+    }
+
+    /// The IDs in the lines `field = "…"` of an event file.
+    fn read(&mut self, text: &str) {
+        for line in text.lines() {
+            let Some((field, value)) = line.split_once(" = ") else {
+                continue;
+            };
+            let Ok(id) = Uuid::parse_str(value.trim_matches('"')) else {
+                continue;
+            };
+            if ID_FIELDS.contains(&field) {
+                _ = self.all.insert(id);
+                if field == "entry" {
+                    _ = self.entries.insert(id);
+                }
+            }
+        }
+    }
+
+    /// The ID that `word` names: a full ID pace made, or the last four or
+    /// more hex characters of exactly one entry ID.
+    fn resolve(&self, word: &str) -> Result<Option<Uuid>, String> {
+        if let Ok(id) = Uuid::parse_str(word) {
+            return Ok(self.all.contains(&id).then_some(id));
+        }
+        if word.len() < 4
+            || !word
+                .bytes()
+                .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+        {
+            return Ok(None);
+        }
+        let fitting: Vec<&Uuid> = self
+            .entries
+            .iter()
+            .filter(|id| id.simple().to_string().ends_with(word))
+            .collect();
+        match fitting.as_slice() {
+            [] => Ok(None),
+            [id] => Ok(Some(**id)),
+            several => Err(format!(
+                "`{word}` ends {} entry IDs, so the snapshot can't tell them apart; \
+                 IDs are random, run the test again",
+                several.len()
+            )),
+        }
+    }
+}
+
 fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
     for entry in std::fs::read_dir(from)? {
@@ -184,4 +318,100 @@ fn regex_escape(text: &str) -> String {
         escaped.push(c);
     }
     escaped
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Sandbox;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    const DEVICE: &str = "01a216de-5800-7000-9ee1-77b5f4719b59";
+    const OTHER_DEVICE: &str = "01a21715-4680-7000-8000-000000000002";
+    const PROJECT: &str = "0193a7c4-0000-7000-8000-000000000001";
+
+    /// An event file with one `entry.begun` event.
+    fn begun(id: &str, batch: &str, entry: &str) -> String {
+        format!(
+            "version = 1\n\n[[event]]\nid = \"{id}\"\ntype = \"entry.begun\"\nv = 1\n\
+             batch = \"{batch}\"\nentry = \"{entry}\"\nproject = \"{PROJECT}\"\n"
+        )
+    }
+
+    /// A sandbox with an entry `…c4ad5e` on this device and `…2568b8` on
+    /// another one.
+    fn two_entries() -> Result<Sandbox, Box<dyn std::error::Error>> {
+        let sandbox = Sandbox::new()?;
+        sandbox.write(
+            &format!("home/events/{DEVICE}/2026/2026-11.toml"),
+            &begun(
+                "01a216de-5800-7000-af18-a6bec2f07109",
+                "01a216de-5800-7000-84ce-745b930f365c",
+                "01a216de-5800-7000-ae6b-c7a4e9c4ad5e",
+            ),
+        )?;
+        sandbox.write(
+            &format!("other-home/events/{OTHER_DEVICE}/2026/2026-11.toml"),
+            &begun(
+                "01a21715-4680-7000-882f-64e308b79f7c",
+                "01a21715-4680-7000-af46-8620765dda3a",
+                "01a21715-4680-7000-9b84-3c0d772568b8",
+            ),
+        )?;
+        Ok(sandbox)
+    }
+
+    #[test]
+    fn ids_become_numbers_in_the_order_they_first_appear() -> TestResult {
+        let sandbox = two_entries()?;
+        let text = format!(
+            "Began 68b8 \"Call\" at 10:00.\n\
+             Ended ad5e \"Write offer\"; also 568b8 and c4ad5e.\n\
+             {{\"id\": \"01a216de-5800-7000-ae6b-c7a4e9c4ad5e\", \"short\": \"ad5e\"}}\n\
+             batch 01a216de-5800-7000-84ce-745b930f365c in home/events/{DEVICE}/2026\n"
+        );
+
+        assert_eq!(
+            sandbox.redact_ids(&text)?,
+            "Began [ID-1] \"Call\" at 10:00.\n\
+             Ended [ID-2] \"Write offer\"; also [ID-1] and [ID-2].\n\
+             {\"id\": \"[ID-2]\", \"short\": \"[ID-2]\"}\n\
+             batch [ID-3] in home/events/[ID-4]/2026\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn other_words_and_the_ids_a_test_wrote_stay() -> TestResult {
+        let sandbox = two_entries()?;
+        sandbox.write(
+            "work/.pace.toml",
+            &format!("[project]\nid = \"{PROJECT}\"\nkey = \"acme\"\n"),
+        )?;
+        let text = format!(
+            "pace knows no entry deadbeef; 1800 seconds in 2026/2026-11.toml, \
+             project {PROJECT}, Ad5e\n"
+        );
+
+        assert_eq!(sandbox.redact_ids(&text)?, text);
+        Ok(())
+    }
+
+    #[test]
+    fn a_short_id_that_fits_two_entries_is_refused() -> TestResult {
+        let sandbox = two_entries()?;
+        sandbox.write(
+            &format!("home/events/{DEVICE}/2026/2026-10.toml"),
+            &begun(
+                "01a1c000-0000-7000-8000-000000000001",
+                "01a1c000-0000-7000-8000-000000000002",
+                "01a1c000-0000-7000-8000-00000000ad5e",
+            ),
+        )?;
+
+        let error = sandbox.redact_ids("Began ad5e.").err().ok_or("an error")?;
+
+        assert!(error.to_string().contains("`ad5e`"), "{error}");
+        Ok(())
+    }
 }

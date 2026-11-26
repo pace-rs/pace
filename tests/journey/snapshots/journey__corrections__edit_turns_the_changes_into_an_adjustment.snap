@@ -5,7 +5,7 @@ expression: transcript
 success: true
 exit_code: 0
 ----- stdout -----
-Adjusted ad5e "Write offer": note "Write offer" (was "Draft"), untagged draft.
+Adjusted [ID-1] "Write offer": note "Write offer" (was "Draft"), untagged draft.
 
 ----- stderr -----
 

@@ -79,6 +79,7 @@ fn begin_and_end_in_different_time_zones() -> TestResult {
         text.contains("at = \"2026-11-26T05:00:00-05:00[America/New_York]\""),
         "{text}"
     );
+    let transcript = sandbox.redact_ids(&transcript)?;
     sandbox
         .settings()
         .bind(|| insta::assert_snapshot!(transcript));

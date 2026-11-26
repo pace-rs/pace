@@ -6,7 +6,7 @@ $ pace begin Write offer   # at 09:00
 success: true
 exit_code: 0
 ----- stdout -----
-Began ad5e "Write offer" at 09:00.
+Began [ID-1] "Write offer" at 09:00.
 pace keeps its data in [SANDBOX]/home.
 
 ----- stderr -----
@@ -15,8 +15,8 @@ $ pace begin Call ACME   # at 10:00
 success: true
 exit_code: 0
 ----- stdout -----
-Ended ad5e "Write offer" at 10:00 after 1h.
-Began 68b8 "Call ACME" at 10:00.
+Ended [ID-1] "Write offer" at 10:00 after 1h.
+Began [ID-2] "Call ACME" at 10:00.
 
 ----- stderr -----
 
@@ -24,7 +24,7 @@ $ pace end   # at 10:30
 success: true
 exit_code: 0
 ----- stdout -----
-Ended 68b8 "Call ACME" at 10:30 after 30m.
+Ended [ID-2] "Call ACME" at 10:30 after 30m.
 
 ----- stderr -----
 
@@ -32,6 +32,6 @@ $ pace begin --again   # at 11:00
 success: true
 exit_code: 0
 ----- stdout -----
-Began 56b3 "Call ACME" at 11:00.
+Began [ID-3] "Call ACME" at 11:00.
 
 ----- stderr -----

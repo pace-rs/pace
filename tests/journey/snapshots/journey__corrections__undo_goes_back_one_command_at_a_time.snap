@@ -6,7 +6,7 @@ $ pace begin Write offer   # at 09:00
 success: true
 exit_code: 0
 ----- stdout -----
-Began ad5e "Write offer" at 09:00.
+Began [ID-1] "Write offer" at 09:00.
 pace keeps its data in [SANDBOX]/home.
 
 ----- stderr -----
@@ -15,7 +15,7 @@ $ pace end   # at 10:00
 success: true
 exit_code: 0
 ----- stdout -----
-Ended ad5e "Write offer" at 10:00 after 1h.
+Ended [ID-1] "Write offer" at 10:00 after 1h.
 
 ----- stderr -----
 
@@ -23,7 +23,7 @@ $ pace undo   # at 10:01
 success: true
 exit_code: 0
 ----- stdout -----
-Took back the end of ad5e "Write offer" at 10:00; it is open again.
+Took back the end of [ID-1] "Write offer" at 10:00; it is open again.
 
 ----- stderr -----
 
@@ -31,7 +31,7 @@ $ pace now   # at 10:02
 success: true
 exit_code: 0
 ----- stdout -----
-Running: ad5e "Write offer", since 09:00 (1 hour ago).
+Running: [ID-1] "Write offer", since 09:00 (1 hour ago).
   1h 2m net so far.
 
 ----- stderr -----
@@ -40,7 +40,7 @@ $ pace undo   # at 10:03
 success: true
 exit_code: 0
 ----- stdout -----
-Took back the start of ad5e "Write offer" at 09:00.
+Took back the start of [ID-1] "Write offer" at 09:00.
 
 ----- stderr -----
 
