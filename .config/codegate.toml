@@ -39,3 +39,7 @@ src = [
   "crates/pace-store/src",
   "crates/pace-time/src",
 ]
+
+[setup]
+# `codegate setup` makes this folder git's `core.hooksPath`.
+hooks-path = ".githooks"

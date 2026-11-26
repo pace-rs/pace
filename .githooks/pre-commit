@@ -1,0 +1,8 @@
+#!/bin/sh
+# codegate's fast gates before each commit (`.config/codegate.toml`);
+# `just gate` runs the slow ones too.
+if ! command -v codegate >/dev/null 2>&1; then
+    echo "pre-commit: codegate is not installed, so its gates don't run" >&2
+    exit 0
+fi
+exec codegate check

@@ -18,12 +18,18 @@ lint:
 test:
     cargo nextest run --workspace --all-features
 
-# Everything CI checks first: formatting, lints, tests
+# Everything CI checks first: formatting, lints, tests; then codegate's gates
 check:
     cargo fmt --all -- --check
     dprint check
     just lint
     just test
+    just gate
+
+# codegate's quality gates, the slow ones too (`.config/codegate.toml`); the
+# pre-commit hook runs the fast ones
+gate:
+    codegate check --full
 
 # The latency guard: fails if pace answers slower than 50 ms
 bench:
