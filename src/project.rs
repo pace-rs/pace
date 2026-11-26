@@ -14,11 +14,9 @@ use std::{
 use pace_core::ProjectKey;
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 
-use crate::{
-    config::ProjectPath,
-    origin::Origin,
-    toml_file::{TomlFile, in_file_order},
-};
+use pace_store::toml_file::{TomlFile, in_file_order};
+
+use crate::{config::ProjectPath, origin::Origin};
 
 /// The two names of a project manifest: visible and hidden.
 pub const MANIFEST_FILES: [&str; 2] = ["pace.toml", ".pace.toml"];

@@ -21,11 +21,9 @@ use toml::{
     de::{DeString, DeValue},
 };
 
-use crate::{
-    dirs::Located,
-    origin::Origin,
-    toml_file::{TomlFile, in_file_order},
-};
+use pace_store::toml_file::{TomlFile, closest, in_file_order};
+
+use crate::{dirs::Located, origin::Origin};
 
 /// A setting pace knows, and the variable that sets it.
 struct Key {
@@ -183,15 +181,6 @@ fn weekday_name(day: Weekday) -> &'static str {
         .iter()
         .find(|(_, weekday)| *weekday == day)
         .map_or("monday", |(name, _)| name)
-}
-
-/// The known name closest to `input`, if any is close enough.
-pub(crate) fn closest<'a>(input: &str, names: impl Iterator<Item = &'a str>) -> Option<&'a str> {
-    names
-        .map(|name| (strsim::jaro_winkler(input, name), name))
-        .filter(|(score, _)| *score > 0.8)
-        .max_by(|a, b| a.0.total_cmp(&b.0))
-        .map(|(_, name)| name)
 }
 
 /// A directory mapped to a project in `[project-paths]`.

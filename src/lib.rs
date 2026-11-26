@@ -12,4 +12,3 @@ pub mod config;
 pub mod dirs;
 pub mod origin;
 pub mod project;
-mod toml_file;

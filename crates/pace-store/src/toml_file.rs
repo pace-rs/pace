@@ -1,4 +1,6 @@
 //! pace's TOML files, read with spans so every error can point at its line.
+//!
+//! Config files, project manifests and event files share this reader.
 
 use std::{ops::Range, path::Path};
 
@@ -8,11 +10,11 @@ use toml::{
     de::{DeString, DeTable, DeValue},
 };
 
-use crate::config::closest;
-
 /// A TOML file and how to talk about it in errors.
 pub struct TomlFile<'a> {
+    /// The file, for messages and snippets.
     pub path: &'a Path,
+    /// Its content.
     pub text: &'a str,
     /// For messages: `the global config file`, `the project manifest`.
     pub what: &'static str,
@@ -27,6 +29,8 @@ pub struct TomlFile<'a> {
 /// The entries of a table in the order they appear in the file.
 pub type Entries<'t, 'i> = Vec<(&'t Spanned<DeString<'i>>, &'t Spanned<DeValue<'i>>)>;
 
+/// The entries of `table`, by their position in the file.
+#[must_use]
 pub fn in_file_order<'t, 'i>(table: &'t DeTable<'i>) -> Entries<'t, 'i> {
     let mut entries: Entries<'t, 'i> = table.iter().collect();
     entries.sort_by_key(|(key, _)| key.span().start);
@@ -34,6 +38,11 @@ pub fn in_file_order<'t, 'i>(table: &'t DeTable<'i>) -> Entries<'t, 'i> {
 }
 
 impl<'a> TomlFile<'a> {
+    /// The file as a table with spans.
+    ///
+    /// # Errors
+    ///
+    /// If it is no valid TOML; the snippet points at the spot.
     pub fn parse(&self) -> PaceResult<Spanned<DeTable<'a>>> {
         DeTable::parse(self.text).map_err(|error| {
             PaceError::new(ErrorKind::Configuration, "{file} is not valid TOML")
@@ -49,6 +58,7 @@ impl<'a> TomlFile<'a> {
     }
 
     /// An error about a spot in the file; the snippet shows file and line.
+    #[must_use]
     pub fn error_at(
         &self,
         span: Range<usize>,
@@ -61,6 +71,8 @@ impl<'a> TomlFile<'a> {
             .attach_snippet(self.snippet(span, label))
     }
 
+    /// An unknown key, with the closest of `known` or the list of them.
+    #[must_use]
     pub fn unknown_key(&self, name: &str, span: Range<usize>, known: &[&str]) -> Box<PaceError> {
         let hint = closest(name, known.iter().copied()).map_or_else(
             || format!("pace knows these {}s here: {}", self.noun, known.join(", ")),
@@ -75,6 +87,11 @@ impl<'a> TomlFile<'a> {
         .attach_error_code(format!("{}::unknown-key", self.code))
     }
 
+    /// Check the file's `version`.
+    ///
+    /// # Errors
+    ///
+    /// If it is not the version this pace reads; a newer one asks to update.
     pub fn check_version(&self, value: &Spanned<DeValue<'_>>) -> PaceResult<()> {
         let version = value
             .get_ref()
@@ -98,7 +115,11 @@ impl<'a> TomlFile<'a> {
             .attach_error_code(format!("{}::version", self.code)))
     }
 
-    /// The value as text, or an error that says what the key takes.
+    /// The value as text.
+    ///
+    /// # Errors
+    ///
+    /// If it is no text; the error says what `name` takes (`expects`).
     pub fn string<'v>(
         &self,
         name: &str,
@@ -116,7 +137,11 @@ impl<'a> TomlFile<'a> {
         })
     }
 
-    /// The value as a table, or an error.
+    /// The value as a table.
+    ///
+    /// # Errors
+    ///
+    /// If it is no table.
     pub fn table<'v, 'i>(
         &self,
         name: &str,
@@ -134,6 +159,7 @@ impl<'a> TomlFile<'a> {
     }
 
     /// The line of a byte offset, counted from 1.
+    #[must_use]
     pub fn line_of(&self, offset: usize) -> usize {
         self.text
             .get(..offset)
@@ -149,4 +175,14 @@ fn with_article(noun: &str) -> String {
         "a"
     };
     format!("{article} {noun}")
+}
+
+/// The known name closest to `input`, if any is close enough (Jaro-Winkler
+/// similarity above 0.8).
+pub fn closest<'a>(input: &str, names: impl Iterator<Item = &'a str>) -> Option<&'a str> {
+    names
+        .map(|name| (strsim::jaro_winkler(input, name), name))
+        .filter(|(score, _)| *score > 0.8)
+        .max_by(|a, b| a.0.total_cmp(&b.0))
+        .map(|(_, name)| name)
 }

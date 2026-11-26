@@ -1,0 +1,93 @@
+---
+source: crates/pace-store/tests/store/files.rs
+expression: text
+---
+version = 1
+
+[[event]]
+id = "01a216e0-57b8-7001-8000-000000000002"
+type = "entry.begun"
+v = 1
+batch = "01a216e0-57b8-7001-8000-000000000003"
+at = "2026-11-26T09:02:11+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:02:11.000Z/0"
+entry = "01a216e0-57b8-7001-8000-000000000001"
+project-key = "acme-webshop"
+note = "Checkout flow"
+tags = ["dev"]
+
+[[event]]
+id = "01a216e0-57b8-7001-8000-000000000004"
+type = "entry.held"
+v = 1
+batch = "01a216e0-57b8-7001-8000-000000000005"
+at = "2026-11-26T10:15:40+01:00[Europe/Berlin]"
+about = "2026-11-26T09:02:11+01:00[Europe/Berlin]"
+hlc = "2026-11-26T09:15:40.000Z/0"
+entry = "01a216e0-57b8-7001-8000-000000000001"
+source = "outer"
+reason = "phone call"
+
+[[event]]
+id = "01a216e0-57b8-7001-8000-000000000006"
+type = "entry.paused"
+v = 1
+batch = "01a216e0-57b8-7001-8000-000000000007"
+at = "2026-11-26T10:30:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:02:11+01:00[Europe/Berlin]"
+hlc = "2026-11-26T09:30:00.000Z/0"
+entry = "01a216e0-57b8-7001-8000-000000000001"
+kind = "lunch"
+
+[[event]]
+id = "01a216e0-57b8-7001-8000-000000000008"
+type = "catch.noted"
+v = 1
+batch = "01a216e0-57b8-7001-8000-000000000009"
+at = "2026-11-26T11:00:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:02:11+01:00[Europe/Berlin]"
+hlc = "2026-11-26T10:00:00.000Z/0"
+entry = "01a216e0-57b8-7001-8000-000000000001"
+text = "call the tax office"
+
+[[event]]
+id = "01a216e0-57b8-7001-8000-00000000000a"
+type = "entry.adjusted"
+v = 1
+batch = "01a216e0-57b8-7001-8000-00000000000b"
+at = "2026-11-26T11:05:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:02:11+01:00[Europe/Berlin]"
+hlc = "2026-11-26T10:05:00.000Z/0"
+entry = "01a216e0-57b8-7001-8000-000000000001"
+tags = ["dev", "review"]
+cleared = ["note"]
+
+[[event]]
+id = "01a216e0-57b8-7001-8000-00000000000c"
+type = "entry.ended"
+v = 1
+batch = "01a216e0-57b8-7001-8000-00000000000d"
+at = "2026-11-26T12:00:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:02:11+01:00[Europe/Berlin]"
+hlc = "2026-11-26T11:00:00.000Z/0"
+entry = "01a216e0-57b8-7001-8000-000000000001"
+
+[[event]]
+id = "01a216e0-57b8-7001-8000-00000000000f"
+type = "entry.logged"
+v = 1
+batch = "01a216e0-57b8-7001-8000-000000000010"
+at = "2026-11-26T14:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T17:00:00.000Z/0"
+entry = "01a216e0-57b8-7001-8000-00000000000e"
+end = "2026-11-26T15:30:00-05:00[America/New_York]"
+
+[[event]]
+id = "01a216e0-57b8-7001-8000-000000000011"
+type = "batch.undone"
+v = 1
+batch = "01a216e0-57b8-7001-8000-000000000012"
+at = "2026-11-26T18:01:00+01:00[Europe/Berlin]"
+about = "2026-11-26T14:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T17:01:00.000Z/0"
+undoes = "01a216e0-57b8-7001-8000-000000000010"

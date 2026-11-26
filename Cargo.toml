@@ -19,11 +19,13 @@ rust-version = "1.98"
 abscissa_core = { version = "0.9.0", default-features = false }
 clap = "4.6.10"
 directories = "6.0.0"
+gethostname = "1.1.0"
 insta = { version = "1.49.0", features = ["filters"] }
 jiff = "1.0.3"
 miette = { version = "7.6.0", default-features = false }
 pace_core = { path = "crates/pace-core" }
 pace_error = { path = "crates/pace-error" }
+pace_store = { path = "crates/pace-store" }
 pace_time = { path = "crates/pace-time" }
 pollster = "1.0.3"
 proptest = "1.12.0"
@@ -66,7 +68,7 @@ jiff = { workspace = true }
 miette = { workspace = true, features = ["fancy-no-backtrace"] }
 pace_core = { workspace = true }
 pace_error = { workspace = true }
-strsim = { workspace = true }
+pace_store = { workspace = true }
 toml = { workspace = true }
 
 [dev-dependencies]
