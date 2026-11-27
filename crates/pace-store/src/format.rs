@@ -15,6 +15,7 @@ use pace_core::{
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
+use crate::hlc::hlc_text;
 use crate::toml_file::{TomlFile, closest, in_file_order};
 
 /// The version of the event file format.
@@ -257,14 +258,6 @@ impl Invalid {
             hint: READ_ONLY.to_owned(),
         }
     }
-}
-
-fn hlc_text(hlc: Hlc) -> String {
-    format!(
-        "{}/{}",
-        hlc.wall().strftime("%Y-%m-%dT%H:%M:%S%.3fZ"),
-        hlc.counter()
-    )
 }
 
 fn parse_hlc(text: &str) -> Option<Hlc> {

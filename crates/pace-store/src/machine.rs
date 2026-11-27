@@ -8,7 +8,7 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
 use crate::disk::{DEVICE_FILE, io_error, prepare, write_atomically};
-use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts};
+use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts, hlc_text};
 
 const CURSORS_FILE: &str = "cursors.toml";
 
@@ -173,11 +173,6 @@ pub fn clone_detected(machine: &Path, own_last: Hlc, remembered: Hlc) -> Box<Pac
         machine.join(DEVICE_FILE).display()
     ))
     .attach_error_code("pace::store::device-cloned")
-}
-
-/// An HLC as a timestamp and its counter: `2026-11-26T08:00:00Z #0`.
-fn hlc_text(hlc: Hlc) -> String {
-    format!("{} #{}", hlc.wall(), hlc.counter())
 }
 
 fn write<T: Serialize>(path: &Path, value: &T) -> PaceResult<()> {

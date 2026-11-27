@@ -36,42 +36,6 @@ fn the_first_run_creates_the_device_id_and_later_runs_keep_it() -> TestResult {
 }
 
 #[test]
-fn first_runs_at_once_agree_on_one_device_id() -> TestResult {
-    for round in 0..20u16 {
-        let dir = tempfile::tempdir()?;
-        let machine = dir.path().join("machine");
-        let start = at("2026-11-26T09:00[Europe/Berlin]")?;
-        let barrier = std::sync::Barrier::new(4);
-        let identities = std::thread::scope(|scope| {
-            let runs: Vec<_> = (0..4u16)
-                .map(|run| {
-                    let (machine, start, barrier) = (&machine, &start, &barrier);
-                    scope.spawn(move || {
-                        let ids = SequentialIds::starting_at(start, 10 * round + run + 1);
-                        _ = barrier.wait();
-                        device_id(machine, &ids)
-                    })
-                })
-                .collect();
-            runs.into_iter()
-                .map(|run| run.join().map_err(|_| "a first run panicked"))
-                .collect::<Result<Vec<_>, _>>()
-        })?;
-        let identities = identities.into_iter().collect::<Result<Vec<_>, _>>()?;
-
-        let ids: std::collections::BTreeSet<DeviceId> =
-            identities.iter().map(|identity| identity.id).collect();
-        assert_eq!(ids.len(), 1, "round {round}: {identities:?}");
-        let created = identities
-            .iter()
-            .filter(|identity| identity.created)
-            .count();
-        assert_eq!(created, 1, "round {round}: {identities:?}");
-    }
-    Ok(())
-}
-
-#[test]
 fn broken_device_file_says_how_to_get_new_id() -> TestResult {
     let dir = scratch_dir()?;
     let machine = dir.path().join("machine");
@@ -138,7 +102,7 @@ fn device_id_used_by_two_machines_stops_writing() -> TestResult {
     assert_eq!(
         error.to_string(),
         "another machine writes with this machine's device ID: the log of this ID reaches \
-         2026-11-26T09:00:00Z #0, but this machine wrote up to 2026-11-26T08:00:00Z #0"
+         2026-11-26T09:00:00.000Z/0, but this machine wrote up to 2026-11-26T08:00:00.000Z/0"
     );
     assert!(
         error
@@ -202,4 +166,48 @@ fn clock_reading_out_of_range_in_cursors_stops_writing() -> TestResult {
         )
     );
     Ok(())
+}
+
+/// Tests that cost more than the others: four threads create the device ID
+/// of a fresh machine directory at once, eight times, and each creation
+/// syncs its file to disk. `.config/nextest.toml` runs them in the test group
+/// `expensive`.
+mod expensive {
+    use super::*;
+
+    #[test]
+    fn first_runs_at_once_agree_on_one_device_id() -> TestResult {
+        for round in 0..8u16 {
+            let dir = tempfile::tempdir()?;
+            let machine = dir.path().join("machine");
+            let start = at("2026-11-26T09:00[Europe/Berlin]")?;
+            let barrier = std::sync::Barrier::new(4);
+            let identities = std::thread::scope(|scope| {
+                let runs: Vec<_> = (0..4u16)
+                    .map(|run| {
+                        let (machine, start, barrier) = (&machine, &start, &barrier);
+                        scope.spawn(move || {
+                            let ids = SequentialIds::starting_at(start, 10 * round + run + 1);
+                            _ = barrier.wait();
+                            device_id(machine, &ids)
+                        })
+                    })
+                    .collect();
+                runs.into_iter()
+                    .map(|run| run.join().map_err(|_| "a first run panicked"))
+                    .collect::<Result<Vec<_>, _>>()
+            })?;
+            let identities = identities.into_iter().collect::<Result<Vec<_>, _>>()?;
+
+            let ids: std::collections::BTreeSet<DeviceId> =
+                identities.iter().map(|identity| identity.id).collect();
+            assert_eq!(ids.len(), 1, "round {round}: {identities:?}");
+            let created = identities
+                .iter()
+                .filter(|identity| identity.created)
+                .count();
+            assert_eq!(created, 1, "round {round}: {identities:?}");
+        }
+        Ok(())
+    }
 }
