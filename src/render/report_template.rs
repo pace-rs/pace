@@ -144,9 +144,8 @@ fn template_error(template: &ReportTemplate, error: &tera::Error) -> Box<PaceErr
     .attach_context("template", template.name());
     match template {
         ReportTemplate::BuiltIn(_) => failed.ask_report(),
-        ReportTemplate::File { .. } => {
-            failed.attach_hint("the user guide's page on reports describes the data of a template")
-        }
+        ReportTemplate::File { .. } => failed
+            .attach_hint("fix the template; the user guide's page on reports describes its data"),
     }
 }
 

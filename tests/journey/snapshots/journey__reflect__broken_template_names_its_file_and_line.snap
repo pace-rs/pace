@@ -1,0 +1,19 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --template broken.tera   # at 15:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × the template broken.tera has a mistake on line 3: Found `}` but expected }}.
+   ╭─[broken.tera:3:12]
+ 2 │ {% for row in rows %}
+ 3 │ {{ row.net }
+   ·            ┬
+   ·            ╰── here
+ 4 │ {% endfor %}
+   ╰────
+  help: fix the template; the user guide's page on reports describes its data

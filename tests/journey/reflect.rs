@@ -749,3 +749,73 @@ fn templates_name_warnings_and_time_without_rate() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn own_template_renders_report() -> TestResult {
+    let sandbox = week_sandbox()?;
+    sandbox.write(
+        "work/mine.tera",
+        "{{ kind }} {{ version }}: {% for row in rows %}\
+         {% if row.group == \"tracked\" %}tracked {{ row.net }}{% endif %}{% endfor %}\n",
+    )?;
+
+    let output = run(sandbox
+        .pace_at("15:00")
+        .args(["reflect", "--template", "mine.tera"]))?;
+
+    assert!(
+        output.contains("----- stdout -----\nreflect 1: tracked 7h 15m\n"),
+        "{output}"
+    );
+    Ok(())
+}
+
+#[test]
+fn broken_template_names_its_file_and_line() -> TestResult {
+    let sandbox = week_sandbox()?;
+    sandbox.write(
+        "work/broken.tera",
+        "Report\n{% for row in rows %}\n{{ row.net }\n{% endfor %}\n",
+    )?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--template", "broken.tera"])])?;
+
+    assert!(
+        output.contains("the template broken.tera has a mistake on line 3"),
+        "{output}"
+    );
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn missing_template_file_is_named() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = sandbox
+        .pace_at("15:00")
+        .args(["reflect", "--template", "missing.tera"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("cannot read the template missing.tera"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn template_beside_format_is_usage_error() -> TestResult {
+    let sandbox = week_sandbox()?;
+    sandbox.write("work/mine.tera", "{{ kind }}\n")?;
+
+    let output = sandbox
+        .pace_at("15:00")
+        .args(["reflect", "--format", "json", "--template", "mine.tera"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2));
+    Ok(())
+}

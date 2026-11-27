@@ -1,7 +1,7 @@
 //! `pace reflect`: the report of a period, as a table, JSON, CSV, or text,
 //! Markdown and HTML from a template.
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, path::PathBuf};
 
 use abscissa_core::{Command, Runnable};
 use jiff::civil::Date;
@@ -98,6 +98,14 @@ pub struct ReflectCmd {
         help = "How to show the report"
     )]
     format: ReflectFormat,
+
+    #[arg(
+        long,
+        value_name = "FILE",
+        conflicts_with = "format",
+        help = "Render the report with this Tera template; it receives the rows of --format json"
+    )]
+    template: Option<PathBuf>,
 }
 
 /// How `pace reflect` shows the report.
@@ -168,8 +176,7 @@ impl ReflectCmd {
                 state: &state,
             })
         };
-        let template = self.format.template().map(ReportTemplate::BuiltIn);
-        match (template, self.format) {
+        match (self.report_template()?, self.format) {
             (Some(template), _) => print_from_template(&template, &rows()),
             (None, ReflectFormat::Json) => {
                 print_lines([schema_json(SchemaKind::Reflect, &rows())?])
@@ -188,6 +195,16 @@ impl ReflectCmd {
                 Canvas::detect(context.plain),
             )),
         }
+    }
+
+    /// The template to render the report with: the file of
+    /// `--template`, else the built-in template of `--format`, if it has
+    /// one.
+    fn report_template(&self) -> PaceResult<Option<ReportTemplate>> {
+        if let Some(path) = &self.template {
+            return ReportTemplate::read(path).map(Some);
+        }
+        Ok(self.format.template().map(ReportTemplate::BuiltIn))
     }
 
     /// The period: the named one, or `--from` and `--to`; this week
