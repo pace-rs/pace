@@ -66,8 +66,6 @@ mod constants {
 pub type PaceResult<T, E = Box<PaceError>> = Result<T, E>;
 
 /// What an error is related to.
-///
-/// The `Display` output completes the sentence "an error related to …".
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
@@ -87,21 +85,6 @@ pub enum ErrorKind {
     Internal,
     /// general operations
     Other,
-}
-
-impl Display for ErrorKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::Configuration => "the configuration",
-            Self::Directories => "pace's directories",
-            Self::Project => "the project context",
-            Self::InvalidInput => "invalid user input",
-            Self::InputOutput => "input/output operations",
-            Self::Time => "time handling",
-            Self::Internal => "internal operations",
-            Self::Other => "general operations",
-        })
-    }
 }
 
 /// How serious an error is.
@@ -331,28 +314,6 @@ impl PaceError {
             .iter()
             .enumerate()
             .find_map(|(index, (k, value))| (k == key).then_some((index, value.as_str())))
-    }
-
-    /// A one-line form for logs.
-    #[must_use]
-    pub fn display_log(&self) -> String {
-        let (guidance, _) = self.filled_guidance();
-        let mut log = format!("Error: {guidance} (kind: related to {}", self.kind);
-        if let Some(code) = &self.error_code {
-            log.push_str(", code: ");
-            log.push_str(code);
-        }
-        log.push(')');
-        if let Some(cause) = &self.source {
-            log.push_str(": caused by: ");
-            log.push_str(&cause.to_string());
-            if let Some(source) = cause.source() {
-                log.push_str(" : (source: ");
-                log.push_str(&source.to_string());
-                log.push(')');
-            }
-        }
-        log
     }
 }
 
