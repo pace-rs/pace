@@ -13,7 +13,7 @@ keywords = ["cli", "time-tracking", "productivity"]
 license = "AGPL-3.0-or-later"
 publish = false
 repository = "https://github.com/pace-rs/pace"
-rust-version = "1.98"
+rust-version = "1.100"
 
 [workspace.dependencies]
 abscissa_core = { version = "0.9.0", default-features = false }
