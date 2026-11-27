@@ -22,5 +22,6 @@ split = "month"  # default
 
 [reports]
 time-zone = "Europe/Vienna"  # from [SANDBOX]/config/pace.global.toml:2
+templates = ""               # default
 
 ----- stderr -----

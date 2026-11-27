@@ -85,6 +85,34 @@ impl ReportTemplate {
         })
     }
 
+    /// The file of `template`'s name in `dir`, the directory of
+    /// `reports.templates`, which replaces `template`; `template` itself
+    /// without a directory, or when `dir` has no such file.
+    ///
+    /// # Errors
+    ///
+    /// If `dir` is no directory, or its file can't be read: the error
+    /// names it.
+    pub fn from_templates_dir(template: BuiltInTemplate, dir: Option<&Path>) -> PaceResult<Self> {
+        let Some(dir) = dir else {
+            return Ok(Self::BuiltIn(template));
+        };
+        if !dir.is_dir() {
+            return Err(PaceError::new(
+                ErrorKind::Configuration,
+                "the directory {dir} of `reports.templates` does not exist",
+            )
+            .attach_context("dir", dir.display().to_string())
+            .attach_hint("create it, or change `reports.templates` with `pace config set`"));
+        }
+        let path = dir.join(template.name());
+        if path.is_file() {
+            Self::read(&path)
+        } else {
+            Ok(Self::BuiltIn(template))
+        }
+    }
+
     /// The name Tera knows the template by, and an error names: the
     /// built-in name, or the file's path.
     #[must_use]

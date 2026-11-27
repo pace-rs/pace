@@ -22,5 +22,6 @@ split = "month"  # default
 
 [reports]
 time-zone = "system"  # default
+templates = ""        # default
 
 ----- stderr -----

@@ -22,6 +22,7 @@ split = "month"
 
 [reports]
 time-zone = "system"
+templates = ""
 
 ----- stderr -----
   ⚠ the variable PACE_TIMEZONE is not one pace knows

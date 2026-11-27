@@ -176,7 +176,7 @@ impl ReflectCmd {
                 state: &state,
             })
         };
-        match (self.report_template()?, self.format) {
+        match (self.report_template(context)?, self.format) {
             (Some(template), _) => print_from_template(&template, &rows()),
             (None, ReflectFormat::Json) => {
                 print_lines([schema_json(SchemaKind::Reflect, &rows())?])
@@ -198,13 +198,18 @@ impl ReflectCmd {
     }
 
     /// The template to render the report with: the file of
-    /// `--template`, else the built-in template of `--format`, if it has
+    /// `--template`, else the template of `--format`, if it has one. A
+    /// file of the same name in `reports.templates` replaces the built-in
     /// one.
-    fn report_template(&self) -> PaceResult<Option<ReportTemplate>> {
+    fn report_template(&self, context: &Context) -> PaceResult<Option<ReportTemplate>> {
         if let Some(path) = &self.template {
             return ReportTemplate::read(path).map(Some);
         }
-        Ok(self.format.template().map(ReportTemplate::BuiltIn))
+        let Some(template) = self.format.template() else {
+            return Ok(None);
+        };
+        let dir = context.settings.settings.reports_templates.as_deref();
+        ReportTemplate::from_templates_dir(template, dir).map(Some)
     }
 
     /// The period: the named one, or `--from` and `--to`; this week

@@ -27,7 +27,10 @@ pub use self::values::TimeZoneSetting;
 pub(crate) use self::values::hold_source_name;
 use self::{
     key::Kind,
-    values::{Value, parse_count, parse_hold_source, parse_time_zone, parse_weekday, weekday_name},
+    values::{
+        Value, expand_home, parse_count, parse_hold_source, parse_templates_dir, parse_time_zone,
+        parse_weekday, weekday_name,
+    },
 };
 use crate::{dirs::Located, origin::Origin};
 
@@ -66,6 +69,9 @@ pub struct Settings {
     pub split: Split,
     /// `reports.time-zone`: the zone reports split days in.
     pub reports_time_zone: TimeZoneSetting,
+    /// `reports.templates`: the directory whose templates replace pace's
+    /// own by name; `None` for pace's own.
+    pub reports_templates: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -77,6 +83,7 @@ impl Default for Settings {
             default_hold_source: HoldSource::Unknown,
             split: Split::Month,
             reports_time_zone: TimeZoneSetting::System,
+            reports_templates: None,
         }
     }
 }
@@ -90,6 +97,7 @@ impl Settings {
             Key::HoldsDefaultSource => self.default_hold_source = parse_hold_source(&value.text())?,
             Key::StorageSplit => self.split = value.text().parse()?,
             Key::ReportsTimeZone => self.reports_time_zone = parse_time_zone(&value.text())?,
+            Key::ReportsTemplates => self.reports_templates = parse_templates_dir(&value.text())?,
         }
         Ok(())
     }
@@ -106,6 +114,10 @@ impl Settings {
             Key::HoldsDefaultSource => hold_source_name(self.default_hold_source).to_owned(),
             Key::StorageSplit => self.split.to_string(),
             Key::ReportsTimeZone => self.reports_time_zone.to_string(),
+            Key::ReportsTemplates => self
+                .reports_templates
+                .as_ref()
+                .map_or_else(String::new, |dir| dir.display().to_string()),
         };
         toml::Value::String(text)
     }
@@ -262,6 +274,10 @@ pub fn load_settings(
             .map_err(|error| from_variable(error, key.variable()))?;
         set_origin(&mut origins, key, Origin::Env(key.variable()));
     }
+    settings.reports_templates = settings
+        .reports_templates
+        .map(|dir| expand_home(dir, home))
+        .transpose()?;
 
     Ok(Loaded {
         settings,
@@ -499,6 +515,7 @@ mod tests {
             default_hold_source: HoldSource::Outer,
             split: Split::Week,
             reports_time_zone: parse_time_zone("Europe/Lisbon")?,
+            reports_templates: Some(PathBuf::from("/srv/pace/templates")),
         };
         let mut read_back = Settings::default();
 

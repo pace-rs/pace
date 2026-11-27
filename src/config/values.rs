@@ -1,7 +1,11 @@
 //! Reading and showing the values of settings: time zones, days of the
-//! week, counts and sources of holds.
+//! week, counts, sources of holds and directories.
 
-use std::{borrow::Cow, fmt};
+use std::{
+    borrow::Cow,
+    fmt,
+    path::{Path, PathBuf},
+};
 
 use jiff::{civil::Weekday, tz::TimeZone};
 use pace_core::HoldSource;
@@ -117,6 +121,48 @@ pub(crate) fn parse_time_zone(value: &str) -> PaceResult<TimeZoneSetting> {
         value,
         hint,
     ))
+}
+
+/// The directory of `reports.templates`: `None` for empty text, else a
+/// full path or one that starts with `~`, which
+/// [`expand_home`] expands.
+pub(crate) fn parse_templates_dir(value: &str) -> PaceResult<Option<PathBuf>> {
+    if value.is_empty() {
+        return Ok(None);
+    }
+    if Path::new(value).is_absolute() || home_relative(value).is_some() {
+        return Ok(Some(PathBuf::from(value)));
+    }
+    Err(invalid(
+        "`{value}` is not a full path",
+        value,
+        "write the full path, or start it with `~/`",
+    ))
+}
+
+/// `dir` with a leading `~` replaced by `home`.
+///
+/// # Errors
+///
+/// If `dir` starts with `~` and pace knows no home directory.
+pub(crate) fn expand_home(dir: PathBuf, home: Option<&Path>) -> PaceResult<PathBuf> {
+    let Some(rest) = dir.to_str().and_then(home_relative) else {
+        return Ok(dir);
+    };
+    home.map(|home| home.join(rest)).ok_or_else(|| {
+        invalid(
+            "pace cannot find your home directory to expand `~` in `{value}`",
+            &dir.display().to_string(),
+            "write the full path",
+        )
+    })
+}
+
+/// The rest of `path` after a leading `~/`, `~\` or a lone `~`.
+fn home_relative(path: &str) -> Option<&str> {
+    path.strip_prefix("~/")
+        .or_else(|| path.strip_prefix("~\\"))
+        .or_else(|| (path == "~").then_some(""))
 }
 
 const WEEKDAYS: [Weekday; 7] = [
@@ -239,5 +285,50 @@ mod tests {
             error.as_ref().and_then(|error| error.hint()),
             Some("did you mean `monday`?")
         );
+    }
+
+    #[test]
+    fn templates_dir_is_none_when_empty_and_takes_full_or_home_path() -> TestResult {
+        let full = std::env::temp_dir().join("templates");
+
+        assert_eq!(parse_templates_dir("")?, None);
+        assert_eq!(
+            parse_templates_dir(&full.display().to_string())?,
+            Some(full.clone())
+        );
+        assert_eq!(
+            parse_templates_dir("~/templates")?,
+            Some(PathBuf::from("~/templates"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn relative_templates_dir_is_refused() {
+        let error = parse_templates_dir("templates").err();
+
+        assert_eq!(
+            error.as_ref().map(ToString::to_string).as_deref(),
+            Some("`templates` is not a full path")
+        );
+        assert_eq!(
+            error.as_ref().and_then(|error| error.hint()),
+            Some("write the full path, or start it with `~/`")
+        );
+    }
+
+    #[test]
+    fn home_expands_leading_tilde_only() -> TestResult {
+        let home = std::env::temp_dir().join("home");
+        let full = std::env::temp_dir().join("templates");
+
+        assert_eq!(
+            expand_home(PathBuf::from("~/templates"), Some(&home))?,
+            home.join("templates")
+        );
+        assert_eq!(expand_home(PathBuf::from("~"), Some(&home))?, home);
+        assert_eq!(expand_home(full.clone(), None)?, full);
+        assert!(expand_home(PathBuf::from("~/templates"), None).is_err());
+        Ok(())
     }
 }

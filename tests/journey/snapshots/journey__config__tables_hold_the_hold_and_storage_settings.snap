@@ -22,5 +22,6 @@ split = "day"  # from PACE_STORAGE__SPLIT
 
 [reports]
 time-zone = "system"  # default
+templates = ""        # default
 
 ----- stderr -----

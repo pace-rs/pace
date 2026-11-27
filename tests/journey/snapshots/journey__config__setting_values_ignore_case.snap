@@ -22,5 +22,6 @@ split = "week"
 
 [reports]
 time-zone = "system"
+templates = ""
 
 ----- stderr -----

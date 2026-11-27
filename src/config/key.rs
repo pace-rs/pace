@@ -15,6 +15,7 @@ pub(crate) enum Key {
     HoldsDefaultSource,
     StorageSplit,
     ReportsTimeZone,
+    ReportsTemplates,
 }
 
 /// What a setting's value is in TOML.
@@ -26,13 +27,14 @@ pub(crate) enum Kind {
 
 impl Key {
     /// Every setting, in the order pace documents them.
-    pub(crate) const ALL: [Self; 6] = [
+    pub(crate) const ALL: [Self; 7] = [
         Self::TimeZone,
         Self::WeekStart,
         Self::MostRecentCount,
         Self::HoldsDefaultSource,
         Self::StorageSplit,
         Self::ReportsTimeZone,
+        Self::ReportsTemplates,
     ];
 
     /// The setting written `name`, as `config get` and `config set` take
@@ -70,6 +72,7 @@ impl Key {
             Self::HoldsDefaultSource => "holds.default-source",
             Self::StorageSplit => "storage.split",
             Self::ReportsTimeZone => "reports.time-zone",
+            Self::ReportsTemplates => "reports.templates",
         }
     }
 
@@ -82,6 +85,7 @@ impl Key {
             Self::HoldsDefaultSource => "PACE_HOLDS__DEFAULT_SOURCE",
             Self::StorageSplit => "PACE_STORAGE__SPLIT",
             Self::ReportsTimeZone => "PACE_REPORTS__TIME_ZONE",
+            Self::ReportsTemplates => "PACE_REPORTS__TEMPLATES",
         }
     }
 
@@ -95,6 +99,9 @@ impl Key {
             Self::MostRecentCount => "a whole number from 1, like `9`",
             Self::HoldsDefaultSource => "`inner`, `outer` or `unknown`",
             Self::StorageSplit => "`year`, `month`, `week` or `day`",
+            Self::ReportsTemplates => {
+                "the full path of a directory, or empty for pace's own templates"
+            }
         }
     }
 
@@ -105,7 +112,8 @@ impl Key {
             | Self::WeekStart
             | Self::HoldsDefaultSource
             | Self::StorageSplit
-            | Self::ReportsTimeZone => Kind::Text,
+            | Self::ReportsTimeZone
+            | Self::ReportsTemplates => Kind::Text,
         }
     }
 }

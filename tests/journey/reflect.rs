@@ -819,3 +819,76 @@ fn template_beside_format_is_usage_error() -> TestResult {
     assert_eq!(output.status.code(), Some(2));
     Ok(())
 }
+
+#[test]
+fn templates_directory_replaces_built_in_template_by_name() -> TestResult {
+    let sandbox = week_sandbox()?;
+    sandbox.write("templates/reflect.markdown.tera", "My {{ kind }}\n")?;
+    let dir = sandbox.path("templates").display().to_string();
+    sandbox.write_config(&format!(
+        "[reports]\ntime-zone = \"Europe/Berlin\"\ntemplates = {dir:?}\n"
+    ))?;
+
+    let markdown = run(sandbox
+        .pace_at("15:00")
+        .args(["reflect", "--format", "markdown"]))?;
+    let text = run(sandbox
+        .pace_at("15:00")
+        .args(["reflect", "--format", "text"]))?;
+
+    assert!(markdown.contains("-----\nMy reflect\n"), "{markdown}");
+    assert!(text.contains("Report from 2026-11-23"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn templates_variable_names_directory() -> TestResult {
+    let sandbox = week_sandbox()?;
+    sandbox.write("mine/reflect.text.tera", "Mine\n")?;
+
+    let output = run(sandbox
+        .pace_at("15:00")
+        .env("PACE_REPORTS__TEMPLATES", sandbox.path("mine"))
+        .args(["reflect", "--format", "text"]))?;
+
+    assert!(output.contains("-----\nMine\n"), "{output}");
+    Ok(())
+}
+
+#[test]
+fn missing_templates_directory_is_named() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = sandbox
+        .pace_at("15:00")
+        .env("PACE_REPORTS__TEMPLATES", sandbox.path("nowhere"))
+        .args(["reflect", "--format", "text"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("nowhere"), "{stderr}");
+    assert!(stderr.contains("reports.templates"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn broken_template_in_templates_directory_names_its_file_and_line() -> TestResult {
+    let sandbox = week_sandbox()?;
+    sandbox.write("mine/reflect.html.tera", "<p>\n{{ kind }\n")?;
+
+    let output = sandbox
+        .pace_at("15:00")
+        .env("PACE_REPORTS__TEMPLATES", sandbox.path("mine"))
+        .args(["reflect", "--format", "html"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("reflect.html.tera has a mistake on line 2"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("This is a bug in pace"), "{stderr}");
+    Ok(())
+}

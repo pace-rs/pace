@@ -22,6 +22,7 @@ split = "month"  # default
 
 [reports]
 time-zone = "system"  # default
+templates = ""        # default
 
 [project-paths]
 '[SANDBOX]/work/clients' = "clients"           # from [SANDBOX]/config/pace.global.toml:2
