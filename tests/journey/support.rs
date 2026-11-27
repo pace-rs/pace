@@ -205,9 +205,9 @@ impl Sandbox {
         self.bare(pace())
     }
 
-    /// A copy of the `pace` binary in the sandbox directory `relative`, run
-    /// as [`Sandbox::bare_pace`] runs, for portable mode.
-    pub fn pace_copied_to(&self, relative: &str) -> std::io::Result<Command> {
+    /// Copy the `pace` binary into the sandbox directory `relative`, for
+    /// portable mode, and return the path of the copy.
+    pub fn copy_pace_to(&self, relative: &str) -> std::io::Result<PathBuf> {
         let binary = Path::new(env!("CARGO_BIN_EXE_pace"));
         let name = binary.file_name().ok_or_else(|| {
             std::io::Error::other(format!("{} has no file name", binary.display()))
@@ -215,7 +215,22 @@ impl Sandbox {
         let copy = self.path(relative).join(name);
         std::fs::create_dir_all(self.path(relative))?;
         _ = std::fs::copy(binary, &copy)?;
-        Ok(self.bare(Command::new(copy)))
+        Ok(copy)
+    }
+
+    /// The copy `binary` of [`Sandbox::copy_pace_to`], run as
+    /// [`Sandbox::bare_pace`] runs, with `HOME` and the XDG directories in the
+    /// sandbox's `fallback-home/`. So if portable mode breaks, pace falls
+    /// back to the sandbox, not to the caller's real directories.
+    pub fn portable_pace(&self, binary: &Path) -> Command {
+        let home = self.path("fallback-home");
+        let mut command = self.bare(Command::new(binary));
+        _ = command
+            .env("HOME", &home)
+            .env("XDG_CONFIG_HOME", home.join(".config"))
+            .env("XDG_DATA_HOME", home.join(".local/share"))
+            .env("XDG_STATE_HOME", home.join(".local/state"));
+        command
     }
 
     /// `command` without the caller's `PACE_*` and output variables, in

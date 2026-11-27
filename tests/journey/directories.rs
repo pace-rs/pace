@@ -118,18 +118,31 @@ fn linux_defaults_follow_xdg() -> TestResult {
 fn portable_mode_keeps_files_next_to_the_executable() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write("stick/pace.global.toml", "")?;
+    sandbox.mkdir("fallback-home")?;
+    let stick_pace = sandbox.copy_pace_to("stick")?;
 
     let shown = run(sandbox
-        .pace_copied_to("stick")?
+        .portable_pace(&stick_pace)
         .args(["config", "show", "--origin"]))?;
+    // Stop before `begin` writes anything if portable mode is broken.
+    for place in ["# config file:", "# data:", "# machine:"] {
+        let line = shown.lines().find(|line| line.starts_with(place));
+        assert!(
+            line.is_some_and(|line| line.contains("(portable mode")),
+            "{place} is not in portable mode:\n{shown}"
+        );
+    }
+    sandbox.settings().bind(|| insta::assert_snapshot!(shown));
+
     let began = run(sandbox
-        .pace_copied_to("stick")?
+        .portable_pace(&stick_pace)
         .env("PACE_TEST_NOW", "2026-11-26T09:00[Europe/Berlin]")
         .args(["begin", "Write offer"]))?;
 
     assert!(began.contains("exit_code: 0"), "{began}");
     assert!(sandbox.path("stick/data/events").is_dir(), "{began}");
     assert!(sandbox.path("stick/machine").is_dir(), "{began}");
-    sandbox.settings().bind(|| insta::assert_snapshot!(shown));
+    let fallback = std::fs::read_dir(sandbox.path("fallback-home"))?.count();
+    assert_eq!(fallback, 0, "pace wrote outside portable mode:\n{began}");
     Ok(())
 }
