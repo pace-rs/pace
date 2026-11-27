@@ -16,6 +16,18 @@ use crate::{
 
 const NOW_HINT: &str = "pace records what happened; `pace begin` starts an entry now";
 
+const ENTRY_BEGAN: &str = "the entry began at {earlier}, after {at}";
+const BREAK_BEGAN: &str = "the break began at {earlier}, after {at}";
+const LAST_BREAK_ENDED: &str = "the last break ended at {earlier}, after {at}";
+
+/// The command whose overlap [`Rules::refuse_overlap`] refuses.
+#[derive(Debug, Clone, Copy)]
+enum Verb {
+    Begin,
+    Log,
+    Adjust,
+}
+
 /// The settings the rules depend on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Policy {
@@ -93,6 +105,7 @@ impl Rules<'_> {
                         self.clock(&running.start)
                     )));
                 }
+                self.check_end_after_breaks(running, &start)?;
                 events.push(self.event(
                     &start,
                     &running.filed,
@@ -104,7 +117,7 @@ impl Rules<'_> {
         }
 
         if !begin.allow_overlap {
-            self.refuse_overlap(&start, self.now, &ending, "begin")?;
+            self.refuse_overlap(&start, self.now, &ending, Verb::Begin)?;
         }
 
         let entry = self.new_id()?;
@@ -127,9 +140,10 @@ impl Rules<'_> {
         if let Some(open) = entry.holds.iter().find(|hold| hold.end.is_none()) {
             if hold.reason.is_none() {
                 return Err(nothing_to_do(
-                    format!("the entry is held since {}", self.clock(&open.start)),
+                    "the entry is held since {since}",
                     "`pace resume` goes on with it",
-                ));
+                )
+                .attach_context("since", self.clock(&open.start)));
             }
         } else {
             self.check_break_start(entry, &at)?;
@@ -151,9 +165,10 @@ impl Rules<'_> {
         if let Some(open) = entry.pauses.iter().find(|pause| pause.end.is_none()) {
             if pause.reason.is_none() {
                 return Err(nothing_to_do(
-                    format!("the entry is paused since {}", self.clock(&open.start)),
+                    "the entry is paused since {since}",
                     "`pace resume` goes on with it",
-                ));
+                )
+                .attach_context("since", self.clock(&open.start)));
             }
         } else {
             self.check_break_start(entry, &at)?;
@@ -179,7 +194,7 @@ impl Rules<'_> {
             ));
         };
         if at < *open_since {
-            return Err(self.before(open_since, &at, "the break began"));
+            return Err(self.after(BREAK_BEGAN, open_since, &at));
         }
         Ok(vec![self.event(
             &at,
@@ -214,13 +229,10 @@ impl Rules<'_> {
         let at = end.at.clone().unwrap_or_else(|| self.now.clone());
         self.refuse_future("end", &at, "leave out `--at` to end it now")?;
         if at < entry.start {
-            return Err(self.before(&entry.start, &at, "the entry began"));
+            return Err(self.after(ENTRY_BEGAN, &entry.start, &at));
         }
-        if let Some(open_since) = open_break_start(entry)
-            && at < *open_since
-        {
-            return Err(self.before(open_since, &at, "the break began"));
-        }
+        self.check_length(&entry.start, &at)?;
+        self.check_end_after_breaks(entry, &at)?;
         Ok(vec![self.event(
             &at,
             &entry.filed,
@@ -229,12 +241,10 @@ impl Rules<'_> {
     }
 
     fn log(&self, log: &Log) -> PaceResult<Vec<Event>> {
-        if log.end <= log.start {
-            return Err(self.ends_before_start(&log.start, &log.end));
-        }
+        self.check_length(&log.start, &log.end)?;
         self.refuse_future("end", &log.end, NOW_HINT)?;
         if !log.allow_overlap {
-            self.refuse_overlap(&log.start, &log.end, &[], "log")?;
+            self.refuse_overlap(&log.start, &log.end, &[], Verb::Log)?;
         }
         Ok(vec![self.event(
             &log.start,
@@ -265,17 +275,6 @@ impl Rules<'_> {
 
         let start = adjust.start.clone().unwrap_or_else(|| entry.start.clone());
         let end = adjust.end.clone().or_else(|| entry.end.clone());
-        if let Some(end) = &end
-            && *end <= start
-        {
-            return Err(self.ends_before_start(&start, end));
-        }
-        self.refuse_future("start", &start, NOW_HINT)?;
-        if let Some(end) = &end {
-            self.refuse_future("end", end, NOW_HINT)?;
-        }
-        self.check_breaks_inside(entry, &start, end.as_ref())?;
-
         let changes = changes(entry, adjust, &start, end.as_ref());
         if changes.is_empty() {
             return Err(nothing_to_do(
@@ -283,13 +282,16 @@ impl Rules<'_> {
                 "give `--start`, `--end`, `--note`, `--project`, `--tag` or `--untag`",
             ));
         }
-        if !adjust.allow_overlap && (changes.start.is_some() || changes.end.is_some()) {
-            self.refuse_overlap(
-                &start,
-                end.as_ref().unwrap_or(self.now),
-                &[entry.id],
-                "adjust",
-            )?;
+        if changes.start.is_some() || changes.end.is_some() {
+            self.check_moved_times(entry, &changes, &start, end.as_ref())?;
+            if !adjust.allow_overlap {
+                self.refuse_overlap(
+                    &start,
+                    end.as_ref().unwrap_or(self.now),
+                    &[entry.id],
+                    Verb::Adjust,
+                )?;
+            }
         }
         Ok(vec![self.event(
             self.now,
@@ -360,9 +362,10 @@ impl Rules<'_> {
             let entry = self.known_entry(id)?;
             if let Some(end) = &entry.end {
                 return Err(nothing_to_do(
-                    format!("the entry ended at {}", self.clock(end)),
+                    "the entry ended at {end}",
                     "`pace adjust --end` moves its end",
-                ));
+                )
+                .attach_context("end", self.clock(end)));
             }
             return Ok(entry);
         }
@@ -406,7 +409,7 @@ impl Rules<'_> {
         start: &ZonedDateTime,
         end: &ZonedDateTime,
         except: &[EntryId],
-        verb: &str,
+        verb: Verb,
     ) -> PaceResult<()> {
         let overlapping: Vec<&Entry> = self
             .state
@@ -433,29 +436,38 @@ impl Rules<'_> {
                 )
             })
             .collect();
-        let hint = if verb == "begin" {
-            format!(
-                "begin at {} or later, or allow it with `--allow-overlap`",
-                self.clock(latest_end)
-            )
-        } else {
-            format!("move it, or allow it with `pace {verb} --allow-overlap`")
-        };
-        let guidance = if verb == "adjust" {
-            "the entry would overlap {list}"
-        } else {
-            "the new entry would overlap {list}"
+        let (guidance, hint) = match verb {
+            Verb::Begin => (
+                "the new entry would overlap {list}",
+                format!(
+                    "begin at {} or later, or allow it with `--allow-overlap`",
+                    self.clock(latest_end)
+                ),
+            ),
+            Verb::Log => (
+                "the new entry would overlap {list}",
+                "move it, or allow it with `pace log --allow-overlap`".to_owned(),
+            ),
+            Verb::Adjust => (
+                "the entry would overlap {list}",
+                "move it, or allow it with `pace adjust --allow-overlap`".to_owned(),
+            ),
         };
         Err(PaceError::new(ErrorKind::InvalidInput, guidance)
             .attach_context("list", list.join(", "))
             .attach_hint(hint))
     }
 
-    /// A new hold or pause may not begin before the entry or before the end
-    /// of an earlier one.
+    /// A new hold or pause may not begin before the entry, before the open
+    /// break it replaces, or before the end of an earlier one.
     fn check_break_start(&self, entry: &Entry, at: &ZonedDateTime) -> PaceResult<()> {
         if *at < entry.start {
-            return Err(self.before(&entry.start, at, "the entry began"));
+            return Err(self.after(ENTRY_BEGAN, &entry.start, at));
+        }
+        if let Some(open_since) = open_break_start(entry)
+            && at < open_since
+        {
+            return Err(self.after(BREAK_BEGAN, open_since, at));
         }
         let last_break_end = entry
             .holds
@@ -466,9 +478,41 @@ impl Rules<'_> {
         if let Some(last) = last_break_end
             && at < last
         {
-            return Err(self.before(last, at, "the last break ended"));
+            return Err(self.after(LAST_BREAK_ENDED, last, at));
         }
         Ok(())
+    }
+
+    /// An end at `at` closes the open break, so it may not come before the
+    /// break began, and the closed breaks lie before it.
+    fn check_end_after_breaks(&self, entry: &Entry, at: &ZonedDateTime) -> PaceResult<()> {
+        if let Some(open_since) = open_break_start(entry)
+            && at < open_since
+        {
+            return Err(self.after(BREAK_BEGAN, open_since, at));
+        }
+        self.check_breaks_inside(entry, &entry.start, Some(at))
+    }
+
+    /// The checks of an adjustment that moves the start or the end; a time
+    /// it leaves alone is not checked again.
+    fn check_moved_times(
+        &self,
+        entry: &Entry,
+        changes: &EntryChanges,
+        start: &ZonedDateTime,
+        end: Option<&ZonedDateTime>,
+    ) -> PaceResult<()> {
+        if let Some(end) = end {
+            self.check_length(start, end)?;
+        }
+        if let Some(start) = &changes.start {
+            self.refuse_future("start", start, NOW_HINT)?;
+        }
+        if let Some(end) = &changes.end {
+            self.refuse_future("end", end, NOW_HINT)?;
+        }
+        self.check_breaks_inside(entry, start, end)
     }
 
     /// After an adjustment, holds and pauses still lie inside the entry.
@@ -513,22 +557,32 @@ impl Rules<'_> {
         Ok(())
     }
 
-    fn before(&self, earlier: &ZonedDateTime, at: &ZonedDateTime, what: &str) -> Box<PaceError> {
-        PaceError::new(ErrorKind::InvalidInput, "{what} at {earlier}, after {at}")
-            .attach_context("what", what)
+    /// `at` comes before `earlier`; `guidance` names both, as `{earlier}`
+    /// and `{at}`.
+    fn after(
+        &self,
+        guidance: &'static str,
+        earlier: &ZonedDateTime,
+        at: &ZonedDateTime,
+    ) -> Box<PaceError> {
+        PaceError::new(ErrorKind::InvalidInput, guidance)
             .attach_context("earlier", self.clock(earlier))
             .attach_context("at", self.clock(at))
             .attach_hint(format!("give a time after {}", self.clock(earlier)))
     }
 
-    fn ends_before_start(&self, start: &ZonedDateTime, end: &ZonedDateTime) -> Box<PaceError> {
-        PaceError::new(
-            ErrorKind::InvalidInput,
-            "the entry would end at {end}, before it starts at {start}",
-        )
-        .attach_context("end", self.clock(end))
-        .attach_context("start", self.clock(start))
-        .attach_hint("give an end after the start")
+    /// An entry ends after it starts: `end`, `log` and `adjust` refuse an
+    /// entry without length alike.
+    fn check_length(&self, start: &ZonedDateTime, end: &ZonedDateTime) -> PaceResult<()> {
+        let guidance = match end.cmp(start) {
+            std::cmp::Ordering::Greater => return Ok(()),
+            std::cmp::Ordering::Equal => "the entry would end at {end}, the moment it starts",
+            std::cmp::Ordering::Less => "the entry would end at {end}, before it starts at {start}",
+        };
+        Err(PaceError::new(ErrorKind::InvalidInput, guidance)
+            .attach_context("end", self.clock(end))
+            .attach_context("start", self.clock(start))
+            .attach_hint("give an end after the start"))
     }
 
     /// A moment as the user reads it: `HH:MM` on the day of now, else with
@@ -611,8 +665,8 @@ fn real_change<T: Clone + PartialEq>(change: &Change<T>, current: Option<&T>) ->
     }
 }
 
-fn nothing_to_do(message: impl Into<String>, hint: impl Into<String>) -> Box<PaceError> {
-    PaceError::new(ErrorKind::InvalidInput, message)
+fn nothing_to_do(guidance: &'static str, hint: &'static str) -> Box<PaceError> {
+    PaceError::new(ErrorKind::InvalidInput, guidance)
         .attach_hint(hint)
         .attach_exit_code(ExitCode::NothingToDo)
 }

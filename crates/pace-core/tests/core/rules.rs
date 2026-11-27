@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Batch, Change, Command, DeviceId, EntryId, EntryState, EventKind, Hlc, HoldSource, Ids,
-    PauseKind, Policy, ProjectRef, RecordedEvent, Rules, SequentialIds, State,
+    Batch, BatchId, Change, Command, DeviceId, EntryId, EntryState, Event, EventId, EventKind, Hlc,
+    HoldSource, Ids, PauseKind, Policy, ProjectRef, RecordedEvent, Rules, SequentialIds, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
     short_ids,
 };
@@ -87,6 +87,26 @@ impl World {
             });
         }
         Ok(batch)
+    }
+
+    /// Append `kind`, which happened at `time`, as a batch of its own
+    /// recorded at `now` (both Berlin), without the rules: an entry as an
+    /// older pace or a merge of two devices left it.
+    fn record(&mut self, now: &str, time: &str, kind: EventKind) -> TestResult {
+        let at = berlin(time)?;
+        self.counter += 1;
+        self.log.push(RecordedEvent {
+            device: self.device,
+            batch: BatchId::try_from(self.ids.next_id())?,
+            hlc: Hlc::new(berlin(now)?.timestamp(), self.counter),
+            event: Event {
+                id: EventId::try_from(self.ids.next_id())?,
+                at: at.clone(),
+                about: at,
+                kind,
+            },
+        });
+        Ok(())
     }
 
     fn only_entry(&self, state: EntryState) -> Result<EntryId, Box<dyn std::error::Error>> {
@@ -210,6 +230,34 @@ fn begin_before_the_running_entry_began_is_refused() -> TestResult {
         error.hint(),
         Some("begin after 10:00, or move the running entry with `pace adjust --start`")
     );
+    Ok(())
+}
+
+#[test]
+fn begin_inside_closed_break_of_running_entry_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Pause(Pause::default()))?;
+    _ = world.run("10:30", &Command::Resume(Resume::default()))?;
+
+    let error = failure(world.run("10:40", &begin_at("Call ACME", "10:15")?))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry has a break until 10:30, after the new end at 10:15"
+    );
+    Ok(())
+}
+
+#[test]
+fn begin_before_open_break_of_running_entry_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Hold(Hold::default()))?;
+
+    let error = failure(world.run("10:10", &begin_at("Call ACME", "09:30")?))?;
+
+    assert_eq!(error.to_string(), "the break began at 10:00, after 09:30");
     Ok(())
 }
 
@@ -399,6 +447,65 @@ fn hold_before_the_entry_began_is_refused() -> TestResult {
 }
 
 #[test]
+fn hold_before_the_open_pause_began_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Pause(Pause::default()))?;
+
+    let error = failure(world.run(
+        "10:06",
+        &Command::Hold(Hold {
+            at: Some(berlin("09:30")?),
+            ..Hold::default()
+        }),
+    ))?;
+
+    assert_eq!(error.to_string(), "the break began at 10:00, after 09:30");
+    assert_eq!(error.hint(), Some("give a time after 10:00"));
+    Ok(())
+}
+
+#[test]
+fn pause_before_the_open_hold_began_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Hold(Hold::default()))?;
+
+    let error = failure(world.run(
+        "10:06",
+        &Command::Pause(Pause {
+            at: Some(berlin("09:30")?),
+            ..Pause::default()
+        }),
+    ))?;
+
+    assert_eq!(error.to_string(), "the break began at 10:00, after 09:30");
+    Ok(())
+}
+
+#[test]
+fn hold_before_the_last_break_ended_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Pause(Pause::default()))?;
+    _ = world.run("10:30", &Command::Resume(Resume::default()))?;
+
+    let error = failure(world.run(
+        "10:40",
+        &Command::Hold(Hold {
+            at: Some(berlin("10:15")?),
+            ..Hold::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the last break ended at 10:30, after 10:15"
+    );
+    Ok(())
+}
+
+#[test]
 fn pause_while_held_turns_the_hold_into_pause() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;
@@ -544,6 +651,67 @@ fn end_before_the_entry_began_is_refused() -> TestResult {
 }
 
 #[test]
+fn end_inside_closed_hold_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Hold(Hold::default()))?;
+    _ = world.run("10:30", &Command::Resume(Resume::default()))?;
+
+    let error = failure(world.run(
+        "10:40",
+        &Command::End(End {
+            at: Some(berlin("10:15")?),
+            ..End::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry has a break until 10:30, after the new end at 10:15"
+    );
+    Ok(())
+}
+
+#[test]
+fn end_before_the_open_break_began_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Hold(Hold::default()))?;
+
+    let error = failure(world.run(
+        "10:40",
+        &Command::End(End {
+            at: Some(berlin("09:45")?),
+            ..End::default()
+        }),
+    ))?;
+
+    assert_eq!(error.to_string(), "the break began at 10:00, after 09:45");
+    Ok(())
+}
+
+#[test]
+fn end_at_the_start_is_refused_as_log_and_adjust_refuse_it() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+
+    let error = failure(world.run(
+        "10:00",
+        &Command::End(End {
+            at: Some(berlin("09:00")?),
+            ..End::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would end at 09:00, the moment it starts"
+    );
+    assert_eq!(error.hint(), Some("give an end after the start"));
+    Ok(())
+}
+
+#[test]
 fn end_names_the_entry_when_two_are_open() -> TestResult {
     let mut laptop = World::new()?;
     let mut desktop = World::on_device(2)?;
@@ -605,6 +773,22 @@ fn log_with_the_end_before_the_start_is_refused() -> TestResult {
     assert_eq!(
         error.to_string(),
         "the entry would end at 14:00, before it starts at 15:30"
+    );
+    Ok(())
+}
+
+#[test]
+fn log_without_length_is_refused() -> TestResult {
+    let mut world = World::new()?;
+
+    let error = failure(world.run(
+        "18:00",
+        &Command::Log(Log::new(berlin("15:30")?, berlin("15:30")?)),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would end at 15:30, the moment it starts"
     );
     Ok(())
 }
@@ -714,6 +898,101 @@ fn adjust_keeps_the_start_before_the_end() -> TestResult {
     assert_eq!(
         error.to_string(),
         "the entry would end at 10:00, before it starts at 10:30"
+    );
+    Ok(())
+}
+
+#[test]
+fn adjust_of_tags_leaves_entry_without_length_alone() -> TestResult {
+    let mut world = World::new()?;
+    world.record(
+        "09:00",
+        "09:00",
+        EventKind::EntryLogged {
+            entry: "0193a8d0-0000-7000-8000-0000000000e1".parse()?,
+            end: berlin("09:00")?,
+            project: None,
+            note: None,
+            tags: BTreeSet::new(),
+        },
+    )?;
+    let entry = world.only_entry(EntryState::Ended)?;
+
+    let batch = world.run(
+        "10:00",
+        &Command::Adjust(Adjust {
+            entry: Some(entry),
+            tag: BTreeSet::from(["dev".parse()?]),
+            ..Adjust::default()
+        }),
+    )?;
+
+    assert_eq!(kinds(&batch), ["entry.adjusted"]);
+    Ok(())
+}
+
+#[test]
+fn adjust_of_note_leaves_break_past_end_alone() -> TestResult {
+    let mut world = World::new()?;
+    let entry: EntryId = "0193a8d0-0000-7000-8000-0000000000e2".parse()?;
+    world.record(
+        "09:00",
+        "09:00",
+        EventKind::EntryBegun {
+            entry,
+            project: None,
+            note: None,
+            tags: BTreeSet::new(),
+        },
+    )?;
+    world.record(
+        "10:00",
+        "10:00",
+        EventKind::EntryHeld {
+            entry,
+            source: HoldSource::Unknown,
+            reason: None,
+        },
+    )?;
+    world.record("10:30", "10:30", EventKind::EntryResumed { entry })?;
+    // Another device ended it at 10:15 and synced after the resume.
+    world.record("10:40", "10:15", EventKind::EntryEnded { entry })?;
+    let state = world.state();
+    let held = &state.entry(entry).ok_or("entry")?.holds[0];
+    assert_eq!(held.end, Some(berlin("10:30")?));
+
+    let batch = world.run(
+        "11:00",
+        &Command::Adjust(Adjust {
+            entry: Some(entry),
+            note: Change::Set("Write offer".to_owned()),
+            ..Adjust::default()
+        }),
+    )?;
+
+    assert_eq!(kinds(&batch), ["entry.adjusted"]);
+    Ok(())
+}
+
+#[test]
+fn adjust_of_end_to_start_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::End(End::default()))?;
+    let entry = world.only_entry(EntryState::Ended)?;
+
+    let error = failure(world.run(
+        "11:00",
+        &Command::Adjust(Adjust {
+            entry: Some(entry),
+            end: Some(berlin("09:00")?),
+            ..Adjust::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would end at 09:00, the moment it starts"
     );
     Ok(())
 }
