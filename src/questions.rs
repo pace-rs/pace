@@ -12,6 +12,7 @@
 //! the [`FieldEdit`]s that write what the answers decided.
 
 pub mod add_client;
+pub mod add_project;
 pub mod add_role;
 
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};

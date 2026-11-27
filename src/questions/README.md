@@ -8,10 +8,11 @@ rest, and ends with the field edits of the file it writes.
 
 <!-- files -->
 
-| File                             | What it holds                                                                                                                          |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| [`add_client.rs`](add_client.rs) | The questions of `pace client add`: the client's name, currency, hourly rate and its first day, and the rounding of its billable time. |
-| [`add_role.rs`](add_role.rs)     | The questions of `pace role add`: the role's name, kind, purpose and weekly target, each with a default.                               |
+| File                               | What it holds                                                                                                                                                   |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`add_client.rs`](add_client.rs)   | The questions of `pace client add`: the client's name, currency, hourly rate and its first day, and the rounding of its billable time.                          |
+| [`add_project.rs`](add_project.rs) | The questions of `pace project add`: the project's name, client, role and billable flag, each with a default; its budget, days and result come from flags only. |
+| [`add_role.rs`](add_role.rs)       | The questions of `pace role add`: the role's name, kind, purpose and weekly target, each with a default.                                                        |
 
 <!-- /files -->
 
