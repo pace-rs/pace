@@ -45,7 +45,7 @@ pub enum EntryState {
 
 /// An interruption inside an entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Hold {
+pub struct EntryHold {
     /// When it began.
     pub start: ZonedDateTime,
     /// When the work went on; `None` while held.
@@ -58,7 +58,7 @@ pub struct Hold {
 
 /// A planned break inside an entry; never an interruption.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Pause {
+pub struct EntryPause {
     /// When it began.
     pub start: ZonedDateTime,
     /// When the work went on; `None` while paused.
@@ -71,7 +71,7 @@ pub struct Pause {
 
 /// A distraction written down instead of followed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Catch {
+pub struct EntryCatch {
     /// When it was written down.
     pub at: ZonedDateTime,
     /// The thought.
@@ -96,11 +96,11 @@ pub struct Entry {
     /// Its tags.
     pub tags: BTreeSet<Tag>,
     /// Its interruptions.
-    pub holds: Vec<Hold>,
+    pub holds: Vec<EntryHold>,
     /// Its planned breaks.
-    pub pauses: Vec<Pause>,
+    pub pauses: Vec<EntryPause>,
     /// The distractions written down during it.
-    pub catches: Vec<Catch>,
+    pub catches: Vec<EntryCatch>,
     /// Recorded live or entered afterwards.
     pub origin: EntryOrigin,
     /// The moment the entry's events are filed under: its first start,
@@ -190,13 +190,13 @@ impl Entry {
 
     /// The hold without an end, while the entry is held.
     #[must_use]
-    pub fn open_hold(&self) -> Option<&Hold> {
+    pub fn open_hold(&self) -> Option<&EntryHold> {
         self.holds.iter().find(|hold| hold.end.is_none())
     }
 
     /// The pause without an end, while the entry is paused.
     #[must_use]
-    pub fn open_pause(&self) -> Option<&Pause> {
+    pub fn open_pause(&self) -> Option<&EntryPause> {
         self.pauses.iter().find(|pause| pause.end.is_none())
     }
 
@@ -209,11 +209,11 @@ impl Entry {
             .or_else(|| self.open_pause().map(|pause| &pause.start))
     }
 
-    pub(crate) fn open_hold_mut(&mut self) -> Option<&mut Hold> {
+    pub(crate) fn open_hold_mut(&mut self) -> Option<&mut EntryHold> {
         self.holds.iter_mut().find(|hold| hold.end.is_none())
     }
 
-    pub(crate) fn open_pause_mut(&mut self) -> Option<&mut Pause> {
+    pub(crate) fn open_pause_mut(&mut self) -> Option<&mut EntryPause> {
         self.pauses.iter_mut().find(|pause| pause.end.is_none())
     }
 

@@ -7,7 +7,7 @@ use jiff::ZonedDateTime;
 use crate::{
     BatchId, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin, EventId, EventKind, Hlc,
     HoldSource, PauseKind, ProjectRef, RecordedEvent, Tag,
-    entry::{Catch, Hold, Pause},
+    entry::{EntryCatch, EntryHold, EntryPause},
     short_id::short_id_among,
 };
 
@@ -365,7 +365,7 @@ impl State {
             }
             EventKind::CatchNoted { entry, text } => {
                 if let Some(entry) = self.entries.get_mut(entry) {
-                    entry.catches.push(Catch {
+                    entry.catches.push(EntryCatch {
                         at: at.clone(),
                         text: text.clone(),
                     });
@@ -459,7 +459,7 @@ fn hold(entry: &mut Entry, at: &ZonedDateTime, source: HoldSource, reason: Optio
         return;
     }
     entry.close_breaks(at);
-    entry.holds.push(Hold {
+    entry.holds.push(EntryHold {
         start: at.clone(),
         end: None,
         source,
@@ -477,7 +477,7 @@ fn pause(entry: &mut Entry, at: &ZonedDateTime, kind: PauseKind, reason: Option<
         return;
     }
     entry.close_breaks(at);
-    entry.pauses.push(Pause {
+    entry.pauses.push(EntryPause {
         start: at.clone(),
         end: None,
         kind,

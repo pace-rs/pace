@@ -969,19 +969,19 @@ mod tests {
     fn written_entry_shows_its_origin_device_and_breaks_as_comments() {
         let entry = Entry {
             origin: EntryOrigin::Logged,
-            holds: vec![pace_core::Hold {
+            holds: vec![pace_core::EntryHold {
                 start: at("09:10"),
                 end: Some(at("09:20")),
                 source: HoldSource::Outer,
                 reason: Some("phone call".to_owned()),
             }],
-            pauses: vec![pace_core::Pause {
+            pauses: vec![pace_core::EntryPause {
                 start: at("09:40"),
                 end: None,
                 kind: PauseKind::Break,
                 reason: None,
             }],
-            catches: vec![pace_core::Catch {
+            catches: vec![pace_core::EntryCatch {
                 at: at("09:30"),
                 text: "call Anna".to_owned(),
             }],

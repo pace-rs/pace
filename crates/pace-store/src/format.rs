@@ -255,13 +255,13 @@ fn newer_or_broken(path: &Path, text: &str, key: &str, version: u32) -> Box<Pace
 
 /// Why a record is no valid event: a guidance with its context, and how to
 /// go on.
-struct Invalid {
+struct InvalidRecord {
     guidance: &'static str,
     context: Vec<(&'static str, String)>,
     hint: &'static str,
 }
 
-impl Invalid {
+impl InvalidRecord {
     /// The record is wrong; event files are for reading.
     const fn new(guidance: &'static str) -> Self {
         Self {
@@ -525,10 +525,11 @@ fn present(record: &Record) -> Vec<&'static str> {
 /// The event a record holds: its type parsed and its version and fields
 /// checked ([`checked_type`]), its HLC parsed and its fields turned into an
 /// [`EventKind`] ([`event_kind`]).
-fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> {
+fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, InvalidRecord> {
     let event_type = checked_type(&record)?;
     let hlc = parse_hlc(&record.hlc).ok_or_else(|| {
-        Invalid::new("`{hlc}` is no HLC like `2026-11-26T08:02:11.204Z/0`").with("hlc", &record.hlc)
+        InvalidRecord::new("`{hlc}` is no HLC like `2026-11-26T08:02:11.204Z/0`")
+            .with("hlc", &record.hlc)
     })?;
 
     let event_kind = event_kind(&record, event_type)?;
@@ -548,18 +549,18 @@ fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> 
 
 /// The type of a record of a type and version pace knows, with only the
 /// fields of its type, and a project either by ID or by key.
-fn checked_type(record: &Record) -> Result<EventType, Invalid> {
+fn checked_type(record: &Record) -> Result<EventType, InvalidRecord> {
     let kind = &record.kind;
     let event_type = EventType::parse(kind).ok_or_else(|| {
-        Invalid::newer("pace doesn't know the event type `{type}`").with("type", kind)
+        InvalidRecord::newer("pace doesn't know the event type `{type}`").with("type", kind)
     })?;
     let allowed = event_type.allowed();
     if record.v != EVENT_VERSION {
         let guidance = "pace reads version {reads} of `{type}`, not {found}";
         let invalid = if record.v > EVENT_VERSION {
-            Invalid::newer(guidance)
+            InvalidRecord::newer(guidance)
         } else {
-            Invalid::new(guidance)
+            InvalidRecord::new(guidance)
         };
         return Err(invalid
             .with("reads", EVENT_VERSION.to_string())
@@ -570,12 +571,14 @@ fn checked_type(record: &Record) -> Result<EventType, Invalid> {
         .into_iter()
         .find(|field| !allowed.contains(field))
     {
-        return Err(Invalid::new("an event of type `{type}` has no `{field}`")
-            .with("type", kind)
-            .with("field", foreign));
+        return Err(
+            InvalidRecord::new("an event of type `{type}` has no `{field}`")
+                .with("type", kind)
+                .with("field", foreign),
+        );
     }
     if record.project.is_some() && record.project_key.is_some() {
-        return Err(Invalid::new(
+        return Err(InvalidRecord::new(
             "an event of type `{type}` has `project` and `project-key`; it needs one",
         )
         .with("type", kind));
@@ -585,10 +588,10 @@ fn checked_type(record: &Record) -> Result<EventType, Invalid> {
 
 /// The event of a checked record of `event_type`, or the field its type
 /// needs and misses.
-fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Invalid> {
+fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, InvalidRecord> {
     let kind = &record.kind;
     let needs = |field: &str| {
-        Invalid::new("an event of type `{type}` needs `{field}`")
+        InvalidRecord::new("an event of type `{type}` needs `{field}`")
             .with("type", kind)
             .with("field", field)
     };
@@ -640,13 +643,13 @@ fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Inval
     })
 }
 
-fn adjusted(record: &Record, project: Option<ProjectRef>) -> Result<EntryChanges, Invalid> {
+fn adjusted(record: &Record, project: Option<ProjectRef>) -> Result<EntryChanges, InvalidRecord> {
     let cleared = record.cleared.clone().unwrap_or_default();
     if let Some(unknown) = cleared
         .iter()
         .find(|field| !["note", "project"].contains(&field.as_str()))
     {
-        return Err(Invalid::new(
+        return Err(InvalidRecord::new(
             "`cleared` names `{field}`; only `note` and `project` can be cleared",
         )
         .with("field", unknown));
@@ -660,10 +663,14 @@ fn adjusted(record: &Record, project: Option<ProjectRef>) -> Result<EntryChanges
     })
 }
 
-fn change<T>(field: &str, value: Option<T>, cleared: &[String]) -> Result<Change<T>, Invalid> {
+fn change<T>(
+    field: &str,
+    value: Option<T>,
+    cleared: &[String],
+) -> Result<Change<T>, InvalidRecord> {
     match (value, cleared.iter().any(|name| name == field)) {
         (Some(_), true) => {
-            Err(Invalid::new("`{field}` is set and cleared at once").with("field", field))
+            Err(InvalidRecord::new("`{field}` is set and cleared at once").with("field", field))
         }
         (Some(value), false) => Ok(Change::Set(value)),
         (None, true) => Ok(Change::Clear),

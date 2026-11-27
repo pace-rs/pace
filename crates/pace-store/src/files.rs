@@ -75,10 +75,11 @@ pub struct Resplit {
     pub events: usize,
 }
 
-/// `events/<device>/device.toml`
+/// `events/<device>/device.toml`: the device's name, when it was created,
+/// and how it splits its log.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct DeviceFile {
+struct DeviceInfoFile {
     version: u32,
     name: String,
     created: ZonedDateTime,
@@ -180,7 +181,7 @@ impl FilesStore {
             return Err(clone_detected(&self.machine, own_last, remembered));
         }
 
-        let device_file = self.device_file(&dir, &now)?;
+        let device_info = self.device_info_file(&dir, &now)?;
         // The tombstones this machine hasn't applied yet go first: their
         // marks are saved with the cursor below, and the batch is written
         // onto the cleaned files.
@@ -206,7 +207,7 @@ impl FilesStore {
 
         let tombstones = batch_tombstones(&recorded);
         let (written, held) =
-            self.prepare_batch(&dir, device_file.split, &recorded, &tombstones)?;
+            self.prepare_batch(&dir, device_info.split, &recorded, &tombstones)?;
         // The cursor goes ahead of the log, before the renames: a cursor
         // ahead of the own log passes the clone check, a log ahead of the
         // cursor doesn't. So a failure or a stop from here on never locks
@@ -280,18 +281,18 @@ impl FilesStore {
     }
 
     /// This device's `device.toml`, written with its split on first use.
-    fn device_file(&self, dir: &Path, now: &ZonedDateTime) -> PaceResult<DeviceFile> {
+    fn device_info_file(&self, dir: &Path, now: &ZonedDateTime) -> PaceResult<DeviceInfoFile> {
         let path = dir.join(DEVICE_FILE);
         if path.is_file() {
-            return read_device_file(&path);
+            return read_device_info_file(&path);
         }
-        let file = DeviceFile {
+        let file = DeviceInfoFile {
             version: DEVICE_VERSION,
             name: self.name.clone(),
             created: now.clone(),
             split: self.split,
         };
-        write_device_file(&path, &file)?;
+        write_device_info_file(&path, &file)?;
         Ok(file)
     }
 
@@ -418,7 +419,7 @@ impl EventStore for FilesStore {
             .into_iter()
             .filter(|(_, dir)| dir.join(DEVICE_FILE).is_file())
             .map(|(id, dir)| {
-                let file = read_device_file(&dir.join(DEVICE_FILE))?;
+                let file = read_device_info_file(&dir.join(DEVICE_FILE))?;
                 Ok(Device {
                     id,
                     name: file.name,
@@ -456,14 +457,14 @@ fn save_index(machine: &Path, path: &Path, index: &Index) -> PaceResult<()> {
     write_atomically(path, &text)
 }
 
-fn write_device_file(path: &Path, file: &DeviceFile) -> PaceResult<()> {
+fn write_device_info_file(path: &Path, file: &DeviceInfoFile) -> PaceResult<()> {
     let text = toml::to_string(file).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write device.toml", error).ask_report()
     })?;
     write_atomically(path, &text)
 }
 
-fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {
+fn read_device_info_file(path: &Path) -> PaceResult<DeviceInfoFile> {
     let text =
         std::fs::read_to_string(path).map_err(|error| io_error(FileOp::Read, path, error))?;
     check_version(

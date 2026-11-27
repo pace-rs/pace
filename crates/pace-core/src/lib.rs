@@ -31,7 +31,7 @@ mod text;
 mod tracking;
 
 pub use command::Command;
-pub use entry::{Catch, Entry, EntryOrigin, EntryState, Hold, Pause, ProjectRef};
+pub use entry::{Entry, EntryCatch, EntryHold, EntryOrigin, EntryPause, EntryState, ProjectRef};
 pub use event::{
     Batch, Change, ChangeMarker, Device, EntryChanges, Event, EventKind, Hlc, RecordedEvent,
 };

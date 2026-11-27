@@ -27,9 +27,10 @@ pub struct DeviceIdentity {
     pub created: bool,
 }
 
+/// The machine directory's `device.toml`: this machine's device ID.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct DeviceFile {
+struct DeviceIdFile {
     version: u32,
     id: DeviceId,
 }
@@ -54,7 +55,7 @@ pub fn device_id(machine: &Path, ids: &dyn Ids) -> PaceResult<DeviceIdentity> {
         &path,
         &toml_text(
             &path,
-            &DeviceFile {
+            &DeviceIdFile {
                 version: DEVICE_VERSION,
                 id,
             },
@@ -90,7 +91,7 @@ pub fn existing_device_id(machine: &Path) -> PaceResult<Option<DeviceId>> {
         path.display()
     );
     check_version(&path, &text, DEVICE_VERSION, &new_id)?;
-    let file: DeviceFile = toml::from_str(&text).map_err(|error| {
+    let file: DeviceIdFile = toml::from_str(&text).map_err(|error| {
         PaceError::with_source(
             ErrorKind::InputOutput,
             "the device file {path} holds no valid device ID",

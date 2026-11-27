@@ -15,7 +15,7 @@ use crate::disk::{
     remove_empty_dirs, write_atomically,
 };
 use crate::files::parsed::Events;
-use crate::files::{FilesStore, Resplit, read_device_file, write_device_file};
+use crate::files::{FilesStore, Resplit, read_device_info_file, write_device_info_file};
 use crate::format::{file_header, parse_events, serialize_events};
 use crate::index::Index;
 use crate::machine::Cursors;
@@ -74,7 +74,7 @@ impl FilesStore {
         let _lock = lock(&self.machine.join("lock"))?;
         let device_path = dir.join(DEVICE_FILE);
         let from = if device_path.is_file() {
-            read_device_file(&device_path)?.split
+            read_device_info_file(&device_path)?.split
         } else {
             self.split
         };
@@ -110,10 +110,10 @@ impl FilesStore {
                 .persist(&path)
                 .map_err(|error| io_error(FileOp::Write, &path, error.error))?;
         }
-        let mut device_file = self.device_file(&dir, &self.clock.now())?;
-        if device_file.split != split {
-            device_file.split = split;
-            write_device_file(&device_path, &device_file)?;
+        let mut device_info = self.device_info_file(&dir, &self.clock.now())?;
+        if device_info.split != split {
+            device_info.split = split;
+            write_device_info_file(&device_path, &device_info)?;
         }
         for path in old_files.iter().filter(|path| !new_files.contains(*path)) {
             std::fs::remove_file(path).map_err(|error| io_error(FileOp::Remove, path, error))?;
