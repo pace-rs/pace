@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, EntryState, Policy, ReadScope, RecordedEvent, SequentialIds, State,
+    Clock, Command, DeviceId, EntryState, Policy, ReadScope, RecordedEvent, State,
     command::{Adjust, Begin, End, Forget, Log, Resume},
+    testing::SequentialIds,
     testing::TestClock,
 };
 use pace_error::ExitCode;
@@ -299,7 +300,11 @@ impl EventStore for OnlyInside {
 
     fn read(&self, scope: &ReadScope) -> pace_error::PaceResult<Vec<RecordedEvent>> {
         let mut events = self.0.read(scope)?;
-        events.retain(|recorded| scope.range().contains(&recorded.event.at));
+        let range = scope.range();
+        events.retain(|recorded| {
+            let at = &recorded.event.at;
+            range.start().is_none_or(|start| start <= at) && range.end().is_none_or(|end| at < end)
+        });
         Ok(events)
     }
 

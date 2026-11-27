@@ -1,85 +1,10 @@
-//! Elapsed time between two moments, and durations as people type them.
+//! Durations as people type them.
 
-use jiff::{SignedDuration, ZonedDateTime};
-use pace_time::{elapsed, parse_duration};
+use jiff::SignedDuration;
+use pace_time::parse_duration;
 use rstest::rstest;
 
 use crate::TestResult;
-
-fn at(rfc9557: &str) -> Result<ZonedDateTime, jiff::Error> {
-    rfc9557.parse()
-}
-
-// The same three cases as the old pace: begin and end recorded with
-// different offsets.
-#[rstest]
-#[case(
-    "2024-03-23T11:34:31+01:00[+01:00]",
-    "2024-03-23T08:34:31-02:00[-02:00]",
-    0
-)]
-#[case(
-    "2024-03-23T10:00:00+03:00[+03:00]",
-    "2024-03-23T10:00:00+01:00[+01:00]",
-    7_200
-)]
-#[case(
-    "2024-03-23T10:00:00+01:00[+01:00]",
-    "2024-03-23T10:00:00-03:00[-03:00]",
-    14_400
-)]
-fn elapsed_time_does_not_depend_on_the_offsets(
-    #[case] start: &str,
-    #[case] end: &str,
-    #[case] seconds: i64,
-) -> TestResult {
-    assert_eq!(
-        elapsed(&at(start)?, &at(end)?)?,
-        SignedDuration::from_secs(seconds)
-    );
-    Ok(())
-}
-
-#[test]
-fn elapsed_time_counts_seconds() -> TestResult {
-    assert_eq!(
-        elapsed(
-            &at("2021-01-01T00:00:00[Europe/Berlin]")?,
-            &at("2021-01-01T00:00:01[Europe/Berlin]")?
-        )?,
-        SignedDuration::from_secs(1)
-    );
-    Ok(())
-}
-
-#[test]
-fn elapsed_time_counts_the_real_hours_across_clock_change() -> TestResult {
-    assert_eq!(
-        elapsed(
-            &at("2026-03-29T01:00[Europe/Berlin]")?,
-            &at("2026-03-29T04:00[Europe/Berlin]")?
-        )?,
-        SignedDuration::from_hours(2)
-    );
-    Ok(())
-}
-
-#[test]
-fn an_end_before_the_start_is_rejected() -> TestResult {
-    let error = elapsed(
-        &at("2021-01-01T00:00:01[Europe/Berlin]")?,
-        &at("2021-01-01T00:00:00[Europe/Berlin]")?,
-    )
-    .err()
-    .ok_or("an end before the start must fail")?;
-
-    assert_eq!(
-        error.to_string(),
-        "the end 2021-01-01T00:00:00+01:00[Europe/Berlin] lies before the start \
-         2021-01-01T00:00:01+01:00[Europe/Berlin]"
-    );
-    Ok(())
-}
 
 #[rstest]
 #[case("15m", 15 * 60)]

@@ -38,7 +38,7 @@ pub use event::{
 pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId};
 pub use key::{ProjectKey, Tag};
 pub use open::EntryVerb;
-pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier, SequentialIds};
+pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier};
 pub use rules::{OVERLAP, Policy, Rules};
 pub use scope::ReadScope;
 pub use state::{Overlap, State, UndoTarget};

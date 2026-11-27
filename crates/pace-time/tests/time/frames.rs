@@ -380,29 +380,6 @@ fn only_from_in_the_future_is_rejected() -> TestResult {
 }
 
 #[test]
-fn range_contains_its_start_but_not_its_end() -> TestResult {
-    let range = TimeRange::new(
-        Some(at("2021-02-02T00:00[Europe/Berlin]")?),
-        Some(at("2021-02-04T00:00[Europe/Berlin]")?),
-    )?;
-
-    assert!(range.contains(&at("2021-02-02T00:00[Europe/Berlin]")?));
-    assert!(range.contains(&at("2021-02-03T00:00[Europe/Berlin]")?));
-    assert!(!range.contains(&at("2021-02-04T00:00[Europe/Berlin]")?));
-    assert!(!range.contains(&at("2021-02-01T23:59:59[Europe/Berlin]")?));
-    Ok(())
-}
-
-#[test]
-fn an_open_range_contains_everything_on_its_open_side() -> TestResult {
-    let range = TimeRange::new(None, Some(at("2021-02-04T00:00[Europe/Berlin]")?))?;
-
-    assert!(range.contains(&at("1999-01-01T00:00[Europe/Berlin]")?));
-    assert!(!range.contains(&at("2021-02-04T00:00[Europe/Berlin]")?));
-    Ok(())
-}
-
-#[test]
 fn only_range_open_at_both_ends_is_everything() -> TestResult {
     let half_open = TimeRange::new(None, Some(at("2021-02-04T00:00[Europe/Berlin]")?))?;
 

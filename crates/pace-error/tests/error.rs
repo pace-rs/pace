@@ -1,6 +1,6 @@
 //! The contract of [`PaceError`]: what a user and a script get to see.
 
-use std::{backtrace::BacktraceStatus, error::Error as _};
+use std::error::Error as _;
 
 use miette::{Diagnostic, NarratableReportHandler};
 use pace_error::{ErrorKind, ExitCode, PaceError, Severity, Snippet};
@@ -100,14 +100,9 @@ fn errors_exit_with_the_error_code_unless_told_otherwise() {
 
 #[test]
 fn exit_codes_are_the_documented_numbers_for_scripts() {
-    let codes = [
-        ExitCode::Done,
-        ExitCode::Error,
-        ExitCode::Usage,
-        ExitCode::NothingToDo,
-    ];
+    let codes = [ExitCode::Error, ExitCode::Usage, ExitCode::NothingToDo];
 
-    assert_eq!(codes.map(i32::from), [0, 1, 2, 3]);
+    assert_eq!(codes.map(i32::from), [1, 2, 3]);
 }
 
 #[test]
@@ -121,14 +116,6 @@ fn the_error_code_is_the_code_of_the_diagnostic() {
     );
     assert!(error.is_code("pace::config::unknown-key"));
     assert!(!error.is_code("pace::config"));
-}
-
-#[test]
-fn the_kind_can_be_overwritten_on_the_way_up() {
-    let error = PaceError::new(ErrorKind::InputOutput, "cannot read the manifest")
-        .overwrite_kind(ErrorKind::Project);
-
-    assert_eq!(error.kind(), ErrorKind::Project);
 }
 
 #[test]
@@ -196,80 +183,5 @@ fn snippet_points_at_the_offending_line() -> TestResult {
         "{report}"
     );
     assert!(report.contains("did you mean `time-zone`?"), "{report}");
-    Ok(())
-}
-
-#[test]
-fn docs_url_is_url_of_diagnostic() {
-    let error = PaceError::new(ErrorKind::Time, "pace doesn't know the time zone")
-        .attach_docs_url("https://pace.cli.rs/docs/time-zones.html");
-
-    assert_eq!(
-        error.url().map(|url| url.to_string()).as_deref(),
-        Some("https://pace.cli.rs/docs/time-zones.html")
-    );
-}
-
-#[test]
-fn existing_issues_are_listed_as_related_issues() {
-    let error = PaceError::new(ErrorKind::InputOutput, "the lock is held")
-        .attach_existing_issue_url("https://github.com/pace-rs/pace/issues/1")
-        .attach_existing_issue_url("https://github.com/pace-rs/pace/issues/2");
-
-    assert_eq!(
-        help(&error),
-        "Related issues:\n\
-         - https://github.com/pace-rs/pace/issues/1\n\
-         - https://github.com/pace-rs/pace/issues/2"
-    );
-}
-
-#[test]
-fn bug_report_goes_to_new_issue_url_when_one_is_given() {
-    let error = PaceError::new(ErrorKind::Internal, "the event log is out of order")
-        .ask_report()
-        .attach_new_issue_url("https://example.org/pace/new");
-
-    assert_eq!(
-        help(&error),
-        "This is a bug in pace. Please report it at https://example.org/pace/new, \
-         with the command you ran."
-    );
-}
-
-/// Runs `backtrace_follows_rust_backtrace` in a new process of this test
-/// binary, with `RUST_BACKTRACE` set to `value`, since std reads it once per
-/// process.
-fn backtrace_test_passes_with(value: &str) -> Result<bool, Box<dyn std::error::Error>> {
-    let output = std::process::Command::new(std::env::current_exe()?)
-        .args(["--exact", "backtrace_follows_rust_backtrace"])
-        .env("RUST_BACKTRACE", value)
-        .env_remove("RUST_LIB_BACKTRACE")
-        .output()?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    Ok(output.status.success() && stdout.contains("1 passed"))
-}
-
-#[test]
-fn backtrace_follows_rust_backtrace() {
-    let asked = std::env::var("RUST_LIB_BACKTRACE")
-        .or_else(|_| std::env::var("RUST_BACKTRACE"))
-        .is_ok_and(|value| value != "0");
-    let expected = if asked {
-        BacktraceStatus::Captured
-    } else {
-        BacktraceStatus::Disabled
-    };
-
-    let error = PaceError::new(ErrorKind::Other, "x");
-
-    assert_eq!(error.backtrace().status(), expected);
-}
-
-#[test]
-fn backtrace_is_captured_only_when_rust_backtrace_asks() -> TestResult {
-    assert!(backtrace_test_passes_with("1")?, "with RUST_BACKTRACE=1");
-    assert!(backtrace_test_passes_with("0")?, "with RUST_BACKTRACE=0");
     Ok(())
 }

@@ -7,8 +7,9 @@ use std::{os::unix::fs::PermissionsExt as _, path::Path, sync::Arc};
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, Policy, SequentialIds,
+    Clock, Command, DeviceId, Policy,
     command::{Begin, End, Forget, Hold, Log},
+    testing::SequentialIds,
     testing::TestClock,
 };
 use pace_store::{FilesStore, Split, Tracker, testing::scratch_dir};

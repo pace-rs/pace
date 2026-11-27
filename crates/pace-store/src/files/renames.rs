@@ -115,7 +115,7 @@ mod tests {
 
     use pace_core::{
         Batch, ChangeMarker, Clock, Command, DeviceId, Policy, ReadScope, RecordedEvent, Rules,
-        SequentialIds, State, command::Begin, testing::TestClock,
+        State, command::Begin, testing::SequentialIds, testing::TestClock,
     };
 
     use super::*;

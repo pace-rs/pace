@@ -1,7 +1,7 @@
 //! All IDs are UUIDv7.
 
 use jiff::ZonedDateTime;
-use pace_core::{EntryId, Ids, ProjectId, SequentialIds};
+use pace_core::{EntryId, Ids, ProjectId, testing::SequentialIds};
 use pace_error::ErrorKind;
 
 use crate::TestResult;

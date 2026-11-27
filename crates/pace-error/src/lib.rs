@@ -33,7 +33,6 @@
 //! [`rustic_core`'s error module]: https://docs.rs/rustic_core/latest/rustic_core/error/index.html
 
 use std::{
-    backtrace::Backtrace,
     error::Error,
     fmt::{self, Display},
     ops::Range,
@@ -41,9 +40,8 @@ use std::{
 
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 
-mod constants {
-    pub(crate) const DEFAULT_ISSUE_URL: &str = "https://github.com/pace-rs/pace/issues/new";
-}
+/// Where a user reports a bug.
+const ISSUE_URL: &str = "https://github.com/pace-rs/pace/issues/new";
 
 /// Result type of every fallible public function in pace.
 pub type PaceResult<T, E = Box<PaceError>> = Result<T, E>;
@@ -93,11 +91,10 @@ impl From<Severity> for miette::Severity {
     }
 }
 
-/// The exit code of the `pace` process, a contract with scripts.
+/// The exit code of a `pace` process that an error ends, a contract with
+/// scripts; a command that succeeds exits with 0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExitCode {
-    /// 0: the command did what was asked.
-    Done,
     /// 1: an error stopped the command.
     Error,
     /// 2: the command line was wrong (clap uses the same code).
@@ -109,7 +106,6 @@ pub enum ExitCode {
 impl From<ExitCode> for i32 {
     fn from(code: ExitCode) -> Self {
         match code {
-            ExitCode::Done => 0,
             ExitCode::Error => 1,
             ExitCode::Usage => 2,
             ExitCode::NothingToDo => 3,
@@ -155,20 +151,11 @@ pub struct PaceError {
     /// How to fix the error.
     hint: Option<String>,
 
-    /// The URL of the documentation for the error.
-    docs_url: Option<String>,
-
     /// A stable code for the error.
     error_code: Option<String>,
 
     /// Whether to ask the user to report the error.
     ask_report: bool,
-
-    /// URLs of already existing issues related to this error.
-    existing_issue_urls: Vec<String>,
-
-    /// The URL to open a new issue at.
-    new_issue_url: Option<String>,
 
     /// Key-value pairs, filled into the guidance or shown as details.
     context: Vec<(String, String)>,
@@ -184,9 +171,6 @@ pub struct PaceError {
 
     /// The part of a file the error is about.
     snippet: Option<Snippet>,
-
-    /// Where the error was created. Captured only if `RUST_BACKTRACE` is set.
-    backtrace: Backtrace,
 }
 
 impl PaceError {
@@ -196,17 +180,13 @@ impl PaceError {
             kind,
             guidance: guidance.into(),
             hint: None,
-            docs_url: None,
             error_code: None,
             ask_report: false,
-            existing_issue_urls: Vec::new(),
-            new_issue_url: None,
             context: Vec::new(),
             source: None,
             severity: None,
             exit_code: ExitCode::Error,
             snippet: None,
-            backtrace: Backtrace::capture(),
         })
     }
 
@@ -249,12 +229,6 @@ impl PaceError {
         self.context
             .iter()
             .find_map(|(k, v)| (k == key).then_some(v.as_str()))
-    }
-
-    /// Where the error was created, if `RUST_BACKTRACE` was set.
-    #[must_use]
-    pub const fn backtrace(&self) -> &Backtrace {
-        &self.backtrace
     }
 
     /// The guidance with its placeholders filled, and the context entries
@@ -303,33 +277,18 @@ impl PaceError {
 // Setters. They take and return the error boxed, like `rustic_core`'s, so
 // they chain on the result of `PaceError::new`.
 impl PaceError {
-    /// Change what the error is related to.
-    #[must_use]
-    pub fn overwrite_kind(self: Box<Self>, kind: ErrorKind) -> Box<Self> {
-        Box::new(Self { kind, ..*self })
-    }
-
-    /// Replace the guidance message.
-    #[must_use]
-    pub fn overwrite_guidance(self: Box<Self>, guidance: impl Into<String>) -> Box<Self> {
-        Box::new(Self {
-            guidance: guidance.into(),
-            ..*self
-        })
-    }
-
     /// Add a line after the guidance message.
     #[must_use]
     pub fn append_guidance_line(self: Box<Self>, line: impl Into<String>) -> Box<Self> {
         let guidance = format!("{}\n{}", self.guidance, line.into());
-        self.overwrite_guidance(guidance)
+        Box::new(Self { guidance, ..*self })
     }
 
     /// Add a line before the guidance message.
     #[must_use]
     pub fn prepend_guidance_line(self: Box<Self>, line: impl Into<String>) -> Box<Self> {
         let guidance = format!("{}\n{}", line.into(), self.guidance);
-        self.overwrite_guidance(guidance)
+        Box::new(Self { guidance, ..*self })
     }
 
     /// Say how to fix the error.
@@ -374,15 +333,6 @@ impl PaceError {
         })
     }
 
-    /// Attach the URL of the documentation for the error.
-    #[must_use]
-    pub fn attach_docs_url(self: Box<Self>, url: impl Into<String>) -> Box<Self> {
-        Box::new(Self {
-            docs_url: Some(url.into()),
-            ..*self
-        })
-    }
-
     /// Ask the user to report the error; for bugs.
     #[must_use]
     pub fn ask_report(self: Box<Self>) -> Box<Self> {
@@ -390,22 +340,6 @@ impl PaceError {
             ask_report: true,
             ..*self
         })
-    }
-
-    /// Attach the URL to open a new issue at, instead of the default.
-    #[must_use]
-    pub fn attach_new_issue_url(self: Box<Self>, url: impl Into<String>) -> Box<Self> {
-        Box::new(Self {
-            new_issue_url: Some(url.into()),
-            ..*self
-        })
-    }
-
-    /// Attach the URL of an existing issue related to this error.
-    #[must_use]
-    pub fn attach_existing_issue_url(mut self: Box<Self>, url: impl Into<String>) -> Box<Self> {
-        self.existing_issue_urls.push(url.into());
-        self
     }
 
     /// Attach how serious the error is.
@@ -474,33 +408,14 @@ impl Diagnostic for PaceError {
             sections.push(format!("Details:\n{}", lines.join("\n")));
         }
 
-        if !self.existing_issue_urls.is_empty() {
-            let lines: Vec<_> = self
-                .existing_issue_urls
-                .iter()
-                .map(|url| format!("- {url}"))
-                .collect();
-            sections.push(format!("Related issues:\n{}", lines.join("\n")));
-        }
-
         if self.ask_report {
-            let url = self
-                .new_issue_url
-                .as_deref()
-                .unwrap_or(constants::DEFAULT_ISSUE_URL);
             sections.push(format!(
-                "This is a bug in pace. Please report it at {url}, \
+                "This is a bug in pace. Please report it at {ISSUE_URL}, \
                  with the command you ran."
             ));
         }
 
         (!sections.is_empty()).then(|| -> Box<dyn Display + 'a> { Box::new(sections.join("\n\n")) })
-    }
-
-    fn url<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
-        self.docs_url
-            .as_ref()
-            .map(|url| -> Box<dyn Display + 'a> { Box::new(url) })
     }
 
     fn source_code(&self) -> Option<&dyn SourceCode> {

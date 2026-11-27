@@ -43,6 +43,9 @@ pub trait EventStore: Send + Sync {
 
     /// The devices that have written to the log.
     ///
+    /// No command asks for them yet: phase 5 (remotes, push) keeps a cursor
+    /// per device.
+    ///
     /// # Errors
     ///
     /// If the store can't be read.

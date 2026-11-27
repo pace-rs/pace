@@ -8,8 +8,9 @@ use jiff::ZonedDateTime;
 use pace_core::{
     Batch, BatchId, Change, Command, DeviceId, EntryId, EntryState, EntryVerb, Event, EventId,
     EventKind, Hlc, HoldSource, Ids, OVERLAP, PauseKind, Policy, ProjectRef, RecordedEvent, Rules,
-    SequentialIds, State,
+    State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
+    testing::SequentialIds,
 };
 use pace_error::{ExitCode, PaceError};
 use rstest::rstest;

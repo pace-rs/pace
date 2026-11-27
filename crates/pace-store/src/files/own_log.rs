@@ -327,8 +327,9 @@ mod tests {
     use std::sync::Arc;
 
     use pace_core::{
-        Clock, Command, Policy, ReadScope, Rules, SequentialIds, State,
+        Clock, Command, Policy, ReadScope, Rules, State,
         command::{Begin, Forget},
+        testing::SequentialIds,
         testing::TestClock,
     };
 

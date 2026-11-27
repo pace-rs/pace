@@ -57,11 +57,4 @@ impl TimeRange {
     pub const fn end(&self) -> Option<&ZonedDateTime> {
         self.end.as_ref()
     }
-
-    /// Whether `moment` lies in the range.
-    #[must_use]
-    pub fn contains(&self, moment: &ZonedDateTime) -> bool {
-        self.start.as_ref().is_none_or(|start| start <= moment)
-            && self.end.as_ref().is_none_or(|end| moment < end)
-    }
 }

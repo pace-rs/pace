@@ -5,8 +5,9 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, Policy, SequentialIds,
+    Clock, Command, DeviceId, Policy,
     command::{Begin, End},
+    testing::SequentialIds,
     testing::TestClock,
 };
 use pace_store::{FilesStore, Split, Tracker, device_id, testing::scratch_dir};

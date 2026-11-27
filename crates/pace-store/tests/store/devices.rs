@@ -8,8 +8,9 @@ use std::{
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Change, Clock, Command, DeviceId, EntryId, Policy, SequentialIds, State,
+    Change, Clock, Command, DeviceId, EntryId, Policy, State,
     command::{Adjust, Begin, End, Forget, Hold, Log},
+    testing::SequentialIds,
     testing::TestClock,
 };
 use pace_store::{FilesStore, Split, Tracker, testing::scratch_dir};

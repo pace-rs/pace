@@ -1,26 +1,7 @@
-//! The time between two moments, and durations as people type them.
+//! Durations as people type them.
 
-use jiff::{SignedDuration, ZonedDateTime};
+use jiff::SignedDuration;
 use pace_error::{ErrorKind, PaceError, PaceResult};
-
-/// The time that passed from `start` to `end`, whatever zones they were
-/// recorded in.
-///
-/// # Errors
-///
-/// If `end` lies before `start`.
-pub fn elapsed(start: &ZonedDateTime, end: &ZonedDateTime) -> PaceResult<SignedDuration> {
-    if end < start {
-        return Err(PaceError::new(
-            ErrorKind::InvalidInput,
-            "the end {end} lies before the start {start}",
-        )
-        .attach_hint("give an end after the start")
-        .attach_context("start", start.to_string())
-        .attach_context("end", end.to_string()));
-    }
-    Ok(start.duration_until(end))
-}
 
 /// A duration as people type it: `15m`, `1h30m`, `1h 30m`, `1.5h`, `45s`.
 /// Space around it does not count.

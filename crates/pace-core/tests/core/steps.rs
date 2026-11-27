@@ -5,8 +5,9 @@ use jiff::ToSpan;
 use jiff::ZonedDateTime;
 use pace_core::{
     AfterAppend, AfterRead, Appended, Batch, Change, ChangeMarker, Command, Decided, DeviceId,
-    EntryId, EventKind, Hlc, Policy, ReadScope, Reading, RecordedEvent, SequentialIds,
+    EntryId, EventKind, Hlc, Policy, ReadScope, Reading, RecordedEvent,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
+    testing::SequentialIds,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError};
 use pace_time::TimeRange;

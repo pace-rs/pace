@@ -6,8 +6,9 @@ use std::{collections::BTreeSet, sync::Arc};
 
 use jiff::{SignedDuration, ZonedDateTime};
 use pace_core::{
-    Clock, Command, DeviceId, Entry, EntryId, Policy, SequentialIds, State, Tag,
+    Clock, Command, DeviceId, Entry, EntryId, Policy, State, Tag,
     command::{Adjust, Begin, End, Forget, Hold, Log, Pause, Resume},
+    testing::SequentialIds,
     testing::TestClock,
 };
 use pace_store::{Tracker, testing::MemoryStore};
