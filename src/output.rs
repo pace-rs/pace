@@ -575,4 +575,97 @@ mod tests {
         );
         Ok(())
     }
+
+    /// The lines for `kind`, recorded after entry 1 was begun.
+    fn lines_after_begin(kind: EventKind) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let entry: EntryId = id(0xa, 1)?;
+        let began = recorded(1, 1, begun(entry))?;
+        let outcome = outcome(&[began], vec![recorded(2, 2, kind)?], Vec::new())?;
+        Ok(describe_outcome(&outcome)?)
+    }
+
+    #[test]
+    fn hold_says_where_interruption_came_from() -> TestResult {
+        let entry: EntryId = id(0xa, 1)?;
+        let held = |source| EventKind::EntryHeld {
+            entry,
+            source,
+            reason: None,
+        };
+
+        assert_eq!(
+            lines_after_begin(held(HoldSource::Inner))?,
+            ["Held 0001 at 09:00, interrupted from inside."]
+        );
+        assert_eq!(
+            lines_after_begin(held(HoldSource::Outer))?,
+            ["Held 0001 at 09:00, interrupted from outside."]
+        );
+        assert_eq!(
+            lines_after_begin(held(HoldSource::Unknown))?,
+            ["Held 0001 at 09:00."]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn pause_says_its_kind() -> TestResult {
+        let entry: EntryId = id(0xa, 1)?;
+        let mut lines = Vec::new();
+        for kind in [
+            PauseKind::Break,
+            PauseKind::Lunch,
+            PauseKind::Pomodoro,
+            PauseKind::Recovery,
+        ] {
+            lines.extend(lines_after_begin(EventKind::EntryPaused {
+                entry,
+                kind,
+                reason: None,
+            })?);
+        }
+
+        assert_eq!(
+            lines,
+            [
+                "Paused 0001 at 09:00 for a break.",
+                "Paused 0001 at 09:00 for lunch.",
+                "Paused 0001 at 09:00 for a Pomodoro break.",
+                "Paused 0001 at 09:00 to recover.",
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn adjustment_names_removed_note_new_project_and_removed_tag() -> TestResult {
+        let entry: EntryId = id(0xa, 1)?;
+        let began = recorded(
+            1,
+            1,
+            EventKind::EntryBegun {
+                entry,
+                project: None,
+                note: Some("Write offer".to_owned()),
+                tags: BTreeSet::from(["draft".parse()?]),
+            },
+        )?;
+        let changes = EntryChanges {
+            note: Change::Clear,
+            project: Change::Set(ProjectRef::Key("acme".parse()?)),
+            tags: Some(BTreeSet::new()),
+            ..EntryChanges::default()
+        };
+        let adjusted = recorded(2, 2, EventKind::EntryAdjusted { entry, changes })?;
+        let outcome = outcome(&[began], vec![adjusted], Vec::new())?;
+
+        assert_eq!(
+            describe_outcome(&outcome)?,
+            [
+                "Adjusted 0001: note removed (was \"Write offer\"), project acme (had none), \
+                 untagged draft."
+            ]
+        );
+        Ok(())
+    }
 }
