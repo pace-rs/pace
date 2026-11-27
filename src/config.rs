@@ -103,6 +103,9 @@ impl Key {
 /// The table that maps directories to projects.
 const PROJECT_PATHS: &str = "project-paths";
 
+/// The start of every variable pace reads.
+const PREFIX: &str = "PACE_";
+
 /// Environment variables that are not settings.
 const OTHER_VARIABLES: [&str; 5] = [
     "PACE_CONFIG",
@@ -606,15 +609,22 @@ fn unknown_variables(variables: impl Iterator<Item = OsString>) -> Vec<PaceError
         .collect();
     let mut unknown: Vec<String> = variables
         .map(|name| name.to_string_lossy().into_owned())
-        .filter(|name| name.starts_with("PACE_") && !known.contains(&name.as_str()))
+        .filter(|name| name.starts_with(PREFIX) && !known.contains(&name.as_str()))
         .collect();
     unknown.sort();
     unknown
         .into_iter()
         .map(|name| {
-            let hint = closest(&name, known.iter().copied()).map_or_else(
+            // Scored without the shared `PACE_`, which would make every
+            // pair of names look close.
+            let without_prefix = |name: &'static str| name.strip_prefix(PREFIX).unwrap_or(name);
+            let hint = closest(
+                name.strip_prefix(PREFIX).unwrap_or(&name),
+                known.iter().copied().map(without_prefix),
+            )
+            .map_or_else(
                 || "pace ignores it".to_owned(),
-                |known| format!("did you mean {known}? pace ignores {name}"),
+                |known| format!("did you mean {PREFIX}{known}? pace ignores {name}"),
             );
             *PaceError::new(
                 ErrorKind::Configuration,
@@ -672,5 +682,23 @@ mod tests {
     #[test]
     fn unknown_zone_of_jiff_is_no_time_zone_setting() {
         assert!(parse_time_zone("Etc/Unknown").is_err());
+    }
+
+    #[test]
+    fn unknown_variable_far_from_every_known_one_gets_no_suggestion() {
+        let warnings = unknown_variables(["PACE_DEBUG".into()].into_iter());
+
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].hint(), Some("pace ignores it"));
+    }
+
+    #[test]
+    fn unknown_variable_close_to_known_one_suggests_it() {
+        let warnings = unknown_variables(["PACE_TIMEZONE".into()].into_iter());
+
+        assert_eq!(
+            warnings[0].hint(),
+            Some("did you mean PACE_TIME_ZONE? pace ignores PACE_TIMEZONE")
+        );
     }
 }
