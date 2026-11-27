@@ -133,8 +133,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       # Fails if `pace config show`, `now` or `begin` takes longer than 50 ms
-      # on three years of history (restart proposal, 3.1); the results go
-      # into the job summary.
+      # on three years of history (restart proposal, 3.1). It also reports
+      # `adjust --last`, `undo` and `forget --last`, which read the whole
+      # history, without holding them to the budget; the results go into
+      # the job summary.
       - run: cargo bench --bench latency
 
   coverage:
