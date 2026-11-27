@@ -1,0 +1,62 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project-record::key-changed
+
+  × `pace project edit` can't change the key of the project `webshop` to `shop`
+   ╭─[[SANDBOX]/home/projects/webshop.toml:3:7]
+ 2 │ id = "[ID-1]"
+ 3 │ key = "shop"
+   ·       ───┬──
+   ·          ╰── another key
+ 4 │ name = "webshop"
+   ╰────
+  help: write `key = "webshop"` again; pace can't rename a project yet
+
+
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project-record::id-changed
+
+  × `pace project edit` can't change the ID of the project `webshop`
+   ╭─[[SANDBOX]/home/projects/webshop.toml:2:6]
+ 1 │ version = 1
+ 2 │ id = "0193a7c4-0000-7000-8000-0000000000ff"
+   ·      ───────────────────┬──────────────────
+   ·                         ╰── another ID
+ 3 │ key = "webshop"
+   ╰────
+  help: write `id = "[ID-1]"` again; the entries of the project name its ID
+
+
+success: true
+exit_code: 0
+----- stdout -----
+Saved the project `webshop` (Web shop) in [SANDBOX]/home/projects/webshop.toml.
+
+----- stderr -----
+
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × pace has no record of the project `wehshop`
+  help: did you mean `webshop`?
+
+
+--- home/projects/webshop.toml ---
+version = 1
+id = "[ID-1]"
+key = "webshop"
+name = "Web shop"
+billable = false

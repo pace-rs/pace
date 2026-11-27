@@ -1,0 +1,21 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace project add webshop   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `webshop` (webshop), not billable.
+pace took these defaults: name `webshop` from the key and not billable, as it has no client; `pace project edit webshop` changes them.
+
+----- stderr -----
+
+$ pace project add webshop --name Shop   # at 09:01
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × the project `webshop` has a record already
+  help: change it with `pace project edit webshop`

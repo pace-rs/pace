@@ -10,7 +10,7 @@ exit_code: 1
 ----- stderr -----
 pace::project::id-mismatch
 
-  × the manifest [SANDBOX]/work/.pace.toml gives the project `acme-webshop` the ID 0193a7c4-0000-7000-8000-0000000000ff, but its record [SANDBOX]/home/projects/acme-webshop.toml has the ID 0193a7c4-0000-7000-8000-000000000001
+  × the manifest [SANDBOX]/work/.pace.toml gives the project `acme-webshop` the ID 0193a7c4-0000-7000-8000-0000000000ff, but its record [SANDBOX]/home/projects/acme-webshop.toml has the ID [ID-1]
    ╭─[[SANDBOX]/work/.pace.toml:2:6]
  1 │ [project]
  2 │ id = "0193a7c4-0000-7000-8000-0000000000ff"

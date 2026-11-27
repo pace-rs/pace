@@ -1,0 +1,48 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace project add webshop   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `webshop` (webshop), not billable.
+pace took these defaults: name `webshop` from the key and not billable, as it has no client; `pace project edit webshop` changes them.
+
+----- stderr -----
+
+$ pace project archive webshop --reason abandoned   # at 09:01
+success: true
+exit_code: 0
+----- stdout -----
+Archived the project `webshop` (webshop) on 2026-11-26 as abandoned.
+
+----- stderr -----
+
+$ pace project archive webshop --reason ended   # at 09:02
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × the project `webshop` is archived already, since 2026-11-26
+  help: `pace project edit webshop` changes the day or the reason
+
+
+$ pace project archive wehshop --reason ended   # at 09:03
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × pace has no record of the project `wehshop`
+  help: did you mean `webshop`?
+
+
+--- home/projects/webshop.toml ---
+version = 1
+id = "[ID-1]"
+key = "webshop"
+name = "webshop"
+billable = false
+archived = { on = 2026-11-26, reason = "abandoned" }

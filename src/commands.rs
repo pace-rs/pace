@@ -6,6 +6,7 @@ pub mod config;
 pub mod corrections;
 pub mod edit;
 pub mod now;
+pub mod project;
 pub mod role;
 pub mod store;
 pub mod tracking;
@@ -21,6 +22,7 @@ use self::{
     corrections::{AdjustCmd, ForgetCmd, LogCmd, UndoCmd},
     edit::EditCmd,
     now::{NowCmd, NowFormat},
+    project::ProjectCmd,
     role::RoleCmd,
     store::StoreCmd,
     tracking::{BeginCmd, CatchCmd, EndCmd, HoldCmd, PauseCmd, ResumeCmd},
@@ -117,6 +119,10 @@ pub enum PaceCmd {
     /// Keep the clients: who gets billed, in which currency, at which rates
     #[command(subcommand)]
     Client(ClientCmd),
+
+    /// Keep the project records: client, role, billing and budget
+    #[command(subcommand)]
+    Project(ProjectCmd),
 
     /// Look at pace's configuration.
     #[command(subcommand)]

@@ -1,0 +1,43 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace client add acme --name ACME GmbH --currency EUR   # at 08:58
+success: true
+exit_code: 0
+----- stdout -----
+Added the client `acme` (ACME GmbH) in EUR.
+pace took these defaults: no rate and no rounding; `pace client edit acme` changes them.
+
+----- stderr -----
+
+$ pace role add work --name Work   # at 08:59
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (Work, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace project add acme-webshop --name Webshop relaunch --client acme --role work --not-billable --budget 120h --starts-on 2026-12-01 --ends-on 2027-03-31 --done-when the new shop takes orders --allow-overlap   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `acme-webshop` (Webshop relaunch) for the client `acme` in the role `work`, not billable.
+
+----- stderr -----
+
+--- home/projects/acme-webshop.toml ---
+version = 1
+id = "[ID-1]"
+key = "acme-webshop"
+name = "Webshop relaunch"
+client = "acme"
+role = "work"
+billable = false
+budget = "120h"
+starts-on = 2026-12-01
+ends-on = 2027-03-31
+done-when = "the new shop takes orders"
+allow-overlap = true

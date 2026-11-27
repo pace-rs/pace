@@ -1,0 +1,85 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace project list   # at 08:57
+success: true
+exit_code: 0
+----- stdout -----
+There are no project records yet; `pace project add <key>` adds one.
+
+----- stderr -----
+
+$ pace client add acme --name ACME GmbH --currency EUR   # at 08:58
+success: true
+exit_code: 0
+----- stdout -----
+Added the client `acme` (ACME GmbH) in EUR.
+pace took these defaults: no rate and no rounding; `pace client edit acme` changes them.
+
+----- stderr -----
+
+$ pace role add work --name Work   # at 08:59
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (Work, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace project add acme-webshop --name Webshop relaunch --client acme --role work --budget 120h   # at 09:01
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `acme-webshop` (Webshop relaunch) for the client `acme` in the role `work`, billable.
+pace took these defaults: billable, as it has a client; `pace project edit acme-webshop` changes them.
+
+----- stderr -----
+
+$ pace project add garden --name Garden   # at 09:02
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `garden` (Garden), not billable.
+pace took these defaults: no client, no role and not billable, as it has no client; `pace project edit garden` changes them.
+
+----- stderr -----
+
+$ pace project add old-site   # at 09:03
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `old-site` (old-site), not billable.
+pace took these defaults: name `old-site` from the key, no client, no role and not billable, as it has no client; `pace project edit old-site` changes them.
+
+----- stderr -----
+
+$ pace project archive old-site --reason completed   # at 09:04
+success: true
+exit_code: 0
+----- stdout -----
+Archived the project `old-site` (old-site) on 2026-11-26 as completed.
+
+----- stderr -----
+
+$ pace project list   # at 09:05
+success: true
+exit_code: 0
+----- stdout -----
+key           name              client  role  billable  budget
+acme-webshop  Webshop relaunch  acme    work  yes       120h
+garden        Garden                          no
+
+----- stderr -----
+
+$ pace project list --archived   # at 09:06
+success: true
+exit_code: 0
+----- stdout -----
+key           name              client  role  billable  budget  archived
+acme-webshop  Webshop relaunch  acme    work  yes       120h
+garden        Garden                          no
+old-site      old-site                        no                2026-11-26, completed
+
+----- stderr -----

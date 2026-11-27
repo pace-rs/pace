@@ -314,8 +314,9 @@ const fn is_word_char(c: char) -> bool {
 /// The fields of an event that hold an ID pace made.
 const ID_FIELDS: [&str; 4] = ["id", "batch", "entry", "undoes"];
 
-/// The IDs pace made in a sandbox, read from every `events` directory in it
-/// and from every roles file, `roles.toml`.
+/// The IDs pace made in a sandbox, read from every `events` directory in it,
+/// from every roles file, `roles.toml`, and from every project record,
+/// `projects/<key>.toml`.
 #[derive(Default)]
 struct MadeIds {
     all: BTreeSet<Uuid>,
@@ -323,9 +324,9 @@ struct MadeIds {
 }
 
 impl MadeIds {
-    /// The IDs in the event files and the roles files below `root`. Other
-    /// TOML files, such as manifests, hold IDs a test wrote, so they are
-    /// not read.
+    /// The IDs in the event files, the roles files and the project records
+    /// below `root`. Other TOML files, such as manifests, hold IDs a test
+    /// wrote, so they are not read.
     fn find(root: &Path) -> std::io::Result<Self> {
         let mut made = Self::default();
         // Each directory, and whether it is an `events` directory or below one.
@@ -348,6 +349,7 @@ impl MadeIds {
                         .extension()
                         .is_some_and(|extension| extension == "toml"))
                     || path.file_name().is_some_and(|name| name == "roles.toml")
+                    || is_project_record(&path)
                 {
                     made.read(&std::fs::read_to_string(&path)?);
                 }
@@ -356,8 +358,8 @@ impl MadeIds {
         Ok(made)
     }
 
-    /// The IDs in the lines `field = "…"` of an event file or a roles
-    /// file.
+    /// The IDs in the lines `field = "…"` of an event file, a roles file
+    /// or a project record.
     fn read(&mut self, text: &str) {
         for line in text.lines() {
             let Some((field, value)) = line.split_once(" = ") else {
@@ -403,6 +405,17 @@ impl MadeIds {
             )),
         }
     }
+}
+
+/// Whether `path` is a project record: a TOML file in a `projects`
+/// directory.
+fn is_project_record(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension == "toml")
+        && path
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == "projects")
 }
 
 fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {

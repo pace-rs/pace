@@ -1,0 +1,59 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace client add acme --name ACME GmbH --currency EUR   # at 08:58
+success: true
+exit_code: 0
+----- stdout -----
+Added the client `acme` (ACME GmbH) in EUR.
+pace took these defaults: no rate and no rounding; `pace client edit acme` changes them.
+
+----- stderr -----
+
+$ pace role add work --name Work   # at 08:59
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (Work, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace project add webshop --client acmee   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `--client "acmee"` doesn't fit: pace doesn't know the client `acmee`: did you mean `acme`?
+  help: give `--client` another value, or leave the flag out
+
+
+$ pace project add webshop --role wrok   # at 09:01
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `--role "wrok"` doesn't fit: pace doesn't know the role `wrok`: did you mean `work`?
+  help: give `--role` another value, or leave the flag out
+
+
+$ pace project add webshop --budget lots   # at 09:02
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `--budget "lots"` doesn't fit: `lots` is not a duration: write it like `15m`, `1h30m` or `1.5h`
+  help: give `--budget` another value, or leave the flag out
+
+
+$ pace project list   # at 09:03
+success: true
+exit_code: 0
+----- stdout -----
+There are no project records yet; `pace project add <key>` adds one.
+
+----- stderr -----
