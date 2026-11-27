@@ -100,7 +100,9 @@ impl FilesStore {
     /// The store of `device`, with its data in `home` (`PACE_HOME`) and its
     /// lock in the machine directory `machine`. `split` applies when the
     /// device writes its first event; afterwards its `device.toml` decides.
-    /// Nothing is created before the first append.
+    /// The device's files come with its first append. Before it, a read
+    /// saves only the index cache `index.json` when the event files
+    /// changed, and creates the machine directory for it.
     pub fn new(
         home: PathBuf,
         machine: PathBuf,

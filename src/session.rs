@@ -38,7 +38,10 @@ impl Session {
 
     /// Open the store of this machine without creating its device ID: on
     /// the first run, the session takes an ID that it never saves. So a
-    /// query writes nothing; a command that writes needs [`Session::open`].
+    /// query creates no device ID; a command that writes needs
+    /// [`Session::open`]. A read still saves the index cache `index.json`
+    /// when the event files changed, and creates the machine directory for
+    /// it.
     ///
     /// # Errors
     ///
