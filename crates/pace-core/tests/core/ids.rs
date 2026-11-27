@@ -1,6 +1,7 @@
 //! All IDs are UUIDv7.
 
 use pace_core::{EntryId, ProjectId};
+use pace_error::ErrorKind;
 
 use crate::TestResult;
 
@@ -27,6 +28,18 @@ fn an_id_that_is_no_uuidv7_is_rejected() {
         error.as_ref().and_then(|error| error.hint()),
         Some("pace writes its IDs itself; copy the ID pace printed")
     );
+}
+
+#[test]
+fn id_source_that_gives_no_uuidv7_is_internal_error() -> TestResult {
+    let error = EntryId::try_from(uuid::Uuid::parse_str(V4)?).err();
+
+    assert_eq!(
+        error.as_ref().map(ToString::to_string).as_deref(),
+        Some("an ID source gave `9b2d4e5f-6071-4829-a3b4-c5d6e7f80912`, which is no UUIDv7")
+    );
+    assert_eq!(error.map(|error| error.kind()), Some(ErrorKind::Internal));
+    Ok(())
 }
 
 #[test]
