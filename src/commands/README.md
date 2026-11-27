@@ -7,13 +7,16 @@ declares the entry point and the subcommands. A tracking command opens a
 `role add`, `client add`, `project add` or `project init`, drives a flow of
 `questions` and writes its field edits. `reflect` reads the period's events,
 builds the `pace_core::Report` and draws it with `render`. Its filters come from
-`report_filter.rs`, which `export` shares. `bill` picks the client, reads the
-events from the period's start on, so the state holds every entry that may
-overlap one on the bill, builds the `pace_core::Bill` and draws it with `render`
-too. `setup` drives the step machine of `setup.rs` through the asker, and writes
-the edits once the user accepts the summary. `role edit`, `client edit` and
-`project edit` open a file, or one client's table, in the editor until the
-catalog reads it; `project edit` also refuses a changed key or ID.
+`report_filter.rs`, which `export` shares. `export` reads the events from the
+period's start on, so the state holds every later billing of its entries; it
+writes the core's `pace_core::export_entries` as rows of the schema. `bill`
+picks the client, reads the events from the period's start on, so the state
+holds every entry that may overlap one on the bill, builds the `pace_core::Bill`
+and draws it with `render` too. `setup` drives the step machine of `setup.rs`
+through the asker, and writes the edits once the user accepts the summary. `role
+edit`, `client edit` and `project edit` open a file, or one client's table, in
+the editor until the catalog reads it; `project edit` also refuses a changed key
+or ID.
 
 ## Files
 
@@ -28,6 +31,7 @@ catalog reads it; `project edit` also refuses a changed key or ID.
 | [`corrections.rs`](corrections.rs)     | Correcting the record: `adjust`, `log`, `undo`, `forget`.                                                                                                                                                 |
 | [`edit.rs`](edit.rs)                   | `pace edit`: an entry as TOML in the user's editor; the changes become an adjustment.                                                                                                                     |
 | [`entry_fields.rs`](entry_fields.rs)   | The flags of an entry's role, who decided and billable, which `begin`, `log` and `adjust` share.                                                                                                          |
+| [`export.rs`](export.rs)               | `pace export`: every entry of a period, one row each, as JSON or CSV in the schema of version 1.                                                                                                          |
 | [`now.rs`](now.rs)                     | `pace now`: what is open, and where new entries go.                                                                                                                                                       |
 | [`project.rs`](project.rs)             | `pace project`: make the working directory a project, and add, list, archive and edit the project records in `projects/<key>.toml`.                                                                       |
 | [`project_init.rs`](project_init.rs)   | `pace project init`: make the working directory a project, with the record and the manifest that links the directory to it.                                                                               |

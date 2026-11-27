@@ -1,0 +1,16 @@
+---
+source: tests/journey/export.rs
+expression: output
+---
+$ pace export --format csv   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+id,short,project,project_id,client,role,start,end,net_seconds,net,gross_seconds,gross,held_seconds,held,paused_seconds,paused,rate,amount,currency,note,tags,determined_by,billable,invoice,running
+[ID-1],[ID-1],acme-webshop,[ID-2],acme,work,2026-10-05T09:00:00+02:00[Europe/Berlin],2026-10-05T11:10:00+02:00[Europe/Berlin],7800,2h 10m,7800,2h 10m,0,0s,0,0s,120.00,270.00,EUR,Plan the relaunch,,self,true,2026-0042,false
+[ID-3],[ID-3],acme-webshop,[ID-2],acme,work,2026-10-07T09:00:00+02:00[Europe/Berlin],2026-10-07T12:00:00+02:00[Europe/Berlin],9000,2h 30m,10800,3h,1800,30m,0,0s,120.00,300.00,EUR,Fix the checkout,,,true,2026-0042,false
+[ID-4],[ID-4],,,,,2026-11-20T12:00:00+01:00[Europe/Berlin],2026-11-20T13:00:00+01:00[Europe/Berlin],3600,1h,3600,1h,0,0s,0,0s,,,,Team lunch,,other,false,,false
+[ID-5],[ID-5],acme-blog,[ID-6],acme,work,2026-11-20T14:00:00+01:00[Europe/Berlin],2026-11-20T15:20:00+01:00[Europe/Berlin],4800,1h 20m,4800,1h 20m,0,0s,0,0s,95.00,126.67,EUR,Write the launch post,writing,,true,,false
+[ID-7],[ID-7],acme-blog,[ID-6],acme,work,2026-11-26T09:00:00+01:00[Europe/Berlin],,21600,6h,21600,6h,0,0s,0,0s,95.00,570.00,EUR,Write the offer,,,true,,true
+
+----- stderr -----

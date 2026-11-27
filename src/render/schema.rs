@@ -34,8 +34,14 @@ pub enum Column {
     Short,
     /// The readable name of a role, project or client.
     Name,
+    /// The key of an entry's project.
+    Project,
+    /// The ID of an entry's project record.
+    ProjectId,
     /// The key of a client.
     Client,
+    /// The key of an entry's role.
+    Role,
     /// A day, `YYYY-MM-DD`.
     Date,
     /// When something begins, in RFC 9557 with its zone.
@@ -87,6 +93,14 @@ pub enum Column {
     Reason,
     /// A text: the note of an entry or a catch.
     Note,
+    /// The tags of an entry.
+    Tags,
+    /// Who determined an entry's time: `self` or `other`.
+    DeterminedBy,
+    /// Whether an entry's time is billable.
+    Billable,
+    /// The reference of the invoice an entry went on.
+    Invoice,
     /// The ID of a second entry.
     OtherId,
     /// The short ID of a second entry.
@@ -123,14 +137,17 @@ impl Column {
 }
 
 /// The name of each column, in the order of [`Column`].
-const COLUMN_NAMES: [(Column, &str); 44] = [
+const COLUMN_NAMES: [(Column, &str); 51] = [
     (Column::Part, "part"),
     (Column::Group, "group"),
     (Column::Key, "key"),
     (Column::Id, "id"),
     (Column::Short, "short"),
     (Column::Name, "name"),
+    (Column::Project, "project"),
+    (Column::ProjectId, "project_id"),
     (Column::Client, "client"),
+    (Column::Role, "role"),
     (Column::Date, "date"),
     (Column::Start, "start"),
     (Column::End, "end"),
@@ -156,6 +173,10 @@ const COLUMN_NAMES: [(Column, &str); 44] = [
     (Column::Currency, "currency"),
     (Column::Reason, "reason"),
     (Column::Note, "note"),
+    (Column::Tags, "tags"),
+    (Column::DeterminedBy, "determined_by"),
+    (Column::Billable, "billable"),
+    (Column::Invoice, "invoice"),
     (Column::OtherId, "other_id"),
     (Column::OtherShort, "other_short"),
     (Column::Running, "running"),
@@ -225,6 +246,8 @@ pub enum SchemaKind {
     Reflect,
     /// The bill of `bill`.
     Bill,
+    /// The entries of `export`.
+    Export,
 }
 
 impl SchemaKind {
@@ -234,6 +257,7 @@ impl SchemaKind {
         match self {
             Self::Reflect => "reflect",
             Self::Bill => "bill",
+            Self::Export => "export",
         }
     }
 
@@ -244,6 +268,7 @@ impl SchemaKind {
         match self {
             Self::Reflect => REFLECT_COLUMNS,
             Self::Bill => BILL_COLUMNS,
+            Self::Export => EXPORT_COLUMNS,
         }
     }
 
@@ -253,7 +278,7 @@ impl SchemaKind {
     pub const fn previous_columns(self) -> &'static [Column] {
         match self {
             Self::Reflect => REFLECT_PREVIOUS_COLUMNS,
-            Self::Bill => &[],
+            Self::Bill | Self::Export => &[],
         }
     }
 
@@ -262,7 +287,7 @@ impl SchemaKind {
     pub const fn change_columns(self) -> &'static [Column] {
         match self {
             Self::Reflect => REFLECT_CHANGE_COLUMNS,
-            Self::Bill => &[],
+            Self::Bill | Self::Export => &[],
         }
     }
 }
@@ -363,6 +388,35 @@ const BILL_COLUMNS: &[Column] = &[
     Column::Note,
 ];
 
+/// The columns of `export`.
+const EXPORT_COLUMNS: &[Column] = &[
+    Column::Id,
+    Column::Short,
+    Column::Project,
+    Column::ProjectId,
+    Column::Client,
+    Column::Role,
+    Column::Start,
+    Column::End,
+    Column::NetSeconds,
+    Column::Net,
+    Column::GrossSeconds,
+    Column::Gross,
+    Column::HeldSeconds,
+    Column::Held,
+    Column::PausedSeconds,
+    Column::Paused,
+    Column::Rate,
+    Column::Amount,
+    Column::Currency,
+    Column::Note,
+    Column::Tags,
+    Column::DeterminedBy,
+    Column::Billable,
+    Column::Invoice,
+    Column::Running,
+];
+
 /// The value of a cell.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Cell {
@@ -372,6 +426,9 @@ pub enum Cell {
     Number(i64),
     /// Yes or no; in JSON a boolean, in CSV `true` or `false`.
     Flag(bool),
+    /// Words without spaces, such as tags; in JSON a list of strings, in
+    /// CSV the words joined by a space.
+    List(Vec<String>),
 }
 
 impl Cell {
@@ -381,6 +438,7 @@ impl Cell {
             Self::Text(text) => csv_quoted(text),
             Self::Number(number) => number.to_string(),
             Self::Flag(flag) => flag.to_string(),
+            Self::List(words) => csv_quoted(&words.join(" ")),
         }
     }
 }
@@ -391,6 +449,7 @@ impl Serialize for Cell {
             Self::Text(text) => serializer.serialize_str(text),
             Self::Number(number) => serializer.serialize_i64(*number),
             Self::Flag(flag) => serializer.serialize_bool(*flag),
+            Self::List(words) => words.serialize(serializer),
         }
     }
 }
@@ -478,6 +537,15 @@ impl Row {
     #[must_use]
     pub fn flag(mut self, column: Column, flag: bool) -> Self {
         _ = self.cells.insert(column, Cell::Flag(flag));
+        self
+    }
+
+    /// The row with `words` under `column`, as a list.
+    #[must_use]
+    pub fn list(mut self, column: Column, words: impl IntoIterator<Item = String>) -> Self {
+        _ = self
+            .cells
+            .insert(column, Cell::List(words.into_iter().collect()));
         self
     }
 
@@ -702,6 +770,20 @@ mod tests {
     }
 
     #[test]
+    fn list_is_json_array_and_csv_words_joined_by_space() {
+        let row = Row::default().list(Column::Tags, ["deep".to_owned(), "writing".to_owned()]);
+
+        let json = serde_json::to_string(&row).unwrap();
+        let lines = schema_csv(SchemaKind::Export, &[row]);
+
+        assert_eq!(json, r#"{"tags":["deep","writing"]}"#);
+        let header: Vec<&str> = lines[0].split(',').collect();
+        let cells: Vec<&str> = lines[1].split(',').collect();
+        let tags = header.iter().position(|name| *name == "tags").unwrap();
+        assert_eq!(cells[tags], "deep writing");
+    }
+
+    #[test]
     fn json_document_names_version_and_kind() {
         let json = schema_json(SchemaKind::Reflect, &[]).unwrap();
 
@@ -721,7 +803,7 @@ mod tests {
 
     #[test]
     fn columns_of_each_kind_follow_column_order() {
-        for kind in [SchemaKind::Reflect, SchemaKind::Bill] {
+        for kind in [SchemaKind::Reflect, SchemaKind::Bill, SchemaKind::Export] {
             let columns = kind.columns();
             assert!(columns.is_sorted(), "{kind:?}");
         }

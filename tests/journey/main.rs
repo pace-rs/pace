@@ -6,6 +6,7 @@ mod completions;
 mod config;
 mod corrections;
 mod directories;
+mod export;
 mod now;
 mod project;
 mod project_init;

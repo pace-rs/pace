@@ -1,0 +1,139 @@
+---
+source: tests/journey/export.rs
+expression: output
+---
+$ pace export --format json   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+{
+  "version": 1,
+  "kind": "export",
+  "rows": [
+    {
+      "id": "[ID-1]",
+      "short": "[ID-1]",
+      "project": "acme-webshop",
+      "project_id": "[ID-2]",
+      "client": "acme",
+      "role": "work",
+      "start": "2026-10-05T09:00:00+02:00[Europe/Berlin]",
+      "end": "2026-10-05T11:10:00+02:00[Europe/Berlin]",
+      "net_seconds": 7800,
+      "net": "2h 10m",
+      "gross_seconds": 7800,
+      "gross": "2h 10m",
+      "held_seconds": 0,
+      "held": "0s",
+      "paused_seconds": 0,
+      "paused": "0s",
+      "rate": "120.00",
+      "amount": "270.00",
+      "currency": "EUR",
+      "note": "Plan the relaunch",
+      "tags": [],
+      "determined_by": "self",
+      "billable": true,
+      "invoice": "2026-0042",
+      "running": false
+    },
+    {
+      "id": "[ID-3]",
+      "short": "[ID-3]",
+      "project": "acme-webshop",
+      "project_id": "[ID-2]",
+      "client": "acme",
+      "role": "work",
+      "start": "2026-10-07T09:00:00+02:00[Europe/Berlin]",
+      "end": "2026-10-07T12:00:00+02:00[Europe/Berlin]",
+      "net_seconds": 9000,
+      "net": "2h 30m",
+      "gross_seconds": 10800,
+      "gross": "3h",
+      "held_seconds": 1800,
+      "held": "30m",
+      "paused_seconds": 0,
+      "paused": "0s",
+      "rate": "120.00",
+      "amount": "300.00",
+      "currency": "EUR",
+      "note": "Fix the checkout",
+      "tags": [],
+      "billable": true,
+      "invoice": "2026-0042",
+      "running": false
+    },
+    {
+      "id": "[ID-4]",
+      "short": "[ID-4]",
+      "start": "2026-11-20T12:00:00+01:00[Europe/Berlin]",
+      "end": "2026-11-20T13:00:00+01:00[Europe/Berlin]",
+      "net_seconds": 3600,
+      "net": "1h",
+      "gross_seconds": 3600,
+      "gross": "1h",
+      "held_seconds": 0,
+      "held": "0s",
+      "paused_seconds": 0,
+      "paused": "0s",
+      "note": "Team lunch",
+      "tags": [],
+      "determined_by": "other",
+      "billable": false,
+      "running": false
+    },
+    {
+      "id": "[ID-5]",
+      "short": "[ID-5]",
+      "project": "acme-blog",
+      "project_id": "[ID-6]",
+      "client": "acme",
+      "role": "work",
+      "start": "2026-11-20T14:00:00+01:00[Europe/Berlin]",
+      "end": "2026-11-20T15:20:00+01:00[Europe/Berlin]",
+      "net_seconds": 4800,
+      "net": "1h 20m",
+      "gross_seconds": 4800,
+      "gross": "1h 20m",
+      "held_seconds": 0,
+      "held": "0s",
+      "paused_seconds": 0,
+      "paused": "0s",
+      "rate": "95.00",
+      "amount": "126.67",
+      "currency": "EUR",
+      "note": "Write the launch post",
+      "tags": [
+        "writing"
+      ],
+      "billable": true,
+      "running": false
+    },
+    {
+      "id": "[ID-7]",
+      "short": "[ID-7]",
+      "project": "acme-blog",
+      "project_id": "[ID-6]",
+      "client": "acme",
+      "role": "work",
+      "start": "2026-11-26T09:00:00+01:00[Europe/Berlin]",
+      "net_seconds": 21600,
+      "net": "6h",
+      "gross_seconds": 21600,
+      "gross": "6h",
+      "held_seconds": 0,
+      "held": "0s",
+      "paused_seconds": 0,
+      "paused": "0s",
+      "rate": "95.00",
+      "amount": "570.00",
+      "currency": "EUR",
+      "note": "Write the offer",
+      "tags": [],
+      "billable": true,
+      "running": true
+    }
+  ]
+}
+
+----- stderr -----

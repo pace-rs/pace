@@ -7,6 +7,7 @@ pub mod config;
 pub mod corrections;
 pub mod edit;
 pub mod entry_fields;
+pub mod export;
 pub mod now;
 pub mod project;
 pub mod project_init;
@@ -30,6 +31,7 @@ use self::{
     config::ConfigCmd,
     corrections::{AdjustCmd, ForgetCmd, LogCmd, UndoCmd},
     edit::EditCmd,
+    export::ExportCmd,
     now::{NowCmd, NowFormat},
     project::ProjectCmd,
     reflect::ReflectCmd,
@@ -130,6 +132,10 @@ pub enum PaceCmd {
 
     /// Show the bill of a client: the billable entries of a period, priced
     Bill(BillCmd),
+
+    /// Hand the entries of a period to other tools, one row each, as JSON or
+    /// CSV
+    Export(ExportCmd),
 
     /// Keep the roles: the lasting responsibilities time goes to
     #[command(subcommand)]
