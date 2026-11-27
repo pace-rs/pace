@@ -1,0 +1,15 @@
+---
+source: tests/journey/store.rs
+expression: output
+---
+$ pace begin Review   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Review" at 09:00.
+
+----- stderr -----
+  ⚠ pace recorded the command but kept the events of the forgotten entry [ID-2] in this device's files
+  ├─▶ cannot remove [SANDBOX]/home/events/[ID-3]/2026/10/2026-10-30.toml
+  ╰─▶ Permission denied (os error 13)
+  help: pace removes them with the next command that writes

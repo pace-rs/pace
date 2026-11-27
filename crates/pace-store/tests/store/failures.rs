@@ -130,19 +130,27 @@ fn failed_cleaning_keeps_the_append_and_is_retried() -> TestResult {
     read_only(&october)?;
 
     let begun = pollster::block_on(laptop.run(&Command::Begin(Begin::default())));
-    let problems = laptop.store().take_problems();
     writable(&october)?;
 
-    assert_eq!(begun?.recorded.len(), 1, "the begin is recorded");
-    assert_eq!(problems.len(), 1, "{problems:?}");
+    let begun = begun?;
+    assert_eq!(begun.recorded.len(), 1, "the begin is recorded");
+    let [warning] = begun.warnings.as_slice() else {
+        return Err(format!("one warning, not {:?}", begun.warnings).into());
+    };
+    assert_eq!(
+        warning.to_string(),
+        format!(
+            "pace recorded the command but kept the events of the forgotten entry {entry} in this device's files"
+        )
+    );
     assert!(text_below(&october)?.contains("secret"));
     clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
-    _ = pollster::block_on(laptop.run(&Command::End(End::default())))?;
+    let ended = pollster::block_on(laptop.run(&Command::End(End::default())))?;
     assert!(
         !text_below(&home.join("events").join(device(1)?.to_string()))?.contains("secret"),
         "the next append cleans the file"
     );
-    assert!(laptop.store().take_problems().is_empty());
+    assert!(ended.warnings.is_empty(), "{:?}", ended.warnings);
     Ok(())
 }
 

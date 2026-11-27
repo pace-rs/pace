@@ -30,10 +30,13 @@ pub struct Tracker<S> {
 }
 
 /// What a command did.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Outcome {
     /// The events it appended, as recorded.
     pub recorded: Vec<RecordedEvent>,
+    /// What went wrong after the events were recorded, for the caller to
+    /// show as warnings; see [`Appended::Recorded`].
+    pub warnings: Vec<PaceError>,
     /// The state before the command, as far as it read it.
     pub before: State,
     /// The state afterwards, as far as the command read it.
@@ -99,8 +102,15 @@ impl<S: EventStore> Tracker<S> {
                 policy: &self.policy,
             }
             .decide(command)?;
-            if let Appended::Recorded(recorded) = self.store.append(batch, marker).await? {
-                return Ok(outcome(events, state, recorded, now));
+            if let Appended::Recorded {
+                events: recorded,
+                warnings,
+            } = self.store.append(batch, marker).await?
+            {
+                return Ok(Outcome {
+                    warnings,
+                    ..outcome(events, state, recorded, now)
+                });
             }
         }
         Err(concurrent_writes())
@@ -139,6 +149,7 @@ fn outcome(
     all.extend(recorded.iter().cloned());
     Outcome {
         recorded,
+        warnings: Vec::new(),
         before,
         state: State::from_events(&all),
         undone,

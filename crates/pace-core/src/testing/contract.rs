@@ -172,6 +172,11 @@ where
     let found = State::from_events(std::slice::from_ref(appended));
     ensure(appended.device == laptop.id, check, "wrong device")?;
     ensure(
+        outcome.warnings.is_empty(),
+        check,
+        format!("an append on sound storage warned: {:?}", outcome.warnings),
+    )?;
+    ensure(
         read.entries().count() == 1,
         check,
         "the entry was not read back",
@@ -416,7 +421,7 @@ where
 
     let appended = store.append(batch, read).await?;
     ensure(
-        appended == Appended::Stale,
+        matches!(appended, Appended::Stale),
         check,
         "it appended a batch decided before another append",
     )?;

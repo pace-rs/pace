@@ -16,7 +16,7 @@ use std::{
     future::Future,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::SystemTime,
 };
 
@@ -53,7 +53,6 @@ pub struct FilesStore {
     device: DeviceId,
     clock: Arc<dyn Clock>,
     split: Split,
-    problems: Mutex<Vec<PaceError>>,
 }
 
 /// What [`FilesStore::resplit`] did.
@@ -115,7 +114,6 @@ impl FilesStore {
             device,
             clock,
             split,
-            problems: Mutex::default(),
         }
     }
 
@@ -225,13 +223,16 @@ impl FilesStore {
         // put back, leaves part of the batch; the error names that file.
         rename_all(written, rename)?;
         // The batch is in the log: what follows can fail without failing it.
-        self.clean_own_log(&dir, &index, &recorded, cursors);
-        Ok(Appended::Recorded(recorded))
+        let warnings = self.clean_own_log(&dir, &index, &recorded, cursors);
+        Ok(Appended::Recorded {
+            events: recorded,
+            warnings,
+        })
     }
 
     /// Remove the events of forgotten entries from this device's own files,
     /// for each tombstone this machine hasn't applied yet. A cleaning that
-    /// fails becomes a [problem](Self::take_problems) and stays out of the
+    /// fails becomes one of the returned warnings and stays out of the
     /// cursors' `cleaned`, so the next append tries it again.
     fn clean_own_log(
         &self,
@@ -239,7 +240,7 @@ impl FilesStore {
         index: &Index,
         recorded: &[RecordedEvent],
         mut cursors: Cursors,
-    ) {
+    ) -> Vec<PaceError> {
         let tombstones: Vec<(EntryId, i64)> = index
             .files
             .values()
@@ -256,6 +257,7 @@ impl FilesStore {
             )
             .collect();
         let mut cleaned = false;
+        let mut warnings = Vec::new();
         for (entry, about) in tombstones {
             if cursors.cleaned.contains(&entry) {
                 continue;
@@ -264,8 +266,8 @@ impl FilesStore {
                 Ok(()) => {
                     cleaned |= cursors.cleaned.insert(entry);
                 }
-                Err(error) => self.report(
-                    PaceError::with_source(
+                Err(error) => warnings.push(
+                    *PaceError::with_source(
                         ErrorKind::InputOutput,
                         "pace recorded the command but kept the events of the forgotten entry {entry} in this device's files",
                         error,
@@ -277,27 +279,9 @@ impl FilesStore {
             }
         }
         if cleaned && let Err(error) = cursors.save(&self.machine) {
-            self.report(error.attach_severity(Severity::Warning));
+            warnings.push(*error.attach_severity(Severity::Warning));
         }
-    }
-
-    /// What went wrong after an append was recorded, such as a cleaning
-    /// that failed; taking them empties the list. The append succeeded, so
-    /// the caller shows them as warnings.
-    pub fn take_problems(&self) -> Vec<PaceError> {
-        std::mem::take(
-            &mut *self
-                .problems
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-        )
-    }
-
-    fn report(&self, problem: Box<PaceError>) {
-        self.problems
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(*problem);
+        warnings
     }
 
     /// This device's `device.toml`, written with its split on first use.

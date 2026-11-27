@@ -7,7 +7,7 @@ use std::{
 };
 
 use jiff::ZonedDateTime;
-use pace_error::PaceResult;
+use pace_error::{PaceError, PaceResult};
 use pace_time::TimeRange;
 use uuid::{Builder, Uuid};
 
@@ -136,10 +136,17 @@ pub trait EventStore: Send + Sync {
 }
 
 /// What [`EventStore::append`] did.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Appended {
-    /// The batch is in the log: its events, as recorded.
-    Recorded(Vec<RecordedEvent>),
+    /// The batch is in the log.
+    Recorded {
+        /// The batch's events, as recorded.
+        events: Vec<RecordedEvent>,
+        /// What went wrong after the batch was recorded, such as a cleaning
+        /// of forgotten entries that failed. The append succeeded, so the
+        /// caller shows them as warnings.
+        warnings: Vec<PaceError>,
+    },
     /// Nothing: the store changed since the read the batch was decided on.
     Stale,
 }

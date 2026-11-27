@@ -97,11 +97,11 @@ impl Session {
     ///
     /// If the command doesn't fit the state, or the store fails.
     pub fn run(&self, command: &Command) -> PaceResult<Outcome> {
-        let outcome = block_on(self.tracker.run(command))?;
-        for problem in self.tracker.store().take_problems() {
-            print_error(&problem);
+        let outcome = block_on(self.tracker.run(command))??;
+        for warning in &outcome.warnings {
+            print_error(warning);
         }
-        outcome
+        Ok(outcome)
     }
 
     /// The state of the entries that overlap `range`, and of the open ones.

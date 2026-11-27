@@ -169,7 +169,10 @@ impl MemoryStore {
             });
         storage.appends += 1;
         drop(storage);
-        Ok(Appended::Recorded(recorded))
+        Ok(Appended::Recorded {
+            events: recorded,
+            warnings: Vec::new(),
+        })
     }
 }
 
