@@ -307,3 +307,114 @@ fn adjust_without_entry_names_one_of_open_ones_as_forget_does() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn log_allow_overlap_enters_entry_over_another() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        (
+            "18:00",
+            &["log", "Call with ACME", "--from", "14:00", "--to", "15:30"],
+        ),
+        (
+            "18:00",
+            &[
+                "log",
+                "Review",
+                "--from",
+                "15:00",
+                "--duration",
+                "1h",
+                "--allow-overlap",
+            ],
+        ),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn adjust_into_another_entry_needs_allow_overlap() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("10:00", &["begin", "Call ACME"]),
+        ("10:30", &["adjust", "--start", "09:30"]),
+        ("10:30", &["adjust", "--start", "09:30", "--allow-overlap"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn adjust_last_without_ended_entry_has_nothing_to_do() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("09:30", &["adjust", "--last", "--note", "Offer"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn adjust_last_takes_entry_that_ended_last_not_one_logged_last() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        (
+            "18:00",
+            &["log", "Afternoon", "--from", "14:00", "--to", "15:00"],
+        ),
+        (
+            "18:00",
+            &["log", "Morning", "--from", "09:00", "--to", "10:00"],
+        ),
+        ("18:05", &["adjust", "--last", "--tag", "late"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn adjust_takes_full_entry_id() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Draft"]))?;
+    let output = sandbox.pace_at("09:10").args(["now", "--json"]).output()?;
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let id = json["open"][0]["id"].as_str().ok_or("the entry's ID")?;
+
+    let adjusted = run(sandbox
+        .pace_at("09:20")
+        .args(["adjust", id, "--note", "Write offer"]))?;
+
+    let transcript = sandbox.redact_ids(&adjusted)?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn edit_into_another_entry_needs_allow_overlap() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
+    _ = run(sandbox.pace_at("10:00").args(["begin", "Call ACME"]))?;
+    let earlier = "sed -i -e 's/^start = .*/start = \"2026-11-26 09:30\"/'";
+
+    let refused = run(sandbox.pace_at("10:30").env("VISUAL", earlier).arg("edit"))?;
+    let allowed = run(sandbox
+        .pace_at("10:30")
+        .env("VISUAL", earlier)
+        .args(["edit", "--allow-overlap"]))?;
+
+    let transcript = sandbox.redact_ids(&format!("{refused}\n{allowed}"))?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}

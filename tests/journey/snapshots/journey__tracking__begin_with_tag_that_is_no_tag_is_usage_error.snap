@@ -1,0 +1,12 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace begin Write offer --tag two words   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `two words` is not a tag
+  help: a tag is one word without spaces or commas, like `dev`

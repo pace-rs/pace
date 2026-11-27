@@ -57,6 +57,20 @@ fn now_speaks_json_for_scripts() -> TestResult {
 }
 
 #[test]
+fn now_json_names_state_of_paused_entry() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
+    _ = run(sandbox.pace_at("12:00").args(["pause", "--lunch"]))?;
+
+    let output = sandbox.pace_at("12:10").args(["now", "--json"]).output()?;
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+
+    assert_eq!(json["open"][0]["state"], "paused", "{json}");
+    assert_eq!(json["open"][0]["paused_seconds"], 600, "{json}");
+    Ok(())
+}
+
+#[test]
 fn now_json_names_kind_and_file_of_path_mapping() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.mkdir("work/repo")?;

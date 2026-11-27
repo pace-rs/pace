@@ -1,0 +1,10 @@
+---
+source: tests/journey/corrections.rs
+expression: transcript
+---
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write offer": note "Write offer" (was "Draft").
+
+----- stderr -----

@@ -1,0 +1,28 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace hold --outer   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Held [ID-1] at 10:00, interrupted from outside.
+
+----- stderr -----
+
+$ pace resume --at 10:10   # at 10:30
+success: true
+exit_code: 0
+----- stdout -----
+Resumed [ID-1] at 10:10 after 10m held.
+
+----- stderr -----

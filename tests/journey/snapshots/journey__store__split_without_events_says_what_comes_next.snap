@@ -1,0 +1,11 @@
+---
+source: tests/journey/store.rs
+expression: output
+---
+$ pace store split --by year   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+This device has no events yet; it splits them by year from the first one.
+
+----- stderr -----

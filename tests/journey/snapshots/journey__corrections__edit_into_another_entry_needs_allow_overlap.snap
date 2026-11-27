@@ -1,0 +1,19 @@
+---
+source: tests/journey/corrections.rs
+expression: transcript
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × the entry would overlap [ID-1] (09:00–10:00)
+  help: move it, or allow it with `pace adjust --allow-overlap`
+
+
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-2] "Call ACME": start 09:30 (was 10:00); 1h net now.
+
+----- stderr -----

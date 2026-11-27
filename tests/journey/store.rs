@@ -148,3 +148,12 @@ fn failed_cleaning_warns_and_next_command_cleans() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn split_without_events_says_what_comes_next() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[("09:00", &["store", "split", "--by", "year"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

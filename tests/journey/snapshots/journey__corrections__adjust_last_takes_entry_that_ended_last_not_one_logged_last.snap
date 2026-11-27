@@ -1,0 +1,28 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace log Afternoon --from 14:00 --to 15:00   # at 18:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-1] "Afternoon" from 14:00 to 15:00 (1h).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace log Morning --from 09:00 --to 10:00   # at 18:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-2] "Morning" from 09:00 to 10:00 (1h).
+
+----- stderr -----
+
+$ pace adjust --last --tag late   # at 18:05
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Afternoon": tagged late.
+
+----- stderr -----

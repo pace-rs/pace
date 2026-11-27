@@ -279,3 +279,95 @@ fn begin_at_time_that_happened_twice_takes_the_earlier_without_terminal() -> Tes
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn begin_with_tag_that_is_no_tag_is_usage_error() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[("09:00", &["begin", "Write offer", "--tag", "two words"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn begin_inside_ended_entry_needs_allow_overlap() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("10:00", &["end"]),
+        ("10:30", &["begin", "Call ACME", "--at", "09:30"]),
+        (
+            "10:30",
+            &["begin", "Call ACME", "--at", "09:30", "--allow-overlap"],
+        ),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn hold_inner_says_interruption_came_from_inside() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        (
+            "10:00",
+            &["hold", "--inner", "--reason", "checked the news"],
+        ),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn hold_at_starts_hold_earlier() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("10:00", &["hold", "--at", "09:45"]),
+        ("10:05", &["now"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn pause_at_starts_pause_earlier() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("12:10", &["pause", "--lunch", "--at", "12:00"]),
+        ("12:15", &["now"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn resume_at_ends_break_earlier() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("10:00", &["hold", "--outer"]),
+        ("10:30", &["resume", "--at", "10:10"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn end_at_ends_entry_earlier() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("11:00", &["end", "--at", "10:30"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

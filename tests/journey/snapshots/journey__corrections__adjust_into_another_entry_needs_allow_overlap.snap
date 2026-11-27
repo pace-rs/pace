@@ -1,0 +1,39 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace begin Call ACME   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Ended [ID-1] "Write offer" at 10:00 after 1h.
+Began [ID-2] "Call ACME" at 10:00.
+
+----- stderr -----
+
+$ pace adjust --start 09:30   # at 10:30
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × the entry would overlap [ID-1] (09:00–10:00)
+  help: move it, or allow it with `pace adjust --allow-overlap`
+
+
+$ pace adjust --start 09:30 --allow-overlap   # at 10:30
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-2] "Call ACME": start 09:30 (was 10:00); 1h net now.
+
+----- stderr -----

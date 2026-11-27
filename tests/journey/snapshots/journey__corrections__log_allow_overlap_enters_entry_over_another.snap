@@ -1,0 +1,20 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace log Call with ACME --from 14:00 --to 15:30   # at 18:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-1] "Call with ACME" from 14:00 to 15:30 (1h 30m).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace log Review --from 15:00 --duration 1h --allow-overlap   # at 18:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-2] "Review" from 15:00 to 16:00 (1h).
+
+----- stderr -----
