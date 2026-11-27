@@ -14,7 +14,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use jiff::civil::Weekday;
+use jiff::{civil::Weekday, tz::TimeZone};
 use pace_core::{HoldSource, ProjectKey};
 use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
 use pace_store::Split;
@@ -94,17 +94,19 @@ const FILE_VERSION: i64 = 1;
 /// The time zone pace records and reports in.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TimeZoneSetting {
-    /// The zone of the operating system.
+    /// The zone of the operating system, looked up when pace needs it.
     System,
-    /// A zone of the IANA time zone database.
-    Named(String),
+    /// A zone of the IANA time zone database; it always has its IANA name.
+    Named(TimeZone),
 }
 
 impl fmt::Display for TimeZoneSetting {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::System => f.write_str("system"),
-            Self::Named(name) => f.write_str(name),
+            // `parse_time_zone` takes only zones with a name; a zone
+            // without one is what jiff calls `Etc/Unknown`.
+            Self::Named(zone) => f.write_str(zone.iana_name().unwrap_or("Etc/Unknown")),
         }
     }
 }
@@ -251,8 +253,12 @@ fn parse_time_zone(value: &str) -> PaceResult<TimeZoneSetting> {
     if value == "system" {
         return Ok(TimeZoneSetting::System);
     }
-    if jiff::tz::db().get(value).is_ok() {
-        return Ok(TimeZoneSetting::Named(value.to_owned()));
+    if let Some(zone) = jiff::tz::db()
+        .get(value)
+        .ok()
+        .filter(|zone| zone.iana_name().is_some())
+    {
+        return Ok(TimeZoneSetting::Named(zone));
     }
     let names: Vec<String> = jiff::tz::db()
         .available()
@@ -609,4 +615,28 @@ fn unknown_variables(variables: impl Iterator<Item = OsString>) -> Vec<PaceError
             .attach_severity(Severity::Warning)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn time_zone_setting_holds_zone_under_its_canonical_name() -> TestResult {
+        let setting = parse_time_zone("america/NEW_YORK")?;
+
+        assert_eq!(
+            setting,
+            TimeZoneSetting::Named(TimeZone::get("America/New_York")?)
+        );
+        assert_eq!(setting.to_string(), "America/New_York");
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_zone_of_jiff_is_no_time_zone_setting() {
+        assert!(parse_time_zone("Etc/Unknown").is_err());
+    }
 }

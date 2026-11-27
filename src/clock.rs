@@ -55,8 +55,8 @@ impl Ids for RandomIds {
 ///
 /// # Errors
 ///
-/// If the system's zone is unknown, such as with `TZ=Nowhere/Invalid`, or
-/// a named zone is unknown, which the config check prevents.
+/// If the setting is `system` and the system's zone is unknown, such as
+/// with `TZ=Nowhere/Invalid`.
 pub fn zone(setting: &TimeZoneSetting) -> PaceResult<TimeZone> {
     match setting {
         TimeZoneSetting::System => TimeZone::try_system().map_err(|error| {
@@ -67,15 +67,7 @@ pub fn zone(setting: &TimeZoneSetting) -> PaceResult<TimeZone> {
             )
             .attach_hint("set `time-zone` to a name like `Europe/Berlin`")
         }),
-        TimeZoneSetting::Named(name) => jiff::tz::db().get(name).map_err(|error| {
-            PaceError::with_source(
-                ErrorKind::Time,
-                "pace doesn't know the time zone {zone}",
-                error,
-            )
-            .attach_context("zone", name.clone())
-            .attach_hint("set `time-zone` to a name like `Europe/Berlin`, or `system`")
-        }),
+        TimeZoneSetting::Named(zone) => Ok(zone.clone()),
     }
 }
 
@@ -84,7 +76,8 @@ pub fn zone(setting: &TimeZoneSetting) -> PaceResult<TimeZone> {
 ///
 /// # Errors
 ///
-/// If `PACE_TEST_NOW` is set but no RFC 9557 time, or the zone is unknown.
+/// If `PACE_TEST_NOW` is set but no RFC 9557 time, or the system's zone is
+/// unknown.
 pub fn clock(setting: &TimeZoneSetting, test_now: Option<OsString>) -> PaceResult<Arc<dyn Clock>> {
     let zone = zone(setting)?;
     let Some(test_now) = test_now.filter(|value| !value.is_empty()) else {
@@ -123,7 +116,7 @@ mod tests {
     #[test]
     fn test_time_is_seen_in_the_configured_zone() -> Result<(), Box<dyn std::error::Error>> {
         let clock = clock(
-            &TimeZoneSetting::Named("America/New_York".to_owned()),
+            &TimeZoneSetting::Named(TimeZone::get("America/New_York")?),
             Some("2026-11-26T09:00[Europe/Berlin]".into()),
         )?;
 
@@ -137,7 +130,7 @@ mod tests {
     #[test]
     fn test_time_that_is_no_time_names_its_variable_first() {
         let Err(error) = clock(
-            &TimeZoneSetting::Named("UTC".to_owned()),
+            &TimeZoneSetting::Named(TimeZone::UTC),
             Some("tomorrow".into()),
         ) else {
             panic!("`tomorrow` was read as a time");
