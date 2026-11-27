@@ -2,8 +2,12 @@
 
 use std::str::FromStr;
 
+use jiff::SignedDuration;
 use jiff::Timestamp;
-use pace_core::{Change, DeviceId, EntryChanges, Event, EventKind, Hlc, ProjectRef, RecordedEvent};
+use pace_core::{
+    Billing, Change, Currency, DeviceId, EntryChanges, Event, EventKind, Hlc, InvoiceRef, Money,
+    ProjectRef, RecordedEvent,
+};
 
 use crate::format::{EVENT_VERSION, EventType, NEWER, READ_ONLY, Record};
 
@@ -67,6 +71,12 @@ fn present(record: &Record) -> Vec<&'static str> {
         ("end", record.end.is_some()),
         ("cleared", record.cleared.is_some()),
         ("undoes", record.undoes.is_some()),
+        ("invoice", record.invoice.is_some()),
+        ("net-seconds", record.net_seconds.is_some()),
+        ("billed-seconds", record.billed_seconds.is_some()),
+        ("rate", record.rate.is_some()),
+        ("currency", record.currency.is_some()),
+        ("amount", record.amount.is_some()),
     ]
     .into_iter()
     .filter_map(|(name, present)| present.then_some(name))
@@ -200,6 +210,10 @@ fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Inval
             entry: entry?,
             changes: adjusted(record, project)?,
         },
+        EventType::BillingMarked => EventKind::BillingMarked {
+            entry: entry?,
+            billing: billing(record, needs)?,
+        },
         EventType::BatchUndone => EventKind::BatchUndone {
             batch: record.undoes.ok_or_else(|| needs("undoes"))?,
         },
@@ -247,4 +261,44 @@ fn change<T>(
         (None, true) => Ok(Change::Clear),
         (None, false) => Ok(Change::Keep),
     }
+}
+
+/// The frozen values of a `billing.marked` record; `needs` names a missing
+/// field.
+fn billing(
+    record: &Record,
+    needs: impl Fn(&'static str) -> InvalidRecord,
+) -> Result<Billing, InvalidRecord> {
+    let invoice = record.invoice.as_deref().ok_or_else(|| needs("invoice"))?;
+    let invoice: InvoiceRef = invoice.parse().map_err(|_| {
+        InvalidRecord::new("\"{invoice}\" is no invoice reference").with("invoice", invoice)
+    })?;
+    let code = record
+        .currency
+        .as_deref()
+        .ok_or_else(|| needs("currency"))?;
+    let currency: Currency = code.parse().map_err(|_| {
+        InvalidRecord::new("`{currency}` in `currency` is no currency pace knows")
+            .with("currency", code)
+    })?;
+    let money = |field: &'static str, value: Option<&String>| {
+        let value = value.ok_or_else(|| needs(field))?;
+        Money::parse_decimal(value, currency).map_err(|_| {
+            InvalidRecord::new("`{value}` in `{field}` is no amount in {currency}")
+                .with("value", value)
+                .with("field", field)
+                .with("currency", currency.code())
+        })
+    };
+    Ok(Billing {
+        invoice,
+        net: SignedDuration::from_secs(record.net_seconds.ok_or_else(|| needs("net-seconds"))?),
+        billed: SignedDuration::from_secs(
+            record
+                .billed_seconds
+                .ok_or_else(|| needs("billed-seconds"))?,
+        ),
+        rate: money("rate", record.rate.as_ref())?,
+        amount: money("amount", record.amount.as_ref())?,
+    })
 }

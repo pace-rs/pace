@@ -79,10 +79,22 @@ struct Record {
     cleared: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     undoes: Option<BatchId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    invoice: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    net_seconds: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    billed_seconds: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rate: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    currency: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    amount: Option<String>,
 }
 
 /// The keys an `[[event]]` table may have.
-const KEYS: [&str; 26] = [
+const KEYS: [&str; 32] = [
     "id",
     "type",
     "v",
@@ -107,6 +119,12 @@ const KEYS: [&str; 26] = [
     "end",
     "cleared",
     "undoes",
+    "invoice",
+    "net-seconds",
+    "billed-seconds",
+    "rate",
+    "currency",
+    "amount",
     // Not keys of an event, but known in the file.
     "version",
     "event",

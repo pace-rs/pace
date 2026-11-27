@@ -1,20 +1,90 @@
 //! Billing: the billable time of entries, rounded by their client's rule
 //! and priced at the rate of each entry's start day; the one place that
-//! `reflect`'s revenue and `bill` take their amounts from.
+//! `reflect`'s revenue and `bill` take their amounts from. Also the billing
+//! of a billed entry, frozen in its `billing.marked` event.
 //!
 //! Each entry counts whole, on its start day in the report's zone, so an
 //! entry over midnight takes the rate of the day it began (restart.md 3.7).
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt, str::FromStr};
 
 use jiff::{SignedDuration, ZonedDateTime, civil::Date, tz::TimeZone};
-use pace_error::PaceResult;
-use serde::Serialize;
+use pace_error::{ErrorKind, PaceError, PaceResult};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Catalog, Client, ClientKey, Entry, EntryId, Money, ProjectRecord, ProjectRef, Rate, Rounding,
     RoundingPer, report::canonical_project,
 };
+
+/// The reference of an invoice, such as `2026-0042`: one line of text,
+/// without spaces around it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct InvoiceRef(String);
+
+impl InvoiceRef {
+    /// The reference as text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl FromStr for InvoiceRef {
+    type Err = Box<PaceError>;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let trimmed = text.trim();
+        if trimmed.is_empty() || trimmed.chars().any(char::is_control) {
+            return Err(PaceError::new(
+                ErrorKind::InvalidInput,
+                "\"{text}\" is no invoice reference",
+            )
+            .attach_context("text", text)
+            .attach_hint("give the reference as one line of text, like `2026-0042`")
+            .attach_error_code("pace::core::invoice-ref"));
+        }
+        Ok(Self(trimmed.to_owned()))
+    }
+}
+
+impl TryFrom<String> for InvoiceRef {
+    type Error = Box<PaceError>;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        text.parse()
+    }
+}
+
+impl From<InvoiceRef> for String {
+    fn from(invoice: InvoiceRef) -> Self {
+        invoice.0
+    }
+}
+
+impl fmt::Display for InvoiceRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// The billing of a billed entry, as its `billing.marked` event froze it:
+/// a later change of a rate in `clients.toml` changes reports, never an
+/// invoice that was written (restart.md 3.7).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Billing {
+    /// The invoice the entry went on.
+    pub invoice: InvoiceRef,
+    /// The entry's net time.
+    pub net: SignedDuration,
+    /// The time billed for it, rounded by the client's rule.
+    pub billed: SignedDuration,
+    /// The hourly rate, in the currency of the amount.
+    pub rate: Money,
+    /// The amount billed for it.
+    pub amount: Money,
+}
 
 /// The rate a charge takes and the amount it comes to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -149,7 +219,7 @@ impl<'catalog> Pending<'catalog> {
             .record
             .and_then(|record| catalog.rate_on(record, self.date))
             .map(|rate| {
-                Ok::<_, Box<pace_error::PaceError>>(Price {
+                Ok::<_, Box<PaceError>>(Price {
                     rate: *rate,
                     amount: rate.hourly.amount_for(billed)?,
                 })

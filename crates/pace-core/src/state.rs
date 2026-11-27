@@ -5,8 +5,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use jiff::ZonedDateTime;
 
 use crate::{
-    BatchId, Catalog, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin, EventId,
-    EventKind, Hlc, HoldSource, PauseKind, ProjectRef, RecordedEvent,
+    BatchId, Billing, Catalog, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin,
+    EventId, EventKind, Hlc, HoldSource, PauseKind, ProjectRef, RecordedEvent,
     entry::{EntryCatch, EntryHold, EntryPause},
     short_id::short_id_among,
 };
@@ -19,6 +19,8 @@ use crate::{
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct State {
     entries: BTreeMap<EntryId, Entry>,
+    /// The billing of each billed entry; the first marking counts.
+    billings: BTreeMap<EntryId, Billing>,
     /// The batches in merged order of their first event.
     batches: Vec<BatchRecord>,
     /// Where each batch is in `batches`, so an event finds its batch without
@@ -173,6 +175,7 @@ impl State {
                 EventKind::EntryForgotten { entry } => {
                     _ = self.forgotten.insert(entry);
                     _ = self.entries.remove(&entry);
+                    _ = self.billings.remove(&entry);
                 }
                 _ => self.apply(recorded),
             }
@@ -203,6 +206,7 @@ impl State {
         let concerned = record.entries.clone();
         for id in &concerned {
             _ = self.entries.remove(id);
+            _ = self.billings.remove(id);
         }
         let mut again: Vec<&RecordedEvent> = events
             .filter(|recorded| {
@@ -379,6 +383,14 @@ impl State {
                     adjust(entry, changes);
                 }
             }
+            EventKind::BillingMarked { entry, billing } => {
+                if self.entries.contains_key(entry) {
+                    _ = self
+                        .billings
+                        .entry(*entry)
+                        .or_insert_with(|| billing.clone());
+                }
+            }
             EventKind::EntryForgotten { .. } | EventKind::BatchUndone { .. } => {}
         }
     }
@@ -397,6 +409,14 @@ impl State {
     #[must_use]
     pub fn entry(&self, id: EntryId) -> Option<&Entry> {
         self.entries.get(&id)
+    }
+
+    /// The billing of the entry `id`, if it is billed: the invoice and the
+    /// values its `billing.marked` event froze. Of two markings, the first
+    /// in merged order counts.
+    #[must_use]
+    pub fn billing(&self, id: EntryId) -> Option<&Billing> {
+        self.billings.get(&id)
     }
 
     /// The short ID of the entry `id`: its last hex characters, at least

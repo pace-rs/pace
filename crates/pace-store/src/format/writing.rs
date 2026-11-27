@@ -1,6 +1,6 @@
 //! An event written as its `[[event]]` record.
 
-use pace_core::{Change, EntryChanges, EventKind, ProjectRef, RecordedEvent};
+use pace_core::{Billing, Change, EntryChanges, EventKind, ProjectRef, RecordedEvent};
 
 use crate::format::{EVENT_VERSION, EventType, Record};
 use crate::hlc::hlc_text;
@@ -32,6 +32,12 @@ pub(super) fn record_from_event(recorded: &RecordedEvent) -> Record {
         end: None,
         cleared: None,
         undoes: None,
+        invoice: None,
+        net_seconds: None,
+        billed_seconds: None,
+        rate: None,
+        currency: None,
+        amount: None,
     };
     match &event.kind {
         EventKind::EntryBegun { .. } | EventKind::EntryLogged { .. } => {
@@ -65,6 +71,10 @@ pub(super) fn record_from_event(recorded: &RecordedEvent) -> Record {
         EventKind::EntryAdjusted { entry, changes } => {
             record.entry = Some(*entry);
             adjusted_record(&mut record, changes);
+        }
+        EventKind::BillingMarked { entry, billing } => {
+            record.entry = Some(*entry);
+            billing_record(&mut record, billing);
         }
         EventKind::BatchUndone { batch } => record.undoes = Some(*batch),
     }
@@ -152,4 +162,15 @@ fn adjusted_record(record: &mut Record, changes: &EntryChanges) {
     }
     record.allow_overlap = changes.allow_overlap.then_some(true);
     record.cleared = (!cleared.is_empty()).then_some(cleared);
+}
+
+/// The frozen values of a `billing.marked` event: the durations in whole
+/// seconds, the rate and the amount as exact decimals in their currency.
+fn billing_record(record: &mut Record, billing: &Billing) {
+    record.invoice = Some(billing.invoice.to_string());
+    record.net_seconds = Some(billing.net.as_secs());
+    record.billed_seconds = Some(billing.billed.as_secs());
+    record.rate = Some(billing.rate.to_string());
+    record.currency = Some(billing.amount.currency().code().to_owned());
+    record.amount = Some(billing.amount.to_string());
 }

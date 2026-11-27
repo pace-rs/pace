@@ -5,7 +5,8 @@ use std::{path::Path, sync::Arc};
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Catalog, Clock, Command, DeterminedBy, DeviceId, EventKind, Policy, ProjectRef, ReadScope,
+    Appended, Batch, Billing, Catalog, Clock, Command, DeterminedBy, DeviceId, Event, EventKind,
+    Money, Policy, ProjectRef, ReadScope,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause},
     testing::SequentialIds,
     testing::TestClock,
@@ -263,6 +264,51 @@ fn entry_begun_with_role_determined_by_billable_and_overlap_reads_back() -> Test
     insta::assert_snapshot!(text);
     let read = setup.store(Split::Month).read(&ReadScope::everything())?;
     assert_eq!(read, written.recorded);
+    Ok(())
+}
+
+#[test]
+fn billing_marked_is_written_and_read_back() -> TestResult {
+    let setup = Setup::new("2026-11-26T18:00[Europe/Berlin]")?;
+    let logged = setup.tracker(Split::Month).run(&Command::Log(Log::new(
+        at("2026-11-26T09:00[Europe/Berlin]")?,
+        at("2026-11-26T09:50[Europe/Berlin]")?,
+    )))?;
+    let entry = logged.recorded[0]
+        .event
+        .kind
+        .entry()
+        .ok_or("the log names its entry")?;
+    let eur = "EUR".parse()?;
+    let store = setup.store(Split::Month);
+    let marked = Event {
+        id: "0193a8d0-000e-7000-8000-000000000042".parse()?,
+        at: at("2026-11-26T18:00[Europe/Berlin]")?,
+        about: at("2026-11-26T09:00[Europe/Berlin]")?,
+        kind: EventKind::BillingMarked {
+            entry,
+            billing: Billing {
+                invoice: "2026-0042".parse()?,
+                net: jiff::SignedDuration::from_mins(50),
+                billed: jiff::SignedDuration::from_hours(1),
+                rate: Money::parse_decimal("95.50", eur)?,
+                amount: Money::parse_decimal("95.50", eur)?,
+            },
+        },
+    };
+    let batch = Batch {
+        id: "0193a8d0-000b-7000-8000-000000000042".parse()?,
+        events: vec![marked.clone()],
+    };
+
+    let Appended::Recorded { .. } = store.append(batch, store.marker()?)? else {
+        return Err("the store must record the marking".into());
+    };
+
+    let text = std::fs::read_to_string(setup.device_dir().join("2026/2026-11.toml"))?;
+    insta::assert_snapshot!(text);
+    let read = setup.store(Split::Month).read(&ReadScope::everything())?;
+    assert_eq!(read.last().map(|recorded| &recorded.event), Some(&marked));
     Ok(())
 }
 

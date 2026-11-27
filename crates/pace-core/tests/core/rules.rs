@@ -154,6 +154,7 @@ fn kinds(batch: &Batch) -> Vec<&'static str> {
             EventKind::EntryAdjusted { .. } => "entry.adjusted",
             EventKind::EntryForgotten { .. } => "entry.forgotten",
             EventKind::BatchUndone { .. } => "batch.undone",
+            EventKind::BillingMarked { .. } => "billing.marked",
         })
         .collect()
 }

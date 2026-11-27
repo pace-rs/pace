@@ -1,7 +1,9 @@
 //! Every event kind reads back as written, and each invalid event file is
 //! refused with its reason.
 
-use pace_core::{Change, DeterminedBy, EntryChanges, Event, EventKind, Hlc, ProjectRef, RoleId};
+use pace_core::{
+    Billing, Change, DeterminedBy, EntryChanges, Event, EventKind, Hlc, Money, ProjectRef, RoleId,
+};
 
 use super::*;
 
@@ -79,6 +81,16 @@ fn one_of_each() -> Result<Vec<EventKind>, Box<dyn std::error::Error>> {
                 determined_by: Change::Set(DeterminedBy::Others),
                 billable: Change::Clear,
                 ..EntryChanges::default()
+            },
+        },
+        EventKind::BillingMarked {
+            entry,
+            billing: Billing {
+                invoice: "2026-0042".parse()?,
+                net: jiff::SignedDuration::from_mins(50),
+                billed: jiff::SignedDuration::from_hours(1),
+                rate: Money::parse_decimal("95.50", "EUR".parse()?)?,
+                amount: Money::parse_decimal("95.50", "EUR".parse()?)?,
             },
         },
         EventKind::EntryForgotten { entry },
@@ -359,5 +371,90 @@ fn adjusted_event_cannot_set_and_clear_note_at_once() -> TestResult {
 
     assert_eq!(error.to_string(), "`note` is set and cleared at once");
     assert_eq!(error.context_value("field"), Some("note"));
+    Ok(())
+}
+
+/// The fields of a `billing.marked` event: 50 minutes billed as an hour at
+/// 95.50 EUR, with `amount` as the amount.
+fn marked_with(currency: &str, amount: &str) -> String {
+    format!(
+        "{}\ninvoice = \"2026-0042\"\nnet-seconds = 3000\nbilled-seconds = 3600\n\
+         rate = \"95.50\"\ncurrency = \"{currency}\"\namount = \"{amount}\"",
+        ended().replace("entry.ended", "billing.marked")
+    )
+}
+
+#[test]
+fn billing_marked_reads_its_frozen_values() -> TestResult {
+    let device: DeviceId = id(0xd, 1).parse()?;
+
+    let events = parse_events(
+        Path::new("2026-11.toml"),
+        &event_file_with(&marked_with("EUR", "95.50")),
+        device,
+    )?;
+
+    let eur = "EUR".parse()?;
+    assert_eq!(
+        events[0].event.kind,
+        EventKind::BillingMarked {
+            entry: id(0xa, 1).parse()?,
+            billing: Billing {
+                invoice: "2026-0042".parse()?,
+                net: jiff::SignedDuration::from_mins(50),
+                billed: jiff::SignedDuration::from_hours(1),
+                rate: Money::from_minor(9550, eur),
+                amount: Money::from_minor(9550, eur),
+            },
+        }
+    );
+    Ok(())
+}
+
+#[test]
+fn billing_marked_needs_its_amount() -> TestResult {
+    let text = event_file_with(&marked_with("EUR", "95.50")).replace("amount = \"95.50\"\n", "");
+
+    let error = refusal(&text)?;
+
+    assert_eq!(
+        error.to_string(),
+        "an event of type `billing.marked` needs `amount`"
+    );
+    Ok(())
+}
+
+#[test]
+fn billing_marked_with_unknown_currency_names_it() -> TestResult {
+    let error = refusal(&event_file_with(&marked_with("EUX", "95.50")))?;
+
+    assert_eq!(
+        error.to_string(),
+        "`EUX` in `currency` is no currency pace knows"
+    );
+    assert_eq!(error.context_value("currency"), Some("EUX"));
+    Ok(())
+}
+
+#[test]
+fn billing_marked_with_amount_finer_than_currency_names_it() -> TestResult {
+    let error = refusal(&event_file_with(&marked_with("EUR", "95.505")))?;
+
+    assert_eq!(
+        error.to_string(),
+        "`95.505` in `amount` is no amount in EUR"
+    );
+    assert_eq!(error.context_value("value"), Some("95.505"));
+    Ok(())
+}
+
+#[test]
+fn billing_marked_with_blank_invoice_names_it() -> TestResult {
+    let text = event_file_with(&marked_with("EUR", "95.50"))
+        .replace("invoice = \"2026-0042\"", "invoice = \" \"");
+
+    let error = refusal(&text)?;
+
+    assert_eq!(error.to_string(), "\" \" is no invoice reference");
     Ok(())
 }

@@ -98,6 +98,7 @@ pub(crate) fn summarize(events: &[RecordedEvent]) -> FileSummary {
             | EventKind::CatchNoted { .. }
             | EventKind::EntryAdjusted { .. }
             | EventKind::EntryForgotten { .. }
+            | EventKind::BillingMarked { .. }
             | EventKind::BatchUndone { .. } => {}
         }
     }
@@ -128,6 +129,7 @@ pub(crate) fn summarize(events: &[RecordedEvent]) -> FileSummary {
             | EventKind::EntryEnded { .. }
             | EventKind::CatchNoted { .. }
             | EventKind::EntryForgotten { .. }
+            | EventKind::BillingMarked { .. }
             | EventKind::BatchUndone { .. } => {}
         }
     }

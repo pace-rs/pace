@@ -150,7 +150,8 @@ impl Log {
         })
     }
 
-    fn record(&mut self, at: &str, kind: EventKind) -> Fallible<()> {
+    /// Record `kind` at `at`, as a batch of its own.
+    pub(crate) fn record(&mut self, at: &str, kind: EventKind) -> Fallible<()> {
         self.counter += 1;
         let moment = berlin(at)?;
         self.events.push(RecordedEvent {
@@ -262,6 +263,11 @@ impl Log {
 
     pub(crate) fn state(&self) -> State {
         State::from_events(&self.events)
+    }
+
+    /// The events recorded so far, in the order of recording.
+    pub(crate) fn events(&self) -> &[RecordedEvent] {
+        &self.events
     }
 }
 

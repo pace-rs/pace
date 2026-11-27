@@ -14,6 +14,7 @@ pub(super) enum EventType {
     EntryLogged,
     EntryAdjusted,
     EntryForgotten,
+    BillingMarked,
     BatchUndone,
 }
 
@@ -21,7 +22,7 @@ impl EventType {
     /// Every type, for [`EventType::parse`]. A type missing here can't be
     /// read: the test `every_event_kind_reads_back_as_written` writes one
     /// event of each kind and reads it back.
-    const ALL: [Self; 10] = [
+    const ALL: [Self; 11] = [
         Self::EntryBegun,
         Self::EntryHeld,
         Self::EntryPaused,
@@ -31,6 +32,7 @@ impl EventType {
         Self::EntryLogged,
         Self::EntryAdjusted,
         Self::EntryForgotten,
+        Self::BillingMarked,
         Self::BatchUndone,
     ];
 
@@ -45,6 +47,7 @@ impl EventType {
             EventKind::EntryLogged { .. } => Self::EntryLogged,
             EventKind::EntryAdjusted { .. } => Self::EntryAdjusted,
             EventKind::EntryForgotten { .. } => Self::EntryForgotten,
+            EventKind::BillingMarked { .. } => Self::BillingMarked,
             EventKind::BatchUndone { .. } => Self::BatchUndone,
         }
     }
@@ -61,6 +64,7 @@ impl EventType {
             Self::EntryLogged => "entry.logged",
             Self::EntryAdjusted => "entry.adjusted",
             Self::EntryForgotten => "entry.forgotten",
+            Self::BillingMarked => "billing.marked",
             Self::BatchUndone => "batch.undone",
         }
     }
@@ -115,6 +119,15 @@ impl EventType {
                 "billable",
                 "allow-overlap",
                 "cleared",
+            ],
+            Self::BillingMarked => &[
+                "entry",
+                "invoice",
+                "net-seconds",
+                "billed-seconds",
+                "rate",
+                "currency",
+                "amount",
             ],
             Self::BatchUndone => &["undoes"],
         }

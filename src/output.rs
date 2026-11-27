@@ -165,6 +165,14 @@ fn recorded_line(
                 entry.clock_times(now)
             )
         }
+        EventKind::BillingMarked { entry, billing } => format!(
+            "Billed {} on invoice {}: {} for {} {}.",
+            state.entry_name(known(state, *entry)?),
+            billing.invoice,
+            format_duration(billing.billed),
+            billing.amount,
+            billing.amount.currency()
+        ),
         EventKind::BatchUndone { .. } => return Ok(None),
     };
     Ok(Some(line))
@@ -227,6 +235,11 @@ fn took_back(before: &State, recorded: &RecordedEvent, now: &ZonedDateTime) -> P
         EventKind::EntryAdjusted { entry, .. } => format!(
             "Took back the adjustment of {}.",
             before.entry_name(known(before, *entry)?)
+        ),
+        EventKind::BillingMarked { entry, billing } => format!(
+            "Took back the billing of {} on invoice {}.",
+            before.entry_name(known(before, *entry)?),
+            billing.invoice
         ),
         // The state never offers an undo or a forget to undo.
         EventKind::EntryForgotten { .. } | EventKind::BatchUndone { .. } => {
@@ -449,7 +462,7 @@ fn resumed(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime
 mod tests {
     use std::collections::BTreeSet;
 
-    use pace_core::{BatchId, Event, Hlc, ProjectId, ProjectRecord};
+    use pace_core::{BatchId, Billing, Event, Hlc, Money, ProjectId, ProjectRecord};
 
     use super::*;
 
@@ -607,6 +620,10 @@ mod tests {
                 changes: EntryChanges::default(),
             },
             EventKind::EntryEnded { entry },
+            EventKind::BillingMarked {
+                entry,
+                billing: billing("2026-0042")?,
+            },
         ];
         let undone = (1..)
             .zip(kinds)
@@ -629,6 +646,7 @@ mod tests {
                 "Took back the logged entry 0003 \"Review\", 09:00–10:00.",
                 "Took back the adjustment of 0001 \"Write offer\".",
                 "Took back the end of 0001 \"Write offer\" at 09:00; it is open again.",
+                "Took back the billing of 0001 \"Write offer\" on invoice 2026-0042.",
             ]
         );
         Ok(())
@@ -680,6 +698,34 @@ mod tests {
         let began = recorded(1, 1, begun(entry))?;
         let outcome = outcome(&[began], vec![recorded(2, 2, kind)?], Vec::new())?;
         Ok(describe_outcome(&outcome, &Catalog::default())?)
+    }
+
+    /// The billing of 50 minutes, billed as an hour at 95.50 EUR.
+    fn billing(invoice: &str) -> Result<Billing, Box<dyn std::error::Error>> {
+        let eur = "EUR".parse()?;
+        Ok(Billing {
+            invoice: invoice.parse()?,
+            net: jiff::SignedDuration::from_mins(50),
+            billed: jiff::SignedDuration::from_hours(1),
+            rate: Money::from_minor(9550, eur),
+            amount: Money::from_minor(9550, eur),
+        })
+    }
+
+    #[test]
+    fn billing_names_invoice_billed_time_and_amount() -> TestResult {
+        let entry: EntryId = id(0xa, 1)?;
+
+        let lines = lines_after_begin(EventKind::BillingMarked {
+            entry,
+            billing: billing("2026-0042")?,
+        })?;
+
+        assert_eq!(
+            lines,
+            ["Billed 0001 \"Write offer\" on invoice 2026-0042: 1h for 95.50 EUR."]
+        );
+        Ok(())
     }
 
     #[test]

@@ -1,5 +1,6 @@
 //! Behaviour of `pace_core`.
 
+mod bill;
 mod billing;
 mod catalog;
 mod commands;

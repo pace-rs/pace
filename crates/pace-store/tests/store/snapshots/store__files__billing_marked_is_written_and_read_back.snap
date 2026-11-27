@@ -1,0 +1,31 @@
+---
+source: crates/pace-store/tests/store/files.rs
+expression: text
+---
+version = 1
+
+[[event]]
+id = "01a218cc-ba80-7001-b742-ee94d4273788"
+type = "entry.logged"
+v = 1
+batch = "01a218cc-ba80-7001-a4bb-1d8685d37bac"
+at = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T17:00:00.000Z/0"
+entry = "01a218cc-ba80-7001-8a90-856cefb8f1df"
+end = "2026-11-26T09:50:00+01:00[Europe/Berlin]"
+
+[[event]]
+id = "0193a8d0-000e-7000-8000-000000000042"
+type = "billing.marked"
+v = 1
+batch = "0193a8d0-000b-7000-8000-000000000042"
+at = "2026-11-26T18:00:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T17:00:00.000Z/1"
+entry = "01a218cc-ba80-7001-8a90-856cefb8f1df"
+invoice = "2026-0042"
+net-seconds = 3000
+billed-seconds = 3600
+rate = "95.50"
+currency = "EUR"
+amount = "95.50"

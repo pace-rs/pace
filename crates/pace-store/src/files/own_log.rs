@@ -261,7 +261,7 @@ impl FilesStore {
 /// of the log: every event of theirs but the tombstone.
 fn erased(kind: &EventKind, forgotten: &BTreeSet<EntryId>) -> bool {
     !matches!(kind, EventKind::EntryForgotten { .. })
-        && mentioned_entry(kind).is_some_and(|entry| forgotten.contains(&entry))
+        && kind.entry().is_some_and(|entry| forgotten.contains(&entry))
 }
 
 /// The events of a device's files as `split` files them.
@@ -303,22 +303,6 @@ impl Layout {
             events: seen.len(),
             in_place,
         })
-    }
-}
-
-/// The entry an event is about, if any.
-const fn mentioned_entry(kind: &EventKind) -> Option<EntryId> {
-    match kind {
-        EventKind::EntryBegun { entry, .. }
-        | EventKind::EntryHeld { entry, .. }
-        | EventKind::EntryPaused { entry, .. }
-        | EventKind::EntryResumed { entry }
-        | EventKind::EntryEnded { entry }
-        | EventKind::CatchNoted { entry, .. }
-        | EventKind::EntryLogged { entry, .. }
-        | EventKind::EntryAdjusted { entry, .. }
-        | EventKind::EntryForgotten { entry } => Some(*entry),
-        EventKind::BatchUndone { .. } => None,
     }
 }
 

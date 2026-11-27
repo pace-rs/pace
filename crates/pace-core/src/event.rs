@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 use jiff::{Timestamp, ZonedDateTime};
 
 use crate::{
-    BatchId, DeterminedBy, DeviceId, EntryId, EventId, HoldSource, PauseKind, ProjectRef, RoleId,
-    Tag,
+    BatchId, Billing, DeterminedBy, DeviceId, EntryId, EventId, HoldSource, PauseKind, ProjectRef,
+    RoleId, Tag,
 };
 
 /// Something that happened, as the core decided it.
@@ -125,6 +125,14 @@ pub enum EventKind {
         /// The entry.
         entry: EntryId,
     },
+    /// `billing.marked`: the entry went on an invoice, with its amounts
+    /// frozen.
+    BillingMarked {
+        /// The billed entry.
+        entry: EntryId,
+        /// The invoice and the frozen values.
+        billing: Billing,
+    },
     /// `batch.undone`: the events of a batch count as never written.
     BatchUndone {
         /// The batch.
@@ -145,7 +153,8 @@ impl EventKind {
             | Self::CatchNoted { entry, .. }
             | Self::EntryLogged { entry, .. }
             | Self::EntryAdjusted { entry, .. }
-            | Self::EntryForgotten { entry } => Some(*entry),
+            | Self::EntryForgotten { entry }
+            | Self::BillingMarked { entry, .. } => Some(*entry),
             Self::BatchUndone { .. } => None,
         }
     }

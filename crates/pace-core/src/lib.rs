@@ -75,7 +75,7 @@ pub mod testing;
 mod text;
 mod tracking;
 
-pub use billing::{Charge, Price, billable_charges};
+pub use billing::{Billing, Charge, InvoiceRef, Price, billable_charges};
 pub use catalog::{
     ArchiveReason, Archived, Catalog, Client, Currency, Money, ProjectRecord, Rate, Rates, Role,
     RoleKind, Rounding, RoundingMode, RoundingPer, Totals,

@@ -173,7 +173,7 @@ fn events_meeting(events: &[RecordedEvent], scope: &ReadScope) -> Vec<RecordedEv
                 .recorded_since()
                 .is_some_and(|since| recorded.hlc.wall() >= since)
         })
-        .filter_map(|recorded| entry_of(&recorded.event.kind))
+        .filter_map(|recorded| recorded.event.kind.entry())
         .collect();
     let kept = |entry: EntryId| {
         recorded.contains(&entry)
@@ -183,14 +183,14 @@ fn events_meeting(events: &[RecordedEvent], scope: &ReadScope) -> Vec<RecordedEv
     };
     let batches: BTreeSet<BatchId> = events
         .iter()
-        .filter(|recorded| entry_of(&recorded.event.kind).is_some_and(kept))
+        .filter(|recorded| recorded.event.kind.entry().is_some_and(kept))
         .map(|recorded| recorded.batch)
         .collect();
     events
         .iter()
         .filter(|recorded| match recorded.event.kind {
             EventKind::BatchUndone { batch } => batches.contains(&batch),
-            ref kind => entry_of(kind).is_some_and(kept),
+            ref kind => kind.entry().is_some_and(kept),
         })
         .cloned()
         .collect()
@@ -204,22 +204,6 @@ fn meets(entry: &Entry, range: &TimeRange) -> bool {
                 .end()
                 .is_none_or(|range_end| entry.start <= *range_end)
     })
-}
-
-/// The entry an event is about; `None` for an undo, which is about a batch.
-const fn entry_of(kind: &EventKind) -> Option<EntryId> {
-    match kind {
-        EventKind::EntryBegun { entry, .. }
-        | EventKind::EntryHeld { entry, .. }
-        | EventKind::EntryPaused { entry, .. }
-        | EventKind::EntryResumed { entry }
-        | EventKind::EntryEnded { entry }
-        | EventKind::CatchNoted { entry, .. }
-        | EventKind::EntryLogged { entry, .. }
-        | EventKind::EntryAdjusted { entry, .. }
-        | EventKind::EntryForgotten { entry } => Some(*entry),
-        EventKind::BatchUndone { .. } => None,
-    }
 }
 
 /// A store whose appends race a rival tracker on the same storage.
