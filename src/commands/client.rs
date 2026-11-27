@@ -1,13 +1,13 @@
 //! `pace client`: add, list and edit the clients in `clients.toml`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use abscissa_core::{Command, Runnable};
 use jiff::civil::Date;
 use pace_core::{Catalog, Client, ClientKey, Rounding, RoundingMode};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, closest_name};
 use pace_store::{
-    catalog::{CLIENTS_FILE, read_catalog_with},
+    catalog::{CLIENTS_FILE, points_at_file, read_catalog, read_catalog_with},
     field_edit::{FieldEdit, apply_field_edits, table_text, write_field_edits},
 };
 
@@ -224,16 +224,16 @@ impl ClientEditCmd {
     /// clients file with it, then write it in its place.
     fn execute(&self, context: &Context) -> PaceResult<()> {
         let key = client_key(&self.key)?;
-        let client = known_client(&context.catalog, &key)?;
         let home = &context.dirs.data.path;
+        let opened = client_table(home, &context.catalog, key)?;
         let asker = &context.terminal;
         if !asker.can_ask() && context.editor.is_none() {
-            return Err(no_terminal_to_edit(&home.join(CLIENTS_FILE), &key));
+            return Err(no_terminal_to_edit(&opened.path, &opened.key));
         }
         let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
         let line = edit_client_table(
             home,
-            client,
+            opened,
             asker,
             |text| edit_in_editor(&editor, text, ".toml"),
             print_error,
@@ -242,82 +242,160 @@ impl ClientEditCmd {
     }
 }
 
-/// The client `key` of `catalog`.
+/// The table of a client that `pace client edit` opens, and the file it
+/// stands in.
+#[derive(Debug)]
+struct ClientTable {
+    /// The client.
+    key: ClientKey,
+    /// The clients file.
+    path: PathBuf,
+    /// The text of the clients file as it is.
+    text: String,
+    /// The table of the client alone, as the editor shows it.
+    table: String,
+    /// The client's name as the catalog reads it; its key while a mistake
+    /// keeps the catalog from reading.
+    name: String,
+    /// The mistake of the clients file that keeps the catalog from
+    /// reading, if there is one.
+    mistake: Option<Box<PaceError>>,
+}
+
+/// The table of the client `key` in the clients file of `home`, which
+/// `catalog` reads. When a mistake in the clients file keeps the catalog
+/// from reading, `catalog` is empty, and the table comes from the file as
+/// it is.
 ///
 /// # Errors
 ///
-/// If `catalog` has no client `key`: the error names the closest key.
-fn known_client<'catalog>(
-    catalog: &'catalog Catalog,
-    key: &ClientKey,
-) -> PaceResult<&'catalog Client> {
-    catalog.client(key).ok_or_else(|| {
-        let hint = closest_name(
-            key.as_str(),
-            catalog.clients().map(|client| client.key.as_str()),
+/// If the catalog reads and has no client `key`: the error names the
+/// closest key. If a mistake keeps the catalog from reading and the file
+/// has no table `key`: the mistake, which points at its line. If the file
+/// can't be read.
+fn client_table(home: &Path, catalog: &Catalog, key: ClientKey) -> PaceResult<ClientTable> {
+    let path = home.join(CLIENTS_FILE);
+    let (name, mistake) = match catalog.client(&key) {
+        Some(client) => (client.name.clone(), None),
+        None => (
+            key.to_string(),
+            Some(clients_file_mistake(home, &path, catalog, &key)?),
+        ),
+    };
+    let text = std::fs::read_to_string(&path).map_err(|error| {
+        PaceError::with_source(ErrorKind::InputOutput, "cannot read {path}", error)
+            .attach_context("path", path.display().to_string())
+    })?;
+    let table = match (table_text(&path, &text, &[key.as_str()]), mistake) {
+        (Ok(Some(table)), mistake) => {
+            return Ok(ClientTable {
+                key,
+                path,
+                text,
+                table,
+                name,
+                mistake,
+            });
+        }
+        (_, Some(mistake)) => mistake,
+        (Err(error), None) => error,
+        (Ok(None), None) => PaceError::new(
+            ErrorKind::Internal,
+            "{path} has no table of the client `{key}`, which pace read from it",
         )
-        .map_or_else(
-            || "`pace client list` shows the clients".to_owned(),
-            |closest| format!("did you mean `{closest}`?"),
-        );
-        PaceError::new(
-            ErrorKind::InvalidInput,
-            "pace doesn't know the client `{key}`",
-        )
+        .attach_context("path", path.display().to_string())
         .attach_context("key", key.to_string())
-        .attach_hint(hint)
-    })
+        .ask_report(),
+    };
+    Err(table)
 }
 
-/// Let the user change the table of `client` in the clients file of
-/// `home` with `edit` until the catalog reads the file with it, and write
-/// it in its place; the sentence that says so. A mistake is shown with
-/// `report`, and `asker` offers to open the table again.
+/// The mistake in the clients file `path` that keeps the catalog of
+/// `home` from reading, for a client `key` that `catalog` doesn't have.
+///
+/// # Errors
+///
+/// If the catalog reads, so that it has no client `key`: the error names
+/// the closest key of `catalog`. If a mistake in another file keeps the
+/// catalog from reading: that mistake.
+fn clients_file_mistake(
+    home: &Path,
+    path: &Path,
+    catalog: &Catalog,
+    key: &ClientKey,
+) -> PaceResult<Box<PaceError>> {
+    match read_catalog(home) {
+        Err(mistake) if points_at_file(&mistake, path) => Ok(mistake),
+        Err(error) => Err(error),
+        Ok(_) => Err(unknown_client(catalog, key)),
+    }
+}
+
+/// The error for the client `key` that `catalog` doesn't have: it names
+/// the closest key.
+fn unknown_client(catalog: &Catalog, key: &ClientKey) -> Box<PaceError> {
+    let hint = closest_name(
+        key.as_str(),
+        catalog.clients().map(|client| client.key.as_str()),
+    )
+    .map_or_else(
+        || "`pace client list` shows the clients".to_owned(),
+        |closest| format!("did you mean `{closest}`?"),
+    );
+    PaceError::new(
+        ErrorKind::InvalidInput,
+        "pace doesn't know the client `{key}`",
+    )
+    .attach_context("key", key.to_string())
+    .attach_hint(hint)
+}
+
+/// Let the user change the `opened` table with `edit` until the catalog of
+/// `home` reads the clients file with it, and write it in its place; the
+/// sentence that says so. A mistake is shown with `report`, a mistake of
+/// the file as it is before the editor opens, and `asker` offers to open
+/// the table again.
 fn edit_client_table(
     home: &Path,
-    client: &Client,
+    opened: ClientTable,
     asker: &dyn Ask,
     edit: impl FnMut(&str) -> PaceResult<String>,
     report: impl Fn(&PaceError),
 ) -> PaceResult<String> {
-    let clients_file = home.join(CLIENTS_FILE);
-    let key = client.key.as_str();
-    let text = std::fs::read_to_string(&clients_file).map_err(|error| {
-        PaceError::with_source(ErrorKind::InputOutput, "cannot read {path}", error)
-            .attach_context("path", clients_file.display().to_string())
-    })?;
-    let table = table_text(&clients_file, &text, &[key])?.ok_or_else(|| {
-        PaceError::new(
-            ErrorKind::Internal,
-            "{path} has no table of the client `{key}`, which pace read from it",
-        )
-        .attach_context("path", clients_file.display().to_string())
-        .attach_context("key", key)
-        .ask_report()
-    })?;
-    let replace = |edited: &str| FieldEdit::replace_table(&clients_file, &[key], edited);
+    let ClientTable {
+        key,
+        path,
+        text,
+        table,
+        name,
+        mistake,
+    } = opened;
+    if let Some(mistake) = &mistake {
+        report(mistake);
+    }
+    let replace = |edited: &str| FieldEdit::replace_table(&path, &[key.as_str()], edited);
     let command = format!("pace client edit {key}");
     let (edited, catalog) = edit_until_checked(
         EditedFile {
-            path: &clients_file,
+            path: &path,
             command: &command,
         },
         &table,
         asker,
         edit,
         |edited| {
-            let whole = apply_field_edits(&clients_file, &text, &[replace(edited)])?;
-            read_catalog_with(home, &clients_file, &whole)
+            let whole = apply_field_edits(&path, &text, &[replace(edited)])?;
+            read_catalog_with(home, &path, &whole)
         },
         report,
     )?;
     write_field_edits(vec![replace(&edited)])?;
     let name = catalog
-        .client(&client.key)
-        .map_or_else(|| client.name.clone(), |saved| saved.name.clone());
+        .client(&key)
+        .map_or(name, |saved| saved.name.clone());
     Ok(format!(
         "Saved the client `{key}` ({name}) in {}.",
-        clients_file.display()
+        path.display()
     ))
 }
 
@@ -345,7 +423,6 @@ fn client_key(text: &str) -> PaceResult<ClientKey> {
 mod tests {
     use jiff::{SignedDuration, civil::date};
     use pace_core::{Money, Rate, Rates, RoundingPer};
-    use pace_store::catalog::read_catalog;
 
     use super::*;
     use crate::prompt::Scripted;
@@ -431,7 +508,7 @@ mod tests {
     fn edit_of_unknown_client_names_closest_key() {
         let catalog = catalog(vec![client("acme", &[], Rounding::NONE)]);
 
-        let error = known_client(&catalog, &"amce".parse().unwrap()).unwrap_err();
+        let error = unknown_client(&catalog, &"amce".parse().unwrap());
 
         assert_eq!(error.to_string(), "pace doesn't know the client `amce`");
         assert_eq!(error.hint(), Some("did you mean `acme`?"));
@@ -447,14 +524,26 @@ mod tests {
         }
     }
 
-    /// The scratch home with [`ACME`] as its clients file, and the client
-    /// `acme` as pace reads it.
-    fn home_with_acme() -> (tempfile::TempDir, Client) {
+    /// The scratch home with `text` as its clients file, and its catalog;
+    /// empty if a mistake keeps it from reading.
+    fn home_with_clients(text: &str) -> (tempfile::TempDir, Catalog) {
         let home = pace_store::testing::scratch_dir().unwrap();
-        std::fs::write(home.path().join(CLIENTS_FILE), ACME).unwrap();
-        let catalog = read_catalog(home.path()).unwrap();
-        let acme = catalog.client(&"acme".parse().unwrap()).unwrap().clone();
-        (home, acme)
+        std::fs::write(home.path().join(CLIENTS_FILE), text).unwrap();
+        let catalog = read_catalog(home.path()).unwrap_or_default();
+        (home, catalog)
+    }
+
+    /// The scratch home with [`ACME`] as its clients file, and the table
+    /// of `acme` that `pace client edit` opens.
+    fn home_with_acme() -> (tempfile::TempDir, ClientTable) {
+        let (home, catalog) = home_with_clients(ACME);
+        let opened = client_table(home.path(), &catalog, "acme".parse().unwrap()).unwrap();
+        (home, opened)
+    }
+
+    /// [`ACME`] with a mistake in the table of `acme`.
+    fn broken_acme() -> String {
+        ACME.replace("currency = \"EUR\"", "currency = \"EURO\"")
     }
 
     #[test]
@@ -464,7 +553,7 @@ mod tests {
 
         let line = edit_client_table(
             home.path(),
-            &acme,
+            acme,
             &Scripted::without_terminal(),
             |text| {
                 opened.borrow_mut().push_str(text);
@@ -501,7 +590,7 @@ mod tests {
 
         _ = edit_client_table(
             home.path(),
-            &acme,
+            acme,
             &asker,
             saving(vec![broken, fixed]),
             |error| reported.borrow_mut().push(error.to_string()),
@@ -523,7 +612,7 @@ mod tests {
 
         let error = edit_client_table(
             home.path(),
-            &acme,
+            acme,
             &asker,
             saving(vec![
                 "[initech]\nname = \"Initech\"\ncurrency = \"EUR\"\n".to_owned(),
@@ -546,18 +635,82 @@ mod tests {
     #[test]
     fn edit_without_clients_file_cannot_read_it() {
         let home = pace_store::testing::scratch_dir().unwrap();
-        let acme = client("acme", &[], Rounding::NONE);
+        let catalog = catalog(vec![client("acme", &[], Rounding::NONE)]);
 
-        let error = edit_client_table(
-            home.path(),
-            &acme,
-            &Scripted::without_terminal(),
-            saving(Vec::new()),
-            |_| {},
-        )
-        .unwrap_err();
+        let error = client_table(home.path(), &catalog, "acme".parse().unwrap()).unwrap_err();
 
         assert_eq!(error.kind(), ErrorKind::InputOutput);
+    }
+
+    #[test]
+    fn edit_of_client_that_catalog_reads_without_it_names_closest_key() {
+        let (home, catalog) = home_with_clients(ACME);
+
+        let error = client_table(home.path(), &catalog, "amce".parse().unwrap()).unwrap_err();
+
+        assert_eq!(error.hint(), Some("did you mean `acme`?"));
+    }
+
+    #[test]
+    fn edit_of_broken_clients_file_reports_mistake_first_and_writes_fixed_table() {
+        let (home, catalog) = home_with_clients(&broken_acme());
+        let opened = client_table(home.path(), &catalog, "acme".parse().unwrap()).unwrap();
+        let reported = std::cell::RefCell::new(Vec::new());
+
+        let line = edit_client_table(
+            home.path(),
+            opened,
+            &Scripted::without_terminal(),
+            |text| Ok(text.replace("EURO", "EUR")),
+            |error| reported.borrow_mut().push(error.to_string()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            reported.into_inner(),
+            ["`EURO` is not an ISO 4217 currency code"]
+        );
+        assert!(
+            line.starts_with("Saved the client `acme` (ACME GmbH) in "),
+            "{line}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(home.path().join(CLIENTS_FILE)).unwrap(),
+            ACME
+        );
+    }
+
+    #[test]
+    fn edit_of_client_without_table_in_broken_clients_file_fails_with_mistake() {
+        let (home, catalog) = home_with_clients(&broken_acme());
+        let clients_file = home.path().join(CLIENTS_FILE);
+
+        let error = client_table(home.path(), &catalog, "initech".parse().unwrap()).unwrap_err();
+
+        assert!(points_at_file(&error, &clients_file), "{error:?}");
+        assert_eq!(error.to_string(), "`EURO` is not an ISO 4217 currency code");
+    }
+
+    #[test]
+    fn edit_of_clients_file_that_is_no_toml_fails_with_mistake() {
+        let (home, catalog) = home_with_clients("version = 1\n[acme\n");
+        let clients_file = home.path().join(CLIENTS_FILE);
+
+        let error = client_table(home.path(), &catalog, "acme".parse().unwrap()).unwrap_err();
+
+        assert!(points_at_file(&error, &clients_file), "{error:?}");
+    }
+
+    #[test]
+    fn mistake_in_roles_file_stops_client_edit() {
+        let (home, _) = home_with_clients(ACME);
+        let roles_file = home.path().join("roles.toml");
+        std::fs::write(&roles_file, "version = 1\n\n[work]\nkind = \"aera\"\n").unwrap();
+
+        let error =
+            client_table(home.path(), &Catalog::default(), "acme".parse().unwrap()).unwrap_err();
+
+        assert!(points_at_file(&error, &roles_file), "{error:?}");
     }
 
     #[test]

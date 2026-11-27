@@ -1,15 +1,17 @@
 //! `pace project`: make the working directory a project, and add, list,
 //! archive and edit the project records in `projects/<key>.toml`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use abscissa_core::{Command, Runnable};
 use pace_core::{ArchiveReason, Archived, Catalog, Ids, ProjectId, ProjectKey, ProjectRecord};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, closest_name};
 use pace_store::{
-    catalog::{project_record_path, read_catalog_with, write_catalog_file},
+    catalog::{
+        points_at_file, project_record_path, read_catalog, read_catalog_with, write_catalog_file,
+    },
     field_edit::{FieldEdit, FieldValue, write_field_edits},
-    toml_file::TomlFile,
+    toml_file::{TomlFile, TomlTable, TomlValue},
 };
 
 use crate::application::{Context, PACE_APP, exit_on_error, print_error};
@@ -345,22 +347,28 @@ fn known_project<'catalog>(
     catalog: &'catalog Catalog,
     key: &ProjectKey,
 ) -> PaceResult<&'catalog ProjectRecord> {
-    catalog.project(key).ok_or_else(|| {
-        let hint = closest_name(
-            key.as_str(),
-            catalog.projects().map(|record| record.key.as_str()),
-        )
-        .map_or_else(
-            || "`pace project list` shows the projects".to_owned(),
-            |closest| format!("did you mean `{closest}`?"),
-        );
-        PaceError::new(
-            ErrorKind::InvalidInput,
-            "pace has no record of the project `{key}`",
-        )
-        .attach_context("key", key.to_string())
-        .attach_hint(hint)
-    })
+    catalog
+        .project(key)
+        .ok_or_else(|| unknown_project(catalog, key))
+}
+
+/// The error for the project `key` that `catalog` has no record of: it
+/// names the closest key.
+fn unknown_project(catalog: &Catalog, key: &ProjectKey) -> Box<PaceError> {
+    let hint = closest_name(
+        key.as_str(),
+        catalog.projects().map(|record| record.key.as_str()),
+    )
+    .map_or_else(
+        || "`pace project list` shows the projects".to_owned(),
+        |closest| format!("did you mean `{closest}`?"),
+    );
+    PaceError::new(
+        ErrorKind::InvalidInput,
+        "pace has no record of the project `{key}`",
+    )
+    .attach_context("key", key.to_string())
+    .attach_hint(hint)
 }
 
 /// `pace project edit`
@@ -377,20 +385,28 @@ impl Runnable for ProjectEditCmd {
 }
 
 impl ProjectEditCmd {
+    /// The record file in `home` that the command opens; `None` if its key
+    /// is no project key.
+    pub(crate) fn record_file(&self, home: &Path) -> Option<PathBuf> {
+        project_key(&self.key)
+            .ok()
+            .map(|key| project_record_path(home, &key))
+    }
+
     /// Open the project's record in the editor until the catalog reads it,
     /// then write it.
     fn execute(&self, context: &Context) -> PaceResult<()> {
         let key = project_key(&self.key)?;
-        let record = known_project(&context.catalog, &key)?;
         let home = &context.dirs.data.path;
+        let opened = opened_record(home, &context.catalog, key)?;
         let asker = &context.terminal;
         if !asker.can_ask() && context.editor.is_none() {
-            return Err(no_terminal_to_edit(&project_record_path(home, &key), &key));
+            return Err(no_terminal_to_edit(&opened.path, &opened.key));
         }
         let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
         let line = edit_record(
             home,
-            record,
+            opened,
             asker,
             |text| edit_in_editor(&editor, text, ".toml"),
             print_error,
@@ -399,59 +415,133 @@ impl ProjectEditCmd {
     }
 }
 
-/// Let the user change the file of `record` in `home` with `edit` until
-/// the catalog reads it with the same key and ID, and write it; the
-/// sentence that says so. A mistake is shown with `report`, and `asker`
-/// offers to open the record again.
+/// The record file of a project that `pace project edit` opens.
+#[derive(Debug)]
+struct OpenedRecord {
+    /// The project, whose key the edited file keeps.
+    key: ProjectKey,
+    /// The ID that the edited file keeps; `None` while a mistake keeps the
+    /// catalog from reading and the file holds no ID that reads.
+    id: Option<ProjectId>,
+    /// The record file.
+    path: PathBuf,
+    /// The text of the record file as it is.
+    text: String,
+    /// The project's name as the catalog reads it; its key while a mistake
+    /// keeps the catalog from reading.
+    name: String,
+    /// The mistake of the record file that keeps the catalog from reading,
+    /// if there is one.
+    mistake: Option<Box<PaceError>>,
+}
+
+/// The record file of the project `key` in `home`, which `catalog` reads.
+/// When a mistake in the record file keeps the catalog from reading,
+/// `catalog` is empty, and the ID is the one the file holds.
+///
+/// # Errors
+///
+/// If the catalog reads and has no record of `key`: the error names the
+/// closest key. If a mistake in another file keeps the catalog from
+/// reading: that mistake, which points at its line. If the file can't be
+/// read.
+fn opened_record(home: &Path, catalog: &Catalog, key: ProjectKey) -> PaceResult<OpenedRecord> {
+    let path = project_record_path(home, &key);
+    let (id, name, mistake) = match catalog.project(&key) {
+        Some(record) => (Some(record.id), record.name.clone(), None),
+        None => (
+            None,
+            key.to_string(),
+            Some(record_mistake(home, &path, catalog, &key)?),
+        ),
+    };
+    let text = std::fs::read_to_string(&path).map_err(|error| {
+        PaceError::with_source(ErrorKind::InputOutput, "cannot read {path}", error)
+            .attach_context("path", path.display().to_string())
+    })?;
+    let id = id.or_else(|| written_id(&path, &text));
+    Ok(OpenedRecord {
+        key,
+        id,
+        path,
+        text,
+        name,
+        mistake,
+    })
+}
+
+/// The mistake in the record file `path` that keeps the catalog of `home`
+/// from reading, for a project `key` that `catalog` has no record of.
+///
+/// # Errors
+///
+/// If the catalog reads, so that it has no record of `key`: the error
+/// names the closest key of `catalog`. If a mistake in another file keeps
+/// the catalog from reading: that mistake.
+fn record_mistake(
+    home: &Path,
+    path: &Path,
+    catalog: &Catalog,
+    key: &ProjectKey,
+) -> PaceResult<Box<PaceError>> {
+    match read_catalog(home) {
+        Err(mistake) if points_at_file(&mistake, path) => Ok(mistake),
+        Err(error) => Err(error),
+        Ok(_) => Err(unknown_project(catalog, key)),
+    }
+}
+
+/// Let the user change the `opened` record file with `edit` until the
+/// catalog of `home` reads it with the same key and ID, and write it; the
+/// sentence that says so. A mistake is shown with `report`, a mistake of
+/// the file as it is before the editor opens, and `asker` offers to open
+/// the record again.
 fn edit_record(
     home: &Path,
-    record: &ProjectRecord,
+    opened: OpenedRecord,
     asker: &dyn Ask,
     edit: impl FnMut(&str) -> PaceResult<String>,
     report: impl Fn(&PaceError),
 ) -> PaceResult<String> {
-    let record_file = project_record_path(home, &record.key);
-    let text = std::fs::read_to_string(&record_file).map_err(|error| {
-        PaceError::with_source(ErrorKind::InputOutput, "cannot read {path}", error)
-            .attach_context("path", record_file.display().to_string())
-    })?;
-    let command = format!("pace project edit {}", record.key);
+    let OpenedRecord {
+        key,
+        id,
+        path,
+        text,
+        name,
+        mistake,
+    } = opened;
+    if let Some(mistake) = &mistake {
+        report(mistake);
+    }
+    let command = format!("pace project edit {key}");
     let (edited, catalog) = edit_until_checked(
         EditedFile {
-            path: &record_file,
+            path: &path,
             command: &command,
         },
         &text,
         asker,
         edit,
         |edited| {
-            same_identity(&record_file, edited, record)?;
-            read_catalog_with(home, &record_file, edited)
+            same_identity(&path, edited, &key, id)?;
+            read_catalog_with(home, &path, edited)
         },
         report,
     )?;
-    write_catalog_file(&record_file, &edited)?;
+    write_catalog_file(&path, &edited)?;
     let name = catalog
-        .project(&record.key)
-        .map_or_else(|| record.name.clone(), |saved| saved.name.clone());
+        .project(&key)
+        .map_or(name, |saved| saved.name.clone());
     Ok(format!(
-        "Saved the project `{}` ({name}) in {}.",
-        record.key,
-        record_file.display()
+        "Saved the project `{key}` ({name}) in {}.",
+        path.display()
     ))
 }
 
-/// Check that `text`, the edited file `path` of `record`, keeps its key
-/// and its ID. A key or an ID that is missing or doesn't read is left to
-/// the catalog's reader.
-///
-/// # Errors
-///
-/// If `text` holds another key or another ID: renaming a project is not
-/// built yet, and the ID is what its entries name. The error points at the
-/// line.
-fn same_identity(path: &Path, text: &str, record: &ProjectRecord) -> PaceResult<()> {
-    let file = TomlFile {
+/// The record file `path` with `text`, to read its key and its ID.
+const fn record_toml<'file>(path: &'file Path, text: &'file str) -> TomlFile<'file> {
+    TomlFile {
         path,
         text,
         what: "a project record",
@@ -461,42 +551,71 @@ fn same_identity(path: &Path, text: &str, record: &ProjectRecord) -> PaceResult<
         // The catalog's reader checks the version; this check reads only
         // the key and the ID.
         version: 1,
-    };
+    }
+}
+
+/// The text of the string `name` of `table` in `file`, and its value;
+/// `None` if `table` has no `name`, or no string.
+fn written<'file>(
+    file: &TomlFile<'_>,
+    table: TomlTable<'file>,
+    name: &str,
+) -> Option<(TomlValue<'file>, &'file str)> {
+    table
+        .get(name)
+        .and_then(|value| Some((value, file.string(name, value, "").ok()?)))
+}
+
+/// The ID that `text`, the record file `path`, holds; `None` if the text
+/// is no TOML, or its ID is missing or doesn't read.
+fn written_id(path: &Path, text: &str) -> Option<ProjectId> {
+    let file = record_toml(path, text);
+    let document = file.parse().ok()?;
+    let (_, id) = written(&file, document.table(), "id")?;
+    id.parse().ok()
+}
+
+/// Check that `text`, the edited record file `path` of the project `key`,
+/// keeps the key and the ID `id`, if there is one. A key or an ID that is
+/// missing or doesn't read is left to the catalog's reader.
+///
+/// # Errors
+///
+/// If `text` holds another key or another ID: renaming a project is not
+/// built yet, and the ID is what its entries name. The error points at the
+/// line.
+fn same_identity(
+    path: &Path,
+    text: &str,
+    key: &ProjectKey,
+    id: Option<ProjectId>,
+) -> PaceResult<()> {
+    let file = record_toml(path, text);
     let document = file.parse()?;
     let table = document.table();
-    let written = |name: &str| {
-        table
-            .get(name)
-            .and_then(|value| Some((value, file.string(name, value, "").ok()?)))
-    };
-    if let Some((value, key)) = written("key")
-        && key != record.key.as_str()
+    if let Some((value, edited)) = written(&file, table, "key")
+        && edited != key.as_str()
     {
         return Err(file
             .error_at(
                 value.span(),
                 "`pace project edit` can't change the key of the project `{key}` to `{edited}`",
-                [("key", record.key.to_string()), ("edited", key.to_owned())],
-                format!(
-                    "write `key = \"{}\"` again; pace can't rename a project yet",
-                    record.key
-                ),
+                [("key", key.to_string()), ("edited", edited.to_owned())],
+                format!("write `key = \"{key}\"` again; pace can't rename a project yet"),
                 "another key",
             )
             .attach_error_code("pace::project-record::key-changed"));
     }
-    if let Some((value, id)) = written("id")
-        && id.parse::<ProjectId>().is_ok_and(|id| id != record.id)
+    if let Some(id) = id
+        && let Some((value, edited)) = written(&file, table, "id")
+        && edited.parse::<ProjectId>().is_ok_and(|edited| edited != id)
     {
         return Err(file
             .error_at(
                 value.span(),
                 "`pace project edit` can't change the ID of the project `{key}`",
-                [("key", record.key.to_string())],
-                format!(
-                    "write `id = \"{}\"` again; the entries of the project name its ID",
-                    record.id
-                ),
+                [("key", key.to_string())],
+                format!("write `id = \"{id}\"` again; the entries of the project name its ID"),
                 "another ID",
             )
             .attach_error_code("pace::project-record::id-changed"));
@@ -563,18 +682,26 @@ mod tests {
         Catalog::new(Vec::new(), Vec::new(), records).unwrap()
     }
 
-    /// The home of a scratch directory with the record of `webshop`, and
-    /// that record as the catalog reads it.
-    fn home_with_webshop() -> (tempfile::TempDir, ProjectRecord) {
+    /// The home of a scratch directory with `text` as the record of
+    /// `webshop`, and the record file that `pace project edit` opens.
+    fn home_with_webshop_as(text: &str) -> (tempfile::TempDir, OpenedRecord) {
         let home = pace_store::testing::scratch_dir().unwrap();
         let key: ProjectKey = "webshop".parse().unwrap();
-        write_catalog_file(&project_record_path(home.path(), &key), WEBSHOP).unwrap();
-        let record = pace_store::catalog::read_catalog(home.path())
-            .unwrap()
-            .project(&key)
-            .unwrap()
-            .clone();
-        (home, record)
+        write_catalog_file(&project_record_path(home.path(), &key), text).unwrap();
+        let catalog = read_catalog(home.path()).unwrap_or_default();
+        let opened = opened_record(home.path(), &catalog, key).unwrap();
+        (home, opened)
+    }
+
+    /// The home of a scratch directory with the record of `webshop`, and
+    /// the record file that `pace project edit` opens.
+    fn home_with_webshop() -> (tempfile::TempDir, OpenedRecord) {
+        home_with_webshop_as(WEBSHOP)
+    }
+
+    /// [`WEBSHOP`] with a mistake: `billable` is no boolean.
+    fn broken_webshop() -> String {
+        format!("{WEBSHOP}billable = \"yes\"\n")
     }
 
     /// An editor that turns the text it gets into `saved` in turn.
@@ -621,7 +748,7 @@ mod tests {
 
         let line = edit_record(
             home.path(),
-            &record,
+            record,
             &Scripted::confirming([true]),
             saving(&[&renamed, &fixed]),
             |error| reported.borrow_mut().push(error.to_string()),
@@ -637,7 +764,7 @@ mod tests {
             "{line}"
         );
         assert_eq!(
-            std::fs::read_to_string(project_record_path(home.path(), &record.key)).unwrap(),
+            std::fs::read_to_string(home.path().join("projects/webshop.toml")).unwrap(),
             fixed
         );
     }
@@ -649,7 +776,7 @@ mod tests {
 
         let error = edit_record(
             home.path(),
-            &record,
+            record,
             &Scripted::without_terminal(),
             saving(&[&broken]),
             |_| {},
@@ -658,16 +785,87 @@ mod tests {
 
         assert!(!error.to_string().contains("can't change"), "{error}");
         assert_eq!(
-            std::fs::read_to_string(project_record_path(home.path(), &record.key)).unwrap(),
+            std::fs::read_to_string(home.path().join("projects/webshop.toml")).unwrap(),
             WEBSHOP
         );
     }
 
     #[test]
     fn same_identity_takes_same_id_written_in_capitals() {
-        let (_home, record) = home_with_webshop();
         let capitals = WEBSHOP.replace(ID, &ID.to_uppercase());
 
-        assert!(same_identity(Path::new("webshop.toml"), &capitals, &record).is_ok());
+        assert!(
+            same_identity(
+                Path::new("webshop.toml"),
+                &capitals,
+                &"webshop".parse().unwrap(),
+                ID.parse().ok(),
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn edit_of_project_that_catalog_reads_without_it_names_closest_key() {
+        let (home, _) = home_with_webshop();
+        let catalog = read_catalog(home.path()).unwrap();
+
+        let error = opened_record(home.path(), &catalog, "wehshop".parse().unwrap()).unwrap_err();
+
+        assert_eq!(error.hint(), Some("did you mean `webshop`?"));
+    }
+
+    #[test]
+    fn edit_of_broken_record_keeps_id_it_holds_and_reports_mistake_first() {
+        let (home, opened) = home_with_webshop_as(&broken_webshop());
+        let other_id = broken_webshop().replace(ID, "0193a7c4-0000-7000-8000-0000000000ff");
+        let fixed = WEBSHOP.replace("name = \"Webshop\"", "name = \"Web shop\"");
+        let reported = std::cell::RefCell::new(Vec::new());
+
+        assert_eq!(opened.id, ID.parse().ok());
+        let line = edit_record(
+            home.path(),
+            opened,
+            &Scripted::confirming([true]),
+            saving(&[&other_id, &fixed]),
+            |error| reported.borrow_mut().push(error.to_string()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            reported.into_inner(),
+            [
+                "`billable` takes `true` or `false`",
+                "`pace project edit` can't change the ID of the project `webshop`",
+            ]
+        );
+        assert!(
+            line.starts_with("Saved the project `webshop` (Web shop) in "),
+            "{line}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(home.path().join("projects/webshop.toml")).unwrap(),
+            fixed
+        );
+    }
+
+    #[test]
+    fn broken_record_that_is_no_toml_opens_without_id() {
+        let (_home, opened) = home_with_webshop_as("version = 1\nid = \"");
+
+        assert_eq!(opened.id, None);
+        assert!(opened.mistake.is_some());
+    }
+
+    #[test]
+    fn mistake_in_other_record_stops_project_edit() {
+        let (home, _) = home_with_webshop();
+        let garden = home.path().join("projects/garden.toml");
+        write_catalog_file(&garden, "version = 1\nkey = \"garden\"\n").unwrap();
+
+        let error = opened_record(home.path(), &Catalog::default(), "webshop".parse().unwrap())
+            .unwrap_err();
+
+        assert!(points_at_file(&error, &garden), "{error:?}");
     }
 }

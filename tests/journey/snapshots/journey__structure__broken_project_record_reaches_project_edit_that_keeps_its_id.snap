@@ -1,0 +1,74 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project-record::invalid-value
+
+  × `billable` takes `true` or `false`
+   ╭─[[SANDBOX]/home/projects/webshop.toml:5:12]
+ 4 │ name = "Webshop"
+ 5 │ billable = "yes"
+   ·            ──┬──
+   ·              ╰── a string
+   ╰────
+  help: write `billable = true` or `billable = false`, without quotes
+
+
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project-record::invalid-value
+
+  × `billable` takes `true` or `false`
+   ╭─[[SANDBOX]/home/projects/webshop.toml:5:12]
+ 4 │ name = "Webshop"
+ 5 │ billable = "yes"
+   ·            ──┬──
+   ·              ╰── a string
+   ╰────
+  help: write `billable = true` or `billable = false`, without quotes
+
+pace::project-record::id-changed
+
+  × `pace project edit` can't change the ID of the project `webshop`
+   ╭─[[SANDBOX]/home/projects/webshop.toml:2:6]
+ 1 │ version = 1
+ 2 │ id = "0193a7c4-0000-7000-8000-0000000000ff"
+   ·      ───────────────────┬──────────────────
+   ·                         ╰── another ID
+ 3 │ key = "webshop"
+   ╰────
+  help: write `id = "0193a7c4-0000-7000-8000-000000000001"` again; the entries of the project name its ID
+
+
+success: true
+exit_code: 0
+----- stdout -----
+Saved the project `webshop` (Webshop) in [SANDBOX]/home/projects/webshop.toml.
+
+----- stderr -----
+pace::project-record::invalid-value
+
+  × `billable` takes `true` or `false`
+   ╭─[[SANDBOX]/home/projects/webshop.toml:5:12]
+ 4 │ name = "Webshop"
+ 5 │ billable = "yes"
+   ·            ──┬──
+   ·              ╰── a string
+   ╰────
+  help: write `billable = true` or `billable = false`, without quotes
+
+
+--- home/projects/webshop.toml ---
+version = 1
+id = "0193a7c4-0000-7000-8000-000000000001"
+key = "webshop"
+name = "Webshop"
+billable = true

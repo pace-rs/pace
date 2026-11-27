@@ -139,7 +139,10 @@ impl PaceApp {
         for warning in &settings.warnings {
             eprint!("{}", render(warning, self.style));
         }
-        let catalog = catalog_for(&dirs.data.path, command.mended_catalog_file())?;
+        let catalog = catalog_for(
+            &dirs.data.path,
+            command.mended_catalog_file(&dirs.data.path).as_deref(),
+        )?;
         let project = discover_project(
             command.project.as_deref(),
             std::env::var_os("PACE_PROJECT"),
@@ -173,18 +176,18 @@ impl PaceApp {
     }
 }
 
-/// The catalog in `home`. A command that mends the catalog file `mended`
-/// gets an empty catalog when a mistake in that file keeps the catalog
+/// The catalog in `home`. A command that mends the catalog file `mended`,
+/// a path in `home`, gets an empty catalog when a mistake in that file keeps the catalog
 /// from reading; it reads the file it mends itself.
 ///
 /// # Errors
 ///
 /// If the catalog doesn't read for a mistake in any other file: the error
 /// points at the line.
-fn catalog_for(home: &Path, mended: Option<&str>) -> PaceResult<Catalog> {
+fn catalog_for(home: &Path, mended: Option<&Path>) -> PaceResult<Catalog> {
     match read_catalog(home) {
         Ok(catalog) => Ok(catalog),
-        Err(error) if mended.is_some_and(|file| points_at_file(&error, &home.join(file))) => {
+        Err(error) if mended.is_some_and(|file| points_at_file(&error, file)) => {
             Ok(Catalog::default())
         }
         Err(error) => Err(error),
@@ -341,7 +344,7 @@ mod tests {
         let home = broken_home();
 
         assert_eq!(
-            catalog_for(home.path(), Some("roles.toml")).unwrap(),
+            catalog_for(home.path(), Some(&home.path().join("roles.toml"))).unwrap(),
             Catalog::default()
         );
     }
@@ -350,7 +353,7 @@ mod tests {
     fn mistake_in_other_file_stops_command_that_mends_roles_file() {
         let home = home_with("clients.toml", "version = 1\n\n[acme]\nname = 1\n");
 
-        let error = catalog_for(home.path(), Some("roles.toml")).unwrap_err();
+        let error = catalog_for(home.path(), Some(&home.path().join("roles.toml"))).unwrap_err();
 
         assert!(points_at_file(&error, &home.path().join("clients.toml")));
     }

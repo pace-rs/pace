@@ -397,6 +397,33 @@ fn client_edit_without_terminal_or_editor_names_clients_file() -> TestResult {
     Ok(())
 }
 
+#[cfg(unix)]
+#[test]
+fn broken_clients_file_reaches_client_edit_that_writes_fixed_table() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "home/clients.toml",
+        &CLIENTS.replace("currency = \"EUR\"", "currency = \"EURO\""),
+    )?;
+
+    let unknown = run(sandbox
+        .pace_at("09:00")
+        .env("VISUAL", "true")
+        .args(["client", "edit", "initech"]))?;
+    let fixed = run(sandbox
+        .pace_at("09:01")
+        .env(
+            "VISUAL",
+            "sed -i -e 's/^currency = \"EURO\"/currency = \"EUR\"/'",
+        )
+        .args(["client", "edit", "acme"]))?;
+    let clients = std::fs::read_to_string(sandbox.path("home/clients.toml"))?;
+
+    let output = format!("{unknown}\n{fixed}\n--- home/clients.toml ---\n{clients}");
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
 /// The transcript of `steps`, then the record of `key` as pace left it.
 fn journey_and_record(
     sandbox: &Sandbox,
@@ -622,6 +649,40 @@ fn project_edit_without_terminal_or_editor_names_record() -> TestResult {
         .env_remove("VISUAL")
         .env_remove("EDITOR")
         .args(["project", "edit", "webshop"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+/// The record of `webshop` with a mistake: `billable` is no boolean.
+const BROKEN_WEBSHOP: &str = "version = 1\nid = \"0193a7c4-0000-7000-8000-000000000001\"\nkey = \"webshop\"\nname = \"Webshop\"\nbillable = \"yes\"\n";
+
+#[cfg(unix)]
+#[test]
+fn broken_project_record_reaches_project_edit_that_keeps_its_id() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write("home/projects/webshop.toml", BROKEN_WEBSHOP)?;
+
+    let unknown = run(sandbox
+        .pace_at("09:00")
+        .env("VISUAL", "true")
+        .args(["project", "edit", "garden"]))?;
+    let id = run(sandbox
+        .pace_at("09:01")
+        .env(
+            "VISUAL",
+            "sed -i -e 's/^id = \".*\"/id = \"0193a7c4-0000-7000-8000-0000000000ff\"/'",
+        )
+        .args(["project", "edit", "webshop"]))?;
+    let fixed = run(sandbox
+        .pace_at("09:02")
+        .env(
+            "VISUAL",
+            "sed -i -e 's/^billable = \"yes\"/billable = true/'",
+        )
+        .args(["project", "edit", "webshop"]))?;
+    let record = std::fs::read_to_string(sandbox.path("home/projects/webshop.toml"))?;
+
+    let output = format!("{unknown}\n{id}\n{fixed}\n--- home/projects/webshop.toml ---\n{record}");
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

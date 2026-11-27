@@ -12,10 +12,10 @@ pub mod role;
 pub mod store;
 pub mod tracking;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use abscissa_core::{Command, Configurable, Runnable};
-use pace_store::catalog::ROLES_FILE;
+use pace_store::catalog::{CLIENTS_FILE, ROLES_FILE};
 
 use self::{
     client::ClientCmd,
@@ -154,12 +154,16 @@ impl Runnable for EntryPoint {
 impl Configurable<()> for EntryPoint {}
 
 impl EntryPoint {
-    /// The catalog file the command mends, so that it runs even when a
-    /// mistake in that file keeps the catalog from reading: `pace role
-    /// edit` opens the broken roles file to fix it.
-    pub(crate) const fn mended_catalog_file(&self) -> Option<&'static str> {
-        match self.cmd {
-            Some(PaceCmd::Role(RoleCmd::Edit(_))) => Some(ROLES_FILE),
+    /// The catalog file in `home` that the command mends, so that it runs
+    /// even when a mistake in that file keeps the catalog from reading:
+    /// `pace role edit` opens the broken roles file to fix it, `pace client
+    /// edit` the clients file and `pace project edit KEY` the record of
+    /// `KEY`.
+    pub(crate) fn mended_catalog_file(&self, home: &Path) -> Option<PathBuf> {
+        match &self.cmd {
+            Some(PaceCmd::Role(RoleCmd::Edit(_))) => Some(home.join(ROLES_FILE)),
+            Some(PaceCmd::Client(ClientCmd::Edit(_))) => Some(home.join(CLIENTS_FILE)),
+            Some(PaceCmd::Project(ProjectCmd::Edit(edit))) => edit.record_file(home),
             _ => None,
         }
     }
@@ -171,16 +175,33 @@ mod tests {
 
     use super::*;
 
-    fn mended(args: &[&str]) -> Option<&'static str> {
+    fn mended(args: &[&str]) -> Option<PathBuf> {
         EntryPoint::try_parse_from(args)
             .unwrap()
-            .mended_catalog_file()
+            .mended_catalog_file(Path::new("home"))
     }
 
     #[test]
-    fn only_role_edit_mends_catalog_file_and_that_is_roles_file() {
-        assert_eq!(mended(&["pace", "role", "edit"]), Some(ROLES_FILE));
+    fn edit_commands_mend_the_catalog_file_they_open() {
+        assert_eq!(
+            mended(&["pace", "role", "edit"]),
+            Some(PathBuf::from("home/roles.toml"))
+        );
+        assert_eq!(
+            mended(&["pace", "client", "edit", "acme"]),
+            Some(PathBuf::from("home/clients.toml"))
+        );
+        assert_eq!(
+            mended(&["pace", "project", "edit", "webshop"]),
+            Some(PathBuf::from("home/projects/webshop.toml"))
+        );
+    }
+
+    #[test]
+    fn other_commands_and_project_edit_of_no_key_mend_nothing() {
+        assert_eq!(mended(&["pace", "project", "edit", "Web Shop"]), None);
         assert_eq!(mended(&["pace", "role", "list"]), None);
+        assert_eq!(mended(&["pace", "client", "list"]), None);
         assert_eq!(mended(&["pace", "now"]), None);
         assert_eq!(mended(&["pace"]), None);
     }
