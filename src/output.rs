@@ -500,6 +500,7 @@ mod tests {
             state: State::from_events(&all),
             undone,
             now: nine()?,
+            warnings: Vec::new(),
         })
     }
 
