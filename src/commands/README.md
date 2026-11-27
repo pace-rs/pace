@@ -13,18 +13,19 @@ it; `project edit` also refuses a changed key or ID.
 
 <!-- files -->
 
-| File                               | What it holds                                                                                                                       |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| [`client.rs`](client.rs)           | `pace client`: add, list and edit the clients in `clients.toml`.                                                                    |
-| [`completions.rs`](completions.rs) | `pace completions`: the completion script for a shell.                                                                              |
-| [`config.rs`](config.rs)           | `pace config`                                                                                                                       |
-| [`corrections.rs`](corrections.rs) | Correcting the record: `adjust`, `log`, `undo`, `forget`.                                                                           |
-| [`edit.rs`](edit.rs)               | `pace edit`: an entry as TOML in the user's editor; the changes become an adjustment.                                               |
-| [`now.rs`](now.rs)                 | `pace now`: what is open, and where new entries go.                                                                                 |
-| [`project.rs`](project.rs)         | `pace project`: make the working directory a project, and add, list, archive and edit the project records in `projects/<key>.toml`. |
-| [`role.rs`](role.rs)               | `pace role`: add, list, archive and edit the roles in `roles.toml`.                                                                 |
-| [`store.rs`](store.rs)             | `pace store`: how pace keeps its data.                                                                                              |
-| [`tracking.rs`](tracking.rs)       | The tracking commands: `begin`, `hold`, `pause`, `resume`, `catch`, `end`.                                                          |
+| File                                 | What it holds                                                                                                                       |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [`client.rs`](client.rs)             | `pace client`: add, list and edit the clients in `clients.toml`.                                                                    |
+| [`completions.rs`](completions.rs)   | `pace completions`: the completion script for a shell.                                                                              |
+| [`config.rs`](config.rs)             | `pace config`                                                                                                                       |
+| [`corrections.rs`](corrections.rs)   | Correcting the record: `adjust`, `log`, `undo`, `forget`.                                                                           |
+| [`edit.rs`](edit.rs)                 | `pace edit`: an entry as TOML in the user's editor; the changes become an adjustment.                                               |
+| [`now.rs`](now.rs)                   | `pace now`: what is open, and where new entries go.                                                                                 |
+| [`project.rs`](project.rs)           | `pace project`: make the working directory a project, and add, list, archive and edit the project records in `projects/<key>.toml`. |
+| [`project_init.rs`](project_init.rs) | `pace project init`: make the working directory a project, with the record and the manifest that links the directory to it.         |
+| [`role.rs`](role.rs)                 | `pace role`: add, list, archive and edit the roles in `roles.toml`.                                                                 |
+| [`store.rs`](store.rs)               | `pace store`: how pace keeps its data.                                                                                              |
+| [`tracking.rs`](tracking.rs)         | The tracking commands: `begin`, `hold`, `pause`, `resume`, `catch`, `end`.                                                          |
 
 <!-- /files -->
 

@@ -7,6 +7,7 @@ pub mod corrections;
 pub mod edit;
 pub mod now;
 pub mod project;
+pub mod project_init;
 pub mod role;
 pub mod store;
 pub mod tracking;
