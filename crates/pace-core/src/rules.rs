@@ -11,7 +11,6 @@ use crate::{
     Batch, Change, Command, DeviceId, Entry, EntryChanges, EntryId, Event, EventKind, HoldSource,
     Ids, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
-    short_ids,
 };
 
 mod checks;
@@ -389,7 +388,7 @@ impl Rules<'_> {
             .map(|entry| {
                 format!(
                     "{} since {}",
-                    self.short(entry.id),
+                    self.state.short_id(entry.id),
                     self.clock(&entry.start)
                 )
             })
@@ -427,7 +426,7 @@ impl Rules<'_> {
                 );
                 format!(
                     "{} ({}–{until})",
-                    self.short(entry.id),
+                    self.state.short_id(entry.id),
                     self.clock_against(&entry.start, end)
                 )
             })
@@ -493,13 +492,6 @@ impl Rules<'_> {
         } else {
             local.strftime(&format!("%Y-%m-%d {time}")).to_string()
         }
-    }
-
-    fn short(&self, id: EntryId) -> String {
-        let ids: Vec<EntryId> = self.state.entries().map(|entry| entry.id).collect();
-        short_ids(&ids)
-            .remove(&id)
-            .unwrap_or_else(|| id.to_string())
     }
 }
 

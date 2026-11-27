@@ -621,3 +621,40 @@ fn hlc_tie_across_two_devices_goes_to_the_higher_device_id() -> TestResult {
     }
     Ok(())
 }
+
+// short IDs
+
+#[test]
+fn short_id_is_last_four_characters_or_more_when_needed() -> TestResult {
+    let ids: Vec<EntryId> = [
+        "0193a8d0-6c1e-7f3a-9b2d-4e5f60719a2c",
+        "0193a8d0-6c1e-7f3a-9b2d-4e5f60729a2c",
+        "0193a8d0-6c1e-7f3a-9b2d-4e5f607100ff",
+    ]
+    .iter()
+    .map(|id| id.parse())
+    .collect::<Result<_, _>>()?;
+    let mut log = Log::new(1)?;
+    for id in &ids {
+        _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(*id))?;
+    }
+
+    let state = State::from_events(&log.events);
+
+    assert_eq!(state.short_id(ids[0]), "19a2c");
+    assert_eq!(state.short_id(ids[1]), "29a2c");
+    assert_eq!(state.short_id(ids[2]), "00ff");
+    Ok(())
+}
+
+#[test]
+fn entry_outside_state_shows_its_whole_id() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(entry(1)?))?;
+    let unknown: EntryId = "deadbeef-0000-7000-8000-000000000000".parse()?;
+
+    let state = State::from_events(&log.events);
+
+    assert_eq!(state.short_id(unknown), unknown.to_string());
+    Ok(())
+}

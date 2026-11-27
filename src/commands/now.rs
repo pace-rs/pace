@@ -7,7 +7,7 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::{TimeFrame, format_duration, relative_time};
 use serde::Serialize;
 
-use crate::output::{entry_name, project_name, short_id};
+use crate::output::{entry_name, project_name};
 use crate::print::print_lines;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
@@ -70,8 +70,8 @@ fn as_text(
     for (first, second, start, end) in overlaps(state, now) {
         lines.push(format!(
             "Overlap: {} and {} both cover {}–{}; change one with `pace adjust <id>`.",
-            short_id(state, first.id),
-            short_id(state, second.id),
+            state.short_id(first.id),
+            state.short_id(second.id),
             clock(&start, now),
             clock(&end, now)
         ));
@@ -224,7 +224,7 @@ fn as_json(
             .unwrap_or(&entry.start);
             OpenJson {
                 id: entry.id.to_string(),
-                short: short_id(state, entry.id),
+                short: state.short_id(entry.id),
                 state: match entry.state() {
                     EntryState::Running => "running",
                     EntryState::Held => "held",

@@ -16,7 +16,6 @@ use toml::Spanned;
 
 use crate::commands::tracking::track;
 use crate::editor::{edit_in_editor, editor_command};
-use crate::output::short_id;
 use crate::prompt::Ask;
 use crate::select::chosen_entry;
 use crate::{
@@ -154,7 +153,7 @@ fn write(chosen: &Chosen, device: DeviceId, now: &ZonedDateTime) -> PaceResult<S
     };
     let mut lines = vec![format!(
         "# pace edit: entry {}, {how} on {place}.",
-        short_id(&chosen.state, entry.id)
+        chosen.state.short_id(entry.id)
     )];
     lines.push(HELP.trim_end().to_owned());
     let breaks = breaks(entry, now);

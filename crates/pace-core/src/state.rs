@@ -8,6 +8,7 @@ use crate::{
     BatchId, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin, EventKind, HoldSource,
     PauseKind, ProjectRef, RecordedEvent, Tag,
     entry::{Catch, Hold, Pause},
+    short_id::short_id_among,
 };
 
 /// The current state: the result of applying all events in merged order.
@@ -263,6 +264,18 @@ impl State {
     #[must_use]
     pub fn entry(&self, id: EntryId) -> Option<&Entry> {
         self.entries.get(&id)
+    }
+
+    /// The short ID of the entry `id`: its last hex characters, at least
+    /// four, that no other entry of the state ends with. An ID that names no
+    /// entry of the state is shown whole.
+    #[must_use]
+    pub fn short_id(&self, id: EntryId) -> String {
+        if self.entries.contains_key(&id) {
+            short_id_among(id, self.entries.keys().copied())
+        } else {
+            id.to_string()
+        }
     }
 
     /// All entries, by start.

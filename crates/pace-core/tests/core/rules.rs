@@ -9,7 +9,6 @@ use pace_core::{
     Batch, BatchId, Change, Command, DeviceId, EntryId, EntryState, Event, EventId, EventKind, Hlc,
     HoldSource, Ids, PauseKind, Policy, ProjectRef, RecordedEvent, Rules, SequentialIds, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
-    short_ids,
 };
 use pace_error::{ExitCode, PaceError};
 
@@ -1464,27 +1463,6 @@ fn an_entrys_events_are_filed_under_its_first_start() -> TestResult {
 
     assert_eq!(batch.events[0].at, berlin("10:00")?);
     assert_eq!(batch.events[0].about, berlin("09:00")?);
-    Ok(())
-}
-
-// short IDs
-
-#[test]
-fn short_ids_are_the_last_four_characters_or_more_when_needed() -> TestResult {
-    let ids: Vec<EntryId> = [
-        "0193a8d0-6c1e-7f3a-9b2d-4e5f60719a2c",
-        "0193a8d0-6c1e-7f3a-9b2d-4e5f60729a2c",
-        "0193a8d0-6c1e-7f3a-9b2d-4e5f607100ff",
-    ]
-    .iter()
-    .map(|id| id.parse())
-    .collect::<Result<_, _>>()?;
-
-    let short = short_ids(&ids);
-
-    assert_eq!(short[&ids[0]], "19a2c");
-    assert_eq!(short[&ids[1]], "29a2c");
-    assert_eq!(short[&ids[2]], "00ff");
     Ok(())
 }
 

@@ -3,7 +3,7 @@
 use jiff::ZonedDateTime;
 use pace_core::{
     Change, Entry, EntryChanges, EntryId, EventKind, HoldSource, Outcome, PauseKind, ProjectRef,
-    RecordedEvent, State, Tag, short_ids,
+    RecordedEvent, State, Tag,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::format_duration;
@@ -30,19 +30,10 @@ pub fn counted(count: usize, noun: &str) -> String {
     }
 }
 
-/// The short ID of an entry, unique among the entries of `state`.
-#[must_use]
-pub fn short_id(state: &State, id: EntryId) -> String {
-    let ids: Vec<EntryId> = state.entries().map(|entry| entry.id).collect();
-    short_ids(&ids)
-        .remove(&id)
-        .unwrap_or_else(|| id.to_string())
-}
-
 /// The entry's short ID and its note, for a sentence.
 #[must_use]
 pub fn entry_name(state: &State, entry: &Entry) -> String {
-    let short = short_id(state, entry.id);
+    let short = state.short_id(entry.id);
     entry
         .note
         .as_ref()
@@ -127,7 +118,7 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
         } => paused(outcome, known(state, *entry)?, at, *kind, reason.as_deref()),
         EventKind::EntryResumed { entry } => resumed(state, known(state, *entry)?, at, now),
         EventKind::CatchNoted { entry, text } => {
-            format!("Caught \"{text}\" on {}.", short_id(state, *entry))
+            format!("Caught \"{text}\" on {}.", state.short_id(*entry))
         }
         EventKind::EntryLogged { entry, end, .. } => {
             let entry = known(state, *entry)?;
@@ -151,7 +142,7 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
             format!(
                 "Forgot {} ({}) for good. Its events are gone from this device; other \
                  devices remove theirs when they see this.",
-                short_id(before, entry.id),
+                before.short_id(entry.id),
                 times(entry, now)
             )
         }
@@ -192,19 +183,16 @@ fn took_back(before: &State, recorded: &RecordedEvent, now: &ZonedDateTime) -> P
             entry_name(before, known(before, *entry)?)
         ),
         EventKind::EntryHeld { entry, .. } => {
-            format!(
-                "Took back the hold of {} at {at}.",
-                short_id(before, *entry)
-            )
+            format!("Took back the hold of {} at {at}.", before.short_id(*entry))
         }
         EventKind::EntryPaused { entry, .. } => {
             format!(
                 "Took back the pause of {} at {at}.",
-                short_id(before, *entry)
+                before.short_id(*entry)
             )
         }
         EventKind::EntryResumed { entry } => {
-            format!("Took back resuming {} at {at}.", short_id(before, *entry))
+            format!("Took back resuming {} at {at}.", before.short_id(*entry))
         }
         EventKind::CatchNoted { text, .. } => {
             format!("Took back the caught thought \"{text}\".")
@@ -366,7 +354,7 @@ fn held(
     let why = reason.map_or_else(String::new, |reason| format!(": {reason}"));
     format!(
         "Held {} at {}{from}{why}.",
-        short_id(state, entry.id),
+        state.short_id(entry.id),
         clock(at, now)
     )
 }
@@ -388,7 +376,7 @@ fn paused(
     }
     format!(
         "Paused {} at {} {}.",
-        short_id(&outcome.state, entry.id),
+        outcome.state.short_id(entry.id),
         clock(at, &outcome.now),
         pause_kind(kind)
     )
@@ -404,7 +392,7 @@ fn reason_is_now(
 ) -> String {
     format!(
         "{} is {how} since {}; the reason is now: {}.",
-        short_id(&outcome.state, entry.id),
+        outcome.state.short_id(entry.id),
         clock(since, &outcome.now),
         reason.unwrap_or_default()
     )
@@ -435,7 +423,7 @@ fn resumed(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime
     });
     format!(
         "Resumed {} at {}{after}.",
-        short_id(state, entry.id),
+        state.short_id(entry.id),
         clock(at, now)
     )
 }

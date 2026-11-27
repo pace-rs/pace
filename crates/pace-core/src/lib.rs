@@ -36,7 +36,6 @@ pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId};
 pub use key::{ProjectKey, Tag};
 pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier, SequentialIds};
 pub use rules::{Policy, Rules};
-pub use short_id::short_ids;
 pub use state::{State, UndoTarget};
 pub use steps::{AfterAppend, Appending, Decided, Outcome, Reading};
 pub use tracking::{HoldSource, PauseKind};
