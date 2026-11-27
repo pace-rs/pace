@@ -11,6 +11,7 @@
 //! default fails with a usage error that names its flag. The flow ends with
 //! the [`FieldEdit`]s that write what the answers decided.
 
+pub mod add_client;
 pub mod add_role;
 
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -53,6 +54,36 @@ pub enum Answer {
     Choice(usize),
     /// Yes or no.
     YesNo(bool),
+}
+
+/// A field that a flow's record may go without: not asked yet, or
+/// answered with a value or with none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Optional<T> {
+    /// Still to ask.
+    Unasked,
+    /// Answered; `None` if the record goes without.
+    Answered(Option<T>),
+}
+
+impl<T> Optional<T> {
+    /// The answer; none if still unasked.
+    pub fn into_value(self) -> Option<T> {
+        match self {
+            Self::Unasked => None,
+            Self::Answered(value) => value,
+        }
+    }
+}
+
+/// What a flow tells the user of `error`, an answer it refuses: the
+/// message and its hint, such as "`thirty` is not a duration: write it
+/// like `15m`, `1h30m` or `1.5h`".
+#[must_use]
+pub fn told(error: &PaceError) -> String {
+    error
+        .hint()
+        .map_or_else(|| error.to_string(), |hint| format!("{error}: {hint}"))
 }
 
 /// A question that a flow asks.
@@ -115,7 +146,12 @@ pub trait Flow {
 
     /// The edits and what the flow made; call it once
     /// [`Flow::next_question`] gives `None`.
-    fn finish(self) -> Ended<Self::Made>;
+    ///
+    /// # Errors
+    ///
+    /// If an answer the flow needs is missing: a bug, as
+    /// [`Flow::next_question`] asks for it first.
+    fn finish(self) -> PaceResult<Ended<Self::Made>>;
 }
 
 /// What [`ask_flow`] ends with: the flow's edits and what it made, and a
@@ -159,7 +195,7 @@ pub fn ask_flow<F: Flow>(mut flow: F, asker: &dyn Ask) -> PaceResult<Asked<F::Ma
             defaults.push(question.default_note);
         }
     }
-    let Ended { edits, made } = flow.finish();
+    let Ended { edits, made } = flow.finish()?;
     Ok(Asked {
         edits,
         made,
@@ -305,17 +341,17 @@ mod tests {
             Ok(())
         }
 
-        fn finish(self) -> Ended<Self::Made> {
+        fn finish(self) -> PaceResult<Ended<Self::Made>> {
             let code = self.code.unwrap_or_default();
             let colour = self.colour.unwrap_or_default();
-            Ended {
+            Ok(Ended {
                 edits: vec![FieldEdit::set(
                     "paint.toml",
                     &[&code],
                     FieldValue::String(colour.clone()),
                 )],
                 made: (code, colour),
-            }
+            })
         }
     }
 

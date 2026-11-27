@@ -12,7 +12,7 @@ use pace_store::{
 };
 use pace_time::parse_duration;
 
-use crate::questions::{Answer, Ended, Flow, Question, QuestionKind};
+use crate::questions::{Answer, Ended, Flow, Optional, Question, QuestionKind, told};
 
 /// The kinds of role, in the order the question offers them; `area` first,
 /// as the default.
@@ -44,26 +44,6 @@ pub struct AddRoleFlow {
     kind: Option<RoleKind>,
     purpose: Optional<String>,
     weekly_target: Optional<SignedDuration>,
-}
-
-/// A field the role may go without: not asked yet, or answered with a
-/// value or with none.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Optional<T> {
-    /// Still to ask.
-    Unasked,
-    /// Answered; `None` if the role goes without.
-    Answered(Option<T>),
-}
-
-impl<T> Optional<T> {
-    /// The answer; none if still unasked.
-    fn into_value(self) -> Option<T> {
-        match self {
-            Self::Unasked => None,
-            Self::Answered(value) => value,
-        }
-    }
 }
 
 impl AddRoleFlow {
@@ -191,11 +171,7 @@ impl Flow for AddRoleFlow {
                 self.weekly_target = Optional::Answered(if target.is_empty() {
                     None
                 } else {
-                    Some(parse_duration(target).map_err(|error| {
-                        error
-                            .hint()
-                            .map_or_else(|| error.to_string(), |hint| format!("{error}: {hint}"))
-                    })?)
+                    Some(parse_duration(target).map_err(|error| told(&error))?)
                 });
             }
             (id, answer) => return Err(format!("{answer:?} is no answer to `{id}`")),
@@ -203,7 +179,7 @@ impl Flow for AddRoleFlow {
         Ok(())
     }
 
-    fn finish(self) -> Ended<Role> {
+    fn finish(self) -> PaceResult<Ended<Role>> {
         let role = Role {
             id: self.id,
             key: self.key,
@@ -213,10 +189,10 @@ impl Flow for AddRoleFlow {
             weekly_target: self.weekly_target.into_value(),
             archived: None,
         };
-        Ended {
+        Ok(Ended {
             edits: role_edits(&self.roles_file, &role),
             made: role,
-        }
+        })
     }
 }
 
