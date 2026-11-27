@@ -20,6 +20,7 @@ it; `project edit` also refuses a changed key or ID.
 | [`config.rs`](config.rs)             | `pace config`                                                                                                                       |
 | [`corrections.rs`](corrections.rs)   | Correcting the record: `adjust`, `log`, `undo`, `forget`.                                                                           |
 | [`edit.rs`](edit.rs)                 | `pace edit`: an entry as TOML in the user's editor; the changes become an adjustment.                                               |
+| [`entry_fields.rs`](entry_fields.rs) | The flags of an entry's role, who decided and billable, which `begin`, `log` and `adjust` share.                                    |
 | [`now.rs`](now.rs)                   | `pace now`: what is open, and where new entries go.                                                                                 |
 | [`project.rs`](project.rs)           | `pace project`: make the working directory a project, and add, list, archive and edit the project records in `projects/<key>.toml`. |
 | [`project_init.rs`](project_init.rs) | `pace project init`: make the working directory a project, with the record and the manifest that links the directory to it.         |

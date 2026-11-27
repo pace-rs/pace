@@ -1,0 +1,105 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace role add work --name Work   # at 08:50
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (Work, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace role add health --name Health   # at 08:51
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `health` (Health, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace begin Write offer --role work   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" in the role Work at 09:00.
+
+----- stderr -----
+
+$ pace adjust --role health --by-others --billable   # at 09:10
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write offer": role Health (was Work), decided by others, billable.
+
+----- stderr -----
+
+$ pace adjust --role  --by-me --not-billable   # at 09:20
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write offer": role removed (was Health), decided by me, not billable.
+
+----- stderr -----
+
+$ pace adjust --role wrok   # at 09:30
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace doesn't know the role `wrok`
+  help: did you mean `work`?
+
+
+$ pace adjust --role    # at 09:30
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing to change
+  help: give what to change, such as `--start`, `--note` or `--role`; `pace adjust --help` lists every flag
+
+
+--- home/events ---
+version = 1
+
+[[event]]
+id = "[ID-1]"
+type = "entry.begun"
+v = 1
+batch = "[ID-2]"
+at = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:00:00.000Z/0"
+entry = "[ID-3]"
+note = "Write offer"
+role = "[ID-4]"
+
+[[event]]
+id = "[ID-5]"
+type = "entry.adjusted"
+v = 1
+batch = "[ID-6]"
+at = "2026-11-26T09:10:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:10:00.000Z/0"
+entry = "[ID-3]"
+role = "[ID-7]"
+determined-by = "other"
+billable = true
+
+[[event]]
+id = "[ID-8]"
+type = "entry.adjusted"
+v = 1
+batch = "[ID-9]"
+at = "2026-11-26T09:20:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:20:00.000Z/0"
+entry = "[ID-3]"
+determined-by = "self"
+billable = false
+cleared = ["role"]

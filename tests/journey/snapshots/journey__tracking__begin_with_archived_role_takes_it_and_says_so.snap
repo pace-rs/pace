@@ -1,0 +1,29 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace role add health --name Health   # at 08:52
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `health` (Health, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace role archive health --reason inactive   # at 08:55
+success: true
+exit_code: 0
+----- stdout -----
+Archived the role `health` (Health) on 2026-11-26 as inactive.
+
+----- stderr -----
+
+$ pace begin Run --role health   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Run" in the role Health at 09:00.
+The role `health` was archived on 2026-11-26; pace took it all the same.
+
+----- stderr -----

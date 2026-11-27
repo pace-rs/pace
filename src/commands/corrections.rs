@@ -9,6 +9,7 @@ use pace_core::{
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::parse_duration;
 
+use crate::commands::entry_fields::{BillableFlags, DecidedFlags, entry_role, role_change};
 use crate::commands::tracking::{at, entry_tags, parse_moment, tags, text, track};
 use crate::prompt::Ask;
 use crate::select::{Target, chosen_entry, target_entry};
@@ -59,6 +60,19 @@ pub struct AdjustCmd {
     )]
     untags: Vec<String>,
 
+    #[arg(
+        long,
+        value_name = "KEY",
+        help = "A new role; \"\" gives it the project's role again"
+    )]
+    role: Option<String>,
+
+    #[command(flatten)]
+    decided: DecidedFlags,
+
+    #[command(flatten)]
+    billable: BillableFlags,
+
     #[arg(long, help = "Allow the entry to overlap another one")]
     allow_overlap: bool,
 }
@@ -83,8 +97,13 @@ impl Runnable for AdjustCmd {
                 project,
                 tag: tags(&self.tags)?,
                 untag: tags(&self.untags)?,
+                role: role_change(self.role.as_deref(), &context.catalog, notes)?,
+                determined_by: self
+                    .decided
+                    .determined_by()
+                    .map_or(Change::Keep, Change::Set),
+                billable: self.billable.billable().map_or(Change::Keep, Change::Set),
                 allow_overlap: self.allow_overlap,
-                ..Adjust::default()
             }))
         }));
     }
@@ -137,6 +156,19 @@ pub struct LogCmd {
     )]
     tags: Vec<String>,
 
+    #[arg(
+        long,
+        value_name = "KEY",
+        help = "The role its time went to; the project's if left out"
+    )]
+    role: Option<String>,
+
+    #[command(flatten)]
+    decided: DecidedFlags,
+
+    #[command(flatten)]
+    billable: BillableFlags,
+
     #[arg(long, help = "Allow the entry to overlap another one")]
     allow_overlap: bool,
 }
@@ -159,6 +191,9 @@ impl Runnable for LogCmd {
                 note: text(&self.note),
                 project,
                 tags: entry_tags(&self.tags, context.project.as_ref())?,
+                role: entry_role(self.role.as_deref(), &context.catalog, notes)?,
+                determined_by: self.decided.determined_by(),
+                billable: self.billable.billable(),
                 allow_overlap: self.allow_overlap,
                 ..Log::new(start, end)
             }))

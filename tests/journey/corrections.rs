@@ -1,24 +1,8 @@
 //! Correcting the log: adjust, log, edit, undo and forget.
 
-use crate::support::{Sandbox, begin_apart, run, short_id_after};
+use crate::support::{Sandbox, begin_apart, event_text, journey_and_events, run, short_id_after};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
-
-/// All event files of the sandbox, as one text; empty before the first event.
-fn event_text(sandbox: &Sandbox) -> Result<String, Box<dyn std::error::Error>> {
-    let mut text = String::new();
-    let events = sandbox.path("home/events");
-    if !events.is_dir() {
-        return Ok(text);
-    }
-    for device in std::fs::read_dir(events)? {
-        let file = device?.path().join("2026/2026-11.toml");
-        if file.is_file() {
-            text.push_str(&std::fs::read_to_string(file)?);
-        }
-    }
-    Ok(text)
-}
 
 #[test]
 fn adjust_changes_the_open_entry_or_the_last_one() -> TestResult {
@@ -430,5 +414,72 @@ fn edit_into_another_entry_needs_allow_overlap() -> TestResult {
     sandbox
         .settings()
         .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
+#[test]
+fn adjust_role_sets_role_and_empty_role_removes_it() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = journey_and_events(
+        &sandbox,
+        &[
+            ("08:50", &["role", "add", "work", "--name", "Work"]),
+            ("08:51", &["role", "add", "health", "--name", "Health"]),
+            ("09:00", &["begin", "Write offer", "--role", "work"]),
+            (
+                "09:10",
+                &["adjust", "--role", "health", "--by-others", "--billable"],
+            ),
+            (
+                "09:20",
+                &["adjust", "--role", "", "--by-me", "--not-billable"],
+            ),
+            ("09:30", &["adjust", "--role", "wrok"]),
+            ("09:30", &["adjust", "--role", ""]),
+        ],
+    )?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn log_with_role_names_role_and_records_decided_and_billable() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = journey_and_events(
+        &sandbox,
+        &[
+            ("08:50", &["role", "add", "work", "--name", "Work"]),
+            (
+                "12:00",
+                &[
+                    "log",
+                    "Call ACME",
+                    "--from",
+                    "09:00",
+                    "--to",
+                    "09:30",
+                    "--role",
+                    "work",
+                    "--by-others",
+                    "--billable",
+                ],
+            ),
+            (
+                "12:00",
+                &[
+                    "log",
+                    "Plan",
+                    "--from",
+                    "10:00",
+                    "--duration",
+                    "15m",
+                    "--by-me",
+                ],
+            ),
+        ],
+    )?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

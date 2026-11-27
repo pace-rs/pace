@@ -1,0 +1,64 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace role add work --name Work   # at 08:51
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (Work, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace begin Write offer --role wrok   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace doesn't know the role `wrok`
+  help: did you mean `work`?
+
+
+$ pace begin Write offer --role    # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `` is not a role key
+  help: a key has lowercase letters, digits and single dashes, like `work`
+
+
+$ pace begin Write offer --by-me --by-others   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+error: the argument '--by-me' cannot be used with '--by-others'
+
+Usage: pace begin --by-me <NOTE>...
+
+For more information, try '--help'.
+
+$ pace begin Write offer --billable --not-billable   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+error: the argument '--billable' cannot be used with '--not-billable'
+
+Usage: pace begin --billable <NOTE>...
+
+For more information, try '--help'.
+
+$ pace now   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Nothing is running.
+
+----- stderr -----

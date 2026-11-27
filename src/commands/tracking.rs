@@ -11,8 +11,9 @@ use pace_core::{
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{At, TimeRange, parse_at, relative_time};
 
+use crate::commands::entry_fields::{BillableFlags, DecidedFlags, entry_role};
 use crate::commands::now::recent_range_start;
-use crate::output::{describe_outcome, project_label};
+use crate::output::{billable_label, decided_label, describe_outcome, project_label, role_label};
 use crate::print::print_lines;
 use crate::prompt::Ask;
 use crate::select::{Target, target_entry};
@@ -185,13 +186,26 @@ pub struct BeginCmd {
     )]
     tags: Vec<String>,
 
+    #[arg(
+        long,
+        value_name = "KEY",
+        help = "The role its time goes to; the project's if left out"
+    )]
+    role: Option<String>,
+
+    #[command(flatten)]
+    decided: DecidedFlags,
+
+    #[command(flatten)]
+    billable: BillableFlags,
+
     #[arg(long, help = "Allow the entry to overlap another one")]
     allow_overlap: bool,
 
     #[arg(
         long,
         conflicts_with_all = ["note", "tags", "project"],
-        help = "Begin a recent entry again: same note, project and tags"
+        help = "Begin a recent entry again: same note, project, tags, role, who decided and billable"
     )]
     again: bool,
 }
@@ -200,6 +214,9 @@ impl Runnable for BeginCmd {
     fn run(&self) {
         exit_on_error(track(|session, context, notes| {
             let at = at(self.at.as_deref(), &session.now(), &context.terminal, notes)?;
+            let role = entry_role(self.role.as_deref(), &context.catalog, notes)?;
+            let determined_by = self.decided.determined_by();
+            let billable = self.billable.billable();
             if self.again {
                 refuse_project_flag(context.project.as_ref())?;
                 let count = context.settings.settings.most_recent_count;
@@ -212,6 +229,9 @@ impl Runnable for BeginCmd {
                 }
                 return Ok(UseCase::Begin(Begin {
                     at,
+                    role: role.or(again.role),
+                    determined_by: determined_by.or(again.determined_by),
+                    billable: billable.or(again.billable),
                     allow_overlap: self.allow_overlap,
                     ..again
                 }));
@@ -225,8 +245,10 @@ impl Runnable for BeginCmd {
                 note: text(&self.note),
                 project,
                 tags: entry_tags(&self.tags, context.project.as_ref())?,
+                role,
+                determined_by,
+                billable,
                 allow_overlap: self.allow_overlap,
-                ..Begin::default()
             }))
         }));
     }
@@ -247,7 +269,8 @@ fn refuse_project_flag(project: Option<&Project>) -> PaceResult<()> {
     }
 }
 
-/// Note, project and tags of a recent entry, picked by the user.
+/// Note, project, tags, role, who decided and billable of a recent entry,
+/// picked by the user.
 fn again(session: &Session, context: &Context, count: usize) -> PaceResult<Begin> {
     let now = session.now();
     let recent = TimeRange::new(Some(recent_range_start(&now)), Some(now.clone()))?;
@@ -260,9 +283,10 @@ fn again(session: &Session, context: &Context, count: usize) -> PaceResult<Begin
     )
 }
 
-/// Note, project and tags of one of the `count` most recent entries of
-/// `state` that differ in them: the only one, or the one the user picks.
-/// A project with a record in `catalog` shows its name.
+/// Note, project, tags, role, who decided and billable of one of the
+/// `count` most recent entries of `state` that differ in them: the only
+/// one, or the one the user picks. A project or a role with a record in
+/// `catalog` shows its name.
 fn again_from(
     state: &State,
     now: &ZonedDateTime,
@@ -282,6 +306,9 @@ fn again_from(
                 .and_then(|note| Text::try_from(note).ok()),
             project: entry.project.clone(),
             tags: entry.tags.clone(),
+            role: entry.role,
+            determined_by: entry.determined_by,
+            billable: entry.billable,
             ..Begin::default()
         };
         if candidates.contains(&candidate) {
@@ -330,6 +357,11 @@ fn label(entry: &Entry, now: &ZonedDateTime, catalog: &Catalog) -> String {
         let tags: Vec<&str> = entry.tags.iter().map(Tag::as_str).collect();
         parts.push(format!("tags {}", tags.join(", ")));
     }
+    if let Some(role) = entry.role {
+        parts.push(format!("role {}", role_label(role, catalog)));
+    }
+    parts.extend(entry.determined_by.map(decided_label).map(str::to_owned));
+    parts.extend(entry.billable.map(billable_label).map(str::to_owned));
     parts.push(format!("last {}", relative_time(&entry.start, now)));
     parts.join(", ")
 }
@@ -562,6 +594,49 @@ mod tests {
         assert_eq!(
             label(&entry(ProjectRef::Id(id.parse().unwrap())), &now, &catalog),
             "\"Standup\", project Gamma relaunch, last 3 hours ago"
+        );
+    }
+
+    #[test]
+    fn label_names_own_role_who_decided_and_billable() {
+        let now: ZonedDateTime = "2026-11-26T12:00[Europe/Berlin]".parse().unwrap();
+        let role_id = "0193a7c4-0000-7000-8000-0000000000a1";
+        let entry = Entry {
+            id: "0193a8d0-000a-7000-8000-000000000001".parse().unwrap(),
+            device: "0193a8d0-000d-7000-8000-000000000001".parse().unwrap(),
+            start: "2026-11-26T09:00[Europe/Berlin]".parse().unwrap(),
+            end: Some("2026-11-26T10:00[Europe/Berlin]".parse().unwrap()),
+            project: None,
+            note: Some("Standup".to_owned()),
+            tags: BTreeSet::new(),
+            role: Some(role_id.parse().unwrap()),
+            determined_by: Some(pace_core::DeterminedBy::Others),
+            billable: Some(false),
+            allow_overlap: false,
+            holds: Vec::new(),
+            pauses: Vec::new(),
+            catches: Vec::new(),
+            origin: pace_core::EntryOrigin::Live,
+            filed: "2026-11-26T09:00[Europe/Berlin]".parse().unwrap(),
+        };
+        let role = pace_core::Role {
+            id: role_id.parse().unwrap(),
+            key: "work".parse().unwrap(),
+            kind: pace_core::RoleKind::Area,
+            name: "Work".to_owned(),
+            purpose: None,
+            weekly_target: None,
+            archived: None,
+        };
+        let catalog = Catalog::new(vec![role], Vec::new(), Vec::new()).unwrap();
+
+        assert_eq!(
+            label(&entry, &now, &catalog),
+            "\"Standup\", role Work, by others, not billable, last 3 hours ago"
+        );
+        assert_eq!(
+            label(&entry, &now, &Catalog::default()),
+            format!("\"Standup\", role {role_id}, by others, not billable, last 3 hours ago")
         );
     }
 

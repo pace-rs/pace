@@ -287,7 +287,7 @@ impl Rules<'_> {
         if changes.is_empty() {
             return Err(nothing_to_do(
                 "nothing to change",
-                "give `--start`, `--end`, `--note`, `--project`, `--tag`, `--untag` or `--allow-overlap`",
+                "give what to change, such as `--start`, `--note` or `--role`; `pace adjust --help` lists every flag",
             ));
         }
         if changes.start.is_some() || changes.end.is_some() {

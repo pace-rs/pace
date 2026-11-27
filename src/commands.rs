@@ -5,6 +5,7 @@ pub mod completions;
 pub mod config;
 pub mod corrections;
 pub mod edit;
+pub mod entry_fields;
 pub mod now;
 pub mod project;
 pub mod project_init;

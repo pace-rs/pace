@@ -42,6 +42,35 @@ pub(crate) fn short_id_after(output: &str, prefix: &str) -> Result<String, Strin
         .ok_or_else(|| format!("no line starts with {prefix:?} and a short ID"))
 }
 
+/// All event files of the sandbox, as one text; empty before the first event.
+pub(crate) fn event_text(sandbox: &Sandbox) -> Result<String, Box<dyn std::error::Error>> {
+    let mut text = String::new();
+    let events = sandbox.path("home/events");
+    if !events.is_dir() {
+        return Ok(text);
+    }
+    for device in std::fs::read_dir(events)? {
+        let file = device?.path().join("2026/2026-11.toml");
+        if file.is_file() {
+            text.push_str(&std::fs::read_to_string(file)?);
+        }
+    }
+    Ok(text)
+}
+
+/// The transcript of `steps`, then the event files as pace left them.
+pub(crate) fn journey_and_events(
+    sandbox: &Sandbox,
+    steps: &[(&str, &[&str])],
+) -> Result<String, Box<dyn std::error::Error>> {
+    let transcript = sandbox.journey(steps)?;
+    let events = event_text(sandbox)?;
+    Ok(format!(
+        "{transcript}--- home/events ---\n{}",
+        sandbox.redact_ids(&events)?
+    ))
+}
+
 /// An entry begun on another machine, apart: it has its own data
 /// directory, which is then synced into this one.
 pub(crate) fn begin_apart(

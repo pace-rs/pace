@@ -235,6 +235,31 @@ impl RoleArchiveCmd {
     }
 }
 
+/// The role `key` of `catalog`, archived or not.
+///
+/// # Errors
+///
+/// If `catalog` has no role `key`: the error names the closest key, else
+/// the command that lists the roles.
+pub(crate) fn known_role<'catalog>(
+    catalog: &'catalog Catalog,
+    key: &RoleKey,
+) -> PaceResult<&'catalog Role> {
+    catalog.role(key).ok_or_else(|| {
+        let hint = closest_name(key.as_str(), catalog.roles().map(|role| role.key.as_str()))
+            .map_or_else(
+                || "`pace role list` shows the roles".to_owned(),
+                |closest| format!("did you mean `{closest}`?"),
+            );
+        PaceError::new(
+            ErrorKind::InvalidInput,
+            "pace doesn't know the role `{key}`",
+        )
+        .attach_context("key", key.to_string())
+        .attach_hint(hint)
+    })
+}
+
 /// The role `key` of `catalog`, and the edit of `roles_file` that archives
 /// it as `archived` says.
 ///
@@ -248,19 +273,7 @@ fn archive_edit<'catalog>(
     key: &RoleKey,
     archived: Archived,
 ) -> PaceResult<(&'catalog Role, FieldEdit)> {
-    let Some(role) = catalog.role(key) else {
-        let hint = closest_name(key.as_str(), catalog.roles().map(|role| role.key.as_str()))
-            .map_or_else(
-                || "`pace role list` shows the roles".to_owned(),
-                |closest| format!("did you mean `{closest}`?"),
-            );
-        return Err(PaceError::new(
-            ErrorKind::InvalidInput,
-            "pace doesn't know the role `{key}`",
-        )
-        .attach_context("key", key.to_string())
-        .attach_hint(hint));
-    };
+    let role = known_role(catalog, key)?;
     if let Some(earlier) = role.archived {
         return Err(PaceError::new(
             ErrorKind::InvalidInput,

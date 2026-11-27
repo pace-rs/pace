@@ -1,0 +1,57 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace role add work --name Work   # at 08:50
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (Work, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace log Call ACME --from 09:00 --to 09:30 --role work --by-others --billable   # at 12:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-1] "Call ACME" in the role Work from 09:00 to 09:30 (30m).
+
+----- stderr -----
+
+$ pace log Plan --from 10:00 --duration 15m --by-me   # at 12:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-2] "Plan" from 10:00 to 10:15 (15m).
+
+----- stderr -----
+
+--- home/events ---
+version = 1
+
+[[event]]
+id = "[ID-1]"
+type = "entry.logged"
+v = 1
+batch = "[ID-2]"
+at = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T11:00:00.000Z/0"
+entry = "[ID-3]"
+note = "Call ACME"
+role = "[ID-4]"
+determined-by = "other"
+billable = true
+end = "2026-11-26T09:30:00+01:00[Europe/Berlin]"
+
+[[event]]
+id = "[ID-5]"
+type = "entry.logged"
+v = 1
+batch = "[ID-6]"
+at = "2026-11-26T10:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T11:00:00.000Z/1"
+entry = "[ID-7]"
+note = "Plan"
+determined-by = "self"
+end = "2026-11-26T10:15:00+01:00[Europe/Berlin]"

@@ -3,8 +3,8 @@
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Catalog, Change, Entry, EntryChanges, EntryId, EventKind, HoldSource, Outcome, PauseKind,
-    ProjectRef, RecordedEvent, State, Tag,
+    Catalog, Change, DeterminedBy, Entry, EntryChanges, EntryId, EventKind, HoldSource, Outcome,
+    PauseKind, ProjectRef, RecordedEvent, RoleId, State, Tag,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{format_duration, format_moment};
@@ -78,6 +78,36 @@ pub fn project_label(project: &ProjectRef, catalog: &Catalog) -> String {
         .map_or_else(|| project_name(project), |record| record.name.clone())
 }
 
+/// A role as the user knows it: its name in `catalog`, else its ID.
+#[must_use]
+pub fn role_label(role: RoleId, catalog: &Catalog) -> String {
+    catalog
+        .role_by_id(role)
+        .map_or_else(|| role.to_string(), |role| role.name.clone())
+}
+
+/// Who decided, as the flags say it: `by me`, `by others`.
+#[must_use]
+pub const fn decided_label(determined_by: DeterminedBy) -> &'static str {
+    match determined_by {
+        DeterminedBy::Me => "by me",
+        DeterminedBy::Others => "by others",
+    }
+}
+
+/// `billable` or `not billable`.
+#[must_use]
+pub const fn billable_label(billable: bool) -> &'static str {
+    if billable { "billable" } else { "not billable" }
+}
+
+/// ` in the role Work` for an entry with a role of its own, else nothing.
+fn in_role(entry: &Entry, catalog: &Catalog) -> String {
+    entry.role.map_or_else(String::new, |role| {
+        format!(" in the role {}", role_label(role, catalog))
+    })
+}
+
 /// One line per event the command appended; for an undo, what it took
 /// back. A project with a record in `catalog` goes by its name.
 ///
@@ -112,11 +142,15 @@ fn recorded_line(
     let (state, before, now) = (&outcome.state, &outcome.before, &outcome.now);
     let at = &recorded.event.at;
     let line = match &recorded.event.kind {
-        EventKind::EntryBegun { entry, .. } => format!(
-            "Began {} at {}.",
-            state.entry_name(known(state, *entry)?),
-            format_moment(at, now)
-        ),
+        EventKind::EntryBegun { entry, .. } => {
+            let entry = known(state, *entry)?;
+            format!(
+                "Began {}{} at {}.",
+                state.entry_name(entry),
+                in_role(entry, catalog),
+                format_moment(at, now)
+            )
+        }
         EventKind::EntryEnded { entry } => ended(state, known(state, *entry)?, at, now),
         EventKind::EntryHeld {
             entry,
@@ -141,8 +175,9 @@ fn recorded_line(
         EventKind::EntryLogged { entry, end, .. } => {
             let entry = known(state, *entry)?;
             format!(
-                "Logged {} from {} to {} ({}).",
+                "Logged {}{} from {} to {} ({}).",
                 state.entry_name(entry),
+                in_role(entry, catalog),
                 format_moment(at, now),
                 format_moment(end, now),
                 format_duration(entry.net(now))
@@ -311,6 +346,7 @@ fn adjusted(
             parts.push(format!("untagged {}", removed.join(", ")));
         }
     }
+    parts.extend(marks_changed(before, changes, catalog));
     if changes.allow_overlap {
         parts.push("overlap allowed".to_owned());
     }
@@ -324,6 +360,31 @@ fn adjusted(
         state.entry_name(after),
         parts.join(", ")
     )
+}
+
+/// The parts of an adjustment of role, who decided and billable:
+/// `role Work (was Health)`, `decided by others`, `not billable`.
+fn marks_changed(before: &Entry, changes: &EntryChanges, catalog: &Catalog) -> Vec<String> {
+    let mut parts = Vec::new();
+    parts.extend(changed(
+        "role",
+        &changes.role,
+        before.role.as_ref(),
+        |role| role_label(*role, catalog),
+    ));
+    match &changes.determined_by {
+        Change::Keep => {}
+        Change::Set(determined_by) => {
+            parts.push(format!("decided {}", decided_label(*determined_by)));
+        }
+        Change::Clear => parts.push("who decided removed".to_owned()),
+    }
+    match &changes.billable {
+        Change::Keep => {}
+        Change::Set(billable) => parts.push(billable_label(*billable).to_owned()),
+        Change::Clear => parts.push("billable as its project".to_owned()),
+    }
+    parts
 }
 
 /// `note "new" (was "old")`, `note removed (was "old")`, `note "new" (had none)`.

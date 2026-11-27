@@ -26,7 +26,7 @@ exit_code: 3
 
 ----- stderr -----
   × nothing to change
-  help: give `--start`, `--end`, `--note`, `--project`, `--tag`, `--untag` or `--allow-overlap`
+  help: give what to change, such as `--start`, `--note` or `--role`; `pace adjust --help` lists every flag
 
 
 $ pace end   # at 10:00

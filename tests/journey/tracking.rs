@@ -1,6 +1,6 @@
 //! Tracking with a fixed clock: begin, hold, pause, resume, catch, end.
 
-use crate::support::{Sandbox, run, short_id_after};
+use crate::support::{Sandbox, journey_and_events, run, short_id_after};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -368,6 +368,114 @@ fn end_at_ends_entry_earlier() -> TestResult {
         ("09:00", &["begin", "Write offer"]),
         ("11:00", &["end", "--at", "10:30"]),
     ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+/// The client `acme`, whose projects are billable, the roles `work` and
+/// `health`, and the project `webshop` of `acme` without a role.
+const WEBSHOP_WORK_AND_HEALTH: [(&str, &[&str]); 4] = [
+    ("08:50", &["client", "add", "acme", "--currency", "EUR"]),
+    ("08:51", &["role", "add", "work", "--name", "Work"]),
+    ("08:52", &["role", "add", "health", "--name", "Health"]),
+    ("08:53", &["project", "add", "webshop", "--client", "acme"]),
+];
+
+#[test]
+fn begin_with_role_by_others_and_not_billable_records_all_three() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    let begin: (&str, &[&str]) = (
+        "09:00",
+        &[
+            "--project",
+            "webshop",
+            "begin",
+            "Write offer",
+            "--role",
+            "work",
+            "--by-others",
+            "--not-billable",
+        ],
+    );
+
+    let output = journey_and_events(
+        &sandbox,
+        &[
+            WEBSHOP_WORK_AND_HEALTH[0],
+            WEBSHOP_WORK_AND_HEALTH[1],
+            WEBSHOP_WORK_AND_HEALTH[2],
+            WEBSHOP_WORK_AND_HEALTH[3],
+            begin,
+        ],
+    )?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn begin_refuses_unknown_role_naming_closest_and_both_flags_of_pair() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        WEBSHOP_WORK_AND_HEALTH[1],
+        ("09:00", &["begin", "Write offer", "--role", "wrok"]),
+        ("09:00", &["begin", "Write offer", "--role", ""]),
+        ("09:00", &["begin", "Write offer", "--by-me", "--by-others"]),
+        (
+            "09:00",
+            &["begin", "Write offer", "--billable", "--not-billable"],
+        ),
+        ("09:00", &["now"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn begin_with_archived_role_takes_it_and_says_so() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        WEBSHOP_WORK_AND_HEALTH[2],
+        (
+            "08:55",
+            &["role", "archive", "health", "--reason", "inactive"],
+        ),
+        ("09:00", &["begin", "Run", "--role", "health"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn begin_again_copies_role_decided_and_billable_unless_flag_overrides() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = journey_and_events(
+        &sandbox,
+        &[
+            WEBSHOP_WORK_AND_HEALTH[1],
+            WEBSHOP_WORK_AND_HEALTH[2],
+            (
+                "09:00",
+                &[
+                    "begin",
+                    "Write offer",
+                    "--role",
+                    "work",
+                    "--by-others",
+                    "--billable",
+                ],
+            ),
+            ("10:00", &["end"]),
+            ("10:30", &["begin", "--again"]),
+            ("11:00", &["end"]),
+            (
+                "11:30",
+                &["begin", "--again", "--role", "health", "--by-me"],
+            ),
+        ],
+    )?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
