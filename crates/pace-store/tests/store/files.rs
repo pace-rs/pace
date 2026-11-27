@@ -668,6 +668,42 @@ fn forgotten_entry_leaves_every_own_file_that_holds_it() -> TestResult {
 }
 
 #[test]
+fn forgotten_entry_leaves_undo_of_other_command_in_file() -> TestResult {
+    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+    let tracker = setup.tracker(Split::Month);
+    let logged = tracker.run(&Command::Log(Log::new(
+        at("2026-11-26T07:00[Europe/Berlin]")?,
+        at("2026-11-26T08:00[Europe/Berlin]")?,
+    )))?;
+    setup.clock.set(at("2026-11-26T09:01[Europe/Berlin]")?);
+    _ = tracker.run(&Command::Undo)?;
+    setup.clock.set(at("2026-11-26T09:02[Europe/Berlin]")?);
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
+    let state = tracker.state(&TimeRange::everything())?;
+    let running = state.open().next().map(|entry| entry.id).ok_or("running")?;
+    setup.clock.set(at("2026-11-26T09:03[Europe/Berlin]")?);
+
+    _ = tracker.run(&Command::Forget(Forget { entry: running }))?;
+
+    let text = event_text(&setup)?;
+    let batch = logged.recorded.first().ok_or("the log's event")?.batch;
+    assert!(
+        text.contains("type = \"batch.undone\""),
+        "the undo stays: {text}"
+    );
+    assert!(text.contains(&format!("undoes = \"{batch}\"")), "{text}");
+    assert!(
+        tracker
+            .state(&TimeRange::everything())?
+            .entries()
+            .next()
+            .is_none(),
+        "the logged entry stays undone"
+    );
+    Ok(())
+}
+
+#[test]
 fn begin_raced_by_another_process_decides_again_and_switches_from_it() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
     _ = setup.tracker(Split::Month).run(&Command::Log(Log::new(

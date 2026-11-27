@@ -248,6 +248,43 @@ fn clock_reading_out_of_range_in_cursors_stops_writing() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn clock_reading_out_of_range_in_index_stops_writing() -> TestResult {
+    let dir = scratch_dir()?;
+    let home = dir.path().join("home");
+    let machine_dir = dir.path().join("machine");
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
+    let tracker = machine(&home, &machine_dir, device, &clock, 1);
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
+    _ = tracker.state(&TimeRange::everything())?;
+    let index = machine_dir.join("index.json");
+    let mut json: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&index)?)?;
+    let files = json
+        .get_mut("files")
+        .and_then(serde_json::Value::as_object_mut)
+        .ok_or("the index lists its files")?;
+    for summary in files.values_mut() {
+        summary["max_hlc"] = serde_json::json!([i64::MAX, 0]);
+    }
+    std::fs::write(&index, json.to_string())?;
+    clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
+
+    let error = tracker
+        .run(&Command::End(End::default()))
+        .err()
+        .ok_or("an unknown clock reading must not turn the clone check off")?;
+
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "{} holds the clock reading 9223372036854775807 ms, outside the range pace knows",
+            index.display()
+        )
+    );
+    Ok(())
+}
+
 #[rstest]
 #[case::cursors("machine/cursors.toml")]
 #[case::device_file("home/events/0193a8d0-000d-7000-8000-000000000001/device.toml")]
