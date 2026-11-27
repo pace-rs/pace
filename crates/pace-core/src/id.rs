@@ -65,15 +65,20 @@ macro_rules! uuid_v7_id {
     };
 }
 
+/// The UUIDv7 `text` stands for. Text that is no UUID keeps uuid's error as
+/// the cause.
 fn parse_v7(text: &str) -> Result<Uuid, Box<PaceError>> {
-    Uuid::parse_str(text)
-        .ok()
-        .filter(|uuid| uuid.get_version() == Some(Version::SortRand))
-        .ok_or_else(|| {
-            PaceError::new(ErrorKind::InvalidInput, "`{id}` is not a UUIDv7")
-                .attach_context("id", text)
-                .attach_hint("pace writes its IDs itself; copy the ID pace printed")
-        })
+    let not_v7 = || {
+        PaceError::new(ErrorKind::InvalidInput, "`{id}` is not a UUIDv7")
+            .attach_context("id", text)
+            .attach_hint("pace writes its IDs itself; copy the ID pace printed")
+    };
+    let uuid = Uuid::parse_str(text).map_err(|error| not_v7().attach_source(error))?;
+    if uuid.get_version() == Some(Version::SortRand) {
+        Ok(uuid)
+    } else {
+        Err(not_v7())
+    }
 }
 
 uuid_v7_id!(
@@ -96,3 +101,31 @@ uuid_v7_id!(
     /// Identity of a project; its key can change, its ID never does.
     ProjectId
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn text_that_is_no_uuid_keeps_uuids_error_as_its_cause() {
+        let error = "acme".parse::<EntryId>().err();
+
+        let cause = error
+            .as_deref()
+            .and_then(std::error::Error::source)
+            .map(ToString::to_string);
+        assert!(cause.is_some_and(|cause| !cause.is_empty()), "{error:?}");
+    }
+
+    #[test]
+    fn uuid_of_another_version_is_no_id() {
+        let error = "67e55044-10b1-426f-9247-bb680e5fe0c8"
+            .parse::<EntryId>()
+            .err();
+
+        assert_eq!(
+            error.map(|error| error.to_string()).as_deref(),
+            Some("`67e55044-10b1-426f-9247-bb680e5fe0c8` is not a UUIDv7")
+        );
+    }
+}
