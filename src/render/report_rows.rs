@@ -6,10 +6,11 @@
 
 use jiff::SignedDuration;
 use pace_core::{
-    BudgetUse, Catalog, Charge, ClientRevenue, HoldSource, PauseKind, ProjectRef, ProjectRevenue,
-    Report, ReportWarning, RoleId, RoleTarget, State, TimeShare,
+    BudgetUse, Catalog, Charge, ClientRevenue, PauseKind, ProjectRef, ProjectRevenue, Report,
+    ReportWarning, RoleId, RoleTarget, State, TimeShare,
 };
 
+use crate::config::hold_source_name;
 use crate::render::{
     percent,
     schema::{Column, Length, Row},
@@ -253,11 +254,7 @@ fn interruption_rows(report: &Report) -> Vec<Row> {
             .duration(Length::Held, holds.time),
     ];
     all.extend(holds.by_source.iter().map(|share| {
-        let source = match share.source {
-            HoldSource::Inner => "inner",
-            HoldSource::Outer => "outer",
-            HoldSource::Unknown => "unknown",
-        };
+        let source = hold_source_name(share.source);
         Row::of("interruptions", "source")
             .text(Column::Key, source)
             .count(share.count)

@@ -3,11 +3,12 @@
 
 use jiff::{SignedDuration, ZonedDateTime, civil::Date, tz::TimeZone};
 use pace_core::{
-    BudgetUse, Catalog, Charge, ClientRevenue, HoldSource, PauseKind, ProjectRevenue, Report,
-    ReportWarning, RoleTarget, State,
+    BudgetUse, Catalog, Charge, ClientRevenue, PauseKind, ProjectRevenue, Report, ReportWarning,
+    RoleTarget, State,
 };
 use pace_time::{TimeFrame, format_duration, format_moment};
 
+use crate::config::hold_source_name;
 use crate::output::{counted, project_label, role_label};
 use crate::render::{Canvas, percent};
 
@@ -461,11 +462,7 @@ fn holds_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         .by_source
         .iter()
         .map(|share| {
-            let name = match share.source {
-                HoldSource::Inner => "inner",
-                HoldSource::Outer => "outer",
-                HoldSource::Unknown => "unknown",
-            };
+            let name = hold_source_name(share.source);
             if share.count == 0 {
                 format!("{name} 0")
             } else {

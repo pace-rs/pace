@@ -21,6 +21,7 @@ kind of value. `config.rs` itself loads the layers.
 
 - Uses: no other module.
 - Used by: [`application`](../application.rs), [`clock`](../clock.rs),
-  [`commands`](../commands/), [`project`](../project.rs), [`setup`](../setup/).
+  [`commands`](../commands/), [`project`](../project.rs),
+  [`render`](../render/), [`setup`](../setup/).
 
 <!-- /uses -->

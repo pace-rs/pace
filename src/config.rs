@@ -24,12 +24,10 @@ use pace_store::toml_file::{TomlFile, TomlKey, TomlValue, read_hint};
 
 pub(crate) use self::key::Key;
 pub use self::values::TimeZoneSetting;
+pub(crate) use self::values::hold_source_name;
 use self::{
     key::Kind,
-    values::{
-        Value, hold_source_name, parse_count, parse_hold_source, parse_time_zone, parse_weekday,
-        weekday_name,
-    },
+    values::{Value, parse_count, parse_hold_source, parse_time_zone, parse_weekday, weekday_name},
 };
 use crate::{dirs::Located, origin::Origin};
 

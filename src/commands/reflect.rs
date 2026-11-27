@@ -1,4 +1,4 @@
-//! `pace reflect`: the report of a period, drawn as a table.
+//! `pace reflect`: the report of a period, as a table, JSON or CSV.
 
 use std::collections::BTreeSet;
 

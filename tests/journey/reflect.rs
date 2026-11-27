@@ -625,3 +625,38 @@ fn json_names_warnings_and_time_without_rate() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn json_and_csv_of_empty_period_write_rows_and_exit_zero() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = sandbox.journey(&[
+        ("15:00", &["reflect", "last-week", "--format", "json"]),
+        ("15:00", &["reflect", "last-week", "--format", "csv"]),
+    ])?;
+
+    assert!(!output.contains("Nothing tracked"), "{output}");
+    assert!(
+        output.contains("\"group\": \"tracked\",") && output.contains("\"net_seconds\": 0,"),
+        "{output}"
+    );
+    assert!(output.contains("\ntime,tracked,"), "{output}");
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn json_without_any_entry_writes_rows() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox
+        .pace_at("15:00")
+        .args(["reflect", "today", "--format", "json"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.starts_with("{\n  \"version\": 1,"), "{stdout}");
+    assert!(!stdout.contains("Nothing tracked"), "{stdout}");
+    Ok(())
+}

@@ -1,0 +1,188 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect last-week --format json   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+{
+  "version": 1,
+  "kind": "reflect",
+  "rows": [
+    {
+      "part": "time",
+      "group": "tracked",
+      "start": "2026-11-16T00:00:00+01:00[Europe/Berlin]",
+      "end": "2026-11-23T00:00:00+01:00[Europe/Berlin]",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "untracked",
+      "net_seconds": 604800,
+      "net": "168h"
+    },
+    {
+      "part": "time",
+      "group": "project",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-16",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-17",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-18",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-19",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-20",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-21",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-22",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "target",
+      "group": "role",
+      "key": "work",
+      "id": "[ID-1]",
+      "name": "Work",
+      "net_seconds": 0,
+      "net": "0s",
+      "percent": 0,
+      "target_seconds": 108000,
+      "target": "30h",
+      "running": false
+    },
+    {
+      "part": "interruptions",
+      "group": "total",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s"
+    },
+    {
+      "part": "interruptions",
+      "group": "source",
+      "key": "inner",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s"
+    },
+    {
+      "part": "interruptions",
+      "group": "source",
+      "key": "outer",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s"
+    },
+    {
+      "part": "interruptions",
+      "group": "source",
+      "key": "unknown",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s"
+    },
+    {
+      "part": "decided",
+      "group": "determined_by",
+      "key": "self",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "decided",
+      "group": "determined_by",
+      "key": "other",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    },
+    {
+      "part": "decided",
+      "group": "determined_by",
+      "key": "unmarked",
+      "net_seconds": 0,
+      "net": "0s",
+      "running": false
+    }
+  ]
+}
+
+----- stderr -----
+
+$ pace reflect last-week --format csv   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+part,group,key,id,short,name,client,date,start,end,count,net_seconds,net,percent,target_seconds,target,budget_seconds,budget,billed_seconds,billed,held_seconds,held,paused_seconds,paused,amount,currency,reason,note,other_id,other_short,running
+time,tracked,,,,,,,2026-11-16T00:00:00+01:00[Europe/Berlin],2026-11-23T00:00:00+01:00[Europe/Berlin],,0,0s,,,,,,,,,,,,,,,,,,false
+time,untracked,,,,,,,,,,604800,168h,,,,,,,,,,,,,,,,,,
+time,project,,,,,,,,,,0,0s,,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-16,,,,0,0s,,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-17,,,,0,0s,,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-18,,,,0,0s,,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-19,,,,0,0s,,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-20,,,,0,0s,,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-21,,,,0,0s,,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-22,,,,0,0s,,,,,,,,,,,,,,,,,,false
+target,role,work,[ID-1],,Work,,,,,,0,0s,0,108000,30h,,,,,,,,,,,,,,,false
+interruptions,total,,,,,,,,,0,,,,,,,,,,0,0s,,,,,,,,,
+interruptions,source,inner,,,,,,,,0,,,,,,,,,,0,0s,,,,,,,,,
+interruptions,source,outer,,,,,,,,0,,,,,,,,,,0,0s,,,,,,,,,
+interruptions,source,unknown,,,,,,,,0,,,,,,,,,,0,0s,,,,,,,,,
+decided,determined_by,self,,,,,,,,,0,0s,,,,,,,,,,,,,,,,,,false
+decided,determined_by,other,,,,,,,,,0,0s,,,,,,,,,,,,,,,,,,false
+decided,determined_by,unmarked,,,,,,,,,0,0s,,,,,,,,,,,,,,,,,,false
+
+----- stderr -----

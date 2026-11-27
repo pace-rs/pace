@@ -26,7 +26,7 @@ row per line of the report, each with its `part` and `group`.
 
 <!-- uses -->
 
-- Uses: [`output`](../output.rs).
+- Uses: [`config`](../config/), [`output`](../output.rs).
 - Used by: [`commands`](../commands/).
 
 <!-- /uses -->
