@@ -1,9 +1,9 @@
 //! Asking the user, only when a terminal is attached: the [`Ask`] trait and
 //! the [`Terminal`] that the edge finds once.
 
-use std::io::IsTerminal;
+use std::{fmt, io::IsTerminal};
 
-use dialoguer::{Confirm, Select, theme::SimpleTheme};
+use dialoguer::{Confirm, Select, theme::Theme};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 
 /// How pace asks the user. The edge finds the [`Terminal`] once and passes
@@ -55,6 +55,26 @@ impl Terminal {
     }
 }
 
+/// dialoguer's plain theme, but a choice's question keeps its question
+/// mark, without the colon dialoguer adds: "Which open entry?", not
+/// "Which open entry?:".
+struct Questions;
+
+impl Theme for Questions {
+    fn format_select_prompt(&self, f: &mut dyn fmt::Write, prompt: &str) -> fmt::Result {
+        write!(f, "{prompt}")
+    }
+
+    fn format_select_prompt_selection(
+        &self,
+        f: &mut dyn fmt::Write,
+        prompt: &str,
+        selection: &str,
+    ) -> fmt::Result {
+        write!(f, "{prompt} {selection}")
+    }
+}
+
 impl Ask for Terminal {
     fn can_ask(&self) -> bool {
         self.attached
@@ -64,7 +84,7 @@ impl Ask for Terminal {
         if !self.attached {
             return Err(Self::detached(prompt));
         }
-        Select::with_theme(&SimpleTheme)
+        Select::with_theme(&Questions)
             .with_prompt(prompt)
             .items(items)
             .default(0)
@@ -79,7 +99,7 @@ impl Ask for Terminal {
         if !self.attached {
             return Err(Self::detached(question));
         }
-        Confirm::with_theme(&SimpleTheme)
+        Confirm::with_theme(&Questions)
             .with_prompt(question)
             .default(false)
             .interact()
@@ -186,6 +206,23 @@ mod scripted {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn rendered(write: impl Fn(&mut String) -> fmt::Result) -> String {
+        let mut text = String::new();
+        write(&mut text).unwrap();
+        text
+    }
+
+    #[test]
+    fn picker_question_ends_in_its_question_mark() {
+        let question = rendered(|text| Questions.format_select_prompt(text, "Which open entry?"));
+        let answered = rendered(|text| {
+            Questions.format_select_prompt_selection(text, "Which open entry?", "\"Draft\"")
+        });
+
+        assert_eq!(question, "Which open entry?");
+        assert_eq!(answered, "Which open entry? \"Draft\"");
+    }
 
     #[test]
     fn detached_terminal_refuses_to_ask() {
