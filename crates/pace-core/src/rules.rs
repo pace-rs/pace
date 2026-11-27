@@ -124,9 +124,9 @@ impl Rules<'_> {
                 project: begin.project.clone(),
                 note: begin.note.clone().map(String::from),
                 tags: begin.tags.clone(),
-                role: self.role_exception(begin.role, project),
+                role: role_exception(self.catalog, begin.role, project),
                 determined_by: begin.determined_by,
-                billable: self.billable_exception(begin.billable, project),
+                billable: billable_exception(self.catalog, begin.billable, project),
                 allow_overlap: begin.allow_overlap,
             },
         )?);
@@ -258,9 +258,9 @@ impl Rules<'_> {
                 project: log.project.clone(),
                 note: log.note.clone().map(String::from),
                 tags: log.tags.clone(),
-                role: self.role_exception(log.role, project),
+                role: role_exception(self.catalog, log.role, project),
                 determined_by: log.determined_by,
-                billable: self.billable_exception(log.billable, project),
+                billable: billable_exception(self.catalog, log.billable, project),
                 allow_overlap: log.allow_overlap,
             },
         )?])
@@ -283,7 +283,7 @@ impl Rules<'_> {
 
         let start = adjust.start.clone().unwrap_or_else(|| entry.start.clone());
         let end = adjust.end.clone().or_else(|| entry.end.clone());
-        let changes = self.without_project_values(adjust, adjust.changes(entry), entry);
+        let changes = adjust.recorded_changes(entry, self.catalog);
         if changes.is_empty() {
             return Err(nothing_to_do(
                 "nothing to change",
@@ -395,60 +395,6 @@ impl Rules<'_> {
         flag || project.is_some_and(|project| self.catalog.project_allows_overlap(project))
     }
 
-    /// The role to write for an entry of `project`: `role` where it differs
-    /// from the project's role, so a changed project role applies to the
-    /// entry.
-    fn role_exception(&self, role: Option<RoleId>, project: Option<&ProjectRef>) -> Option<RoleId> {
-        role.filter(|role| {
-            Some(*role) != project.and_then(|project| self.catalog.project_role(project))
-        })
-    }
-
-    /// The billable flag to write for an entry of `project`: `billable`
-    /// where it differs from the project's flag, which is no without a
-    /// record.
-    fn billable_exception(
-        &self,
-        billable: Option<bool>,
-        project: Option<&ProjectRef>,
-    ) -> Option<bool> {
-        let project_billable =
-            project.is_some_and(|project| self.catalog.project_billable(project));
-        billable.filter(|billable| *billable != project_billable)
-    }
-
-    /// `changes` without a role or billable flag equal to that of the
-    /// project the entry has after them: the entry takes its project's
-    /// again, so a changed project role applies to it. A requested value
-    /// is compared, and on a project move the entry's own value too.
-    fn without_project_values(
-        &self,
-        adjust: &Adjust,
-        mut changes: EntryChanges,
-        entry: &Entry,
-    ) -> EntryChanges {
-        let project_moves = changes.project != Change::Keep;
-        let project = project_after(entry, &changes).cloned();
-        changes.role = without_project_value(
-            changes.role,
-            &adjust.role,
-            entry.role.as_ref(),
-            project_moves,
-            |role| self.role_exception(Some(*role), project.as_ref()).is_some(),
-        );
-        changes.billable = without_project_value(
-            changes.billable,
-            &adjust.billable,
-            entry.billable.as_ref(),
-            project_moves,
-            |billable| {
-                self.billable_exception(Some(*billable), project.as_ref())
-                    .is_some()
-            },
-        );
-        changes
-    }
-
     fn refuse_overlap(
         &self,
         start: &ZonedDateTime,
@@ -557,6 +503,55 @@ impl Adjust {
             allow_overlap: self.allow_overlap && !entry.allow_overlap,
         }
     }
+
+    /// The changes the rules record for `entry`: [`Adjust::changes`]
+    /// without a role or billable flag equal to that of the project the
+    /// entry has after them. The entry takes its project's value again, so
+    /// a changed project role applies to it. A requested value is
+    /// compared, and on a project move the entry's own value too.
+    #[must_use]
+    pub fn recorded_changes(&self, entry: &Entry, catalog: &Catalog) -> EntryChanges {
+        let mut changes = self.changes(entry);
+        let project_moves = changes.project != Change::Keep;
+        let project = project_after(entry, &changes).cloned();
+        changes.role = without_project_value(
+            changes.role,
+            &self.role,
+            entry.role.as_ref(),
+            project_moves,
+            |role| role_exception(catalog, Some(*role), project.as_ref()).is_some(),
+        );
+        changes.billable = without_project_value(
+            changes.billable,
+            &self.billable,
+            entry.billable.as_ref(),
+            project_moves,
+            |billable| billable_exception(catalog, Some(*billable), project.as_ref()).is_some(),
+        );
+        changes
+    }
+}
+
+/// The role to write for an entry of `project`: `role` where it differs
+/// from the project's role, so a changed project role applies to the
+/// entry.
+fn role_exception(
+    catalog: &Catalog,
+    role: Option<RoleId>,
+    project: Option<&ProjectRef>,
+) -> Option<RoleId> {
+    role.filter(|role| Some(*role) != project.and_then(|project| catalog.project_role(project)))
+}
+
+/// The billable flag to write for an entry of `project`: `billable` where
+/// it differs from the project's flag, which is no without a record.
+fn billable_exception(
+    catalog: &Catalog,
+    billable: Option<bool>,
+    project: Option<&ProjectRef>,
+) -> Option<bool> {
+    let project_billable = project.is_some_and(|project| catalog.project_billable(project));
+    billable.filter(|billable| *billable != project_billable)
 }
 
 fn real_change<T: Clone + PartialEq>(change: &Change<T>, current: Option<&T>) -> Change<T> {

@@ -2206,6 +2206,24 @@ fn adjust_to_project_role_and_billable_has_nothing_to_change() -> TestResult {
 }
 
 #[test]
+fn recorded_changes_leave_out_project_role_and_billable() -> TestResult {
+    let mut world = world_with_webshop(false)?;
+    _ = world.run("09:00", &begin_in_webshop("09:00")?)?;
+    let entry = world.only_entry(EntryState::Running)?;
+    let state = world.state();
+    let entry = state.entry(entry).ok_or("entry")?;
+    let adjust = Adjust {
+        role: Change::Set(role_id(WORK_ID)?),
+        billable: Change::Set(true),
+        ..Adjust::default()
+    };
+
+    assert!(!adjust.changes(entry).is_empty());
+    assert!(adjust.recorded_changes(entry, &world.catalog).is_empty());
+    Ok(())
+}
+
+#[test]
 fn adjust_to_project_role_and_billable_clears_entry_own_values() -> TestResult {
     let mut world = world_with_webshop(false)?;
     _ = world.run(

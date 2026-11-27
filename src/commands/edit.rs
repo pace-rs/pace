@@ -405,7 +405,8 @@ fn read_adjustment(
         billable: edited.billable.map_or(Change::Clear, Change::Set),
         allow_overlap,
     };
-    if adjust.changes(entry).is_empty() {
+    // a role or billable flag equal to the project's changes nothing
+    if adjust.recorded_changes(entry, catalog).is_empty() {
         return Err(
             PaceError::new(ErrorKind::InvalidInput, "the entry is unchanged")
                 .attach_hint("change a value and save the file to adjust the entry")

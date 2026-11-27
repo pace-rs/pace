@@ -678,3 +678,42 @@ fn edit_with_unknown_role_key_names_its_line_and_closest_key() -> TestResult {
         .bind(|| insta::assert_snapshot!(transcript));
     Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn edit_to_project_role_and_billable_leaves_entry_unchanged() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox
+        .pace_at("08:50")
+        .args(["role", "add", "work", "--name", "Work"]))?;
+    _ = run(sandbox
+        .pace_at("08:51")
+        .args(["client", "add", "acme", "--currency", "EUR"]))?;
+    _ = run(sandbox.pace_at("08:52").args([
+        "project", "add", "webshop", "--client", "acme", "--role", "work",
+    ]))?;
+    _ = run(sandbox
+        .pace_at("09:00")
+        .args(["--project", "webshop", "begin", "Write offer"]))?;
+
+    let billable = run(sandbox
+        .pace_at("09:30")
+        .env(
+            "VISUAL",
+            "sed -i -e 's/^# billable = true/billable = true/'",
+        )
+        .arg("edit"))?;
+    let role = run(sandbox
+        .pace_at("09:31")
+        .env("VISUAL", r#"sed -i -e 's/^# role = .*/role = "work"/'"#)
+        .arg("edit"))?;
+
+    let transcript = sandbox.redact_ids(&format!(
+        "{billable}\n{role}\n--- home/events ---\n{}",
+        event_text(&sandbox)?
+    ))?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
