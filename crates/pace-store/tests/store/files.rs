@@ -585,6 +585,48 @@ fn an_event_in_two_files_is_read_once() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn store_that_read_once_sees_what_another_process_appended() -> TestResult {
+    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+    let reader = setup.store(Split::Month);
+    _ = setup
+        .tracker(Split::Month)
+        .run(&Command::Begin(Begin::default()))?;
+    let before = reader.read(&ReadScope::everything())?;
+    setup.clock.set(at("2026-11-26T09:30[Europe/Berlin]")?);
+
+    _ = setup
+        .tracker(Split::Month)
+        .run(&Command::End(End::default()))?;
+
+    let after = reader.read(&ReadScope::everything())?;
+    assert_eq!((before.len(), after.len()), (1, 2));
+    Ok(())
+}
+
+#[test]
+fn store_reads_back_what_it_wrote_like_fresh_store() -> TestResult {
+    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+    let tracker = setup.tracker(Split::Month);
+    _ = tracker.run(&Command::Begin(Begin {
+        note: Some("Write offer".parse()?),
+        ..Begin::default()
+    }))?;
+    setup.clock.set(at("2026-11-26T09:30[Europe/Berlin]")?);
+    let state = tracker.state(&TimeRange::everything())?;
+    let running = state.open().next().map(|entry| entry.id).ok_or("running")?;
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
+    setup.clock.set(at("2026-11-26T09:45[Europe/Berlin]")?);
+
+    _ = tracker.run(&Command::Forget(Forget { entry: running }))?;
+
+    assert_eq!(
+        tracker.store().read(&ReadScope::everything())?,
+        setup.store(Split::Month).read(&ReadScope::everything())?
+    );
+    Ok(())
+}
+
 /// What a stop in the middle of a split to weeks leaves: the October events
 /// under the week's file name too, and `device.toml` still on months.
 fn interrupted_split_to_weeks(setup: &Setup) -> TestResult {

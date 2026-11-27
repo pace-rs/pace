@@ -40,8 +40,10 @@ use crate::{
 };
 
 mod own_log;
+mod parsed;
 mod renames;
 
+use parsed::{Events, Parsed};
 use renames::{Prepared, persist, rename_all};
 
 /// The files backend for one device.
@@ -53,6 +55,8 @@ pub struct FilesStore {
     name: String,
     clock: Arc<dyn Clock>,
     split: Split,
+    /// The event files this process parsed.
+    parsed: Parsed,
 }
 
 /// What [`FilesStore::resplit`] did.
@@ -85,12 +89,10 @@ const DEVICE_VERSION: u32 = 1;
 
 const INDEX_FILE: &str = "index.json";
 
-/// An event file found while refreshing the index: its device and path,
-/// and its events if the refresh parsed them.
+/// An event file found while refreshing the index: its device and path.
 struct FoundFile {
     device: DeviceId,
     path: PathBuf,
-    events: Option<Vec<RecordedEvent>>,
 }
 
 /// The event files found while refreshing the index, by their name in it.
@@ -119,6 +121,7 @@ impl FilesStore {
             name,
             clock,
             split,
+            parsed: Parsed::default(),
         }
     }
 
@@ -303,7 +306,7 @@ impl FilesStore {
 
     /// The index, brought up to date with the files: changed and new files
     /// are parsed and summarized, gone files dropped. Returns the files it
-    /// found, with the events of those it parsed.
+    /// found.
     fn refreshed_index(&self) -> PaceResult<(Index, Found)> {
         let index_path = self.machine.join(INDEX_FILE);
         let mut index: Index = std::fs::read_to_string(&index_path)
@@ -330,25 +333,14 @@ impl FilesStore {
                 let unchanged = index.files.get(&name).is_some_and(|summary| {
                     summary.len == metadata.len() && summary.modified == modified
                 });
-                let events = if unchanged {
-                    None
-                } else {
-                    let events = read_events(&path, device)?;
-                    let mut summary = summarize(&events);
+                if !unchanged {
+                    let mut summary = summarize(&self.events_in(&path, device)?);
                     summary.len = metadata.len();
                     summary.modified = modified;
                     _ = index.files.insert(name.clone(), summary);
                     changed = true;
-                    Some(events)
-                };
-                _ = found.insert(
-                    name,
-                    FoundFile {
-                        device,
-                        path,
-                        events,
-                    },
-                );
+                }
+                _ = found.insert(name, FoundFile { device, path });
             }
         }
         let before = index.files.len();
@@ -362,6 +354,15 @@ impl FilesStore {
             _ = save_index(&self.machine, &index_path, &index);
         }
         Ok((index, found))
+    }
+
+    /// The events of the event file `path` of `device`, parsed once per
+    /// text of the file in this process.
+    fn events_in(&self, path: &Path, device: DeviceId) -> PaceResult<Events> {
+        let text =
+            std::fs::read_to_string(path).map_err(|error| io_error(FileOp::Read, path, error))?;
+        self.parsed
+            .events(path, text, |text| parse_events(path, text, device))
     }
 
     /// The directories under `events/`, by device.
@@ -400,7 +401,7 @@ impl EventStore for FilesStore {
         self.append_with(batch, read, persist)
     }
 
-    /// The events of the files `range` needs, through the index; an event
+    /// The events of the files `scope` needs, through the index; an event
     /// in two files (left by an interrupted resplit) counts once.
     fn read(&self, scope: &ReadScope) -> PaceResult<Vec<RecordedEvent>> {
         let (index, mut found) = self.refreshed_index()?;
@@ -411,14 +412,11 @@ impl EventStore for FilesStore {
             let Some(file) = found.remove(&name) else {
                 continue;
             };
-            let file_events = match file.events {
-                Some(file_events) => file_events,
-                None => read_events(&file.path, file.device)?,
-            };
             events.extend(
-                file_events
-                    .into_iter()
-                    .filter(|recorded| seen.insert((recorded.device, recorded.event.id))),
+                self.events_in(&file.path, file.device)?
+                    .iter()
+                    .filter(|recorded| seen.insert((recorded.device, recorded.event.id)))
+                    .cloned(),
             );
         }
         Ok(events)
@@ -472,13 +470,6 @@ fn write_device_file(path: &Path, file: &DeviceFile) -> PaceResult<()> {
         PaceError::with_source(ErrorKind::Internal, "cannot write device.toml", error).ask_report()
     })?;
     write_atomically(path, &text)
-}
-
-/// The events of the event file `path` of `device`.
-fn read_events(path: &Path, device: DeviceId) -> PaceResult<Vec<RecordedEvent>> {
-    let text =
-        std::fs::read_to_string(path).map_err(|error| io_error(FileOp::Read, path, error))?;
-    parse_events(path, &text, device)
 }
 
 fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {
