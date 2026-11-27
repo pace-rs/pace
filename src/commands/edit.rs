@@ -6,15 +6,15 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Change, Command as UseCase, DeviceId, Entry, EntryOrigin, EntryVerb, ProjectId, ProjectKey,
-    ProjectRef, Tag, Text, command::Adjust,
+    Change, Command as UseCase, DeviceId, Entry, EntryOrigin, EntryVerb, OVERLAP, ProjectId,
+    ProjectKey, ProjectRef, Tag, Text, command::Adjust,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Snippet};
 use pace_time::{NOT_UNDERSTOOD, clock, parse_at};
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
-use crate::commands::tracking::{chosen_moment, track};
+use crate::commands::tracking::{chosen_moment, track_run};
 use crate::editor::{edit_in_editor, editor_command};
 use crate::prompt::Ask;
 use crate::select::{Target, chosen_entry};
@@ -51,7 +51,7 @@ pub struct EditCmd {
 
 impl Runnable for EditCmd {
     fn run(&self) {
-        exit_on_error(track(|session, context, notes| {
+        exit_on_error(track_run(|session, context, notes| {
             let asker = &context.terminal;
             let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
             let chosen = chosen_entry(
@@ -61,55 +61,95 @@ impl Runnable for EditCmd {
                 EntryVerb::Edit,
             )?;
             let now = session.now();
-            let adjust = edit_until_read(
+            edit_until_applied(
                 &write(&chosen, session.device(), &now)?,
-                &chosen.entry,
-                &now,
                 asker,
-                notes,
+                self.allow_overlap,
                 |text| edit_in_editor(&editor, text, ".toml"),
+                |text, allow_overlap| {
+                    let adjust = read(text, &chosen.entry, &now, asker, notes)?;
+                    session.run(&UseCase::Adjust(Adjust {
+                        allow_overlap,
+                        ..adjust
+                    }))
+                },
                 print_error,
-            )?;
-            Ok(UseCase::Adjust(Adjust {
-                allow_overlap: self.allow_overlap,
-                ..adjust
-            }))
+            )
         }));
     }
 }
 
-/// The adjustment from `written` once `edit` changed it. A mistake is
-/// shown with `report`; on a terminal the user may open the entry again to
-/// fix it, without one the mistake is the error. What pace chose for the
-/// user goes to `notes`.
-fn edit_until_read(
+/// What the user does with an edited entry that pace refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Next {
+    /// Open the edited text again.
+    EditAgain,
+    /// Apply it again, with the overlap allowed.
+    AllowOverlap,
+    /// Leave the entry as it was.
+    Leave,
+}
+
+/// What `apply` makes of `written` once `edit` changed it; `apply` reads
+/// the text and runs the adjustment, with the overlap allowed or not. A
+/// mistake or a refusal of the rules is shown with `report`: on a terminal
+/// the user may open the edited text again to fix it, or allow an
+/// overlap; without one the mistake is the error.
+fn edit_until_applied<T>(
     written: &str,
-    entry: &Entry,
-    now: &ZonedDateTime,
     asker: &dyn Ask,
-    notes: &mut Vec<String>,
+    allow_overlap: bool,
     mut edit: impl FnMut(&str) -> PaceResult<String>,
+    mut apply: impl FnMut(&str, bool) -> PaceResult<T>,
     report: impl Fn(&PaceError),
-) -> PaceResult<Adjust> {
+) -> PaceResult<T> {
     let mut text = edit(written)?;
+    let mut allow_overlap = allow_overlap;
     loop {
-        match read(&text, entry, now, asker, notes) {
-            Ok(adjust) => return Ok(adjust),
-            Err(error) if error.exit_code() != ExitCode::NothingToDo && asker.can_ask() => {
-                report(&error);
-                if !asker.confirm("Open the entry again to fix it?")? {
-                    return Err(PaceError::new(
-                        ErrorKind::InvalidInput,
-                        "the entry stays as it was",
-                    )
-                    .attach_hint("`pace edit` opens it again")
-                    .attach_exit_code(ExitCode::NothingToDo));
-                }
-                text = edit(&text)?;
-            }
+        let error = match apply(&text, allow_overlap) {
+            Ok(applied) => return Ok(applied),
+            Err(error) if can_fix(&error) && asker.can_ask() => error,
             Err(error) => return Err(error),
+        };
+        report(&error);
+        match next_step(&error, asker)? {
+            Next::EditAgain => text = edit(&text)?,
+            Next::AllowOverlap => allow_overlap = true,
+            Next::Leave => {
+                return Err(
+                    PaceError::new(ErrorKind::InvalidInput, "the entry stays as it was")
+                        .attach_hint("`pace edit` opens it again")
+                        .attach_exit_code(ExitCode::NothingToDo),
+                );
+            }
         }
     }
+}
+
+/// Whether the user can fix `error` in the edited text: a mistake in it
+/// or a refusal of the rules, but not an unchanged entry or a failing
+/// store.
+fn can_fix(error: &PaceError) -> bool {
+    error.exit_code() != ExitCode::NothingToDo
+        && matches!(error.kind(), ErrorKind::InvalidInput | ErrorKind::Time)
+}
+
+/// What the user does after `error`: an overlap may also be allowed.
+fn next_step(error: &PaceError, asker: &dyn Ask) -> PaceResult<Next> {
+    if !error.is_code(OVERLAP) {
+        let again = asker.confirm("Open the entry again to fix it?")?;
+        return Ok(if again { Next::EditAgain } else { Next::Leave });
+    }
+    let steps = [Next::EditAgain, Next::AllowOverlap, Next::Leave];
+    let choice = asker.choose(
+        "What should pace do with the edited entry?",
+        &[
+            "open the entry again to fix it".to_owned(),
+            "allow the overlap".to_owned(),
+            "leave the entry as it was".to_owned(),
+        ],
+    )?;
+    Ok(steps.get(choice).copied().unwrap_or(Next::Leave))
 }
 
 /// The entry's fields as the user edits them.
@@ -408,21 +448,152 @@ mod tests {
         )
     }
 
-    /// Run [`edit_until_read`] with an editor that saves `texts` in turn;
-    /// also the number of mistakes reported.
-    fn edited(asker: &Scripted, texts: &[String]) -> (PaceResult<Adjust>, usize) {
+    /// What [`edit_until_applied`] did with an editor that saved `texts`
+    /// in turn.
+    struct Edited {
+        result: PaceResult<Adjust>,
+        /// The number of mistakes reported.
+        reported: usize,
+        /// The text the editor opened each time.
+        opened: Vec<String>,
+    }
+
+    /// Run [`edit_until_applied`] with an editor that saves `texts` in
+    /// turn; `refuse` stands in for the core's rules.
+    fn edited_refusing(
+        asker: &Scripted,
+        texts: &[String],
+        mut refuse: impl FnMut(&Adjust) -> PaceResult<()>,
+    ) -> Edited {
         let mut texts: VecDeque<String> = texts.iter().cloned().collect();
+        let mut opened = Vec::new();
         let reported = Cell::new(0);
-        let result = edit_until_read(
+        let result = edit_until_applied(
             &saved("note = \"Draft\""),
-            &entry(),
-            &at("10:05"),
             asker,
-            &mut Vec::new(),
-            |_| Ok(texts.pop_front().unwrap()),
+            false,
+            |text| {
+                opened.push(text.to_owned());
+                Ok(texts.pop_front().unwrap())
+            },
+            |text, allow_overlap| {
+                let adjust = Adjust {
+                    allow_overlap,
+                    ..read(text, &entry(), &at("10:05"), asker, &mut Vec::new())?
+                };
+                refuse(&adjust).map(|()| adjust)
+            },
             |_| reported.set(reported.get() + 1),
         );
-        (result, reported.get())
+        Edited {
+            result,
+            reported: reported.get(),
+            opened,
+        }
+    }
+
+    /// Run [`edit_until_applied`] with an editor that saves `texts` in
+    /// turn and rules that take every adjustment; also the number of
+    /// mistakes reported.
+    fn edited(asker: &Scripted, texts: &[String]) -> (PaceResult<Adjust>, usize) {
+        let run = edited_refusing(asker, texts, |_| Ok(()));
+        (run.result, run.reported)
+    }
+
+    /// The rules' refusal of an entry moved into another one, unless the
+    /// overlap is allowed.
+    fn refuse_overlap(adjust: &Adjust) -> PaceResult<()> {
+        if adjust.allow_overlap {
+            return Ok(());
+        }
+        Err(
+            PaceError::new(ErrorKind::InvalidInput, "the entry would overlap 0193")
+                .attach_error_code(OVERLAP),
+        )
+    }
+
+    #[test]
+    fn refused_change_opens_edited_text_again() {
+        let asker = Scripted::confirming([true]);
+        let refused = saved("note = \"Write offer\"");
+        let mut refusals = 1;
+
+        let run = edited_refusing(&asker, &[refused.clone(), refused.clone()], |_| {
+            if refusals == 0 {
+                return Ok(());
+            }
+            refusals -= 1;
+            Err(PaceError::new(
+                ErrorKind::InvalidInput,
+                "the entry would end before it starts",
+            ))
+        });
+
+        assert!(run.result.is_ok());
+        assert_eq!(run.reported, 1);
+        assert_eq!(run.opened, [saved("note = \"Draft\""), refused]);
+        assert_eq!(asker.questions(), ["Open the entry again to fix it?"]);
+    }
+
+    #[test]
+    fn overlap_allowed_after_refusal_keeps_changes() {
+        let asker = Scripted::choosing([1]);
+
+        let run = edited_refusing(&asker, &[saved("note = \"Write offer\"")], refuse_overlap);
+
+        let adjust = run.result.unwrap();
+        assert!(adjust.allow_overlap);
+        assert_eq!(adjust.note, Change::Set("Write offer".parse().unwrap()));
+        assert_eq!(run.opened.len(), 1);
+        assert_eq!(
+            asker.offered(),
+            [[
+                "open the entry again to fix it",
+                "allow the overlap",
+                "leave the entry as it was",
+            ]]
+        );
+    }
+
+    #[test]
+    fn overlap_left_after_refusal_leaves_entry_as_it_was() {
+        let asker = Scripted::choosing([2]);
+
+        let run = edited_refusing(&asker, &[saved("note = \"Write offer\"")], refuse_overlap);
+
+        let error = run.result.unwrap_err();
+        assert_eq!(error.to_string(), "the entry stays as it was");
+        assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    }
+
+    #[test]
+    fn refusal_without_terminal_is_error() {
+        let asker = Scripted::without_terminal();
+
+        let run = edited_refusing(&asker, &[saved("note = \"Write offer\"")], refuse_overlap);
+
+        assert!(run.result.unwrap_err().is_code(OVERLAP));
+        assert_eq!(run.reported, 0);
+        assert_eq!(asker.questions(), Vec::<String>::new());
+    }
+
+    #[test]
+    fn store_failure_opens_nothing_again() {
+        let asker = Scripted::confirming([true]);
+
+        let run = edited_refusing(&asker, &[saved("note = \"Write offer\"")], |_| {
+            Err(PaceError::new(
+                ErrorKind::InputOutput,
+                "pace can't write the event log",
+            ))
+        });
+
+        assert_eq!(
+            run.result.unwrap_err().to_string(),
+            "pace can't write the event log"
+        );
+        assert_eq!(run.opened.len(), 1);
+        assert_eq!(asker.questions(), Vec::<String>::new());
     }
 
     /// The labels of the error's snippet: where it points in the file.

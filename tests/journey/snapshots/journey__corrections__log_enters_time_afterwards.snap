@@ -27,6 +27,8 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
+pace::core::overlap
+
   × the new entry would overlap [ID-1] (14:00–15:30)
   help: move it, or allow it with `pace log --allow-overlap`
 

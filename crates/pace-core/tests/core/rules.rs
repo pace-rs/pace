@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use jiff::ZonedDateTime;
 use pace_core::{
     Batch, BatchId, Change, Command, DeviceId, EntryId, EntryState, EntryVerb, Event, EventId,
-    EventKind, Hlc, HoldSource, Ids, PauseKind, Policy, ProjectRef, RecordedEvent, Rules,
+    EventKind, Hlc, HoldSource, Ids, OVERLAP, PauseKind, Policy, ProjectRef, RecordedEvent, Rules,
     SequentialIds, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
@@ -1301,6 +1301,7 @@ fn adjust_into_another_entry_is_an_overlap() -> TestResult {
         error.hint(),
         Some("move it, or allow it with `--allow-overlap`")
     );
+    assert!(error.is_code(OVERLAP), "{error}");
     Ok(())
 }
 

@@ -25,6 +25,8 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
+pace::core::overlap
+
   × the new entry would overlap [ID-1] (09:00–10:00)
   help: begin at 10:00 or later, or allow it with `--allow-overlap`
 

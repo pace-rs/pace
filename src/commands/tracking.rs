@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Command as UseCase, Entry, HoldSource, PauseKind, State, Tag, Text,
+    Command as UseCase, Entry, HoldSource, Outcome, PauseKind, State, Tag, Text,
     command::{Begin, Catch, End, Hold, Pause, Resume},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -27,11 +27,18 @@ use crate::{
 pub(super) fn track(
     build: impl FnOnce(&Session, &Context, &mut Vec<String>) -> PaceResult<UseCase>,
 ) -> PaceResult<()> {
+    track_run(|session, context, notes| session.run(&build(session, context, notes)?))
+}
+
+/// Like [`track`], but `run` runs the command itself, so it may try again
+/// when the rules refuse one.
+pub(super) fn track_run(
+    run: impl FnOnce(&Session, &Context, &mut Vec<String>) -> PaceResult<Outcome>,
+) -> PaceResult<()> {
     let context = PACE_APP.context()?;
     let session = Session::open(context)?;
     let mut notes = Vec::new();
-    let command = build(&session, context, &mut notes)?;
-    let outcome = session.run(&command)?;
+    let outcome = run(&session, context, &mut notes)?;
     print_lines(
         describe_outcome(&outcome)?
             .into_iter()

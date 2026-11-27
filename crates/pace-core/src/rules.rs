@@ -18,6 +18,10 @@ mod checks;
 
 const NOW_HINT: &str = "pace records what happened; `pace begin` starts an entry now";
 
+/// The error code of a command that [`Rules::decide`] refuses because the
+/// entry would overlap another one; `allow_overlap` lets it through.
+pub const OVERLAP: &str = "pace::core::overlap";
+
 const ENTRY_BEGAN: &str = "the entry began at {earlier}, after {at}";
 const BREAK_BEGAN: &str = "the break began at {earlier}, after {at}";
 const LAST_BREAK_ENDED: &str = "the last break ended at {earlier}, after {at}";
@@ -424,7 +428,8 @@ impl Rules<'_> {
         };
         Err(PaceError::new(ErrorKind::InvalidInput, guidance)
             .attach_context("list", list.join(", "))
-            .attach_hint(hint))
+            .attach_hint(hint)
+            .attach_error_code(OVERLAP))
     }
 
     /// pace records what happened, so nothing starts or ends after now.
