@@ -8,6 +8,7 @@ mod invariants;
 mod keys;
 mod rules;
 mod state;
+mod steps;
 mod tracker;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;

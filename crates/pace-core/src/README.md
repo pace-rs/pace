@@ -2,9 +2,11 @@
 
 The domain of pace, without I/O: entries and their events, the state built from
 them, the rules that decide what a command records, and the ports for the clock,
-IDs and the event store. `tracker.rs` runs a command: it reads the state through
-the `EventStore` port, lets `rules.rs` decide and appends the events. The
-`testing` feature adds `testing.rs` for the tests of other crates.
+IDs and the event store. `steps.rs` holds a command's step machine: it names the
+range to read, lets `rules.rs` decide and says what the append means, without
+I/O. `tracker.rs` drives it: it reads through the `EventStore` port and appends
+the events. The `testing` feature adds `testing.rs` for the tests of other
+crates.
 
 ## Files
 
@@ -22,8 +24,9 @@ the `EventStore` port, lets `rules.rs` decide and appends the events. The
 | [`rules.rs`](rules.rs)       | What each command turns into: the events of one batch, or an error that says how to fix it.                                           |
 | [`short_id.rs`](short_id.rs) | Short IDs: the last characters of an entry ID that tell it apart.                                                                     |
 | [`state.rs`](state.rs)       | The state of the entries, built from the events in merged order.                                                                      |
+| [`steps.rs`](steps.rs)       | The step machine of a command: what to read, the batch to append, and what the append means, without I/O.                             |
 | [`testing.rs`](testing.rs)   | For tests of pace and of store backends: a settable clock, an in-memory `EventStore`, and the store contract every backend must keep. |
-| [`tracker.rs`](tracker.rs)   | The tracker: runs a command over the ports and says what it did.                                                                      |
+| [`tracker.rs`](tracker.rs)   | The tracker: drives a command's step machine over the ports and says what it did.                                                     |
 | [`tracking.rs`](tracking.rs) | Where a hold came from, and what kind of break a pause is.                                                                            |
 | [`rules/`](rules/)           | What each command turns into: the events of one batch, or an error that says how to fix it.                                           |
 | [`testing/`](testing/)       | For tests of pace and of store backends: a settable clock, an in-memory `EventStore`, and the store contract every backend must keep. |

@@ -5,6 +5,11 @@
 //! the core needs from the outside world goes through a port: the
 //! [`Clock`], the [`EventStore`] and the [`Notifier`].
 //!
+//! A command runs as a step machine without I/O: [`Reading`] names the range
+//! to read, [`Reading::decide`] lets the [`Rules`] decide, and
+//! [`Appending::appended`] gives the [`Outcome`] or a new read. The
+//! [`Tracker`] drives it over the ports.
+//!
 //! Every timestamp is a jiff [`ZonedDateTime`](jiff::ZonedDateTime), so
 //! entries keep the zone they were recorded in. All IDs are UUIDv7.
 
@@ -17,6 +22,7 @@ mod port;
 mod rules;
 mod short_id;
 mod state;
+mod steps;
 #[cfg(feature = "testing")]
 pub mod testing;
 mod tracker;
@@ -33,5 +39,6 @@ pub use port::{Appended, Clock, EventStore, FixedClock, Ids, Notice, Notifier, S
 pub use rules::{Policy, Rules};
 pub use short_id::short_ids;
 pub use state::{State, UndoTarget};
-pub use tracker::{Outcome, Tracker};
+pub use steps::{AfterAppend, Appending, Decided, Outcome, Reading};
+pub use tracker::Tracker;
 pub use tracking::{HoldSource, PauseKind};

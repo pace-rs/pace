@@ -1,50 +1,29 @@
-//! The tracker: runs a command over the ports and says what it did.
+//! The tracker: drives a command's step machine over the ports and says
+//! what it did.
 
 use std::sync::Arc;
 
 use jiff::ZonedDateTime;
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::PaceResult;
 use pace_time::TimeRange;
 
 use crate::{
-    Appended, Clock, Command, DeviceId, EventKind, EventStore, Ids, Policy, RecordedEvent, Rules,
+    AfterAppend, Clock, Command, Decided, DeviceId, EventStore, Ids, Outcome, Policy, Reading,
     State,
-    command::{End, Resume},
 };
 
-/// How often [`Tracker::run`] reads and decides before it gives up on
-/// commands that write at the same time.
-const ATTEMPTS: usize = 5;
-
-/// The use cases over the ports: read the state, decide, append.
+/// The blocking driver of the use cases: it does the I/O for the step
+/// machine that starts with [`Reading`], and holds no rule.
 ///
 /// Each command reads only what its rules need: tracking commands the open
 /// entries and the time from their `--at` to now, `log` its own time, and
-/// `adjust`, `forget` and `undo` everything.
+/// `adjust`, `forget` and `undo` everything; [`Reading::range`] says which.
 pub struct Tracker<S> {
     store: S,
     clock: Arc<dyn Clock>,
     ids: Arc<dyn Ids>,
     policy: Policy,
     device: DeviceId,
-}
-
-/// What a command did.
-#[derive(Debug)]
-pub struct Outcome {
-    /// The events it appended, as recorded.
-    pub recorded: Vec<RecordedEvent>,
-    /// What went wrong after the events were recorded, for the caller to
-    /// show as warnings; see [`Appended::Recorded`].
-    pub warnings: Vec<PaceError>,
-    /// The state before the command, as far as it read it.
-    pub before: State,
-    /// The state afterwards, as far as the command read it.
-    pub state: State,
-    /// The events of the batches the command undid, if it was an undo.
-    pub undone: Vec<RecordedEvent>,
-    /// When the command ran.
-    pub now: ZonedDateTime,
 }
 
 impl<S: EventStore> Tracker<S> {
@@ -80,8 +59,8 @@ impl<S: EventStore> Tracker<S> {
     /// Decide `command` and append its events.
     ///
     /// If another command wrote between the read and the append, the store
-    /// refuses the batch, and the tracker reads and decides again, up to
-    /// five times in all. So of two commands at once, the later one
+    /// refuses the batch, and the step machine reads and decides again, up
+    /// to five times in all. So of two commands at once, the later one
     /// decides on what the earlier one wrote.
     ///
     /// # Errors
@@ -89,31 +68,26 @@ impl<S: EventStore> Tracker<S> {
     /// If the store fails, the command doesn't fit the state, or other
     /// commands wrote in between five times; then nothing is appended.
     pub fn run(&self, command: &Command) -> PaceResult<Outcome> {
-        for _ in 0..ATTEMPTS {
-            let now = self.clock.now();
+        let mut reading = Reading::start(
+            command,
+            self.clock.now(),
+            self.device,
+            &*self.ids,
+            &self.policy,
+        )?;
+        loop {
             let marker = self.store.marker()?;
-            let events = self.store.read(&scope(command, &now)?)?;
-            let state = State::from_events(&events);
-            let batch = Rules {
-                state: &state,
-                now: &now,
-                device: self.device,
-                ids: &*self.ids,
-                policy: &self.policy,
-            }
-            .decide(command)?;
-            if let Appended::Recorded {
-                events: recorded,
-                warnings,
-            } = self.store.append(batch, marker)?
-            {
-                return Ok(Outcome {
-                    warnings,
-                    ..outcome(events, state, recorded, now)
-                });
+            let events = self.store.read(reading.range())?;
+            let Decided {
+                batch,
+                read,
+                appending,
+            } = reading.decide(marker, events)?;
+            match appending.appended(self.store.append(batch, read)?, self.clock.now())? {
+                AfterAppend::Done(outcome) => return Ok(outcome),
+                AfterAppend::ReadAgain(again) => reading = again,
             }
         }
-        Err(concurrent_writes())
     }
 
     /// The state of the entries that overlap `range`, and of the open ones.
@@ -123,75 +97,5 @@ impl<S: EventStore> Tracker<S> {
     /// If the store fails.
     pub fn state(&self, range: &TimeRange) -> PaceResult<State> {
         Ok(State::from_events(&self.store.read(range)?))
-    }
-}
-
-/// What a command did, from the events it read and the ones it appended.
-fn outcome(
-    events: Vec<RecordedEvent>,
-    before: State,
-    recorded: Vec<RecordedEvent>,
-    now: ZonedDateTime,
-) -> Outcome {
-    let undone_batches: Vec<_> = recorded
-        .iter()
-        .filter_map(|recorded| match recorded.event.kind {
-            EventKind::BatchUndone { batch } => Some(batch),
-            _ => None,
-        })
-        .collect();
-    let undone = events
-        .iter()
-        .filter(|event| undone_batches.contains(&event.batch))
-        .cloned()
-        .collect();
-    let mut all = events;
-    all.extend(recorded.iter().cloned());
-    Outcome {
-        recorded,
-        warnings: Vec::new(),
-        before,
-        state: State::from_events(&all),
-        undone,
-        now,
-    }
-}
-
-/// The error when other commands wrote between each read and append.
-fn concurrent_writes() -> Box<PaceError> {
-    PaceError::new(
-        ErrorKind::InputOutput,
-        "other pace commands wrote to the event log {attempts} times while this one decided",
-    )
-    .attach_context("attempts", ATTEMPTS.to_string())
-    .attach_hint("run the command again once the other pace commands are done")
-    .attach_error_code("pace::core::concurrent-write")
-}
-
-/// The time a command's rules need to see.
-fn scope(command: &Command, now: &ZonedDateTime) -> PaceResult<TimeRange> {
-    match command {
-        Command::Begin(begin) => {
-            let start = begin.at.as_ref().unwrap_or(now).min(now).clone();
-            TimeRange::new(Some(start), Some(now.clone()))
-        }
-        // A command about an entry it names, or about the last batch, reads
-        // everything: the entry may have ended long ago, and the rules say so.
-        Command::Resume(Resume { entry: Some(_), .. })
-        | Command::End(End { entry: Some(_), .. })
-        | Command::Adjust(_)
-        | Command::Undo
-        | Command::Forget(_) => TimeRange::new(None, None),
-        Command::Hold(_)
-        | Command::Pause(_)
-        | Command::Resume(_)
-        | Command::Catch(_)
-        | Command::End(_) => TimeRange::new(Some(now.clone()), Some(now.clone())),
-        // The rules refuse a log that ends before it starts, with a better
-        // message than the range would.
-        Command::Log(log) => TimeRange::new(
-            Some((&log.start).min(&log.end).clone()),
-            Some((&log.start).max(&log.end).clone()),
-        ),
     }
 }
