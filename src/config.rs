@@ -257,7 +257,7 @@ const fn hold_source_name(source: HoldSource) -> &'static str {
 }
 
 fn parse_time_zone(value: &str) -> PaceResult<TimeZoneSetting> {
-    if value == "system" {
+    if value.eq_ignore_ascii_case("system") {
         return Ok(TimeZoneSetting::System);
     }
     if let Some(zone) = jiff::tz::db()
@@ -676,6 +676,13 @@ mod tests {
         }
 
         assert_eq!(read_back, settings);
+        Ok(())
+    }
+
+    #[test]
+    fn system_keyword_of_time_zone_ignores_case() -> TestResult {
+        assert_eq!(parse_time_zone("System")?, TimeZoneSetting::System);
+        assert_eq!(parse_time_zone("SYSTEM")?, TimeZoneSetting::System);
         Ok(())
     }
 
