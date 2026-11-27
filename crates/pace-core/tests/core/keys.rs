@@ -51,3 +51,18 @@ fn tag_is_one_word(#[case] tag: &str) -> TestResult {
 fn tag_with_spaces_or_commas_is_rejected(#[case] tag: &str) {
     assert!(tag.parse::<Tag>().is_err());
 }
+
+#[test]
+fn project_key_displays_as_typed() -> TestResult {
+    assert_eq!(
+        "acme-webshop".parse::<ProjectKey>()?.to_string(),
+        "acme-webshop"
+    );
+    Ok(())
+}
+
+#[test]
+fn tag_displays_as_typed() -> TestResult {
+    assert_eq!("dev".parse::<Tag>()?.to_string(), "dev");
+    Ok(())
+}

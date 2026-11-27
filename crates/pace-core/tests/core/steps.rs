@@ -194,6 +194,16 @@ fn undo_reads_open_entries_and_what_was_recorded_in_last_month() -> TestResult {
 }
 
 #[test]
+fn undo_within_month_of_earliest_time_reads_everything() -> TestResult {
+    let now: ZonedDateTime = "-009999-01-10T00:00:00+00:00[UTC]".parse()?;
+
+    let scope = scope_of(&Command::Undo, &now)?;
+
+    assert_eq!(scope, ReadScope::everything());
+    Ok(())
+}
+
+#[test]
 fn named_entry_missing_from_read_makes_command_read_everything() -> TestResult {
     let now = berlin("10:00")?;
     let ids = SequentialIds::starting_at(&now, 1);
@@ -335,6 +345,23 @@ fn decided_begin_gives_batch_with_begun_entry_and_marker_of_read() -> TestResult
     assert_eq!(read, ChangeMarker::new(7));
     assert_eq!(batch.events.len(), 1);
     assert!(matches!(batch.events[0].kind, EventKind::EntryBegun { .. }));
+    Ok(())
+}
+
+#[test]
+fn reading_shows_its_command_and_attempt_in_debug() -> TestResult {
+    let now = berlin("10:00")?;
+    let ids = SequentialIds::starting_at(&now, 1);
+    let policy = Policy::default();
+    let reading = Reading::start(&Command::Undo, now, device()?, &ids, &policy)?;
+
+    let shown = format!("{reading:?}");
+
+    assert!(
+        shown.contains("CommandRun { command: Undo, device: "),
+        "{shown}"
+    );
+    assert!(shown.contains("attempt: 1, .. }"), "{shown}");
     Ok(())
 }
 

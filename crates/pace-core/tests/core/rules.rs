@@ -12,6 +12,7 @@ use pace_core::{
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
 use pace_error::{ExitCode, PaceError};
+use rstest::rstest;
 
 use crate::TestResult;
 
@@ -463,6 +464,29 @@ fn second_pause_without_reason_has_nothing_to_do() -> TestResult {
     assert_eq!(error.to_string(), "the entry is paused since 12:00");
     assert_eq!(error.hint(), Some("`pace resume` goes on with it"));
     assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
+fn second_pause_with_reason_updates_it() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("12:00", &Command::Pause(Pause::default()))?;
+
+    _ = world.run(
+        "12:05",
+        &Command::Pause(Pause {
+            reason: Some("lunch".parse()?),
+            ..Pause::default()
+        }),
+    )?;
+
+    let state = world.state();
+    let entry = state
+        .entry(world.only_entry(EntryState::Paused)?)
+        .ok_or("entry")?;
+    assert_eq!(entry.pauses.len(), 1);
+    assert_eq!(entry.pauses[0].reason.as_deref(), Some("lunch"));
     Ok(())
 }
 
@@ -984,6 +1008,23 @@ fn log_into_another_entry_is_an_overlap() -> TestResult {
         error.to_string().starts_with("the new entry would overlap"),
         "{error}"
     );
+    Ok(())
+}
+
+#[test]
+fn log_into_another_entry_can_be_allowed() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+
+    let batch = world.run(
+        "18:00",
+        &Command::Log(Log {
+            allow_overlap: true,
+            ..Log::new(berlin("14:00")?, berlin("15:00")?)
+        }),
+    )?;
+
+    assert_eq!(kinds(&batch), ["entry.logged"]);
     Ok(())
 }
 
@@ -1708,6 +1749,20 @@ fn only_open_entry_is_the_one() -> TestResult {
 
     assert_eq!(entry.note.as_deref(), Some("Write offer"));
     Ok(())
+}
+
+#[rstest]
+#[case::begin(EntryVerb::Begin, "begin")]
+#[case::hold(EntryVerb::Hold, "hold")]
+#[case::pause(EntryVerb::Pause, "pause")]
+#[case::resume(EntryVerb::Resume, "resume")]
+#[case::catch(EntryVerb::Catch, "catch")]
+#[case::end(EntryVerb::End, "end")]
+#[case::adjust(EntryVerb::Adjust, "adjust")]
+#[case::edit(EntryVerb::Edit, "edit")]
+#[case::forget(EntryVerb::Forget, "forget")]
+fn entry_verb_is_named_as_user_types_it(#[case] verb: EntryVerb, #[case] name: &str) {
+    assert_eq!(verb.name(), name);
 }
 
 // the changes of an adjustment

@@ -501,6 +501,36 @@ fn adjustment_sets_project() -> TestResult {
 }
 
 #[test]
+fn adjustment_clears_project() -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push(
+        "2026-11-26T09:00[Europe/Berlin]",
+        EventKind::EntryBegun {
+            entry: e,
+            project: Some(ProjectRef::Key("acme-webshop".parse()?)),
+            note: None,
+            tags: BTreeSet::new(),
+        },
+    )?;
+    _ = log.push(
+        "2026-11-26T09:10[Europe/Berlin]",
+        EventKind::EntryAdjusted {
+            entry: e,
+            changes: EntryChanges {
+                project: Change::Clear,
+                ..EntryChanges::default()
+            },
+        },
+    )?;
+
+    let state = State::from_events(&log.events);
+
+    assert_eq!(state.entry(e).ok_or("entry")?.project, None);
+    Ok(())
+}
+
+#[test]
 fn per_field_the_later_change_wins_across_devices() -> TestResult {
     let mut laptop = Log::new(1)?;
     let mut desktop = Log::new(2)?;
