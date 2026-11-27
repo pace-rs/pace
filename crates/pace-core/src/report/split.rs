@@ -26,7 +26,7 @@ impl Stretch {
     }
 
     /// Whether `moment` lies inside the stretch.
-    pub(crate) fn holds(self, moment: Timestamp) -> bool {
+    pub(crate) fn contains(self, moment: Timestamp) -> bool {
         self.start <= moment && moment < self.end
     }
 
@@ -62,9 +62,9 @@ pub(crate) fn worked(entry: &Entry, now: &ZonedDateTime) -> Vec<Stretch> {
 
     let mut stretches = Vec::new();
     let mut from = whole.start;
-    for pause in breaks {
-        stretches.extend(Stretch::new(from, pause.start));
-        from = from.max(pause.end);
+    for gap in breaks {
+        stretches.extend(Stretch::new(from, gap.start));
+        from = from.max(gap.end);
     }
     stretches.extend(Stretch::new(from, whole.end));
     stretches

@@ -153,7 +153,7 @@ impl BreakTally {
             entry
                 .catches
                 .iter()
-                .filter(|caught| period.holds(caught.at.timestamp()))
+                .filter(|caught| period.contains(caught.at.timestamp()))
                 .map(|caught| ReportCatch {
                     entry: entry.id,
                     at: caught.at.with_time_zone(zone.clone()),
@@ -208,7 +208,7 @@ impl Inside {
     /// while open, if it began in the period; `None` if it began outside.
     fn time(&self, start: &ZonedDateTime, end: Option<&ZonedDateTime>) -> Option<SignedDuration> {
         let start = start.timestamp().max(self.entry_start);
-        if !self.period.holds(start) {
+        if !self.period.contains(start) {
             return None;
         }
         let end = end
