@@ -1,53 +1,36 @@
 //! Errors with fix hints and exit codes for pace.
 //!
-//! The design follows [`rustic_core`'s error module]: one opaque, boxed
-//! [`PaceError`] with a coarse [`ErrorKind`], a guidance message with
-//! `{placeholders}` filled from attached context, and builder methods to add
-//! more on the way up. pace adds three things: a [hint](PaceError::attach_hint)
-//! that says how to fix the error, an [exit code](ExitCode) for scripts, and an
-//! optional [source snippet](Snippet) that points at the offending line of a
-//! file.
+//! [`PaceError`] is pace's one error type, always boxed in a [`PaceResult`].
+//! It follows [`rustic_core`'s error module]. An error holds these parts:
+//!
+//! - a coarse [`ErrorKind`], for a caller that decides on it
+//! - a guidance message, whose `{placeholders}` the
+//!   [context](PaceError::attach_context) fills
+//! - a [hint](PaceError::attach_hint) that says how to go on
+//! - the [exit code](ExitCode) of the process, for scripts
+//! - the [cause](PaceError::with_source) that led to it, kept as its `source()`
+//! - a [snippet](Snippet) that points at a line of a file
+//!
+//! `Display` prints the filled guidance alone. The [`miette::Diagnostic`]
+//! implementation adds the code, the hint, the severity and the snippet. It
+//! lists the context that no placeholder took as details. miette's report
+//! handler prints the causes from `source()`. An error that is a bug
+//! [asks to be reported](PaceError::ask_report).
+//!
+//! ```
+//! use pace_error::{ErrorKind, ExitCode, PaceError};
+//!
+//! let error = PaceError::new(ErrorKind::Other, "nothing runs in {project}")
+//!     .attach_context("project", "acme")
+//!     .attach_hint("`pace begin` starts an entry")
+//!     .attach_exit_code(ExitCode::NothingToDo);
+//!
+//! assert_eq!(error.to_string(), "nothing runs in acme");
+//! assert_eq!(error.hint(), Some("`pace begin` starts an entry"));
+//! assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+//! ```
 //!
 //! [`rustic_core`'s error module]: https://docs.rs/rustic_core/latest/rustic_core/error/index.html
-//!
-//! # Rules
-//!
-//! ## Visibility
-//!
-//! Every fallible `pub fn` returns a [`PaceResult<T>`]. Those errors cross the
-//! crate boundary and reach the user, so they carry everything needed: a
-//! message, a hint and context.
-//!
-//! A `pub(crate) fn` uses a local error type instead, for example
-//! `pub(crate) type ParseResult<T> = Result<T, ParseErrorKind>` with a
-//! `thiserror` enum. At the `pub` boundary, the local error is converted
-//! into a [`PaceError`] by hand, with a good message and a hint.
-//!
-//! ## Upgrading, not downgrading
-//!
-//! A [`PaceError`] is never turned back into a local error kind. If a
-//! function meets a [`PaceError`], its signature is upgraded to return a
-//! [`PaceResult`] (or a nested `PaceResult<Result<T, LocalErrorKind>>`).
-//!
-//! ## Adding to an error instead of wrapping it
-//!
-//! A [`PaceError`] passed upwards is not wrapped in a new one. Context is
-//! attached to it instead: `map_err(|e| e.attach_context("file", path))`,
-//! `map_err(|e| e.overwrite_kind(ErrorKind::Project))` or
-//! `map_err(|e| e.append_guidance_line("…"))`.
-//!
-//! ## Hints
-//!
-//! Errors say how to fix them. Every error a user can cause gets a hint,
-//! preferably with the command that fixes it ("`pace begin` starts an
-//! entry"). Bugs [ask to be reported](PaceError::ask_report) instead.
-//!
-//! ## Display
-//!
-//! Everything attached to an error implements `Display` and `Debug`.
-//! `Display` of a [`PaceError`] is the filled guidance only; the
-//! [`miette::Diagnostic`] implementation adds the hint, the details, the
-//! snippet and the cause chain when the application renders it.
 
 use std::{
     backtrace::Backtrace,
@@ -159,7 +142,7 @@ impl Snippet {
     }
 }
 
-/// An error of pace. See the [crate documentation](crate) for the rules.
+/// An error of pace. The [crate documentation](crate) names its parts.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct PaceError {
