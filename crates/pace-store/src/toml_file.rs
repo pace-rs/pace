@@ -8,6 +8,7 @@ use std::{
     path::Path,
 };
 
+use jiff::civil::Date;
 use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
 use toml::{
     Spanned,
@@ -316,6 +317,92 @@ impl<'file> TomlFile<'file> {
         })
     }
 
+    /// The text of a decimal number as written, such as `95` or `95.50`,
+    /// for a reader that must not round it through a float. TOML has dropped
+    /// the underscores between its digits.
+    ///
+    /// # Errors
+    ///
+    /// If it is no number, or an integer in another base than ten; the error
+    /// says what `name` takes (`expects`).
+    pub fn decimal_text<'value>(
+        &self,
+        name: &str,
+        value: TomlValue<'value>,
+        expects: &str,
+    ) -> PaceResult<&'value str> {
+        let text = match value.0.get_ref() {
+            DeValue::Integer(integer) if integer.radix() == 10 => Some(integer.as_str()),
+            DeValue::Float(float) => Some(float.as_str()),
+            _ => None,
+        };
+        text.ok_or_else(|| {
+            let label = if value.0.get_ref().is_integer() {
+                "a number in another base".to_owned()
+            } else {
+                value.type_with_article()
+            };
+            self.wrong_type(
+                name,
+                value,
+                expects,
+                format!("write it as a decimal number, for example `{name} = 95.50`"),
+                &label,
+            )
+        })
+    }
+
+    /// The value as `true` or `false`.
+    ///
+    /// # Errors
+    ///
+    /// If it is no boolean.
+    pub fn boolean(&self, name: &str, value: TomlValue<'_>) -> PaceResult<bool> {
+        value.0.get_ref().as_bool().ok_or_else(|| {
+            self.wrong_type(
+                name,
+                value,
+                "`true` or `false`",
+                format!("write `{name} = true` or `{name} = false`, without quotes"),
+                &value.type_with_article(),
+            )
+        })
+    }
+
+    /// The value as a day: a TOML local date such as `2026-09-01`, without
+    /// quotes.
+    ///
+    /// # Errors
+    ///
+    /// If it is no local date: text, a date with a time, or a day that
+    /// doesn't exist.
+    pub fn date(&self, name: &str, value: TomlValue<'_>) -> PaceResult<Date> {
+        let datetime = value.0.get_ref().as_datetime();
+        let day = datetime
+            .filter(|datetime| datetime.time.is_none() && datetime.offset.is_none())
+            .and_then(|datetime| datetime.date)
+            .and_then(|day| {
+                let year = i16::try_from(day.year).ok()?;
+                let month = i8::try_from(day.month).ok()?;
+                let day = i8::try_from(day.day).ok()?;
+                Date::new(year, month, day).ok()
+            });
+        day.ok_or_else(|| {
+            let label = if datetime.is_some() {
+                "a date with a time".to_owned()
+            } else {
+                value.type_with_article()
+            };
+            self.wrong_type(
+                name,
+                value,
+                "a day such as 2026-09-01",
+                format!("write the day without quotes, for example `{name} = 2026-09-01`"),
+                &label,
+            )
+        })
+    }
+
     /// A value of `name` that is not what it takes (`expects`).
     fn wrong_type(
         &self,
@@ -351,6 +438,36 @@ impl<'file> TomlFile<'file> {
                 "`{key}` is a table",
                 [("key", name.to_owned())],
                 format!("write it as `[{name}]` with its keys below"),
+                &value.type_with_article(),
+            )
+            .attach_error_code(format!("{}::invalid-value", self.code))
+        })
+    }
+
+    /// The tables of a list of tables, such as `[[acme.rates]]`, each with
+    /// where it stands in the file.
+    ///
+    /// # Errors
+    ///
+    /// If it is no list, or a list that holds something else than tables.
+    pub fn tables<'value>(
+        &self,
+        name: &str,
+        value: TomlValue<'value>,
+    ) -> PaceResult<Vec<(TomlTable<'value>, Range<usize>)>> {
+        let items = value.0.get_ref().as_array();
+        let tables = items.and_then(|items| {
+            items
+                .iter()
+                .map(|item| Some((TomlTable(item.get_ref().as_table()?), item.span())))
+                .collect::<Option<Vec<_>>>()
+        });
+        tables.ok_or_else(|| {
+            self.error_at(
+                value.span(),
+                "`{key}` is a list of tables",
+                [("key", name.to_owned())],
+                format!("write each as `[[{name}]]` with its keys below"),
                 &value.type_with_article(),
             )
             .attach_error_code(format!("{}::invalid-value", self.code))
@@ -608,6 +725,92 @@ mod tests {
             Some("write it as `[billing]` with its keys below")
         );
         assert!(error.is_code("pace::project::invalid-value"));
+        Ok(())
+    }
+
+    #[test]
+    fn decimal_text_keeps_written_digits_of_integer_and_float() -> TestResult {
+        let file = manifest("whole = 95\nfraction = 95.50\n");
+        let document = file.parse()?;
+        let table = document.table();
+
+        let whole = table.get("whole").ok_or("the key is there")?;
+        let fraction = table.get("fraction").ok_or("the key is there")?;
+
+        assert_eq!(file.decimal_text("whole", whole, "an amount")?, "95");
+        assert_eq!(
+            file.decimal_text("fraction", fraction, "an amount")?,
+            "95.50"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn decimal_text_refuses_hexadecimal_and_text() -> TestResult {
+        let file = manifest("hex = 0x5f\ntext = \"95\"\n");
+        let document = file.parse()?;
+        let table = document.table();
+
+        for name in ["hex", "text"] {
+            let value = table.get(name).ok_or("the key is there")?;
+            let error = file
+                .decimal_text(name, value, "an amount")
+                .err()
+                .ok_or("no decimal number")?;
+            assert_eq!(error.to_string(), format!("`{name}` takes an amount"));
+            assert!(error.is_code("pace::project::invalid-value"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn boolean_reads_true_and_refuses_text() -> TestResult {
+        let file = manifest("yes = true\nno = \"no\"\n");
+        let document = file.parse()?;
+        let table = document.table();
+
+        let yes = table.get("yes").ok_or("the key is there")?;
+        let no = table.get("no").ok_or("the key is there")?;
+
+        assert!(file.boolean("yes", yes)?);
+        let error = file.boolean("no", no).err().ok_or("text is no boolean")?;
+        assert_eq!(error.to_string(), "`no` takes `true` or `false`");
+        assert_eq!(label(&error).as_deref(), Some("a string"));
+        Ok(())
+    }
+
+    #[test]
+    fn date_reads_local_date_and_refuses_date_with_time() -> TestResult {
+        let file = manifest("day = 2026-09-01\nwhen = 2026-09-01T09:00:00\n");
+        let document = file.parse()?;
+        let table = document.table();
+
+        let day = table.get("day").ok_or("the key is there")?;
+        let when = table.get("when").ok_or("the key is there")?;
+
+        assert_eq!(file.date("day", day)?, jiff::civil::date(2026, 9, 1));
+        let error = file.date("when", when).err().ok_or("a time is no day")?;
+        assert_eq!(error.to_string(), "`when` takes a day such as 2026-09-01");
+        assert_eq!(label(&error).as_deref(), Some("a date with a time"));
+        Ok(())
+    }
+
+    #[test]
+    fn tables_of_value_that_is_no_array_of_tables_says_how_to_write_it() -> TestResult {
+        let file = manifest("rates = 5\n[[event]]\nkind = 1\n");
+        let document = file.parse()?;
+        let table = document.table();
+
+        let events = table.get("event").ok_or("the key is there")?;
+        let rates = table.get("rates").ok_or("the key is there")?;
+
+        assert_eq!(file.tables("event", events)?.len(), 1);
+        let error = file.tables("rates", rates).err().ok_or("5 is no list")?;
+        assert_eq!(error.to_string(), "`rates` is a list of tables");
+        assert_eq!(
+            error.hint(),
+            Some("write each as `[[rates]]` with its keys below")
+        );
         Ok(())
     }
 }
