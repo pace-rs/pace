@@ -35,3 +35,8 @@
     `TMPDIR` into itself, so the backup goes with it. A test that needs `sed` or
     `sh` is `#[cfg(unix)]`, and so is every helper only such tests use;
     otherwise Windows fails on dead code.
+15. A test that compares a path pace wrote joins the expected path one component
+    at a time, or turns `\` into `/` on both sides: on Windows pace joins with
+    `\`. A made-up full path starts with a drive on Windows (`C:\srv\…`). When
+    Windows makes a path absolute, it resolves `..`. The entry point sets clap's
+    `bin_name`, so usage lines say `pace`, not `pace.exe`.
