@@ -721,6 +721,29 @@ fn end_while_nothing_runs_has_nothing_to_do() -> TestResult {
 }
 
 #[test]
+fn adjust_while_nothing_runs_names_id_and_last() -> TestResult {
+    let mut world = World::new()?;
+
+    let error = failure(world.run(
+        "10:00",
+        &Command::Adjust(Adjust {
+            note: Change::Set("Write offer".parse()?),
+            ..Adjust::default()
+        }),
+    ))?;
+
+    assert_eq!(error.to_string(), "nothing is running");
+    assert_eq!(
+        error.hint(),
+        Some(
+            "name the entry with `pace adjust <id>`, or take the last one with `pace adjust --last`"
+        )
+    );
+    assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
 fn end_before_the_entry_began_is_refused() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;
