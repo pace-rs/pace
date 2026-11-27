@@ -316,7 +316,8 @@ fn edit_roles(context: &Context) -> PaceResult<()> {
 
 /// Let the user change the roles file of `home` with `edit` until the
 /// catalog reads it, and write it; the sentence that says so. A mistake is
-/// shown with `report`, and `asker` offers to open the file again.
+/// shown with `report`, a mistake of the file as it is before the editor
+/// opens, and `asker` offers to open the file again.
 fn edit_roles_file(
     home: &Path,
     asker: &dyn Ask,
@@ -336,6 +337,9 @@ fn edit_roles_file(
             .attach_context("path", roles_file.display().to_string()));
         }
     };
+    if let Err(mistake) = read_catalog_with(home, &roles_file, &text) {
+        report(&mistake);
+    }
     let (edited, catalog) = edit_until_checked(
         EditedFile {
             path: &roles_file,
@@ -529,6 +533,36 @@ mod tests {
         .unwrap();
 
         assert_eq!(reported.into_inner(), ["`aera` is not a role kind"]);
+        assert_eq!(
+            std::fs::read_to_string(home.path().join(ROLES_FILE)).unwrap(),
+            WORK
+        );
+    }
+
+    #[test]
+    fn edit_of_broken_roles_file_shows_mistake_before_editor_opens() {
+        let home = pace_store::testing::scratch_dir().unwrap();
+        let broken = WORK.replace("kind = \"area\"", "kind = \"aera\"");
+        std::fs::write(home.path().join(ROLES_FILE), &broken).unwrap();
+        let events = std::cell::RefCell::new(Vec::new());
+
+        _ = edit_roles_file(
+            home.path(),
+            &Scripted::confirming([]),
+            |text| {
+                events
+                    .borrow_mut()
+                    .push(format!("opened {}", text == broken));
+                Ok(WORK.to_owned())
+            },
+            |error| events.borrow_mut().push(error.to_string()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            events.into_inner(),
+            ["`aera` is not a role kind", "opened true"]
+        );
         assert_eq!(
             std::fs::read_to_string(home.path().join(ROLES_FILE)).unwrap(),
             WORK

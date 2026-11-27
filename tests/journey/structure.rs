@@ -178,6 +178,19 @@ fn role_edit_without_terminal_names_roles_file() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn broken_roles_file_stops_every_command_but_role_edit() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "home/roles.toml",
+        "version = 1\n\n[work]\nkind = \"aera\"\n",
+    )?;
+
+    let output = sandbox.journey(&[("09:00", &["role", "edit"]), ("09:01", &["now"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
 /// The transcript of `steps`, then the clients file as pace left it.
 fn journey_and_clients_file(
     sandbox: &Sandbox,

@@ -4,7 +4,7 @@
 //! with their hints and end the process with pace's
 //! [`ExitCode`](pace_error::ExitCode)s.
 
-use std::{ffi::OsString, fmt, process};
+use std::{ffi::OsString, fmt, path::Path, process};
 
 use abscissa_core::{
     Application, FrameworkError, Shutdown, StandardPaths,
@@ -49,7 +49,8 @@ pub struct Context {
     pub dirs: Dirs,
     /// The settings and where each comes from.
     pub settings: Loaded,
-    /// The roles, clients and project records in `PACE_HOME`, read once.
+    /// The roles, clients and project records in `PACE_HOME`, read once;
+    /// empty for a command that mends a catalog that doesn't read.
     pub catalog: Catalog,
     /// The project of the working directory, if any.
     pub project: Option<Project>,
@@ -116,7 +117,7 @@ impl PaceApp {
         for warning in &settings.warnings {
             eprint!("{}", render(warning, self.style));
         }
-        let catalog = read_catalog(&dirs.data.path)?;
+        let catalog = catalog_for(&dirs.data.path, command.mends_catalog())?;
         let project = discover_project(
             command.project.as_deref(),
             std::env::var_os("PACE_PROJECT"),
@@ -146,6 +147,22 @@ impl PaceApp {
             )
             .ask_report()
         })
+    }
+}
+
+/// The catalog in `home`. A command that `mends` the catalog's files gets
+/// an empty catalog when they don't read; it reads the file it mends
+/// itself.
+///
+/// # Errors
+///
+/// If the catalog doesn't read and the command doesn't mend it: the error
+/// points at the line.
+fn catalog_for(home: &Path, mends: bool) -> PaceResult<Catalog> {
+    match read_catalog(home) {
+        Ok(catalog) => Ok(catalog),
+        Err(_) if mends => Ok(Catalog::default()),
+        Err(error) => Err(error),
     }
 }
 
@@ -273,6 +290,32 @@ mod tests {
         let style = Style::new(false, env(&[("NO_COLOR", ""), ("COLUMNS", "wide")]));
 
         assert_eq!(style, Style::default());
+    }
+
+    fn broken_home() -> tempfile::TempDir {
+        let home = pace_store::testing::scratch_dir().unwrap();
+        std::fs::write(
+            home.path().join("roles.toml"),
+            "version = 1\n\n[work]\nkind = \"aera\"\n",
+        )
+        .unwrap();
+        home
+    }
+
+    #[test]
+    fn broken_catalog_stops_command_that_does_not_mend_it() {
+        let home = broken_home();
+
+        let error = catalog_for(home.path(), false).unwrap_err();
+
+        assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn broken_catalog_is_empty_for_command_that_mends_it() {
+        let home = broken_home();
+
+        assert_eq!(catalog_for(home.path(), true).unwrap(), Catalog::default());
     }
 
     #[test]

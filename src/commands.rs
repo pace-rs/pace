@@ -150,3 +150,31 @@ impl Runnable for EntryPoint {
 }
 
 impl Configurable<()> for EntryPoint {}
+
+impl EntryPoint {
+    /// Whether the command mends a file of the catalog, so that it runs
+    /// even when the catalog doesn't read: `pace role edit` opens the
+    /// broken roles file to fix it.
+    pub(crate) const fn mends_catalog(&self) -> bool {
+        matches!(self.cmd, Some(PaceCmd::Role(RoleCmd::Edit(_))))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::*;
+
+    fn mends(args: &[&str]) -> bool {
+        EntryPoint::try_parse_from(args).unwrap().mends_catalog()
+    }
+
+    #[test]
+    fn only_role_edit_mends_catalog() {
+        assert!(mends(&["pace", "role", "edit"]));
+        assert!(!mends(&["pace", "role", "list"]));
+        assert!(!mends(&["pace", "now"]));
+        assert!(!mends(&["pace"]));
+    }
+}
