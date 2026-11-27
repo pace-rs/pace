@@ -1,6 +1,6 @@
 //! The state of the entries, built from the events in merged order.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use jiff::ZonedDateTime;
 
@@ -18,7 +18,20 @@ use crate::{
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct State {
     entries: BTreeMap<EntryId, Entry>,
+    /// The batches in merged order of their first event.
     batches: Vec<BatchRecord>,
+    /// Where each batch is in `batches`, so an event finds its batch without
+    /// a scan.
+    batch_positions: HashMap<BatchId, usize>,
+}
+
+/// Whether a later batch took a batch back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Standing {
+    /// No batch undid it: its events count.
+    Kept,
+    /// A batch undid it: its events count as never written.
+    Undone,
 }
 
 /// A batch as far as `undo` cares.
@@ -26,7 +39,7 @@ pub struct State {
 struct BatchRecord {
     id: BatchId,
     device: DeviceId,
-    undone: bool,
+    standing: Standing,
     /// Undo and forget can't be undone.
     undoable: bool,
     /// The entries its events concern; undoing a batch whose entries are all
@@ -72,15 +85,20 @@ impl State {
 
         let mut state = Self::default();
         for recorded in ordered {
-            state.record_batch(recorded, undone.contains(&recorded.batch));
-            if !undone.contains(&recorded.batch) {
+            let standing = if undone.contains(&recorded.batch) {
+                Standing::Undone
+            } else {
+                Standing::Kept
+            };
+            state.record_batch(recorded, standing);
+            if standing == Standing::Kept {
                 state.apply(recorded, &forgotten);
             }
         }
         state
     }
 
-    fn record_batch(&mut self, recorded: &RecordedEvent, undone: bool) {
+    fn record_batch(&mut self, recorded: &RecordedEvent, standing: Standing) {
         let undoable = !matches!(
             recorded.event.kind,
             EventKind::BatchUndone { .. } | EventKind::EntryForgotten { .. }
@@ -88,9 +106,9 @@ impl State {
         let entry = recorded.event.kind.entry();
         let about = &recorded.event.about;
         if let Some(batch) = self
-            .batches
-            .iter_mut()
-            .find(|batch| batch.id == recorded.batch)
+            .batch_positions
+            .get(&recorded.batch)
+            .and_then(|&position| self.batches.get_mut(position))
         {
             batch.undoable &= undoable;
             batch.entries.extend(entry);
@@ -98,10 +116,13 @@ impl State {
                 batch.abouts.push(about.clone());
             }
         } else {
+            _ = self
+                .batch_positions
+                .insert(recorded.batch, self.batches.len());
             self.batches.push(BatchRecord {
                 id: recorded.batch,
                 device: recorded.device,
-                undone,
+                standing,
                 undoable,
                 entries: entry.into_iter().collect(),
                 abouts: vec![about.clone()],
@@ -120,7 +141,7 @@ impl State {
             .find(|batch| {
                 batch.device == device
                     && batch.undoable
-                    && !batch.undone
+                    && batch.standing == Standing::Kept
                     && batch.entries.iter().any(|id| self.entries.contains_key(id))
             })
             .map(|batch| UndoTarget {
