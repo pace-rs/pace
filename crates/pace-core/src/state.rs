@@ -90,8 +90,11 @@ impl State {
             recorded.event.kind,
             EventKind::BatchUndone { .. } | EventKind::EntryForgotten { .. }
         );
-        let concerns_kept =
-            concerned_entry(&recorded.event.kind).is_some_and(|entry| !forgotten.contains(&entry));
+        let concerns_kept = recorded
+            .event
+            .kind
+            .entry()
+            .is_some_and(|entry| !forgotten.contains(&entry));
         let about = &recorded.event.about;
         if let Some(batch) = self
             .batches
@@ -256,22 +259,6 @@ impl State {
     /// The entries without an end: running, held or paused, by start.
     pub fn open(&self) -> impl Iterator<Item = &Entry> {
         self.entries().filter(|entry| entry.is_open())
-    }
-}
-
-/// The entry an event is about; an undo is about a batch.
-const fn concerned_entry(kind: &EventKind) -> Option<EntryId> {
-    match kind {
-        EventKind::EntryBegun { entry, .. }
-        | EventKind::EntryHeld { entry, .. }
-        | EventKind::EntryPaused { entry, .. }
-        | EventKind::EntryResumed { entry }
-        | EventKind::EntryEnded { entry }
-        | EventKind::CatchNoted { entry, .. }
-        | EventKind::EntryLogged { entry, .. }
-        | EventKind::EntryAdjusted { entry, .. }
-        | EventKind::EntryForgotten { entry } => Some(*entry),
-        EventKind::BatchUndone { .. } => None,
     }
 }
 

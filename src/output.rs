@@ -3,8 +3,9 @@
 use jiff::ZonedDateTime;
 use pace_core::{
     Change, Entry, EntryChanges, EntryId, EventKind, HoldSource, Outcome, PauseKind, ProjectRef,
-    State, Tag, short_ids,
+    RecordedEvent, State, Tag, short_ids,
 };
+use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::format_duration;
 
 /// A moment as the user reads it: `HH:MM` on the day of `now`, else with the
@@ -74,140 +75,176 @@ pub fn project_name(project: &ProjectRef) -> String {
 
 /// One line per event the command appended; for an undo, what it took
 /// back.
-#[must_use]
-pub fn describe_outcome(outcome: &Outcome) -> Vec<String> {
-    let state = &outcome.state;
-    let before = &outcome.before;
-    let now = &outcome.now;
-    let mut lines: Vec<String> = outcome
-        .recorded
-        .iter()
-        .filter_map(|recorded| {
-            let at = &recorded.event.at;
-            let line = match &recorded.event.kind {
-                EventKind::EntryBegun { entry, .. } => {
-                    let entry = state.entry(*entry)?;
-                    format!("Began {} at {}.", entry_name(state, entry), clock(at, now))
-                }
-                EventKind::EntryEnded { entry } => {
-                    let entry = state.entry(*entry)?;
-                    ended(state, entry, at, now)
-                }
-                EventKind::EntryHeld {
-                    entry,
-                    source,
-                    reason,
-                } => held(
-                    state,
-                    state.entry(*entry)?,
-                    at,
-                    *source,
-                    reason.as_deref(),
-                    now,
-                ),
-                EventKind::EntryPaused { entry, kind, .. } => {
-                    let entry = state.entry(*entry)?;
-                    format!(
-                        "Paused {} at {} {}.",
-                        short_id(state, entry.id),
-                        clock(at, now),
-                        pause_kind(*kind)
-                    )
-                }
-                EventKind::EntryResumed { entry } => resumed(state, state.entry(*entry)?, at, now),
-                EventKind::CatchNoted { entry, text } => {
-                    format!("Caught \"{text}\" on {}.", short_id(state, *entry))
-                }
-                EventKind::EntryLogged { entry, .. } => {
-                    let entry = state.entry(*entry)?;
-                    format!(
-                        "Logged {} from {} to {} ({}).",
-                        entry_name(state, entry),
-                        clock(&entry.start, now),
-                        clock(entry.end.as_ref()?, now),
-                        format_duration(entry.net(now))
-                    )
-                }
-                EventKind::EntryAdjusted { entry, changes } => adjusted(
-                    before.entry(*entry)?,
-                    state,
-                    state.entry(*entry)?,
-                    changes,
-                    now,
-                ),
-                EventKind::EntryForgotten { entry } => {
-                    let entry = before.entry(*entry)?;
-                    format!(
-                        "Forgot {} ({}) for good. Its events are gone from this device; other \
-                         devices remove theirs when they see this.",
-                        short_id(before, entry.id),
-                        times(entry, now)
-                    )
-                }
-                // An undo's lines come from what it took back: `undid`.
-                EventKind::BatchUndone { .. } => return None,
-            };
-            Some(line)
-        })
-        .collect();
-    lines.extend(undid(outcome));
-    lines
+///
+/// # Errors
+///
+/// If an event names an entry the outcome lacks, or the command appended
+/// events and no line says so: both are bugs.
+pub fn describe_outcome(outcome: &Outcome) -> PaceResult<Vec<String>> {
+    let mut lines = Vec::new();
+    for recorded in &outcome.recorded {
+        lines.extend(recorded_line(outcome, recorded)?);
+    }
+    lines.extend(undid(outcome)?);
+    if lines.is_empty() && !outcome.recorded.is_empty() {
+        return Err(PaceError::new(
+            ErrorKind::Internal,
+            "pace recorded {count} and has no line to say so",
+        )
+        .attach_context("count", counted(outcome.recorded.len(), "event"))
+        .ask_report());
+    }
+    Ok(lines)
 }
 
-/// What an undo took back, one line per undone event.
-fn undid(outcome: &Outcome) -> Vec<String> {
+/// The line for one appended event; an undo's lines come from what it took
+/// back, in [`undid`].
+fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Option<String>> {
+    let (state, before, now) = (&outcome.state, &outcome.before, &outcome.now);
+    let at = &recorded.event.at;
+    let line = match &recorded.event.kind {
+        EventKind::EntryBegun { entry, .. } => format!(
+            "Began {} at {}.",
+            entry_name(state, known(state, *entry)?),
+            clock(at, now)
+        ),
+        EventKind::EntryEnded { entry } => ended(state, known(state, *entry)?, at, now),
+        EventKind::EntryHeld {
+            entry,
+            source,
+            reason,
+        } => held(
+            state,
+            known(state, *entry)?,
+            at,
+            *source,
+            reason.as_deref(),
+            now,
+        ),
+        EventKind::EntryPaused { entry, kind, .. } => format!(
+            "Paused {} at {} {}.",
+            short_id(state, known(state, *entry)?.id),
+            clock(at, now),
+            pause_kind(*kind)
+        ),
+        EventKind::EntryResumed { entry } => resumed(state, known(state, *entry)?, at, now),
+        EventKind::CatchNoted { entry, text } => {
+            format!("Caught \"{text}\" on {}.", short_id(state, *entry))
+        }
+        EventKind::EntryLogged { entry, end, .. } => {
+            let entry = known(state, *entry)?;
+            format!(
+                "Logged {} from {} to {} ({}).",
+                entry_name(state, entry),
+                clock(at, now),
+                clock(end, now),
+                format_duration(entry.net(now))
+            )
+        }
+        EventKind::EntryAdjusted { entry, changes } => adjusted(
+            known(before, *entry)?,
+            state,
+            known(state, *entry)?,
+            changes,
+            now,
+        ),
+        EventKind::EntryForgotten { entry } => {
+            let entry = known(before, *entry)?;
+            format!(
+                "Forgot {} ({}) for good. Its events are gone from this device; other \
+                 devices remove theirs when they see this.",
+                short_id(before, entry.id),
+                times(entry, now)
+            )
+        }
+        EventKind::BatchUndone { .. } => return Ok(None),
+    };
+    Ok(Some(line))
+}
+
+/// What an undo took back, one line per undone event. An event about an
+/// entry forgotten since has nothing left to take back, so it has no line.
+fn undid(outcome: &Outcome) -> PaceResult<Vec<String>> {
     let before = &outcome.before;
-    let now = &outcome.now;
     outcome
         .undone
         .iter()
-        .filter_map(|recorded| {
-            let at = clock(&recorded.event.at, now);
-            let line = match &recorded.event.kind {
-                EventKind::EntryBegun { entry, .. } => format!(
-                    "Took back the start of {} at {at}.",
-                    entry_name(before, before.entry(*entry)?)
-                ),
-                EventKind::EntryEnded { entry } => format!(
-                    "Took back the end of {} at {at}; it is open again.",
-                    entry_name(before, before.entry(*entry)?)
-                ),
-                EventKind::EntryHeld { entry, .. } => {
-                    format!(
-                        "Took back the hold of {} at {at}.",
-                        short_id(before, *entry)
-                    )
-                }
-                EventKind::EntryPaused { entry, .. } => {
-                    format!(
-                        "Took back the pause of {} at {at}.",
-                        short_id(before, *entry)
-                    )
-                }
-                EventKind::EntryResumed { entry } => {
-                    format!("Took back resuming {} at {at}.", short_id(before, *entry))
-                }
-                EventKind::CatchNoted { text, .. } => {
-                    format!("Took back the caught thought \"{text}\".")
-                }
-                EventKind::EntryLogged { entry, .. } => {
-                    let entry = before.entry(*entry)?;
-                    format!(
-                        "Took back the logged entry {}, {}.",
-                        entry_name(before, entry),
-                        times(entry, now)
-                    )
-                }
-                EventKind::EntryAdjusted { entry, .. } => format!(
-                    "Took back the adjustment of {}.",
-                    entry_name(before, before.entry(*entry)?)
-                ),
-                // An undo and a forget can't be undone.
-                EventKind::EntryForgotten { .. } | EventKind::BatchUndone { .. } => return None,
-            };
-            Some(line)
+        .filter(|recorded| {
+            recorded
+                .event
+                .kind
+                .entry()
+                .is_none_or(|entry| before.entry(entry).is_some())
         })
+        .map(|recorded| took_back(before, recorded, &outcome.now))
         .collect()
+}
+
+/// The line for one undone event.
+fn took_back(before: &State, recorded: &RecordedEvent, now: &ZonedDateTime) -> PaceResult<String> {
+    let at = clock(&recorded.event.at, now);
+    Ok(match &recorded.event.kind {
+        EventKind::EntryBegun { entry, .. } => format!(
+            "Took back the start of {} at {at}.",
+            entry_name(before, known(before, *entry)?)
+        ),
+        EventKind::EntryEnded { entry } => format!(
+            "Took back the end of {} at {at}; it is open again.",
+            entry_name(before, known(before, *entry)?)
+        ),
+        EventKind::EntryHeld { entry, .. } => {
+            format!(
+                "Took back the hold of {} at {at}.",
+                short_id(before, *entry)
+            )
+        }
+        EventKind::EntryPaused { entry, .. } => {
+            format!(
+                "Took back the pause of {} at {at}.",
+                short_id(before, *entry)
+            )
+        }
+        EventKind::EntryResumed { entry } => {
+            format!("Took back resuming {} at {at}.", short_id(before, *entry))
+        }
+        EventKind::CatchNoted { text, .. } => {
+            format!("Took back the caught thought \"{text}\".")
+        }
+        EventKind::EntryLogged { entry, .. } => {
+            let entry = known(before, *entry)?;
+            format!(
+                "Took back the logged entry {}, {}.",
+                entry_name(before, entry),
+                times(entry, now)
+            )
+        }
+        EventKind::EntryAdjusted { entry, .. } => format!(
+            "Took back the adjustment of {}.",
+            entry_name(before, known(before, *entry)?)
+        ),
+        // The state never offers an undo or a forget to undo.
+        EventKind::EntryForgotten { .. } | EventKind::BatchUndone { .. } => {
+            return Err(PaceError::new(
+                ErrorKind::Internal,
+                "pace undid a batch with the event {event}, which can't be undone",
+            )
+            .attach_context("event", recorded.event.id.to_string())
+            .ask_report());
+        }
+    })
+}
+
+/// The entry an event of this command names; without it, the outcome is
+/// wrong.
+fn known(state: &State, id: EntryId) -> PaceResult<&Entry> {
+    state.entry(id).ok_or_else(|| {
+        PaceError::new(
+            ErrorKind::Internal,
+            "pace recorded an event about the entry {entry}, which its state lacks",
+        )
+        .attach_context("entry", id.to_string())
+        .ask_report()
+    })
 }
 
 fn adjusted(
@@ -364,4 +401,195 @@ fn resumed(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime
         short_id(state, entry.id),
         clock(at, now)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use pace_core::{BatchId, Event, Hlc};
+
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    fn id<T: std::str::FromStr>(prefix: u16, number: u32) -> Result<T, T::Err> {
+        format!("0193a8d0-{prefix:04x}-7000-8000-{number:012x}").parse()
+    }
+
+    fn nine() -> Result<ZonedDateTime, jiff::Error> {
+        "2026-11-26T09:00[Europe/Berlin]".parse()
+    }
+
+    /// `kind` as event `number` of batch `batch`, at 09:00.
+    fn recorded(
+        batch: u32,
+        number: u32,
+        kind: EventKind,
+    ) -> Result<RecordedEvent, Box<dyn std::error::Error>> {
+        let at = nine()?;
+        Ok(RecordedEvent {
+            device: id(0xd, 1)?,
+            batch: id(0xb, batch)?,
+            hlc: Hlc::new(at.timestamp(), number),
+            event: Event {
+                id: id(0xe, number)?,
+                at: at.clone(),
+                about: at,
+                kind,
+            },
+        })
+    }
+
+    fn begun(entry: EntryId) -> EventKind {
+        EventKind::EntryBegun {
+            entry,
+            project: None,
+            note: Some("Write offer".to_owned()),
+            tags: BTreeSet::new(),
+        }
+    }
+
+    fn outcome(
+        before: &[RecordedEvent],
+        recorded: Vec<RecordedEvent>,
+        undone: Vec<RecordedEvent>,
+    ) -> Result<Outcome, jiff::Error> {
+        let mut all = before.to_vec();
+        all.extend(recorded.iter().cloned());
+        Ok(Outcome {
+            recorded,
+            before: State::from_events(before),
+            state: State::from_events(&all),
+            undone,
+            now: nine()?,
+        })
+    }
+
+    #[test]
+    fn recorded_event_about_missing_entry_is_internal_error() -> TestResult {
+        let missing: EntryId = id(0xa, 9)?;
+        let outcome = outcome(
+            &[],
+            vec![recorded(1, 1, EventKind::EntryEnded { entry: missing })?],
+            Vec::new(),
+        )?;
+
+        let error = describe_outcome(&outcome).err().ok_or("an error")?;
+
+        assert_eq!(error.kind(), ErrorKind::Internal);
+        Ok(())
+    }
+
+    #[test]
+    fn undo_without_line_is_internal_error() -> TestResult {
+        let batch: BatchId = id(0xb, 1)?;
+        let outcome = outcome(
+            &[],
+            vec![recorded(2, 1, EventKind::BatchUndone { batch })?],
+            Vec::new(),
+        )?;
+
+        let error = describe_outcome(&outcome).err().ok_or("an error")?;
+
+        assert_eq!(error.kind(), ErrorKind::Internal);
+        Ok(())
+    }
+
+    #[test]
+    fn undo_takes_back_each_kind_of_event_in_its_own_words() -> TestResult {
+        let (entry, logged): (EntryId, EntryId) = (id(0xa, 1)?, id(0xa, 3)?);
+        let kinds = [
+            begun(entry),
+            EventKind::EntryHeld {
+                entry,
+                source: HoldSource::Outer,
+                reason: None,
+            },
+            EventKind::EntryPaused {
+                entry,
+                kind: PauseKind::Break,
+                reason: None,
+            },
+            EventKind::EntryResumed { entry },
+            EventKind::CatchNoted {
+                entry,
+                text: "call Anna".to_owned(),
+            },
+            EventKind::EntryLogged {
+                entry: logged,
+                end: "2026-11-26T10:00[Europe/Berlin]".parse()?,
+                project: None,
+                note: Some("Review".to_owned()),
+                tags: BTreeSet::new(),
+            },
+            EventKind::EntryAdjusted {
+                entry,
+                changes: EntryChanges::default(),
+            },
+            EventKind::EntryEnded { entry },
+        ];
+        let undone = (1..)
+            .zip(kinds)
+            .map(|(number, kind)| recorded(1, number, kind))
+            .collect::<Result<Vec<_>, _>>()?;
+        let batch = undone[0].batch;
+        let undo = recorded(2, 20, EventKind::BatchUndone { batch })?;
+        let outcome = outcome(&undone, vec![undo], undone.clone())?;
+
+        let lines = describe_outcome(&outcome)?;
+
+        assert_eq!(
+            lines,
+            [
+                "Took back the start of 0001 \"Write offer\" at 09:00.",
+                "Took back the hold of 0001 at 09:00.",
+                "Took back the pause of 0001 at 09:00.",
+                "Took back resuming 0001 at 09:00.",
+                "Took back the caught thought \"call Anna\".",
+                "Took back the logged entry 0003 \"Review\", 09:00–10:00.",
+                "Took back the adjustment of 0001 \"Write offer\".",
+                "Took back the end of 0001 \"Write offer\" at 09:00; it is open again.",
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn undone_forget_is_internal_error() -> TestResult {
+        let entry: EntryId = id(0xa, 1)?;
+        let began = recorded(1, 1, begun(entry))?;
+        let forgot = recorded(2, 2, EventKind::EntryForgotten { entry })?;
+        let undo = recorded(
+            3,
+            3,
+            EventKind::BatchUndone {
+                batch: forgot.batch,
+            },
+        )?;
+        let outcome = outcome(&[began], vec![undo], vec![forgot])?;
+
+        let error = describe_outcome(&outcome).err().ok_or("an error")?;
+
+        assert_eq!(error.kind(), ErrorKind::Internal);
+        Ok(())
+    }
+
+    #[test]
+    fn undone_event_about_forgotten_entry_has_no_line() -> TestResult {
+        let (kept, gone): (EntryId, EntryId) = (id(0xa, 1)?, id(0xa, 2)?);
+        let began = recorded(1, 1, begun(kept))?;
+        let ended = recorded(2, 2, EventKind::EntryEnded { entry: kept })?;
+        let undo = recorded(3, 4, EventKind::BatchUndone { batch: ended.batch })?;
+        let switched = vec![ended.clone(), recorded(2, 3, begun(gone))?];
+        let outcome = outcome(&[began, ended], vec![undo], switched)?;
+
+        let lines = describe_outcome(&outcome)?;
+
+        assert_eq!(
+            lines,
+            ["Took back the end of 0001 \"Write offer\" at 09:00; it is open again."]
+        );
+        Ok(())
+    }
 }

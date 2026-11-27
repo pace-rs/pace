@@ -113,6 +113,25 @@ pub enum EventKind {
     },
 }
 
+impl EventKind {
+    /// The entry the event is about; an undo is about a batch.
+    #[must_use]
+    pub const fn entry(&self) -> Option<EntryId> {
+        match self {
+            Self::EntryBegun { entry, .. }
+            | Self::EntryHeld { entry, .. }
+            | Self::EntryPaused { entry, .. }
+            | Self::EntryResumed { entry }
+            | Self::EntryEnded { entry }
+            | Self::CatchNoted { entry, .. }
+            | Self::EntryLogged { entry, .. }
+            | Self::EntryAdjusted { entry, .. }
+            | Self::EntryForgotten { entry } => Some(*entry),
+            Self::BatchUndone { .. } => None,
+        }
+    }
+}
+
 /// What happens to a field in an adjustment.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Change<T> {

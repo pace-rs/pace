@@ -32,7 +32,7 @@ pub(super) fn track(
     let command = build(&session, &mut notes)?;
     let outcome = session.run(&command)?;
     print_lines(
-        describe_outcome(&outcome)
+        describe_outcome(&outcome)?
             .into_iter()
             .chain(notes)
             .chain(session.first_use_note()),
