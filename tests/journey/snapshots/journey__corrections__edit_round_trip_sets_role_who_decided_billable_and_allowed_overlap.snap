@@ -1,0 +1,90 @@
+---
+source: tests/journey/corrections.rs
+expression: transcript
+---
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write offer": role Work (had none), decided by others, billable, overlap allowed.
+
+----- stderr -----
+
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × the entry is unchanged
+  help: change a value and save the file to adjust the entry
+
+
+--- the file of the first edit ---
+# pace edit: entry [ID-1], begun on this device.
+# Change what you like and save; pace records the changes as one adjustment,
+# which `pace undo` takes back. Delete the note, project-key, tags, role,
+# determined-by or billable line to remove it; without a role or billable
+# line, the project's applies. A time can also be written as 2026-11-26 09:00.
+
+start = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+end = "2026-11-26T10:00:00+01:00[Europe/Berlin]"
+note = "Write offer"
+# project-key = "your-key"
+# tags = []
+# role = "your-role"
+# determined-by = "other" # or "self"
+# billable = true
+# allow-overlap = true
+
+--- the file of the second edit ---
+# pace edit: entry [ID-1], begun on this device.
+# Change what you like and save; pace records the changes as one adjustment,
+# which `pace undo` takes back. Delete the note, project-key, tags, role,
+# determined-by or billable line to remove it; without a role or billable
+# line, the project's applies. A time can also be written as 2026-11-26 09:00.
+
+start = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+end = "2026-11-26T10:00:00+01:00[Europe/Berlin]"
+note = "Write offer"
+role = "work"
+determined-by = "other"
+billable = true
+allow-overlap = true
+# project-key = "your-key"
+# tags = []
+
+--- home/events ---
+version = 1
+
+[[event]]
+id = "[ID-2]"
+type = "entry.begun"
+v = 1
+batch = "[ID-3]"
+at = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:00:00.000Z/0"
+entry = "[ID-1]"
+note = "Write offer"
+
+[[event]]
+id = "[ID-4]"
+type = "entry.ended"
+v = 1
+batch = "[ID-5]"
+at = "2026-11-26T10:00:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T09:00:00.000Z/0"
+entry = "[ID-1]"
+
+[[event]]
+id = "[ID-6]"
+type = "entry.adjusted"
+v = 1
+batch = "[ID-7]"
+at = "2026-11-26T10:05:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T09:05:00.000Z/0"
+entry = "[ID-1]"
+role = "[ID-8]"
+determined-by = "other"
+billable = true
+allow-overlap = true

@@ -1,0 +1,32 @@
+---
+source: tests/journey/corrections.rs
+expression: transcript
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × pace doesn't know the role `wrok`
+    ╭─[the edited entry:11:8]
+ 10 │ # tags = []
+ 11 │ role = "wrok"
+    ·        ───┬──
+    ·           ╰── this role
+ 12 │ # determined-by = "other" # or "self"
+    ╰────
+  help: nothing was changed; did you mean `work`?
+
+
+--- home/events ---
+version = 1
+
+[[event]]
+id = "[ID-1]"
+type = "entry.begun"
+v = 1
+batch = "[ID-2]"
+at = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:00:00.000Z/0"
+entry = "[ID-3]"
+note = "Write offer"

@@ -555,3 +555,126 @@ fn adjust_into_project_of_entry_own_role_and_billable_clears_them() -> TestResul
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+/// An editor that keeps a copy of the file pace wrote as `<name>.toml` in
+/// the sandbox, then runs `sed -i` with `expressions` on it; without
+/// expressions it saves the file as it was.
+#[cfg(unix)]
+fn copying_editor(
+    sandbox: &Sandbox,
+    name: &str,
+    expressions: &[&str],
+) -> Result<String, Box<dyn std::error::Error>> {
+    let copy = sandbox.path(format!("{name}.toml"));
+    let script = sandbox.path(format!("{name}.sh"));
+    let expressions: Vec<String> = expressions
+        .iter()
+        .map(|expression| format!("-e '{expression}'"))
+        .collect();
+    let change = if expressions.is_empty() {
+        String::new()
+    } else {
+        format!("sed -i {} \"$1\"\n", expressions.join(" "))
+    };
+    std::fs::write(&script, format!("cp \"$1\" '{}'\n{change}", copy.display()))?;
+    Ok(format!("sh '{}'", script.display()))
+}
+
+/// The copy that [`copying_editor`] kept as `<name>.toml`.
+#[cfg(unix)]
+fn copied_file(sandbox: &Sandbox, name: &str) -> std::io::Result<String> {
+    std::fs::read_to_string(sandbox.path(format!("{name}.toml")))
+}
+
+#[cfg(unix)]
+#[test]
+fn edit_round_trip_sets_role_who_decided_billable_and_allowed_overlap() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox
+        .pace_at("08:50")
+        .args(["role", "add", "work", "--name", "Work"]))?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
+    _ = run(sandbox.pace_at("10:00").arg("end"))?;
+    let setting = copying_editor(
+        &sandbox,
+        "first",
+        &[
+            r#"s/^# role = .*/role = "work"/"#,
+            r#"s/^# determined-by = "other".*/determined-by = "other"/"#,
+            "s/^# billable = true/billable = true/",
+            "s/^# allow-overlap = true/allow-overlap = true/",
+        ],
+    )?;
+    let keeping = copying_editor(&sandbox, "second", &[])?;
+
+    let set = run(sandbox
+        .pace_at("10:05")
+        .env("VISUAL", setting)
+        .args(["edit", "--last"]))?;
+    let kept = run(sandbox
+        .pace_at("10:06")
+        .env("VISUAL", keeping)
+        .args(["edit", "--last"]))?;
+
+    let transcript = sandbox.redact_ids(&format!(
+        "{set}\n{kept}\n--- the file of the first edit ---\n{}\n\
+         --- the file of the second edit ---\n{}\n--- home/events ---\n{}",
+        copied_file(&sandbox, "first")?,
+        copied_file(&sandbox, "second")?,
+        event_text(&sandbox)?
+    ))?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn edit_without_role_line_clears_role() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox
+        .pace_at("08:50")
+        .args(["role", "add", "work", "--name", "Work"]))?;
+    _ = run(sandbox
+        .pace_at("09:00")
+        .args(["begin", "Write offer", "--role", "work"]))?;
+
+    let cleared = run(sandbox
+        .pace_at("09:30")
+        .env("VISUAL", "sed -i -e '/^role = /d'")
+        .arg("edit"))?;
+
+    let transcript = sandbox.redact_ids(&format!(
+        "{cleared}\n--- home/events ---\n{}",
+        event_text(&sandbox)?
+    ))?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn edit_with_unknown_role_key_names_its_line_and_closest_key() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox
+        .pace_at("08:50")
+        .args(["role", "add", "work", "--name", "Work"]))?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
+
+    let refused = run(sandbox
+        .pace_at("09:30")
+        .env("VISUAL", r#"sed -i -e 's/^# role = .*/role = "wrok"/'"#)
+        .arg("edit"))?;
+
+    let transcript = sandbox.redact_ids(&format!(
+        "{refused}\n--- home/events ---\n{}",
+        event_text(&sandbox)?
+    ))?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}

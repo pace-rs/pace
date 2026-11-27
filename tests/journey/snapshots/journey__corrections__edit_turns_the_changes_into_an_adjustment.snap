@@ -23,12 +23,12 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-  × the edited entry has a mistake: unknown field `notes`, expected one of `start`, `end`, `note`, `project`, `project-key`, `tags`
-   ╭─[the edited entry:8:1]
- 7 │ end = "2026-11-26T10:00:00+01:00[Europe/Berlin]"
- 8 │ notes = "Write offer"
-   · ──┬──
-   ·   ╰── here
- 9 │ # project-key = "your-key"
-   ╰────
+  × the edited entry has a mistake: unknown field `notes`, expected one of `start`, `end`, `note`, `project`, `project-key`, `tags`, `role`, `determined-by`, `billable`, `allow-overlap`
+    ╭─[the edited entry:9:1]
+  8 │ end = "2026-11-26T10:00:00+01:00[Europe/Berlin]"
+  9 │ notes = "Write offer"
+    · ──┬──
+    ·   ╰── here
+ 10 │ # project-key = "your-key"
+    ╰────
   help: fix the marked spot; nothing was changed

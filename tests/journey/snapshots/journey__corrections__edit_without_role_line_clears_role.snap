@@ -1,0 +1,35 @@
+---
+source: tests/journey/corrections.rs
+expression: transcript
+---
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write offer": role removed (was Work).
+
+----- stderr -----
+
+--- home/events ---
+version = 1
+
+[[event]]
+id = "[ID-2]"
+type = "entry.begun"
+v = 1
+batch = "[ID-3]"
+at = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:00:00.000Z/0"
+entry = "[ID-1]"
+note = "Write offer"
+role = "[ID-4]"
+
+[[event]]
+id = "[ID-5]"
+type = "entry.adjusted"
+v = 1
+batch = "[ID-6]"
+at = "2026-11-26T09:30:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:30:00.000Z/0"
+entry = "[ID-1]"
+cleared = ["role"]

@@ -6,14 +6,15 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Catalog, Change, Command as UseCase, DeviceId, Entry, EntryOrigin, EntryVerb, OVERLAP,
-    ProjectId, ProjectKey, ProjectRef, Tag, Text, command::Adjust,
+    Catalog, Change, Command as UseCase, DeterminedBy, DeviceId, Entry, EntryOrigin, EntryVerb,
+    OVERLAP, ProjectId, ProjectKey, ProjectRef, RoleId, RoleKey, Tag, Text, command::Adjust,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Snippet};
 use pace_time::{NOT_UNDERSTOOD, format_moment, parse_at};
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
+use crate::commands::role::known_role;
 use crate::commands::tracking::{chosen_moment, track_run};
 use crate::editor::{edit_in_editor, editor_command};
 use crate::prompt::Ask;
@@ -28,8 +29,9 @@ const EDITED: &str = "the edited entry";
 
 const HELP: &str = "\
 # Change what you like and save; pace records the changes as one adjustment,
-# which `pace undo` takes back. Delete the note, project-key or tags line to
-# remove it. A time can also be written as 2026-11-26 09:00.
+# which `pace undo` takes back. Delete the note, project-key, tags, role,
+# determined-by or billable line to remove it; without a role or billable
+# line, the project's applies. A time can also be written as 2026-11-26 09:00.
 ";
 
 /// `pace edit`
@@ -67,9 +69,10 @@ impl Runnable for EditCmd {
                 self.allow_overlap,
                 |text| edit_in_editor(&editor, text, ".toml"),
                 |text, allow_overlap| {
-                    let adjust = read_adjustment(text, &chosen.entry, &now, asker, notes)?;
+                    let adjust =
+                        read_adjustment(text, &chosen.entry, &now, &context.catalog, asker, notes)?;
                     session.run(&UseCase::Adjust(Adjust {
-                        allow_overlap,
+                        allow_overlap: allow_overlap || adjust.allow_overlap,
                         ..adjust
                     }))
                 },
@@ -168,6 +171,15 @@ struct Written<'entry> {
     project_key: Option<&'entry ProjectKey>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     tags: Vec<&'entry str>,
+    /// The role by its key, or by its ID without a record.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    determined_by: Option<DeterminedBy>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billable: Option<bool>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    allow_overlap: bool,
 }
 
 /// The fields as the user saved them, with spans for errors.
@@ -185,6 +197,14 @@ struct Edited {
     project_key: Option<ProjectKey>,
     #[serde(default)]
     tags: BTreeSet<Tag>,
+    #[serde(default)]
+    role: Option<Spanned<String>>,
+    #[serde(default)]
+    determined_by: Option<DeterminedBy>,
+    #[serde(default)]
+    billable: Option<bool>,
+    #[serde(default)]
+    allow_overlap: Option<Spanned<bool>>,
 }
 
 /// The entry as a commented TOML file; its header names the project by
@@ -237,6 +257,10 @@ fn write_entry_text(
         project,
         project_key,
         tags: entry.tags.iter().map(Tag::as_str).collect(),
+        role: entry.role.map(|role| written_role(role, catalog)),
+        determined_by: entry.determined_by,
+        billable: entry.billable,
+        allow_overlap: entry.allow_overlap,
     };
     let fields = toml::to_string(&written).map_err(|error| {
         PaceError::with_source(
@@ -256,8 +280,28 @@ fn write_entry_text(
     if entry.tags.is_empty() {
         lines.push("# tags = []".to_owned());
     }
+    if entry.role.is_none() {
+        lines.push("# role = \"your-role\"".to_owned());
+    }
+    if entry.determined_by.is_none() {
+        lines.push("# determined-by = \"other\" # or \"self\"".to_owned());
+    }
+    if entry.billable.is_none() {
+        lines.push("# billable = true".to_owned());
+    }
+    if !entry.allow_overlap {
+        lines.push("# allow-overlap = true".to_owned());
+    }
     lines.push(String::new());
     Ok(lines.join("\n"))
+}
+
+/// The `role` line's value: the role's key in `catalog`, else its ID,
+/// which reads back as the same role.
+fn written_role(role: RoleId, catalog: &Catalog) -> String {
+    catalog
+        .role_by_id(role)
+        .map_or_else(|| role.to_string(), |known| known.key.to_string())
 }
 
 /// The holds, pauses and catches, as comment lines.
@@ -300,6 +344,7 @@ fn read_adjustment(
     text: &str,
     entry: &Entry,
     now: &ZonedDateTime,
+    catalog: &Catalog,
     asker: &dyn Ask,
     notes: &mut Vec<String>,
 ) -> PaceResult<Adjust> {
@@ -350,6 +395,8 @@ fn read_adjustment(
         (None, None) => None,
     };
     let note = edited.note.and_then(|note| Text::try_from(note).ok());
+    let role = edited_role(text, edited.role.as_ref(), entry, catalog, notes)?;
+    let allow_overlap = edited_allow_overlap(text, edited.allow_overlap.as_ref(), entry)?;
 
     // the whole entry as saved; the core leaves out what didn't change
     let adjust = Adjust {
@@ -360,8 +407,10 @@ fn read_adjustment(
         project: project.map_or(Change::Clear, Change::Set),
         untag: entry.tags.difference(&edited.tags).cloned().collect(),
         tag: edited.tags,
-        allow_overlap: false,
-        ..Adjust::default()
+        role,
+        determined_by: edited.determined_by.map_or(Change::Clear, Change::Set),
+        billable: edited.billable.map_or(Change::Clear, Change::Set),
+        allow_overlap,
     };
     if adjust.changes(entry).is_empty() {
         return Err(
@@ -371,6 +420,72 @@ fn read_adjustment(
         );
     }
     Ok(adjust)
+}
+
+/// The role the edited `role` line names by its key; the entry's own ID,
+/// as pace writes a role without a record, keeps it. Without the line the
+/// entry's own role goes, so the project's applies. A mistake points at
+/// the line in `text`; a new role that is archived gets a note.
+fn edited_role(
+    text: &str,
+    value: Option<&Spanned<String>>,
+    entry: &Entry,
+    catalog: &Catalog,
+    notes: &mut Vec<String>,
+) -> PaceResult<Change<RoleId>> {
+    let Some(value) = value else {
+        return Ok(Change::Clear);
+    };
+    if let Some(own) = entry.role.filter(|own| own.to_string() == *value.get_ref()) {
+        return Ok(Change::Set(own));
+    }
+    let role = value
+        .get_ref()
+        .parse::<RoleKey>()
+        .and_then(|key| known_role(catalog, &key))
+        .map_err(|error| {
+            let hint = unchanged(error.hint().unwrap_or("`pace role list` shows the roles"));
+            error.attach_hint(hint).attach_snippet(Snippet::new(
+                EDITED,
+                text,
+                value.span(),
+                "this role",
+            ))
+        })?;
+    if let Some(archived) = role
+        .archived
+        .as_ref()
+        .filter(|_| entry.role != Some(role.id))
+    {
+        notes.push(format!(
+            "The role `{}` was archived on {}; pace took it all the same.",
+            role.key, archived.on
+        ));
+    }
+    Ok(Change::Set(role.id))
+}
+
+/// Whether the edited entry marks its overlap as intended. An entry with
+/// the mark keeps it, as nothing takes it back: a removed or false
+/// `allow-overlap` line is refused.
+fn edited_allow_overlap(
+    text: &str,
+    value: Option<&Spanned<bool>>,
+    entry: &Entry,
+) -> PaceResult<bool> {
+    let allowed = value.is_some_and(|value| *value.get_ref());
+    if !entry.allow_overlap || allowed {
+        return Ok(allowed);
+    }
+    let error = PaceError::new(
+        ErrorKind::InvalidInput,
+        "the entry's overlap is intended, so it keeps `allow-overlap`",
+    )
+    .attach_hint(unchanged("write `allow-overlap = true` back"));
+    Err(match value {
+        Some(value) => error.attach_snippet(Snippet::new(EDITED, text, value.span(), "here")),
+        None => error,
+    })
 }
 
 /// A time as pace wrote it, or in the `--at` grammar; a mistake points at
@@ -502,7 +617,14 @@ mod tests {
             |text, allow_overlap| {
                 let adjust = Adjust {
                     allow_overlap,
-                    ..read_adjustment(text, &entry(), &at("10:05"), asker, &mut Vec::new())?
+                    ..read_adjustment(
+                        text,
+                        &entry(),
+                        &at("10:05"),
+                        &Catalog::default(),
+                        asker,
+                        &mut Vec::new(),
+                    )?
                 };
                 refuse(&adjust).map(|()| adjust)
             },
@@ -639,6 +761,7 @@ mod tests {
             &text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut notes,
         )
@@ -667,6 +790,7 @@ mod tests {
             "",
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -693,6 +817,7 @@ mod tests {
             &text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -717,6 +842,7 @@ mod tests {
             text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -736,6 +862,7 @@ mod tests {
             &text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -759,6 +886,7 @@ mod tests {
             &text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -782,6 +910,7 @@ mod tests {
             text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -803,6 +932,7 @@ mod tests {
             &text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -823,6 +953,7 @@ mod tests {
             text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -845,6 +976,7 @@ mod tests {
             &text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -885,6 +1017,7 @@ mod tests {
             &text,
             &entry,
             &now,
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut notes,
         )
@@ -920,6 +1053,7 @@ mod tests {
                 &uncommented,
                 &entry(),
                 &at("10:05"),
+                &Catalog::default(),
                 &Scripted::without_terminal(),
                 &mut Vec::new()
             )
@@ -1100,6 +1234,7 @@ mod tests {
                 &text,
                 &entry,
                 &at("10:05"),
+                &Catalog::default(),
                 &Scripted::without_terminal(),
                 &mut Vec::new(),
             )
@@ -1119,6 +1254,7 @@ mod tests {
             &text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -1140,6 +1276,7 @@ mod tests {
             &text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -1156,6 +1293,7 @@ mod tests {
             &text,
             &entry(),
             &at("10:05"),
+            &Catalog::default(),
             &Scripted::without_terminal(),
             &mut Vec::new(),
         )
@@ -1166,5 +1304,173 @@ mod tests {
             error.hint(),
             Some("move the end instead of removing it; nothing was changed")
         );
+    }
+
+    const WORK: &str = "0193a7c4-0000-7000-8000-0000000000a1";
+
+    /// A catalog with the role `work`.
+    fn roles() -> Catalog {
+        let work = pace_core::Role {
+            id: WORK.parse().unwrap(),
+            key: "work".parse().unwrap(),
+            kind: pace_core::RoleKind::Area,
+            name: "Work".to_owned(),
+            purpose: None,
+            weekly_target: None,
+            archived: None,
+        };
+        Catalog::new(vec![work], Vec::new(), Vec::new()).unwrap()
+    }
+
+    /// The entry with all four fields of its own.
+    fn marked_entry() -> Entry {
+        Entry {
+            role: Some(WORK.parse().unwrap()),
+            determined_by: Some(DeterminedBy::Others),
+            billable: Some(true),
+            allow_overlap: true,
+            ..entry()
+        }
+    }
+
+    /// The adjustment of `entry` that `text` asks for, with the roles of
+    /// [`roles`].
+    fn read_with_roles(text: &str, entry: &Entry) -> PaceResult<Adjust> {
+        read_adjustment(
+            text,
+            entry,
+            &at("10:05"),
+            &roles(),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+    }
+
+    #[test]
+    fn written_entry_shows_role_by_key_and_its_other_fields() {
+        let text = written_with(marked_entry(), &roles());
+
+        for line in [
+            "role = \"work\"",
+            "determined-by = \"other\"",
+            "billable = true",
+            "allow-overlap = true",
+        ] {
+            assert!(
+                text.lines().any(|written| written == line),
+                "{line}\n{text}"
+            );
+        }
+        let error = read_with_roles(&text, &marked_entry()).unwrap_err();
+        assert_eq!(error.to_string(), "the entry is unchanged", "{text}");
+    }
+
+    #[test]
+    fn written_entry_without_fields_offers_lines_that_read_back() {
+        let text = written_with(entry(), &roles());
+
+        for line in [
+            "# role = \"your-role\"",
+            "# determined-by = \"other\" # or \"self\"",
+            "# billable = true",
+            "# allow-overlap = true",
+        ] {
+            assert!(
+                text.lines().any(|written| written == line),
+                "{line}\n{text}"
+            );
+        }
+        let uncommented = text
+            .replace("# role = \"your-role\"", "role = \"work\"")
+            .replace("# determined-by = \"other\"", "determined-by = \"other\"")
+            .replace("# billable = true", "billable = true")
+            .replace("# allow-overlap = true", "allow-overlap = true");
+        let adjust = read_with_roles(&uncommented, &entry()).unwrap();
+        assert_eq!(adjust.role, Change::Set(WORK.parse().unwrap()));
+        assert_eq!(adjust.determined_by, Change::Set(DeterminedBy::Others));
+        assert_eq!(adjust.billable, Change::Set(true));
+        assert!(adjust.allow_overlap, "{uncommented}");
+    }
+
+    #[test]
+    fn deleted_role_who_decided_and_billable_lines_clear_them() {
+        let text = saved("note = \"Draft\"\nallow-overlap = true");
+
+        let adjust = read_with_roles(&text, &marked_entry()).unwrap();
+
+        assert_eq!(adjust.role, Change::Clear);
+        assert_eq!(adjust.determined_by, Change::Clear);
+        assert_eq!(adjust.billable, Change::Clear);
+    }
+
+    #[test]
+    fn unknown_role_key_marks_its_spot_and_names_closest() {
+        let text = saved("note = \"Draft\"\nrole = \"wrok\"");
+
+        let error = read_with_roles(&text, &entry()).unwrap_err();
+
+        assert_eq!(error.to_string(), "pace doesn't know the role `wrok`");
+        assert_eq!(
+            error.hint(),
+            Some("nothing was changed; did you mean `work`?")
+        );
+        assert_eq!(
+            labels(&error),
+            [(text.find("\"wrok\"").unwrap(), "this role".to_owned())]
+        );
+        assert!(can_fix(&error));
+    }
+
+    #[test]
+    fn role_that_is_no_key_marks_its_spot() {
+        let text = saved("note = \"Draft\"\nrole = \"Work stuff\"");
+
+        let error = read_with_roles(&text, &entry()).unwrap_err();
+
+        assert_eq!(error.to_string(), "`Work stuff` is not a role key");
+        assert_eq!(
+            labels(&error),
+            [(text.find("\"Work stuff\"").unwrap(), "this role".to_owned())]
+        );
+    }
+
+    #[test]
+    fn role_without_record_is_written_by_id_and_reads_back() {
+        let entry = marked_entry();
+        let text = written(entry.clone());
+
+        assert!(text.contains(&format!("role = \"{WORK}\"")), "{text}");
+        let error = read_adjustment(
+            &text,
+            &entry,
+            &at("10:05"),
+            &Catalog::default(),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+        assert_eq!(error.to_string(), "the entry is unchanged", "{text}");
+    }
+
+    #[test]
+    fn deleted_allow_overlap_of_marked_entry_is_refused() {
+        for line in ["", "allow-overlap = false"] {
+            let text = saved(&format!("note = \"Draft\"\n{line}"));
+            let entry = Entry {
+                allow_overlap: true,
+                ..entry()
+            };
+
+            let error = read_with_roles(&text, &entry).unwrap_err();
+
+            assert_eq!(
+                error.to_string(),
+                "the entry's overlap is intended, so it keeps `allow-overlap`"
+            );
+            assert_eq!(
+                error.hint(),
+                Some("write `allow-overlap = true` back; nothing was changed")
+            );
+        }
     }
 }
