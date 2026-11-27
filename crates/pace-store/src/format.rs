@@ -5,14 +5,20 @@
 //! its type. pace reads strictly: an unknown key, a missing or foreign field,
 //! an unknown type or version stops it with the file and the line.
 
-use std::{collections::BTreeSet, ops::Range, path::Path, str::FromStr};
+use std::{
+    collections::BTreeSet,
+    fmt::{self, Display},
+    ops::Range,
+    path::Path,
+    str::FromStr,
+};
 
 use jiff::{Timestamp, ZonedDateTime};
 use pace_core::{
     BatchId, Change, DeviceId, EntryChanges, EntryId, Event, EventId, EventKind, Hlc, HoldSource,
     PauseKind, ProjectId, ProjectKey, ProjectRef, RecordedEvent, Tag,
 };
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
@@ -134,7 +140,7 @@ pub fn serialize_events(events: &[RecordedEvent]) -> PaceResult<String> {
 pub fn parse_events(path: &Path, text: &str, device: DeviceId) -> PaceResult<Vec<RecordedEvent>> {
     let file: File = match toml::from_str(text) {
         Ok(file) => file,
-        Err(error) => return Err(explain(path, text, &error)),
+        Err(error) => return Err(explain(path, text, error)),
     };
     if file.version != FILE_VERSION {
         return Err(newer_or_broken(path, text, "version", file.version));
@@ -165,37 +171,61 @@ fn event_file<'a>(path: &'a Path, text: &'a str) -> TomlFile<'a> {
 
 const READ_ONLY: &str = "event files are for reading; change an entry with `pace edit`";
 
-/// A precise error for a file that serde rejected: the unknown key, the
-/// broken TOML, or the value at fault.
-fn explain(path: &Path, text: &str, error: &toml::de::Error) -> Box<PaceError> {
+/// How to go on from an event file that is no valid TOML or misses its
+/// `version`: `pace edit` reads the same file, so it can't help.
+const REPAIR: &str = "repair the file, or restore it from a backup";
+
+/// A precise error for a file that serde rejected: the broken TOML, the
+/// unknown key, or the value at fault. The TOML error is its cause.
+fn explain(path: &Path, text: &str, error: toml::de::Error) -> Box<PaceError> {
     let file = event_file(path, text);
-    if let Ok(table) = file.parse() {
-        for (key, value) in in_file_order(table.get_ref()) {
-            if !KEYS.contains(&key.get_ref().as_ref()) {
-                return unknown_key(&file, key.get_ref(), key.span());
-            }
-            if let Some(events) = value.get_ref().as_array() {
-                for event in events {
-                    let Some(event) = event.get_ref().as_table() else {
-                        continue;
-                    };
-                    for (key, _) in in_file_order(event) {
-                        if !KEYS.contains(&key.get_ref().as_ref()) {
-                            return unknown_key(&file, key.get_ref(), key.span());
-                        }
+    let Ok(table) = file.parse() else {
+        return broken(path, text, error, "the event file {file} is not valid TOML")
+            .attach_error_code("pace::store::syntax");
+    };
+    for (key, value) in in_file_order(table.get_ref()) {
+        if !KEYS.contains(&key.get_ref().as_ref()) {
+            return unknown_key(&file, key.get_ref(), key.span());
+        }
+        if let Some(events) = value.get_ref().as_array() {
+            for event in events {
+                let Some(event) = event.get_ref().as_table() else {
+                    continue;
+                };
+                for (key, _) in in_file_order(event) {
+                    if !KEYS.contains(&key.get_ref().as_ref()) {
+                        return unknown_key(&file, key.get_ref(), key.span());
                     }
                 }
             }
         }
     }
-    file.error_at(
-        error.span().unwrap_or(0..0),
-        format!("{} has an event pace cannot read", path.display()),
-        READ_ONLY,
-        error.message().trim(),
-    )
-    .attach_error_code("pace::store::invalid-event")
+    broken(path, text, error, "pace cannot read the event file {file}")
+        .attach_error_code("pace::store::invalid-file")
 }
+
+/// The error `guidance` about the event file `path`, caused by `error`.
+fn broken(path: &Path, text: &str, error: toml::de::Error, guidance: &str) -> Box<PaceError> {
+    let span = error.span().unwrap_or(0..0);
+    let label = error.message().trim().to_owned();
+    PaceError::with_source(ErrorKind::InputOutput, guidance, TomlCause(error))
+        .attach_context("file", path.display().to_string())
+        .attach_hint(REPAIR)
+        .attach_snippet(Snippet::new(path.display().to_string(), text, span, label))
+}
+
+/// The TOML error behind a broken event file. It shows only its message:
+/// its own rendering repeats the snippet the error already shows.
+#[derive(Debug)]
+struct TomlCause(toml::de::Error);
+
+impl Display for TomlCause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0.message().trim())
+    }
+}
+
+impl std::error::Error for TomlCause {}
 
 fn unknown_key(file: &TomlFile<'_>, name: &str, span: Range<usize>) -> Box<PaceError> {
     let hint = closest(name, KEYS.iter().copied()).map_or_else(

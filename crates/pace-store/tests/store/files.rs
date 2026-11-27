@@ -306,6 +306,45 @@ fn an_event_missing_field_is_named() -> TestResult {
     Ok(())
 }
 
+/// The event file of November, cut to nothing or in the middle of a value.
+fn cut(text: &str, empty: bool) -> Result<&str, Box<dyn std::error::Error>> {
+    if empty {
+        return Ok("");
+    }
+    let hlc = text.rfind("hlc = \"").ok_or("the file has an HLC")?;
+    Ok(text.get(..hlc + 11).ok_or("the HLC is longer")?)
+}
+
+#[rstest]
+#[case::empty(true, "missing field `version`")]
+#[case::truncated(false, "invalid basic string")]
+fn broken_event_file_keeps_its_cause_and_asks_to_repair_it(
+    #[case] empty: bool,
+    #[case] cause: &str,
+) -> TestResult {
+    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+    _ = pollster::block_on(
+        setup
+            .tracker(Split::Month)
+            .run(&Command::Begin(Begin::default())),
+    )?;
+    let file = setup.device_dir().join("2026/2026-11.toml");
+    let text = std::fs::read_to_string(&file)?;
+    std::fs::write(&file, cut(&text, empty)?)?;
+
+    let error = pollster::block_on(setup.store(Split::Month).read(&everything()?))
+        .err()
+        .ok_or("the broken file must fail")?;
+
+    assert!(error.to_string().contains("2026-11.toml"), "{error}");
+    let source = std::error::Error::source(&*error).ok_or("the TOML error is the cause")?;
+    assert!(source.to_string().contains(cause), "{source}");
+    let hint = error.hint().ok_or("the error says how to go on")?;
+    assert!(!hint.contains("pace edit"), "{hint}");
+    assert!(hint.contains("restore"), "{hint}");
+    Ok(())
+}
+
 /// The line of the span an error's snippet points at, counted from 1.
 fn blamed_line(error: &pace_error::PaceError, text: &str) -> Option<usize> {
     let label = miette::Diagnostic::labels(error)?.next()?;
