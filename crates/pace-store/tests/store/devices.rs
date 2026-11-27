@@ -83,6 +83,26 @@ impl Device {
         self.home.join("events").join(self.id.to_string())
     }
 
+    /// The files of this device's own log, by their paths below its
+    /// directory.
+    fn own_files(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let mut files = Vec::new();
+        let mut pending = vec![self.own_dir()];
+        while let Some(dir) = pending.pop() {
+            for entry in std::fs::read_dir(dir)? {
+                let path = entry?.path();
+                if path.is_dir() {
+                    pending.push(path);
+                } else {
+                    let relative = path.strip_prefix(self.own_dir())?;
+                    files.push(relative.to_string_lossy().replace('\\', "/"));
+                }
+            }
+        }
+        files.sort();
+        Ok(files)
+    }
+
     /// The text of all files of this device's own log.
     fn own_text(&self) -> Result<String, Box<dyn std::error::Error>> {
         let mut text = String::new();
@@ -275,8 +295,9 @@ fn entries_logged_apart_can_overlap_and_pace_finds_them() -> TestResult {
     Ok(())
 }
 
-#[test]
-fn forgotten_entry_leaves_the_own_files_of_every_device() -> TestResult {
+/// An entry begun on the laptop and held on the desktop, both synced, then
+/// forgotten on the laptop at 10:00; the desktop has not written since.
+fn forgotten_on_laptop() -> Result<(Pair, EntryId), Box<dyn std::error::Error>> {
     let Pair { laptop, desktop } = pair(Split::Week)?;
     laptop.run(
         "09:00",
@@ -289,32 +310,48 @@ fn forgotten_entry_leaves_the_own_files_of_every_device() -> TestResult {
     desktop.run("09:30", &Command::Hold(Hold::default()))?;
     sync(&laptop, &desktop)?;
     let entry = only_entry(&laptop.state()?)?;
-    let desktop_log_before_forget = std::fs::read_dir(desktop.own_dir())?.count();
-
     laptop.run("10:00", &Command::Forget(Forget { entry }))?;
-
-    assert!(
-        !laptop.own_text()?.contains("secret"),
-        "the laptop cleans its own files at once"
-    );
-    assert!(
-        laptop.own_text()?.contains("entry.forgotten"),
-        "the tombstone stays"
-    );
     sync(&laptop, &desktop)?;
+    Ok((Pair { laptop, desktop }, entry))
+}
+
+#[test]
+fn forgotten_entry_leaves_own_files_of_forgetting_device_at_once() -> TestResult {
+    let (Pair { laptop, .. }, _) = forgotten_on_laptop()?;
+
+    let text = laptop.own_text()?;
+
+    assert!(!text.contains("secret"), "{text}");
     assert!(
-        desktop.own_text()?.contains(&entry.to_string()),
-        "until it writes, the desktop keeps its events"
+        text.contains("entry.forgotten"),
+        "the tombstone stays: {text}"
     );
+    Ok(())
+}
+
+#[test]
+fn forgotten_entry_stays_in_other_device_files_until_it_writes() -> TestResult {
+    let (Pair { desktop, .. }, entry) = forgotten_on_laptop()?;
+
+    let text = desktop.own_text()?;
+
+    assert!(text.contains(&format!("entry = \"{entry}\"")), "{text}");
+    assert!(desktop.state()?.entry(entry).is_none());
+    Ok(())
+}
+
+#[test]
+fn forgotten_entry_leaves_the_own_files_of_every_device() -> TestResult {
+    let (Pair { desktop, .. }, entry) = forgotten_on_laptop()?;
 
     desktop.run("11:00", &Command::Begin(Begin::default()))?;
 
-    assert!(
-        !desktop
-            .own_text()?
-            .contains(&format!("entry = \"{entry}\""))
+    let text = desktop.own_text()?;
+    assert!(!text.contains(&format!("entry = \"{entry}\"")), "{text}");
+    assert_eq!(
+        desktop.own_files()?,
+        vec!["2026/2026-W48.toml", "device.toml"],
+        "cleaning rewrites the desktop's event file and removes none"
     );
-    assert!(desktop.state()?.entry(entry).is_none());
-    assert!(std::fs::read_dir(desktop.own_dir())?.count() >= desktop_log_before_forget);
     Ok(())
 }

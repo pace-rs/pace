@@ -735,12 +735,14 @@ mod expensive {
             .map(|entry| entry.id)
             .ok_or("entry")?;
 
-        std::thread::scope(|scope| {
+        let results = std::thread::scope(|scope| {
+            // All four are spawned before the first is joined.
+            let mut writers = Vec::new();
             for writer in 0..4u16 {
                 let store = setup.store(Split::Month);
                 let clock = setup.clock.clone();
                 let device = setup.device;
-                _ = scope.spawn(move || {
+                writers.push(scope.spawn(move || -> pace_error::PaceResult<()> {
                     let tracker = Tracker::new(
                         store,
                         clock.clone(),
@@ -756,18 +758,29 @@ mod expensive {
                             ),
                             ..Adjust::default()
                         });
-                        // A command that the others outran is run again, as
-                        // its error asks.
-                        while tracker
-                            .run(&adjust)
-                            .is_err_and(|error| error.is_code("pace::core::concurrent-write"))
-                        {
+                        // A command that the others outran is run
+                        // again, as its error asks; any other error
+                        // ends the writer.
+                        loop {
+                            match tracker.run(&adjust) {
+                                Ok(_) => break,
+                                Err(error) if error.is_code("pace::core::concurrent-write") => {}
+                                Err(error) => return Err(error),
+                            }
                         }
                     }
-                });
+                    Ok(())
+                }));
             }
-        });
+            writers
+                .into_iter()
+                .map(|writer| writer.join().map_err(|_| "a writer panicked"))
+                .collect::<Result<Vec<_>, _>>()
+        })?;
 
+        for (writer, result) in results.into_iter().enumerate() {
+            assert!(result.is_ok(), "writer {writer}: {result:?}");
+        }
         let read = setup.store(Split::Month).read(&ReadScope::everything())?;
         assert_eq!(read.len(), 1 + 4 * 10);
         let leftovers: Vec<_> = setup

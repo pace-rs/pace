@@ -195,7 +195,7 @@ fn device_id_used_by_two_machines_stops_writing() -> TestResult {
 }
 
 #[test]
-fn deleting_the_index_changes_nothing() -> TestResult {
+fn index_deleted_is_rebuilt_to_same_state() -> TestResult {
     let dir = scratch_dir()?;
     let home = dir.path().join("home");
     let machine_dir = dir.path().join("machine");
