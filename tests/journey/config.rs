@@ -277,3 +277,22 @@ fn config_show_does_not_create_anything() -> TestResult {
     assert!(!sandbox.path("machine").exists());
     Ok(())
 }
+
+#[test]
+fn config_show_quotes_mapped_path_with_apostrophe_so_it_reads_back() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("[project-paths]\n\"~/it's\" = \"client\"\n")?;
+    let shown = run(sandbox.pace().args(["config", "show"]))?;
+    let toml = shown
+        .split("----- stdout -----\n")
+        .nth(1)
+        .and_then(|rest| rest.split("\n----- stderr -----").next())
+        .ok_or("no stdout")?;
+    sandbox.write_config(toml)?;
+
+    let again = run(sandbox.pace().args(["config", "show"]))?;
+
+    assert!(shown.contains("\n\"~/it's\" = \"client\"\n"), "{shown}");
+    assert_eq!(again, shown);
+    Ok(())
+}
