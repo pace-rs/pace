@@ -164,7 +164,7 @@ impl Catalog {
                 return Err(unknown_reference(
                     ("project", project.key.as_str()),
                     "names",
-                    "client",
+                    ("client", "pace::core::unknown-client"),
                     client.as_str(),
                     self.clients.keys().map(ClientKey::as_str),
                 ));
@@ -175,7 +175,7 @@ impl Catalog {
                 return Err(unknown_reference(
                     ("project", project.key.as_str()),
                     "names",
-                    "role",
+                    ("role", "pace::core::unknown-role"),
                     role.as_str(),
                     self.roles.keys().map(RoleKey::as_str),
                 ));
@@ -184,22 +184,23 @@ impl Catalog {
         Ok(())
     }
 
-    /// Check that each client's project rates name a project, and that its
-    /// rates are in its currency.
+    /// Check that each client's project rates name a project of this client,
+    /// and that its rates are in its currency.
     fn check_clients(&self) -> PaceResult<()> {
         for client in self.clients.values() {
-            if let Some(project) = client
-                .project_rates
-                .keys()
-                .find(|project| !self.projects.contains_key(*project))
-            {
-                return Err(unknown_reference(
-                    ("client", client.key.as_str()),
-                    "has rates for",
-                    "project",
-                    project.as_str(),
-                    self.projects.keys().map(ProjectKey::as_str),
-                ));
+            for key in client.project_rates.keys() {
+                let Some(project) = self.projects.get(key) else {
+                    return Err(unknown_reference(
+                        ("client", client.key.as_str()),
+                        "has rates for",
+                        ("project", "pace::core::unknown-project"),
+                        key.as_str(),
+                        self.projects.keys().map(ProjectKey::as_str),
+                    ));
+                };
+                if project.client.as_ref() != Some(&client.key) {
+                    return Err(rates_for_project_of_other_client(client, project));
+                }
             }
             if let Some(rate) = client
                 .all_rates()
@@ -318,13 +319,46 @@ fn same_id(plural: &str, first: &str, second: &str, id: impl fmt::Display) -> Bo
     .attach_error_code("pace::core::same-id")
 }
 
+/// The error for a client's project rates for a project whose client is
+/// another one, or none: `Catalog::rate_on` would never use them.
+fn rates_for_project_of_other_client(client: &Client, project: &ProjectRecord) -> Box<PaceError> {
+    let error = project.client.as_ref().map_or_else(
+        || {
+            PaceError::new(
+                ErrorKind::InvalidInput,
+                "the client `{client}` has rates for the project `{project}`, which has no client",
+            )
+            .attach_hint(format!(
+                "make `{}` the project's client, or remove the rates",
+                client.key
+            ))
+        },
+        |owner| {
+            PaceError::new(
+                ErrorKind::InvalidInput,
+                "the client `{client}` has rates for the project `{project}`, which belongs to \
+                 the client `{owner}`",
+            )
+            .attach_context("owner", owner.as_str())
+            .attach_hint(format!(
+                "move the rates to the client `{owner}`, or make `{}` the project's client",
+                client.key
+            ))
+        },
+    );
+    error
+        .attach_context("client", client.key.as_str())
+        .attach_context("project", project.key.as_str())
+        .attach_error_code("pace::core::rate-project-client")
+}
+
 /// The error for a record, `(owner_noun, owner)`, whose `relation` to a
-/// `noun` names a key the catalog doesn't hold; its hint names the closest
-/// key, else the known ones.
+/// `noun` names a key the catalog doesn't hold, with the error `code` for
+/// that noun; its hint names the closest key, else the known ones.
 fn unknown_reference<'keys>(
     (owner_noun, owner): (&str, &str),
     relation: &str,
-    noun: &str,
+    (noun, code): (&str, &'static str),
     key: &str,
     known: impl Iterator<Item = &'keys str> + Clone,
 ) -> Box<PaceError> {
@@ -349,7 +383,7 @@ fn unknown_reference<'keys>(
     .attach_context("noun", noun)
     .attach_context("key", key)
     .attach_hint(hint)
-    .attach_error_code(format!("pace::core::unknown-{noun}"))
+    .attach_error_code(code)
 }
 
 /// The known key closest to `input`, if one is close enough to be a typo.

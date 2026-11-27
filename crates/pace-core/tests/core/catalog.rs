@@ -347,6 +347,7 @@ fn project_with_unknown_role_names_known_roles() -> TestResult {
         error.as_ref().and_then(|error| error.hint()),
         Some("pace knows these roles: `work`")
     );
+    assert!(error.is_some_and(|error| error.is_code("pace::core::unknown-role")));
     Ok(())
 }
 
@@ -368,6 +369,68 @@ fn project_rates_for_unknown_project_name_closest_key() -> TestResult {
         error.as_ref().and_then(|error| error.hint()),
         Some("did you mean `acme-webshop`?")
     );
+    assert!(error.is_some_and(|error| error.is_code("pace::core::unknown-project")));
+    Ok(())
+}
+
+/// Globex, with a rate of 300 for ACME's webshop.
+fn globex_with_webshop_rates() -> Built<Client> {
+    Ok(Client {
+        key: "globex".parse()?,
+        name: "Globex".to_owned(),
+        project_rates: BTreeMap::from([(
+            "acme-webshop".parse()?,
+            Rates::new(vec![rate("300", "2026-01-01")?])?,
+        )]),
+        ..acme()?
+    })
+}
+
+#[test]
+fn project_rates_for_project_of_other_client_are_refused() -> TestResult {
+    let error = Catalog::new(
+        vec![work()?],
+        vec![acme()?, globex_with_webshop_rates()?],
+        vec![webshop()?],
+    )
+    .err();
+
+    assert_eq!(
+        error.as_ref().map(ToString::to_string).as_deref(),
+        Some(
+            "the client `globex` has rates for the project `acme-webshop`, which belongs to \
+             the client `acme`"
+        )
+    );
+    assert_eq!(
+        error.as_ref().and_then(|error| error.hint()),
+        Some("move the rates to the client `acme`, or make `globex` the project's client")
+    );
+    assert!(error.is_some_and(|error| error.is_code("pace::core::rate-project-client")));
+    Ok(())
+}
+
+#[test]
+fn project_rates_for_project_without_client_are_refused() -> TestResult {
+    let mut webshop = webshop()?;
+    webshop.client = None;
+
+    let error = Catalog::new(
+        vec![work()?],
+        vec![globex_with_webshop_rates()?],
+        vec![webshop],
+    )
+    .err();
+
+    assert_eq!(
+        error.as_ref().map(ToString::to_string).as_deref(),
+        Some("the client `globex` has rates for the project `acme-webshop`, which has no client")
+    );
+    assert_eq!(
+        error.as_ref().and_then(|error| error.hint()),
+        Some("make `globex` the project's client, or remove the rates")
+    );
+    assert!(error.is_some_and(|error| error.is_code("pace::core::rate-project-client")));
     Ok(())
 }
 
