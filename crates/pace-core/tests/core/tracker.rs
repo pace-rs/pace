@@ -7,7 +7,7 @@ use pace_core::testing::contract::run_store_contract;
 use pace_core::{
     Clock, Command, DeviceId, EntryState, EventStore, Policy, RecordedEvent, SequentialIds, State,
     Tracker,
-    command::{Adjust, Begin, End, Log, Resume},
+    command::{Adjust, Begin, End, Forget, Log, Resume},
     testing::{MemoryStore, Raced, TestClock},
 };
 use pace_error::ExitCode;
@@ -363,6 +363,17 @@ fn end_naming_an_ended_entry_says_when_it_ended() -> TestResult {
 
     assert_eq!(error.to_string(), "the entry ended at 09:15");
     assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
+fn forget_finds_entry_that_has_ended() -> TestResult {
+    let (tracker, entry) = tracker_after_an_ended_entry()?;
+
+    let outcome = pollster::block_on(tracker.run(&Command::Forget(Forget { entry })))?;
+
+    assert_eq!(outcome.recorded.len(), 1);
+    assert_eq!(outcome.state.entries().count(), 0);
     Ok(())
 }
 
