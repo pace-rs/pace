@@ -5,19 +5,20 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Command as UseCase, Entry, HoldSource, PauseKind, ProjectRef, Tag, Text,
+    Command as UseCase, Entry, HoldSource, PauseKind, Tag, Text,
     command::{Begin, Catch, End, Hold, Pause, Resume},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{At, TimeRange, parse_at, relative_time};
 
 use crate::commands::now::recent_range_start;
-use crate::output::describe_outcome;
+use crate::output::{describe_outcome, project_name};
 use crate::print::print_lines;
 use crate::prompt::Ask;
 use crate::select::target_entry;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
+    project::{Project, Reason},
     session::Session,
 };
 
@@ -161,7 +162,7 @@ pub struct BeginCmd {
 
     #[arg(
         long,
-        conflicts_with_all = ["note", "tags"],
+        conflicts_with_all = ["note", "tags", "project"],
         help = "Begin a recent entry again: same note, project and tags"
     )]
     again: bool,
@@ -172,8 +173,15 @@ impl Runnable for BeginCmd {
         exit_on_error(track(|session, context, notes| {
             let at = at(self.at.as_deref(), &session.now(), &context.terminal, notes)?;
             if self.again {
+                refuse_project_flag(context.project.as_ref())?;
                 let count = context.settings.settings.most_recent_count;
                 let again = again(session, &context.terminal, count)?;
+                if let Some(project) = &again.project {
+                    notes.push(format!(
+                        "Project: {} (from the earlier entry).",
+                        project_name(project)
+                    ));
+                }
                 return Ok(UseCase::Begin(Begin {
                     at,
                     allow_overlap: self.allow_overlap,
@@ -192,6 +200,21 @@ impl Runnable for BeginCmd {
                 allow_overlap: self.allow_overlap,
             }))
         }));
+    }
+}
+
+/// `--again` takes the project of the earlier entry, so it refuses
+/// `--project`; clap only sees the flag after the subcommand.
+fn refuse_project_flag(project: Option<&Project>) -> PaceResult<()> {
+    match project {
+        Some(project) if project.reason == Reason::Flag => Err(PaceError::new(
+            ErrorKind::InvalidInput,
+            "`pace begin --again` takes the project of the earlier entry, not `--project {key}`",
+        )
+        .attach_context("key", project.key.to_string())
+        .attach_hint("leave out `--project`, or begin a new entry with `pace begin <note>`")
+        .attach_exit_code(ExitCode::Usage)),
+        _ => Ok(()),
     }
 }
 
@@ -236,20 +259,13 @@ fn again(session: &Session, asker: &dyn Ask, count: usize) -> PaceResult<Begin> 
             let choice = asker.choose("Begin which entry again?", &labels)?;
             Ok(candidates.swap_remove(choice))
         }
-        count => {
-            let list: Vec<String> = labels
-                .iter()
-                .enumerate()
-                .map(|(index, label)| format!("{}. {label}", index + 1))
-                .collect();
-            Err(PaceError::new(
-                ErrorKind::InvalidInput,
-                "`pace begin --again` needs a choice of {count} recent entries:\n{list}",
-            )
-            .attach_context("count", count.to_string())
-            .attach_context("list", list.join("\n"))
-            .attach_hint("run it in a terminal to pick one, or begin with `pace begin <note>`"))
-        }
+        count => Err(PaceError::new(
+            ErrorKind::InvalidInput,
+            "`pace begin --again` needs a choice of {count} recent entries:\n{list}",
+        )
+        .attach_context("count", count.to_string())
+        .attach_context("list", labels.join("\n"))
+        .attach_hint("run it in a terminal to pick one, or begin with `pace begin <note>`")),
     }
 }
 
@@ -260,8 +276,8 @@ fn label(entry: &Entry, now: &ZonedDateTime) -> String {
             .as_ref()
             .map_or_else(|| "(no note)".to_owned(), |note| format!("\"{note}\"")),
     ];
-    if let Some(ProjectRef::Key(key)) = &entry.project {
-        parts.push(format!("project {key}"));
+    if let Some(project) = &entry.project {
+        parts.push(format!("project {}", project_name(project)));
     }
     if !entry.tags.is_empty() {
         let tags: Vec<&str> = entry.tags.iter().map(Tag::as_str).collect();
@@ -425,11 +441,42 @@ impl Runnable for EndCmd {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pace_core::ProjectRef;
+
     use crate::prompt::Scripted;
 
     /// Noon on the day the clocks in Berlin went back from 03:00 to 02:00.
     fn clocks_set_back() -> ZonedDateTime {
         "2026-10-25T12:00[Europe/Berlin]".parse().unwrap()
+    }
+
+    #[test]
+    fn label_names_project_by_key_or_by_id() {
+        let now: ZonedDateTime = "2026-11-26T12:00[Europe/Berlin]".parse().unwrap();
+        let entry = |project| Entry {
+            id: "0193a8d0-000a-7000-8000-000000000001".parse().unwrap(),
+            device: "0193a8d0-000d-7000-8000-000000000001".parse().unwrap(),
+            start: "2026-11-26T09:00[Europe/Berlin]".parse().unwrap(),
+            end: Some("2026-11-26T10:00[Europe/Berlin]".parse().unwrap()),
+            project: Some(project),
+            note: Some("Standup".to_owned()),
+            tags: BTreeSet::new(),
+            holds: Vec::new(),
+            pauses: Vec::new(),
+            catches: Vec::new(),
+            origin: pace_core::EntryOrigin::Live,
+            filed: "2026-11-26T09:00[Europe/Berlin]".parse().unwrap(),
+        };
+        let id = "0193a7c4-6c1e-7f3a-9b2d-4e5f60718293";
+
+        assert_eq!(
+            label(&entry(ProjectRef::Key("gamma".parse().unwrap())), &now),
+            "\"Standup\", project gamma, last 3 hours ago"
+        );
+        assert_eq!(
+            label(&entry(ProjectRef::Id(id.parse().unwrap())), &now),
+            format!("\"Standup\", project {id}, last 3 hours ago")
+        );
     }
 
     #[test]

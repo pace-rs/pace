@@ -1,0 +1,51 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace --project offer begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" at 09:00.
+Project: offer (from --project).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace end   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Ended [ID-1] "Write offer" at 10:00 after 1h.
+
+----- stderr -----
+
+$ pace begin --again   # at 10:30
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-2] "Write offer" at 10:30.
+Project: offer (from the earlier entry).
+
+----- stderr -----
+
+$ pace begin --again --project gamma   # at 11:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+error: the argument '--again' cannot be used with '--project <KEY>'
+
+Usage: pace begin --again [NOTE]...
+
+For more information, try '--help'.
+
+$ pace --project gamma begin --again   # at 11:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `pace begin --again` takes the project of the earlier entry, not `--project gamma`
+  help: leave out `--project`, or begin a new entry with `pace begin <note>`

@@ -224,3 +224,18 @@ fn text_without_words_is_usage_error() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn begin_again_names_project_and_refuses_another() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["--project", "offer", "begin", "Write offer"]),
+        ("10:00", &["end"]),
+        ("10:30", &["begin", "--again"]),
+        ("11:00", &["begin", "--again", "--project", "gamma"]),
+        ("11:00", &["--project", "gamma", "begin", "--again"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

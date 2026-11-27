@@ -61,6 +61,6 @@ exit_code: 1
 
 ----- stderr -----
   × `pace begin --again` needs a choice of 2 recent entries:
-  │ 1. "Call ACME", last 30 minutes ago
-  │ 2. "Write offer", tags offer, last 1 hour ago
+  │ "Call ACME", last 30 minutes ago
+  │ "Write offer", tags offer, last 1 hour ago
   help: run it in a terminal to pick one, or begin with `pace begin <note>`
