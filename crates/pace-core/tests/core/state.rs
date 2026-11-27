@@ -474,6 +474,50 @@ fn forgotten_entry_is_gone() -> TestResult {
 }
 
 #[test]
+fn batch_about_forgotten_entry_is_not_left_to_undo() -> TestResult {
+    let mut laptop = Log::new(1)?;
+    let mut desktop = Log::new(2)?;
+    let e = entry(1)?;
+    _ = laptop.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = desktop.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        EventKind::EntryForgotten { entry: e },
+    )?;
+
+    let mut merged = laptop.events;
+    merged.extend(desktop.events);
+    let state = State::from_events(&merged);
+
+    assert_eq!(state.last_undoable(laptop.device), None);
+    Ok(())
+}
+
+#[test]
+fn batch_about_forgotten_and_kept_entry_is_left_to_undo() -> TestResult {
+    let mut laptop = Log::new(1)?;
+    let mut desktop = Log::new(2)?;
+    let (kept, gone) = (entry(1)?, entry(2)?);
+    _ = laptop.push("2026-11-26T09:00[Europe/Berlin]", begun(kept))?;
+    let switched = laptop.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        EventKind::EntryEnded { entry: kept },
+    )?;
+    laptop.push_in(switched, "2026-11-26T10:00[Europe/Berlin]", begun(gone))?;
+    _ = desktop.push(
+        "2026-11-26T11:00[Europe/Berlin]",
+        EventKind::EntryForgotten { entry: gone },
+    )?;
+
+    let mut merged = laptop.events;
+    merged.extend(desktop.events);
+    let state = State::from_events(&merged);
+
+    let target = state.last_undoable(laptop.device).ok_or("undoable")?;
+    assert_eq!(target.batch, switched);
+    Ok(())
+}
+
+#[test]
 fn events_about_an_unknown_entry_change_nothing() -> TestResult {
     let mut log = Log::new(1)?;
     _ = log.push(

@@ -29,6 +29,9 @@ struct BatchRecord {
     undone: bool,
     /// Undo and forget can't be undone.
     undoable: bool,
+    /// One of its events concerns an entry that isn't forgotten; undoing a
+    /// batch without one would change nothing.
+    concerns_kept: bool,
     /// The moments its events are filed under, each once.
     abouts: Vec<ZonedDateTime>,
 }
@@ -69,7 +72,7 @@ impl State {
 
         let mut state = Self::default();
         for recorded in ordered {
-            state.record_batch(recorded, undone.contains(&recorded.batch));
+            state.record_batch(recorded, undone.contains(&recorded.batch), &forgotten);
             if !undone.contains(&recorded.batch) {
                 state.apply(recorded, &forgotten);
             }
@@ -77,11 +80,18 @@ impl State {
         state
     }
 
-    fn record_batch(&mut self, recorded: &RecordedEvent, undone: bool) {
+    fn record_batch(
+        &mut self,
+        recorded: &RecordedEvent,
+        undone: bool,
+        forgotten: &BTreeSet<EntryId>,
+    ) {
         let undoable = !matches!(
             recorded.event.kind,
             EventKind::BatchUndone { .. } | EventKind::EntryForgotten { .. }
         );
+        let concerns_kept =
+            concerned_entry(&recorded.event.kind).is_some_and(|entry| !forgotten.contains(&entry));
         let about = &recorded.event.about;
         if let Some(batch) = self
             .batches
@@ -89,6 +99,7 @@ impl State {
             .find(|batch| batch.id == recorded.batch)
         {
             batch.undoable &= undoable;
+            batch.concerns_kept |= concerns_kept;
             if !batch.abouts.contains(about) {
                 batch.abouts.push(about.clone());
             }
@@ -98,18 +109,22 @@ impl State {
                 device: recorded.device,
                 undone,
                 undoable,
+                concerns_kept,
                 abouts: vec![about.clone()],
             });
         }
     }
 
-    /// The last batch of `device` that can be undone and isn't yet.
+    /// The last batch of `device` that can be undone and isn't yet; a batch
+    /// whose events all concern forgotten entries is left out.
     #[must_use]
     pub fn last_undoable(&self, device: DeviceId) -> Option<UndoTarget> {
         self.batches
             .iter()
             .rev()
-            .find(|batch| batch.device == device && batch.undoable && !batch.undone)
+            .find(|batch| {
+                batch.device == device && batch.undoable && batch.concerns_kept && !batch.undone
+            })
             .map(|batch| UndoTarget {
                 batch: batch.id,
                 abouts: batch.abouts.clone(),
@@ -241,6 +256,22 @@ impl State {
     /// The entries without an end: running, held or paused, by start.
     pub fn open(&self) -> impl Iterator<Item = &Entry> {
         self.entries().filter(|entry| entry.is_open())
+    }
+}
+
+/// The entry an event is about; an undo is about a batch.
+const fn concerned_entry(kind: &EventKind) -> Option<EntryId> {
+    match kind {
+        EventKind::EntryBegun { entry, .. }
+        | EventKind::EntryHeld { entry, .. }
+        | EventKind::EntryPaused { entry, .. }
+        | EventKind::EntryResumed { entry }
+        | EventKind::EntryEnded { entry }
+        | EventKind::CatchNoted { entry, .. }
+        | EventKind::EntryLogged { entry, .. }
+        | EventKind::EntryAdjusted { entry, .. }
+        | EventKind::EntryForgotten { entry } => Some(*entry),
+        EventKind::BatchUndone { .. } => None,
     }
 }
 

@@ -1438,9 +1438,10 @@ fn forget_writes_tombstone_that_undo_skips() -> TestResult {
     let entry = world.only_entry(EntryState::Running)?;
 
     let batch = world.run("10:00", &Command::Forget(Forget { entry }))?;
-    _ = world.run("10:01", &Command::Undo)?;
+    let undo = failure(world.run("10:01", &Command::Undo))?;
 
     assert_eq!(kinds(&batch), ["entry.forgotten"]);
+    assert_eq!(undo.exit_code(), ExitCode::NothingToDo);
     assert_eq!(world.state().entries().count(), 0);
     Ok(())
 }

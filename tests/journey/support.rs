@@ -80,6 +80,15 @@ impl Sandbox {
         )
     }
 
+    /// Copy the device directories of `home/events` into another data
+    /// directory in the sandbox, as a file sync would.
+    pub fn sync_events_to(&self, other_home: &str) -> std::io::Result<()> {
+        copy_dir(
+            &self.path("home/events"),
+            &self.path(other_home).join("events"),
+        )
+    }
+
     /// Replace the content of the global config file.
     pub fn write_config(&self, content: &str) -> std::io::Result<()> {
         std::fs::write(self.path("config/pace.global.toml"), content)

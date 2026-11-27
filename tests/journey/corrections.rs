@@ -165,6 +165,24 @@ fn forget_asks_for_good_without_terminal() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn undo_after_another_device_forgot_the_entry_has_nothing_to_do() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    let began = run(sandbox.pace_at("09:00").args(["begin", "secret meeting"]))?;
+    let entry = short_id_after(&began, "Began ")?;
+    sandbox.sync_events_to("other-home")?;
+    _ = run(sandbox
+        .pace_at("09:30")
+        .env("PACE_HOME", sandbox.path("other-home"))
+        .env("PACE_MACHINE_DIR", sandbox.path("other-machine"))
+        .args(["forget", &entry, "--for-good"]))?;
+    sandbox.sync_events_from("other-home")?;
+
+    let output = sandbox.journey(&[("10:00", &["undo"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
 #[cfg(unix)]
 #[test]
 fn edit_turns_the_changes_into_an_adjustment() -> TestResult {

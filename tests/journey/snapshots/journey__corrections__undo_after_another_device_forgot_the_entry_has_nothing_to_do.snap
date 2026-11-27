@@ -1,0 +1,12 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace undo   # at 10:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × this device has nothing left to undo
+  help: `pace undo` reverts the commands of this device, newest first
