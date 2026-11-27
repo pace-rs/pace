@@ -4,7 +4,7 @@ default-members = [".", "crates/*"]
 resolver = "3"
 
 [workspace.package]
-version = "0.0.0"
+version = "0.16.0"
 authors = ["the pace-rs team"]
 categories = ["command-line-utilities"]
 edition = "2024"
@@ -59,6 +59,30 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 description = "pace: a local-first command-line time tracker for work and daily life"
 
+# dist builds and ships pace-rs although Cargo's `publish = false` would skip
+# it: pace publishes no crate, but ships binaries and installers.
+[package.metadata.dist]
+dist = true
+
+# The Windows installer keeps the old pace's GUIDs, so the msi of 0.16.0
+# upgrades an installed 0.15.2 instead of installing beside it.
+[package.metadata.wix]
+upgrade-guid = "4D6D5C4F-3994-423F-9D4C-2F92C580F54B"
+path-guid = "441ECBBB-93E2-4DC2-9D74-F4B116EDFABE"
+license = false
+eula = false
+
+# cargo-binstall downloads the archives that dist uploads to the GitHub
+# release, tagged `pace-rs-v{version}`:
+# https://github.com/cargo-bins/cargo-binstall/blob/HEAD/SUPPORT.md
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/{ name }-v{ version }/{ name }-{ target }{ archive-suffix }"
+bin-dir = "{ name }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "txz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
 [[bin]]
 name = "pace"
 path = "src/bin/pace.rs"
@@ -103,6 +127,11 @@ workspace = true
 [profile.release]
 lto = "thin"
 strip = true
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

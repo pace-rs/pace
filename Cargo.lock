@@ -783,7 +783,7 @@ checksum = "13c45bb4a6ae1280ec0803b1ef9d3455eb50f01efbbe1447ab020f1d54fba9d8"
 
 [[package]]
 name = "pace-rs"
-version = "0.0.0"
+version = "0.16.0"
 dependencies = [
  "abscissa_core",
  "clap",
@@ -812,7 +812,7 @@ dependencies = [
 
 [[package]]
 name = "pace_core"
-version = "0.0.0"
+version = "0.16.0"
 dependencies = [
  "iso_currency",
  "jiff",
@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "pace_error"
-version = "0.0.0"
+version = "0.16.0"
 dependencies = [
  "miette",
  "strsim",
@@ -836,7 +836,7 @@ dependencies = [
 
 [[package]]
 name = "pace_store"
-version = "0.0.0"
+version = "0.16.0"
 dependencies = [
  "insta",
  "jiff",
@@ -856,7 +856,7 @@ dependencies = [
 
 [[package]]
 name = "pace_time"
-version = "0.0.0"
+version = "0.16.0"
 dependencies = [
  "jiff",
  "pace_error",

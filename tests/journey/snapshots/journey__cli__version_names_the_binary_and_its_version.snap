@@ -5,6 +5,6 @@ expression: "run(pace().arg(\"--version\"))?"
 success: true
 exit_code: 0
 ----- stdout -----
-pace 0.0.0
+pace 0.16.0
 
 ----- stderr -----
