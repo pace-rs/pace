@@ -457,13 +457,86 @@ mod tests {
 
         assert_eq!(
             asker.told()[0],
-            "warning: this pace reads version 1 of the saved setup, not 2: a newer pace wrote \
-             this file; update pace; setup starts over"
+            format!(
+                "warning: a newer pace wrote the saved setup {}: update pace; setup starts over",
+                path.display()
+            )
         );
         assert_eq!(
             asker.questions()[0],
             "Which time zone do you live in, such as Europe/Berlin, or system?"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn saved_setup_that_is_not_toml_warns_naming_file_and_starts_over() -> TestResult {
+        let dir = scratch_dir()?;
+        let path = saved_file(dir.path());
+        std::fs::create_dir_all(dir.path().join("machine"))?;
+        std::fs::write(&path, "version = 1\nstep = \n")?;
+        let asker = user("UTC", true);
+
+        _ = set_up(inputs(dir.path()), &asker, &path, false)?;
+
+        assert_eq!(
+            asker.told()[0],
+            format!(
+                "warning: the saved setup {} is not valid TOML; setup starts over",
+                path.display()
+            )
+        );
+        assert_eq!(
+            asker.questions()[0],
+            "Which time zone do you live in, such as Europe/Berlin, or system?"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn failed_write_keeps_setup_at_summary_and_shows_changes_again() -> TestResult {
+        let dir = scratch_dir()?;
+        std::fs::write(dir.path().join("blocker"), "")?;
+        let blocked = SetupInputs {
+            config_file: dir.path().join("blocker").join("pace.global.toml"),
+            ..inputs(dir.path())
+        };
+
+        let error = set_up(
+            blocked,
+            &user("Europe/Vienna", true),
+            &saved_file(dir.path()),
+            false,
+        );
+
+        assert!(error.is_err());
+        let saved = read_saved_setup(&saved_file(dir.path()))?.unwrap();
+        assert_eq!(saved.step, SetupStep::Summary);
+        assert!(
+            saved
+                .answers
+                .iter()
+                .all(|answer| answer.question != "accept")
+        );
+
+        let asker = Scripted::choosing([0]).and_confirming([true]);
+        let lines = set_up(inputs(dir.path()), &asker, &saved_file(dir.path()), false)?;
+
+        assert_eq!(
+            asker.questions(),
+            [
+                "An earlier setup stopped at the summary. Continue there?",
+                "Write these changes?"
+            ]
+        );
+        assert_eq!(
+            asker.told(),
+            [
+                "Setup changes:",
+                "  pace.global.toml: time-zone system → Europe/Vienna"
+            ]
+        );
+        assert_eq!(lines, ["Wrote 1 change into pace.global.toml."]);
         Ok(())
     }
 

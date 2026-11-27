@@ -5,15 +5,15 @@
 //! It lies in the machine directory, which is never synced: the answers
 //! belong to one run on this device. [`write_saved_setup`] writes it
 //! through a temporary file and a rename, so an interruption leaves the
-//! last whole state. [`read_saved_setup`] checks its `version` first: a
-//! file of a newer pace, or one that doesn't read, is an error, which
-//! setup shows as a warning before it starts over.
+//! last whole state. [`read_saved_setup`] checks its `version`: a file
+//! of a newer pace, or one that doesn't read, is an error that names the
+//! file, which setup shows as a warning before it starts over.
 
 use std::io::ErrorKind as IoErrorKind;
 use std::path::{Path, PathBuf};
 
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_store::toml_file::{TomlFile, read_hint};
+use pace_store::toml_file::read_hint;
 use pace_store::write_atomically;
 
 use crate::setup::{SAVED_SETUP_VERSION, SavedSetup};
@@ -29,32 +29,49 @@ pub fn setup_file_in(machine: &Path) -> PathBuf {
 
 /// The saved setup in `path`; `None` if there is none.
 ///
+/// Setup shows an error of this function as a warning and starts over,
+/// so each names the file and says why it can't continue, without a hint
+/// to repair a file that setup overwrites at its first answer.
+///
 /// # Errors
 ///
-/// If the file can't be read, is no valid TOML, has another `version`
-/// than [`SAVED_SETUP_VERSION`], or holds no saved setup.
+/// If the file can't be read, is no valid TOML, was written by a newer
+/// pace, or holds no saved setup of [`SAVED_SETUP_VERSION`].
 pub fn read_saved_setup(path: &Path) -> PaceResult<Option<SavedSetup>> {
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
         Err(error) if error.kind() == IoErrorKind::NotFound => return Ok(None),
         Err(error) => {
             let hint = read_hint(&error);
-            return Err(file_error("cannot read {path}", path, error).attach_hint(hint));
+            return Err(
+                file_error("cannot read the saved setup {path}", path, error).attach_hint(hint),
+            );
         }
     };
-    let file = TomlFile {
-        path,
-        text: &text,
-        what: "the saved setup",
-        noun: "key",
-        code: "pace::setup",
-        kind: ErrorKind::InputOutput,
-        version: i64::from(SAVED_SETUP_VERSION),
-    };
-    file.check_version(file.parse()?.table())?;
-    toml::from_str(&text)
+    let table: toml::Table = text
+        .parse()
+        .map_err(|error| file_error("the saved setup {path} is not valid TOML", path, error))?;
+    let version = table.get("version").and_then(toml::Value::as_integer);
+    if version.is_some_and(|version| version > i64::from(SAVED_SETUP_VERSION)) {
+        return Err(PaceError::new(
+            ErrorKind::InputOutput,
+            "a newer pace wrote the saved setup {path}",
+        )
+        .attach_context("path", path.display().to_string())
+        .attach_hint("update pace"));
+    }
+    toml::Value::Table(table)
+        .try_into::<SavedSetup>()
+        .ok()
+        .filter(|saved| saved.version == SAVED_SETUP_VERSION)
         .map(Some)
-        .map_err(|error| file_error("{path} holds no setup that pace can continue", path, error))
+        .ok_or_else(|| {
+            PaceError::new(
+                ErrorKind::InputOutput,
+                "the saved setup {path} holds no setup that pace can continue",
+            )
+            .attach_context("path", path.display().to_string())
+        })
 }
 
 /// Write `saved` to `path` through a temporary file and a rename.
@@ -140,7 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn file_of_newer_pace_asks_for_update() -> TestResult {
+    fn file_of_newer_pace_names_itself_and_asks_for_update() -> TestResult {
         let dir = scratch_dir()?;
         let path = dir.path().join(SETUP_FILE);
         std::fs::write(&path, "version = 2\nstep = \"later\"\n")?;
@@ -149,12 +166,25 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "this pace reads version 1 of the saved setup, not 2"
+            format!("a newer pace wrote the saved setup {}", path.display())
         );
+        assert_eq!(error.hint(), Some("update pace"));
+        Ok(())
+    }
+
+    #[test]
+    fn file_that_is_not_toml_names_itself_without_hint() -> TestResult {
+        let dir = scratch_dir()?;
+        let path = dir.path().join(SETUP_FILE);
+        std::fs::write(&path, "version = 1\nstep = \n")?;
+
+        let error = read_saved_setup(&path).unwrap_err();
+
         assert_eq!(
-            error.hint(),
-            Some("a newer pace wrote this file; update pace")
+            error.to_string(),
+            format!("the saved setup {} is not valid TOML", path.display())
         );
+        assert_eq!(error.hint(), None);
         Ok(())
     }
 
@@ -168,7 +198,28 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            format!("{} holds no setup that pace can continue", path.display())
+            format!(
+                "the saved setup {} holds no setup that pace can continue",
+                path.display()
+            )
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn file_of_older_version_holds_no_setup_to_continue() -> TestResult {
+        let dir = scratch_dir()?;
+        let path = dir.path().join(SETUP_FILE);
+        let mut older = saved();
+        older.version = 0;
+        write_saved_setup(&path, &older)?;
+
+        let error = read_saved_setup(&path).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .ends_with("holds no setup that pace can continue")
         );
         Ok(())
     }

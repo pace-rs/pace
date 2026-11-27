@@ -85,7 +85,21 @@ impl SavedAnswer {
         }
         let picked = self.picked.as_deref()?;
         (picked_item(question, &self.answer).as_deref() != Some(picked))
-            .then(|| format!("Since setup stopped, the items changed: pick `{picked}` again."))
+            .then(|| format!("Since setup stopped, the items changed: pick {picked} again."))
+    }
+
+    /// What the user reads when the flow refuses this answer with
+    /// `refusal` as it is given again: what changed since made it no
+    /// longer fit.
+    #[must_use]
+    pub fn refused_since(&self, refusal: &str) -> String {
+        let answer = match (&self.answer, &self.picked) {
+            (_, Some(picked)) => picked.clone(),
+            (Answer::Text(text), None) => format!("`{text}`"),
+            (Answer::YesNo(yes), None) => if *yes { "yes" } else { "no" }.to_owned(),
+            (Answer::Choice(index), None) => format!("item {}", index + 1),
+        };
+        format!("Since setup stopped, your answer {answer} no longer fits: {refusal}.")
     }
 }
 

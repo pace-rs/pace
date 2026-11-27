@@ -646,7 +646,37 @@ fn picked_item_that_moved_since_save_is_asked_again() {
     assert_eq!(replayed.flow.next_question().unwrap().id, "clients");
     assert_eq!(
         replayed.changed.as_deref(),
-        Some("Since setup stopped, the items changed: pick `give `acme` a new rate` again.")
+        Some("Since setup stopped, the items changed: pick give `acme` a new rate again.")
+    );
+}
+
+#[test]
+fn saved_answer_that_no_longer_fits_is_asked_again_with_refusal() {
+    let saved = answered(
+        first_run(),
+        [
+            text("UTC"),
+            Answer::Choice(0),
+            Answer::YesNo(true),
+            text("work"),
+        ],
+    )
+    .saved();
+    let changed = SetupInputs {
+        catalog: Catalog::new(vec![work()], Vec::new(), Vec::new()).unwrap(),
+        ..first_run()
+    };
+
+    let replayed = SetupFlow::replayed(changed, &saved);
+
+    assert_eq!(replayed.flow.saved().answers, saved.answers[..3]);
+    assert_eq!(replayed.flow.next_question().unwrap().id, "role-key");
+    assert_eq!(
+        replayed.changed.as_deref(),
+        Some(
+            "Since setup stopped, your answer `work` no longer fits: the role `work` exists \
+             already: change it with `pace role edit`."
+        )
     );
 }
 

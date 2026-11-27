@@ -211,9 +211,11 @@ impl SetupFlow {
     }
 
     /// The flow over `inputs`, answered with the answers of `saved`, as
-    /// far as each answers the question the flow gives and the value it
-    /// replaced is still the question's default. Where a value changed
-    /// since, such as by a hand edit, [`Replayed::changed`] says how.
+    /// far as each answers the question the flow gives, the value it
+    /// replaced is still the question's default and the flow still takes
+    /// it. Where a value changed since, such as by a hand edit, or an
+    /// answer no longer fits, such as a role key another device added,
+    /// [`Replayed::changed`] says how.
     #[must_use]
     pub fn replayed(inputs: SetupInputs, saved: &SavedSetup) -> Replayed {
         let mut flow = Self::new(inputs);
@@ -230,8 +232,11 @@ impl SetupFlow {
                     changed: Some(changed),
                 };
             }
-            if flow.take_answer(saved.answer.clone()).is_err() {
-                break;
+            if let Err(refusal) = flow.take_answer(saved.answer.clone()) {
+                return Replayed {
+                    changed: Some(saved.refused_since(&refusal)),
+                    flow,
+                };
             }
         }
         Replayed {
