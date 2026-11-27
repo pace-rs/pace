@@ -324,7 +324,10 @@ mod tests {
         assert_eq!(error.kind(), ErrorKind::Project);
         assert_eq!(error.context_value("file"), Some("pace.toml"));
         let source = std::error::Error::source(&*error).ok_or("the TOML error is the cause")?;
-        assert!(!source.to_string().is_empty(), "{source:?}");
+        assert!(
+            source.to_string().contains("string values must be quoted"),
+            "the cause is the TOML error: {source:?}"
+        );
         Ok(())
     }
 
@@ -367,6 +370,91 @@ mod tests {
             "this pace reads version 1 of the project manifest, not 2"
         );
         assert_eq!(error.context_value("found"), Some("2"));
+        Ok(())
+    }
+
+    /// The label of the error's snippet.
+    fn label(error: &PaceError) -> Option<String> {
+        miette::Diagnostic::labels(error)?
+            .next()?
+            .label()
+            .map(str::to_owned)
+    }
+
+    #[test]
+    fn version_too_old_asks_to_write_version() -> TestResult {
+        let file = manifest("version = 0\n");
+        let table = file.parse()?;
+
+        let error = file
+            .check_version(table.get_ref())
+            .err()
+            .ok_or("version 0 is refused")?;
+
+        assert_eq!(
+            error.to_string(),
+            "this pace reads version 1 of the project manifest, not 0"
+        );
+        assert_eq!(error.hint(), Some("write `version = 1`"));
+        Ok(())
+    }
+
+    #[test]
+    fn version_as_text_names_its_type() -> TestResult {
+        let file = manifest("version = \"1\"\n");
+        let table = file.parse()?;
+
+        let error = file
+            .check_version(table.get_ref())
+            .err()
+            .ok_or("a version as text is refused")?;
+
+        assert_eq!(
+            error.to_string(),
+            "this pace reads version 1 of the project manifest, not a string"
+        );
+        assert_eq!(error.hint(), Some("write `version = 1`"));
+        Ok(())
+    }
+
+    #[test]
+    fn integer_beyond_i64_is_refused_as_too_large() -> TestResult {
+        let file = manifest("minutes = 0xffff_ffff_ffff_ffff\n");
+        let table = file.parse()?;
+        let value = table.get_ref().get("minutes").ok_or("the key is there")?;
+
+        let error = file
+            .integer("minutes", value, "a number of minutes")
+            .err()
+            .ok_or("too large a number is refused")?;
+
+        assert_eq!(error.to_string(), "`minutes` takes a number of minutes");
+        assert_eq!(label(&error).as_deref(), Some("too large a number"));
+        assert_eq!(
+            error.hint(),
+            Some("write it as a number, for example `minutes = 9`")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn table_written_as_value_says_how_to_write_it() -> TestResult {
+        let file = manifest("billing = 1\n");
+        let table = file.parse()?;
+        let value = table.get_ref().get("billing").ok_or("the key is there")?;
+
+        let error = file
+            .table("billing", value)
+            .err()
+            .ok_or("a number is no table")?;
+
+        assert_eq!(error.to_string(), "`billing` is a table");
+        assert_eq!(label(&error).as_deref(), Some("an integer"));
+        assert_eq!(
+            error.hint(),
+            Some("write it as `[billing]` with its keys below")
+        );
+        assert!(error.is_code("pace::project::invalid-value"));
         Ok(())
     }
 }
