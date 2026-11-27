@@ -7,6 +7,7 @@ use std::{
     process::Command,
 };
 
+use pace_rs::project::MANIFEST_FILES;
 use pace_store::testing::scratch_dir;
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -57,6 +58,27 @@ pub(crate) fn begin_apart(
     Ok(())
 }
 
+/// Stop at a manifest in a folder above the sandbox `root`. pace searches
+/// upward for the nearest manifest, so every test would take its project, and
+/// about 30 snapshots would fail without saying why.
+fn refuse_manifest_above(root: &Path) -> std::io::Result<()> {
+    for dir in root.ancestors().skip(1) {
+        for name in MANIFEST_FILES {
+            let manifest = dir.join(name);
+            if manifest.is_file() {
+                return Err(std::io::Error::other(format!(
+                    "the sandbox {} lies below the manifest {}, which pace would find in \
+                     every test: move the manifest, or set the temporary folder (TMPDIR, or \
+                     TMP on Windows) to a folder outside it",
+                    root.display(),
+                    manifest.display()
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// A temporary directory with a working directory `work/` and an empty
 /// `config/pace.global.toml` inside, and `PACE_CONFIG`, `PACE_HOME` and
 /// `PACE_MACHINE_DIR` pointing into it.
@@ -67,6 +89,7 @@ pub(crate) struct Sandbox {
 impl Sandbox {
     pub(crate) fn new() -> std::io::Result<Self> {
         let root = scratch_dir()?;
+        refuse_manifest_above(root.path())?;
         std::fs::create_dir(root.path().join("work"))?;
         std::fs::create_dir(root.path().join("config"))?;
         std::fs::write(root.path().join("config/pace.global.toml"), "")?;
@@ -407,9 +430,32 @@ fn regex_escape(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::support::{Sandbox, short_id_after};
+    use pace_store::testing::scratch_dir;
+
+    use crate::support::{Sandbox, refuse_manifest_above, short_id_after};
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn manifest_above_sandbox_is_refused() -> TestResult {
+        let outside = scratch_dir()?;
+        let manifest = outside.path().join(".pace.toml");
+        std::fs::write(&manifest, "version = 1\n")?;
+        let root = outside.path().join("sandbox");
+        std::fs::create_dir(&root)?;
+
+        let refused = refuse_manifest_above(&root)
+            .err()
+            .ok_or("the sandbox took the manifest above it")?;
+
+        assert!(
+            refused
+                .to_string()
+                .contains(&manifest.display().to_string()),
+            "{refused}"
+        );
+        Ok(())
+    }
 
     const DEVICE: &str = "01a216de-5800-7000-9ee1-77b5f4719b59";
     const OTHER_DEVICE: &str = "01a21715-4680-7000-8000-000000000002";
