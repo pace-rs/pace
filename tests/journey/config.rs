@@ -244,3 +244,13 @@ fn unknown_system_time_zone_stops_pace_before_it_records() -> TestResult {
     assert!(!sandbox.path("home/events").exists());
     Ok(())
 }
+
+#[test]
+fn newer_file_version_wins_over_unknown_key_above_it() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("time-zon = \"Europe/Berlin\"\nversion = 2\n")?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

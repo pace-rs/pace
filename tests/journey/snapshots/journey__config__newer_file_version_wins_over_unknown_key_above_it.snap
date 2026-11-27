@@ -1,0 +1,19 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::version
+
+  × this pace reads version 1 of the global config file, not 2
+   ╭─[[SANDBOX]/config/pace.global.toml:2:11]
+ 1 │ time-zon = "Europe/Berlin"
+ 2 │ version = 2
+   ·           ┬
+   ·           ╰── this version
+   ╰────
+  help: a newer pace wrote this file; update pace

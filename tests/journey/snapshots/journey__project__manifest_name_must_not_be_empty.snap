@@ -1,0 +1,19 @@
+---
+source: tests/journey/project.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project::invalid-value
+
+  × the project's `name` holds no name
+   ╭─[[SANDBOX]/work/.pace.toml:3:8]
+ 2 │ key = "acme-webshop"
+ 3 │ name = ""
+   ·        ─┬
+   ·         ╰── empty name
+   ╰────
+  help: write the project's name, or remove the line

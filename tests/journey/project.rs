@@ -179,3 +179,29 @@ fn flag_that_is_no_project_key_is_usage_error() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn newer_manifest_version_wins_over_unknown_key_above_it() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "work/.pace.toml",
+        "client = \"acme\"\nversion = 2\n\n[project]\nkey = \"acme-webshop\"\n",
+    )?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn manifest_name_must_not_be_empty() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "work/.pace.toml",
+        "[project]\nkey = \"acme-webshop\"\nname = \"\"\n",
+    )?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

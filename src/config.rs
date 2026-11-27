@@ -476,11 +476,12 @@ fn file_values(
     }
     known.extend([PROJECT_PATHS, "version"]);
 
+    file.check_version(table.get_ref())?;
     let mut values = Vec::new();
     for (key, value) in in_file_order(table.get_ref()) {
         let name = key.get_ref().as_ref();
         if name == "version" {
-            file.check_version(value)?;
+            // checked above
         } else if name == PROJECT_PATHS {
             for (dir, project) in in_file_order(file.table(name, value)?) {
                 project_paths.push(project_path(file, home, dir, project)?);

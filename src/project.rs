@@ -15,6 +15,7 @@ use pace_core::{ProjectId, ProjectKey, ProjectRef};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 
 use pace_store::toml_file::{TomlFile, in_file_order};
+use toml::{Spanned, de::DeValue};
 
 use crate::{config::ProjectPath, origin::Origin};
 
@@ -192,11 +193,12 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
         version: MANIFEST_VERSION,
     };
     let table = file.parse()?;
+    file.check_version(table.get_ref())?;
 
     let mut project = None;
     for (key, value) in in_file_order(table.get_ref()) {
         match key.get_ref().as_ref() {
-            "version" => file.check_version(value)?,
+            "version" => {}
             "project" => project = Some(file.table("project", value)?),
             name => return Err(file.unknown_key(name, key.span(), &["version", "project"])),
         }
@@ -228,7 +230,7 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
                     .attach_error_code("pace::project::invalid-value")
                 })?);
             }
-            "name" => name = Some(file.string("name", value, "the project's name")?.to_owned()),
+            "name" => name = Some(project_name(&file, value)?),
             other => return Err(file.unknown_key(other, key.span(), &["id", "key", "name"])),
         }
     }
@@ -243,6 +245,23 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
         .attach_error_code("pace::project::no-key")
     })?;
     Ok((id, key, name))
+}
+
+/// The project's `name`, which must hold more than blanks.
+fn project_name(file: &TomlFile<'_>, value: &Spanned<DeValue<'_>>) -> PaceResult<String> {
+    let name = file.string("name", value, "the project's name")?;
+    if name.trim().is_empty() {
+        return Err(file
+            .error_at(
+                value.span(),
+                "the project's `name` holds no name",
+                [],
+                "write the project's name, or remove the line",
+                "empty name",
+            )
+            .attach_error_code("pace::project::invalid-value"));
+    }
+    Ok(name.to_owned())
 }
 
 /// The mapping with the longest directory that contains `cwd`.

@@ -130,12 +130,17 @@ impl<'a> TomlFile<'a> {
         .attach_error_code(format!("{}::unknown-key", self.code))
     }
 
-    /// Check the file's `version`.
+    /// Check the `version` of the file's table `table`, if it has one.
+    /// Call it before the other keys: a newer file may hold keys this pace
+    /// doesn't know.
     ///
     /// # Errors
     ///
     /// If it is not the version this pace reads; a newer one asks to update.
-    pub fn check_version(&self, value: &Spanned<DeValue<'_>>) -> PaceResult<()> {
+    pub fn check_version(&self, table: &DeTable<'_>) -> PaceResult<()> {
+        let Some(value) = table.get("version") else {
+            return Ok(());
+        };
         let version = value.get_ref().as_integer().and_then(number);
         if version == Some(self.version) {
             return Ok(());
@@ -351,13 +356,9 @@ mod tests {
     fn version_too_new_names_both_versions() -> TestResult {
         let file = manifest("version = 2\n");
         let table = file.parse()?;
-        let value = table
-            .get_ref()
-            .get("version")
-            .ok_or("the file has a version")?;
 
         let error = file
-            .check_version(value)
+            .check_version(table.get_ref())
             .err()
             .ok_or("version 2 is refused")?;
 
