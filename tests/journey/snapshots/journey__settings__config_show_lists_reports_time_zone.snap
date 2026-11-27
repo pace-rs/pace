@@ -1,0 +1,26 @@
+---
+source: tests/journey/settings.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+# config file: [SANDBOX]/config/pace.global.toml (from PACE_CONFIG)
+# data:        [SANDBOX]/home (from PACE_HOME, not there yet)
+# machine:     [SANDBOX]/machine (from PACE_MACHINE_DIR, not there yet)
+# project:     none (no --project, PACE_PROJECT, manifest or path mapping)
+
+time-zone = "system"   # default
+week-start = "monday"  # default
+most-recent-count = 9  # default
+
+[holds]
+default-source = "unknown"  # default
+
+[storage]
+split = "month"  # default
+
+[reports]
+time-zone = "Europe/Vienna"  # from [SANDBOX]/config/pace.global.toml:2
+
+----- stderr -----

@@ -65,6 +65,8 @@ pub struct Settings {
     pub default_hold_source: HoldSource,
     /// `storage.split`: how a new device splits its event files.
     pub split: Split,
+    /// `reports.time-zone`: the zone reports split days in.
+    pub reports_time_zone: TimeZoneSetting,
 }
 
 impl Default for Settings {
@@ -75,6 +77,7 @@ impl Default for Settings {
             most_recent_count: 9,
             default_hold_source: HoldSource::Unknown,
             split: Split::Month,
+            reports_time_zone: TimeZoneSetting::System,
         }
     }
 }
@@ -87,6 +90,7 @@ impl Settings {
             Key::MostRecentCount => self.most_recent_count = parse_count(value)?,
             Key::HoldsDefaultSource => self.default_hold_source = parse_hold_source(&value.text())?,
             Key::StorageSplit => self.split = value.text().parse()?,
+            Key::ReportsTimeZone => self.reports_time_zone = parse_time_zone(&value.text())?,
         }
         Ok(())
     }
@@ -102,6 +106,7 @@ impl Settings {
             }
             Key::HoldsDefaultSource => hold_source_name(self.default_hold_source).to_owned(),
             Key::StorageSplit => self.split.to_string(),
+            Key::ReportsTimeZone => self.reports_time_zone.to_string(),
         };
         toml::Value::String(text)
     }
@@ -441,6 +446,7 @@ mod tests {
             most_recent_count: 3,
             default_hold_source: HoldSource::Outer,
             split: Split::Week,
+            reports_time_zone: parse_time_zone("Europe/Lisbon")?,
         };
         let mut read_back = Settings::default();
 

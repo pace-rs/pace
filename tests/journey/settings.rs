@@ -121,3 +121,13 @@ fn manifest_id_that_is_no_text_names_no_missing_command() -> TestResult {
     assert!(!output.contains("pace project"), "{output}");
     Ok(())
 }
+
+#[test]
+fn config_show_lists_reports_time_zone() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("[reports]\ntime-zone = \"Europe/Vienna\"\n")?;
+
+    let output = run(sandbox.pace().args(["config", "show", "--origin"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

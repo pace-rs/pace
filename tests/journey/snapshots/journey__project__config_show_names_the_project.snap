@@ -20,4 +20,7 @@ default-source = "unknown"
 [storage]
 split = "month"
 
+[reports]
+time-zone = "system"
+
 ----- stderr -----

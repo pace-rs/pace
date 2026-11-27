@@ -12,6 +12,7 @@ pub(crate) enum Key {
     MostRecentCount,
     HoldsDefaultSource,
     StorageSplit,
+    ReportsTimeZone,
 }
 
 /// What a setting's value is in TOML.
@@ -23,12 +24,13 @@ pub(crate) enum Kind {
 
 impl Key {
     /// Every setting, in the order pace documents them.
-    pub(crate) const ALL: [Self; 5] = [
+    pub(crate) const ALL: [Self; 6] = [
         Self::TimeZone,
         Self::WeekStart,
         Self::MostRecentCount,
         Self::HoldsDefaultSource,
         Self::StorageSplit,
+        Self::ReportsTimeZone,
     ];
 
     /// The key as written in the file.
@@ -39,6 +41,7 @@ impl Key {
             Self::MostRecentCount => "most-recent-count",
             Self::HoldsDefaultSource => "holds.default-source",
             Self::StorageSplit => "storage.split",
+            Self::ReportsTimeZone => "reports.time-zone",
         }
     }
 
@@ -50,13 +53,16 @@ impl Key {
             Self::MostRecentCount => "PACE_MOST_RECENT_COUNT",
             Self::HoldsDefaultSource => "PACE_HOLDS__DEFAULT_SOURCE",
             Self::StorageSplit => "PACE_STORAGE__SPLIT",
+            Self::ReportsTimeZone => "PACE_REPORTS__TIME_ZONE",
         }
     }
 
     /// The values that fit, for an error about the TOML type.
     pub(crate) const fn expects(self) -> &'static str {
         match self {
-            Self::TimeZone => "a time zone name like `Europe/Berlin`, or `system`",
+            Self::TimeZone | Self::ReportsTimeZone => {
+                "a time zone name like `Europe/Berlin`, or `system`"
+            }
             Self::WeekStart => "a day name like `monday`",
             Self::MostRecentCount => "a whole number from 1, like `9`",
             Self::HoldsDefaultSource => "`inner`, `outer` or `unknown`",
@@ -67,9 +73,11 @@ impl Key {
     pub(crate) const fn kind(self) -> Kind {
         match self {
             Self::MostRecentCount => Kind::Number,
-            Self::TimeZone | Self::WeekStart | Self::HoldsDefaultSource | Self::StorageSplit => {
-                Kind::Text
-            }
+            Self::TimeZone
+            | Self::WeekStart
+            | Self::HoldsDefaultSource
+            | Self::StorageSplit
+            | Self::ReportsTimeZone => Kind::Text,
         }
     }
 }

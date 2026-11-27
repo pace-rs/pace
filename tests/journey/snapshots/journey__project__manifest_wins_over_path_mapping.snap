@@ -20,6 +20,9 @@ default-source = "unknown"  # default
 [storage]
 split = "month"  # default
 
+[reports]
+time-zone = "system"  # default
+
 [project-paths]
 '[SANDBOX]/work' = "client-repo"  # from [SANDBOX]/config/pace.global.toml:2
 

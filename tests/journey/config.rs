@@ -78,7 +78,7 @@ fn an_unknown_key_names_the_line_and_the_closest_key() -> TestResult {
 #[test]
 fn an_unknown_table_points_to_the_known_settings() -> TestResult {
     let sandbox = Sandbox::new()?;
-    sandbox.write_config("[reports]\nformat = \"table\"\n")?;
+    sandbox.write_config("[invoices]\nformat = \"table\"\n")?;
 
     let output = run(sandbox.pace().args(["config", "show"]))?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));

@@ -20,4 +20,7 @@ default-source = "outer"
 [storage]
 split = "week"
 
+[reports]
+time-zone = "system"
+
 ----- stderr -----

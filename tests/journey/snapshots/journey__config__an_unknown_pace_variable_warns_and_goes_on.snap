@@ -20,6 +20,9 @@ default-source = "unknown"
 [storage]
 split = "month"
 
+[reports]
+time-zone = "system"
+
 ----- stderr -----
   ⚠ the variable PACE_TIMEZONE is not one pace knows
   help: did you mean PACE_TIME_ZONE? pace ignores PACE_TIMEZONE
