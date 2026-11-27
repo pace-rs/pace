@@ -18,7 +18,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pace_core::{Catalog, ProjectId, ProjectKey, ProjectRef, Tag};
+use pace_core::{Catalog, ProjectId, ProjectKey, ProjectRecord, ProjectRef, Tag};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 
 use pace_store::catalog::project_record_path;
@@ -398,7 +398,7 @@ fn manifest_tags(file: &TomlFile<'_>, value: TomlValue<'_>) -> PaceResult<BTreeS
 }
 
 /// Check that the manifest's `id`, at `span`, is the ID of the record of
-/// `key`, if `records` hold one.
+/// `key`, if `records` hold one, and no other project's ID.
 fn check_record_id(
     file: &TomlFile<'_>,
     key: &ProjectKey,
@@ -406,6 +406,20 @@ fn check_record_id(
     span: Range<usize>,
     records: Records<'_>,
 ) -> PaceResult<()> {
+    if let Some(other) = records
+        .catalog
+        .project_by_id(id)
+        .filter(|record| &record.key != key)
+    {
+        return Err(id_of_other_project(
+            file,
+            key,
+            id,
+            span,
+            other,
+            records.home,
+        ));
+    }
     let Some(record) = records
         .catalog
         .project(key)
@@ -433,6 +447,37 @@ fn check_record_id(
             "this ID",
         )
         .attach_error_code("pace::project::id-mismatch"))
+}
+
+/// The error for a manifest whose `id`, at `span`, is the ID of the
+/// `other` project's record, not of the project `key`.
+fn id_of_other_project(
+    file: &TomlFile<'_>,
+    key: &ProjectKey,
+    id: ProjectId,
+    span: Range<usize>,
+    other: &ProjectRecord,
+    home: &Path,
+) -> Box<PaceError> {
+    file.error_at(
+        span,
+        "the manifest {manifest} gives the project `{key}` the ID {id}, but that is the ID of \
+         the project `{other}` in {record}",
+        [
+            ("manifest", file.path.display().to_string()),
+            ("key", key.to_string()),
+            ("id", id.to_string()),
+            ("other", other.key.to_string()),
+            (
+                "record",
+                project_record_path(home, &other.key).display().to_string(),
+            ),
+        ],
+        "write the key of that project into the manifest, or remove the manifest's `id` line \
+         to make a project of its own",
+        "this ID",
+    )
+    .attach_error_code("pace::project::id-of-other-project")
 }
 
 /// The project's `name`, which must hold more than blanks.
@@ -468,7 +513,6 @@ fn mapped<'paths>(cwd: &Path, project_paths: &'paths [ProjectPath]) -> Option<&'
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pace_core::ProjectRecord;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -600,6 +644,27 @@ mod tests {
              0193a7c4-0000-7000-8000-000000000001"
         );
         assert!(error.is_code("pace::project::id-mismatch"), "{error:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn manifest_id_of_other_key_record_names_that_record() -> TestResult {
+        let text = format!("[project]\nid = \"{RECORD_ID}\"\nkey = \"shop\"\n");
+
+        let error = parse(&text, &with_record())
+            .err()
+            .ok_or("a manifest with another project's ID reads")?;
+
+        assert_eq!(
+            error.to_string(),
+            "the manifest /work/.pace.toml gives the project `shop` the ID \
+             0193a7c4-0000-7000-8000-000000000001, but that is the ID of the project \
+             `acme-webshop` in /home/me/.local/share/pace/projects/acme-webshop.toml"
+        );
+        assert!(
+            error.is_code("pace::project::id-of-other-project"),
+            "{error:?}"
+        );
         Ok(())
     }
 

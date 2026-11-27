@@ -1,0 +1,21 @@
+---
+source: tests/journey/project_init.rs
+expression: output
+---
+$ pace project init   # at 09:00 in work/shop
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project::id-of-other-project
+
+  × the manifest [SANDBOX]/work/shop/.pace.toml gives the project `shop` the ID [ID-1], but that is the ID of the project `webshop` in [SANDBOX]/home/projects/webshop.toml
+   ╭─[[SANDBOX]/work/shop/.pace.toml:4:6]
+ 3 │ [project]
+ 4 │ id = "[ID-1]"
+   ·      ───────────────────┬──────────────────
+   ·                         ╰── this ID
+ 5 │ key = "shop"
+   ╰────
+  help: write the key of that project into the manifest, or remove the manifest's `id` line to make a project of its own

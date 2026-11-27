@@ -143,3 +143,18 @@ fn project_init_refuses_what_it_cannot_do_and_names_flag() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn project_init_refuses_manifest_with_id_of_other_project() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write("home/projects/webshop.toml", WEBSHOP_RECORD)?;
+    sandbox.write(
+        "work/shop/.pace.toml",
+        "version = 1\n\n[project]\nid = \"0193a7c4-0000-7000-8000-000000000001\"\nkey = \"shop\"\n",
+    )?;
+
+    let output = sandbox.journey_in("shop", &[("09:00", &["project", "init"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    assert!(!sandbox.path("home/projects/shop.toml").exists());
+    Ok(())
+}
