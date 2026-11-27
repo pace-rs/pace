@@ -431,9 +431,10 @@ fn store_file_of_newer_pace_stops_writing(#[case] file: &str) -> TestResult {
         .err()
         .ok_or("a newer version must stop pace")?;
 
+    // With `/` as the separator, as `file` writes it, on every OS.
     assert_eq!(
-        error.to_string(),
-        format!("this pace reads version 1 of {}, not 7", path.display())
+        error.to_string().replace('\\', "/"),
+        format!("this pace reads version 1 of {}, not 7", path.display()).replace('\\', "/")
     );
     assert_eq!(
         error.hint(),
@@ -484,10 +485,13 @@ fn store_errors_start_with_fixed_phrase(
         .err()
         .ok_or("a broken store file must stop pace")?;
 
+    // With `/` as the separator, as `file` writes it, on every OS.
     let shown = dir.path().join(file.trim_end_matches('/'));
     assert_eq!(
-        error.to_string(),
-        message.replace("{}", &shown.display().to_string())
+        error.to_string().replace('\\', "/"),
+        message
+            .replace("{}", &shown.display().to_string())
+            .replace('\\', "/")
     );
     Ok(())
 }

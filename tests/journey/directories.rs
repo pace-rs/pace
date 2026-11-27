@@ -82,7 +82,10 @@ fn machine_directory_in_data_through_parent_is_refused() -> TestResult {
         .args(["begin", "Write offer"]))?;
 
     assert!(!sandbox.path("home/machine").exists());
-    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    let mut settings = sandbox.settings();
+    // Windows resolves `..` when it makes the path absolute, Unix keeps it.
+    settings.add_filter(r"\[SANDBOX\]/work/\.\./", "[SANDBOX]/");
+    settings.bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
 

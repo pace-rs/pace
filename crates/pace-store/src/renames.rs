@@ -238,9 +238,11 @@ mod tests {
             .append_with(batch, marker, failing_rename(2, || ()));
 
         let error = appended.err().ok_or("the second rename fails")?;
+        // With `/` as the separator: on Windows the event file's path mixes
+        // `\\` and the `/` of the split's file name.
         assert_eq!(
-            error.to_string(),
-            format!("cannot write {}", laptop.day_file("27").display())
+            error.to_string().replace('\\', "/"),
+            format!("cannot write {}", laptop.day_file("27").display()).replace('\\', "/")
         );
         assert_eq!(std::fs::read_to_string(laptop.day_file("26"))?, yesterday);
         assert!(!laptop.day_file("27").exists(), "the batch created it");

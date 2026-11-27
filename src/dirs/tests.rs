@@ -314,11 +314,21 @@ fn no_env(_: &str) -> Option<OsString> {
 fn relative_path_starts_in_given_working_directory() -> PaceResult<()> {
     let env = |name: &str| (name == "PACE_HOME").then(|| OsString::from("data"));
 
-    let inputs = Inputs::gather(None, None, env, Path::new("/home/me/work"), None)?;
+    // Absolute on every OS: on Windows a path without a drive isn't.
+    let work = Path::new(if cfg!(windows) {
+        r"C:\home\me\work"
+    } else {
+        "/home/me/work"
+    });
+
+    let inputs = Inputs::gather(None, None, env, work, None)?;
 
     assert_eq!(
         inputs.home,
-        Some(located("/home/me/work/data", Origin::Env("PACE_HOME")))
+        Some(Located {
+            path: work.join("data"),
+            origin: Origin::Env("PACE_HOME"),
+        })
     );
     Ok(())
 }

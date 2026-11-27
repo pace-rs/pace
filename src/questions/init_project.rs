@@ -616,10 +616,12 @@ mod tests {
         InitProjectFlow::new(catalog, inputs, flags).unwrap()
     }
 
+    /// The files of `edits`, with `/` as the separator on every OS, as the
+    /// tests' made-up paths write it.
     fn files(edits: &[FieldEdit]) -> Vec<String> {
         let mut files: Vec<String> = edits
             .iter()
-            .map(|edit| edit.file.display().to_string())
+            .map(|edit| edit.file.display().to_string().replace('\\', "/"))
             .collect();
         files.dedup();
         files

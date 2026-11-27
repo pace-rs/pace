@@ -88,7 +88,8 @@ fn now_json_names_kind_and_file_of_path_mapping() -> TestResult {
     assert_eq!(
         project["path"],
         sandbox
-            .path("config/pace.global.toml")
+            .path("config")
+            .join("pace.global.toml")
             .display()
             .to_string()
     );

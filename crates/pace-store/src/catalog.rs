@@ -131,7 +131,10 @@ pub fn read_catalog_mending(
 /// a change of that file can mend it.
 #[must_use]
 pub fn points_at_file(error: &PaceError, path: &Path) -> bool {
-    error.snippet_name() == Some(path.display().to_string().as_str())
+    // As paths, not as text: on Windows `a/b` and `a\b` name one file.
+    error
+        .snippet_name()
+        .is_some_and(|name| Path::new(name) == path)
 }
 
 /// Write `text` as the catalog file `path` whole, through a temporary file

@@ -990,7 +990,7 @@ mod tests {
             Some(
                 format!(
                     "edit {} by hand, or set VISUAL or EDITOR",
-                    home.path().join("projects/webshop.toml").display()
+                    home.path().join("projects").join("webshop.toml").display()
                 )
                 .as_str()
             )

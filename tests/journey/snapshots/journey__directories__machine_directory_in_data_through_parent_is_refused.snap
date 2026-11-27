@@ -7,5 +7,5 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-  × the machine directory [SANDBOX]/work/../home/machine lies inside the data directory [SANDBOX]/home
+  × the machine directory [SANDBOX]/home/machine lies inside the data directory [SANDBOX]/home
   help: the data directory may be synced, and the machine directory holds this device's ID; point PACE_MACHINE_DIR somewhere else

@@ -47,7 +47,8 @@ use crate::print::print_lines;
 
 /// pace: a local-first command-line time tracker for work and daily life.
 #[derive(clap::Parser, Command, Debug)]
-#[command(name = "pace", version, about)]
+// `bin_name` keeps usage lines at `pace` on Windows, where argv[0] is `pace.exe`.
+#[command(name = "pace", bin_name = "pace", version, about)]
 pub struct EntryPoint {
     #[command(subcommand)]
     cmd: Option<PaceCmd>,

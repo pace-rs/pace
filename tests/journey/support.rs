@@ -349,14 +349,23 @@ impl Sandbox {
         if let Ok(canonical) = std::fs::canonicalize(self.root.path()) {
             let canonical = canonical.display().to_string();
             let plain = canonical.trim_start_matches(r"\\?\").to_owned();
-            settings.add_filter(&regex_escape(&canonical), "[SANDBOX]");
-            settings.add_filter(&regex_escape(&plain), "[SANDBOX]");
+            add_sandbox_filter(&mut settings, &canonical);
+            add_sandbox_filter(&mut settings, &plain);
         }
-        let root = self.root.path().display().to_string();
-        settings.add_filter(&regex_escape(&root), "[SANDBOX]");
+        add_sandbox_filter(&mut settings, &self.root.path().display().to_string());
         settings.add_filter(r"\\\\?", "/");
         settings
     }
+}
+
+/// Replaces `path` with `[SANDBOX]`, also as JSON writes it: on Windows JSON
+/// doubles each `\` of the path.
+fn add_sandbox_filter(settings: &mut insta::Settings, path: &str) {
+    let escaped = path.replace('\\', r"\\");
+    if escaped != path {
+        settings.add_filter(&regex_escape(&escaped), "[SANDBOX]");
+    }
+    settings.add_filter(&regex_escape(path), "[SANDBOX]");
 }
 
 /// The variables by which a shell turns colour or miette's graphics on or

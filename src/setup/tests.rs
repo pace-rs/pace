@@ -419,7 +419,7 @@ fn directory_without_manifest_becomes_project_with_questions_of_project_init() {
     );
     let ended = run.finish();
     assert_eq!(
-        ended.made,
+        with_slashes(ended.made),
         SetupOutcome::Accepted {
             changes: vec![
                 format!("projects/webshop.toml: id → {}", record_id(&ended.edits)),
@@ -432,6 +432,18 @@ fn directory_without_manifest_becomes_project_with_questions_of_project_init() {
             files: vec!["projects/webshop.toml".to_owned(), ".pace.toml".to_owned()],
         }
     );
+}
+
+/// `made` with `/` as the separator in its paths on every OS: the summary
+/// names a record as `projects\webshop.toml` on Windows.
+fn with_slashes(made: SetupOutcome) -> SetupOutcome {
+    match made {
+        SetupOutcome::Accepted { changes, files } => SetupOutcome::Accepted {
+            changes: changes.iter().map(|line| line.replace('\\', "/")).collect(),
+            files: files.iter().map(|file| file.replace('\\', "/")).collect(),
+        },
+        other => other,
+    }
 }
 
 /// The ID that the first of `edits` sets: the new record's.

@@ -539,6 +539,12 @@ mod tests {
         Catalog::new(Vec::new(), Vec::new(), vec![webshop_record()]).unwrap()
     }
 
+    /// The text of `error` with `/` as the separator on every OS, as the
+    /// made-up paths of these tests write it.
+    fn message(error: &PaceError) -> String {
+        error.to_string().replace('\\', "/")
+    }
+
     fn parse(text: &str, catalog: &Catalog) -> PaceResult<Project> {
         let records = Records {
             catalog,
@@ -637,7 +643,7 @@ mod tests {
             .ok_or("a manifest with another ID reads")?;
 
         assert_eq!(
-            error.to_string(),
+            message(&error),
             "the manifest /work/.pace.toml gives the project `acme-webshop` the ID \
              0193a7c4-0000-7000-8000-0000000000ff, but its record \
              /home/me/.local/share/pace/projects/acme-webshop.toml has the ID \
@@ -656,7 +662,7 @@ mod tests {
             .ok_or("a manifest with another project's ID reads")?;
 
         assert_eq!(
-            error.to_string(),
+            message(&error),
             "the manifest /work/.pace.toml gives the project `shop` the ID \
              0193a7c4-0000-7000-8000-000000000001, but that is the ID of the project \
              `acme-webshop` in /home/me/.local/share/pace/projects/acme-webshop.toml"

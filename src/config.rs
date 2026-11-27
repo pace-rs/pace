@@ -511,7 +511,12 @@ mod tests {
             default_hold_source: HoldSource::Outer,
             split: Split::Week,
             reports_time_zone: parse_time_zone("Europe/Lisbon")?,
-            reports_templates: Some(PathBuf::from("/srv/pace/templates")),
+            // A full path: on Windows one starts with a drive.
+            reports_templates: Some(PathBuf::from(if cfg!(windows) {
+                r"C:\srv\pace\templates"
+            } else {
+                "/srv/pace/templates"
+            })),
         };
         let mut read_back = Settings::default();
 
