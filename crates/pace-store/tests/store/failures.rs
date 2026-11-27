@@ -11,7 +11,7 @@ use pace_core::{
     command::{Begin, End, Forget, Hold, Log},
     testing::TestClock,
 };
-use pace_store::{FilesStore, Split};
+use pace_store::{FilesStore, Split, testing::scratch_dir};
 use pace_time::TimeRange;
 
 use crate::TestResult;
@@ -70,7 +70,7 @@ fn text_below(dir: &Path) -> std::io::Result<String> {
 
 #[test]
 fn failed_cursor_save_records_nothing_and_next_command_works() -> TestResult {
-    let dir = tempfile::tempdir()?;
+    let dir = scratch_dir()?;
     let (home, machine) = (dir.path().join("home"), dir.path().join("machine"));
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
     let laptop = tracker(&home, &machine, device(1)?, &clock, 1);
@@ -97,7 +97,7 @@ fn failed_cursor_save_records_nothing_and_next_command_works() -> TestResult {
 
 #[test]
 fn failed_cleaning_keeps_the_append_and_is_retried() -> TestResult {
-    let dir = tempfile::tempdir()?;
+    let dir = scratch_dir()?;
     let home = dir.path().join("home");
     let clock = Arc::new(TestClock::new(at("2026-10-30T12:00[Europe/Berlin]")?));
     let laptop = tracker(&home, &dir.path().join("laptop"), device(1)?, &clock, 1);
@@ -140,7 +140,7 @@ fn failed_cleaning_keeps_the_append_and_is_retried() -> TestResult {
 
 #[test]
 fn read_works_when_index_cannot_be_written() -> TestResult {
-    let dir = tempfile::tempdir()?;
+    let dir = scratch_dir()?;
     let (home, machine) = (dir.path().join("home"), dir.path().join("machine"));
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
     let laptop = tracker(&home, &machine, device(1)?, &clock, 1);

@@ -141,7 +141,7 @@ fn deleting_the_index_changes_nothing() -> TestResult {
 
 #[test]
 fn clock_reading_out_of_range_in_cursors_stops_writing() -> TestResult {
-    let dir = tempfile::tempdir()?;
+    let dir = scratch_dir()?;
     let home = dir.path().join("home");
     let machine_dir = dir.path().join("machine");
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
@@ -178,7 +178,7 @@ mod expensive {
     #[test]
     fn first_runs_at_once_agree_on_one_device_id() -> TestResult {
         for round in 0..8u16 {
-            let dir = tempfile::tempdir()?;
+            let dir = scratch_dir()?;
             let machine = dir.path().join("machine");
             let start = at("2026-11-26T09:00[Europe/Berlin]")?;
             let barrier = std::sync::Barrier::new(4);
