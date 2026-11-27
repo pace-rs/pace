@@ -248,14 +248,17 @@ fn read(
             "the edited entry has a mistake: {message}",
         )
         .attach_context("message", error.message().trim());
+        // A missing field has no spot in the file, though toml gives it
+        // an empty span at 0; a syntax error's empty span marks its spot.
+        if lacks_start(text) {
+            return mistake
+                .attach_hint("write the fields back, at least `start`; nothing was changed");
+        }
         match error.span() {
-            Some(span) if !span.is_empty() && !text.trim().is_empty() => mistake
+            Some(span) => mistake
                 .attach_snippet(Snippet::new(EDITED, text, span, "here"))
                 .attach_hint("fix the marked spot; nothing was changed"),
-            _ if lacks_start(text) => {
-                mistake.attach_hint("write the fields back, at least `start`; nothing was changed")
-            }
-            _ => mistake.attach_hint("fix the named mistake; nothing was changed"),
+            None => mistake.attach_hint("fix the named mistake; nothing was changed"),
         }
     })?;
 
@@ -557,6 +560,47 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(labels(&error).len(), 1);
+        assert_eq!(
+            error.hint(),
+            Some("fix the marked spot; nothing was changed")
+        );
+    }
+
+    #[test]
+    fn deleted_value_marks_its_spot() {
+        let text = format!("start = \nend = \"{}\"\n", at("10:00"));
+
+        let error = read(
+            &text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(labels(&error), [(8, "here".to_owned())]);
+        assert_eq!(
+            error.hint(),
+            Some("fix the marked spot; nothing was changed")
+        );
+    }
+
+    #[test]
+    fn unclosed_string_marks_its_spot() {
+        let text = "# Started at 09:00.\nstart = \"09:00\nend = \"10:00\"\n";
+
+        let error = read(
+            text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(labels(&error).len(), 1, "{error}");
+        assert_eq!(labels(&error)[0].1, "here");
         assert_eq!(
             error.hint(),
             Some("fix the marked spot; nothing was changed")
