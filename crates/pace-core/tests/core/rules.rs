@@ -447,6 +447,70 @@ fn hold_before_the_entry_began_is_refused() -> TestResult {
 }
 
 #[test]
+fn hold_in_the_future_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+
+    let error = failure(world.run(
+        "10:00",
+        &Command::Hold(Hold {
+            at: Some(berlin("23:00")?),
+            ..Hold::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would be held at 23:00, in the future"
+    );
+    assert_eq!(error.hint(), Some("leave out `--at` to hold it now"));
+    Ok(())
+}
+
+#[test]
+fn pause_in_the_future_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+
+    let error = failure(world.run(
+        "10:00",
+        &Command::Pause(Pause {
+            at: Some(berlin("23:00")?),
+            ..Pause::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would be paused at 23:00, in the future"
+    );
+    assert_eq!(error.hint(), Some("leave out `--at` to pause it now"));
+    Ok(())
+}
+
+#[test]
+fn resume_in_the_future_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Hold(Hold::default()))?;
+
+    let error = failure(world.run(
+        "10:20",
+        &Command::Resume(Resume {
+            at: Some(berlin("23:00")?),
+            ..Resume::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would resume at 23:00, in the future"
+    );
+    assert_eq!(error.hint(), Some("leave out `--at` to resume it now"));
+    Ok(())
+}
+
+#[test]
 fn hold_before_the_open_pause_began_is_refused() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;

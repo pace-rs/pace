@@ -330,7 +330,7 @@ fn store_contract_names_check_that_broken_store_fails() -> TestResult {
 
     assert_eq!(
         error.to_string(),
-        "the store breaks its contract: the HLC never goes back when the clock does: \
+        "the store breaks its contract: the HLC comes after what other devices wrote: \
          nothing is running"
     );
     Ok(())

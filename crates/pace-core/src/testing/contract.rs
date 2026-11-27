@@ -11,7 +11,7 @@ use crate::testing::TestClock;
 use crate::{
     Appended, Clock, Command, DeviceId, EntryState, EventStore, Policy, Rules, SequentialIds,
     State, Tracker,
-    command::{Begin, End, Hold, Log},
+    command::{Begin, End, Log},
 };
 
 /// Run every check. `new_storage` gives fresh, empty storage for each
@@ -193,16 +193,15 @@ where
         .run(&Command::Begin(Begin::default()))
         .await?;
     laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
+    // The log lies before the jumped-back clock, and so before the begin's
+    // HLC; the store must still order it after the begin.
     let second = laptop
         .tracker
-        .run(&Command::Hold(Hold {
-            at: Some(at("2026-11-26T10:05[Europe/Berlin]")?),
-            ..Hold::default()
-        }))
-        .await;
-    // The hold lies in the future of the jumped-back clock, which the rules
-    // don't check; the store must still order it after the begin.
-    let second = second?;
+        .run(&Command::Log(Log::new(
+            at("2026-11-26T08:00[Europe/Berlin]")?,
+            at("2026-11-26T08:30[Europe/Berlin]")?,
+        )))
+        .await?;
     let (Some(first), Some(second)) = (first.recorded.first(), second.recorded.first()) else {
         return Err(broken(check, "append returned nothing"));
     };
