@@ -19,7 +19,7 @@ splits it by another period and takes the events of forgotten entries out of it;
 
 <!-- uses -->
 
-- Uses: [`disk`](../disk.rs), [`format`](../format.rs), [`index`](../index/),
+- Uses: [`disk`](../disk.rs), [`format`](../format/), [`index`](../index/),
   [`testing`](../testing/).
 - Used by: no other module.
 

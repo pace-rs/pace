@@ -240,6 +240,9 @@ fn what_was_written_reads_back_the_same() -> TestResult {
     let read = setup.store(Split::Month).read(&ReadScope::everything())?;
 
     assert_eq!(read, written.recorded);
+    // `ZonedDateTime` equality compares the instant only; the debug text
+    // holds the time zone of each timestamp too.
+    assert_eq!(format!("{read:#?}"), format!("{:#?}", written.recorded));
     Ok(())
 }
 

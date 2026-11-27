@@ -30,6 +30,7 @@ gives tests a scratch directory in memory, the in-memory `MemoryStore` and
 | [`toml_file.rs`](toml_file.rs) | pace's TOML files, read with spans so every error can point at its line.                                                                 |
 | [`tracker.rs`](tracker.rs)     | The tracker: the blocking driver of the tracking machine, over the event store.                                                          |
 | [`files/`](files/)             | The `files` backend: TOML event files in `PACE_HOME`.                                                                                    |
+| [`format/`](format/)           | The TOML format of event files.                                                                                                          |
 | [`index/`](index/)             | The machine-local index of the event files.                                                                                              |
 | [`testing/`](testing/)         | For tests of pace and of store backends: a scratch directory, an in-memory `EventStore`, and the store contract every backend must keep. |
 
