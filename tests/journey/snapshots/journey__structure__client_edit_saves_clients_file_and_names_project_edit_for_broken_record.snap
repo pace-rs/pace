@@ -1,0 +1,60 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+Saved the client `acme` (ACME GmbH) in [SANDBOX]/home/clients.toml.
+
+----- stderr -----
+pace::clients::invalid-value
+
+  × `EURO` is not an ISO 4217 currency code
+   ╭─[[SANDBOX]/home/clients.toml:6:12]
+ 5 │ name = "ACME GmbH"
+ 6 │ currency = "EURO"
+   ·            ───┬──
+   ·               ╰── this value
+ 7 │ rounding = { per = "entry", step = "15m", mode = "up" }
+   ╰────
+  help: did you mean `EUR`?
+
+pace::project-record::invalid-value
+
+  ⚠ the catalog doesn't read until this mistake is fixed: `pace project edit webshop` opens it
+  │ `billable` takes `true` or `false`
+   ╭─[[SANDBOX]/home/projects/webshop.toml:5:12]
+ 4 │ name = "Webshop"
+ 5 │ billable = "yes"
+   ·            ──┬──
+   ·              ╰── a string
+   ╰────
+  help: write `billable = true` or `billable = false`, without quotes
+
+
+success: true
+exit_code: 0
+----- stdout -----
+Saved the project `webshop` (Webshop) in [SANDBOX]/home/projects/webshop.toml.
+
+----- stderr -----
+pace::project-record::invalid-value
+
+  × `billable` takes `true` or `false`
+   ╭─[[SANDBOX]/home/projects/webshop.toml:5:12]
+ 4 │ name = "Webshop"
+ 5 │ billable = "yes"
+   ·            ──┬──
+   ·              ╰── a string
+   ╰────
+  help: write `billable = true` or `billable = false`, without quotes
+
+
+success: true
+exit_code: 0
+----- stdout -----
+key      name     client  role  billable  budget
+webshop  Webshop                yes
+
+----- stderr -----

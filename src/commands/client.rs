@@ -7,12 +7,12 @@ use jiff::civil::Date;
 use pace_core::{Catalog, Client, ClientKey, Rounding, RoundingMode};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, closest_name};
 use pace_store::{
-    catalog::{CLIENTS_FILE, points_at_file, read_catalog, read_catalog_with},
+    catalog::{CLIENTS_FILE, MendedCatalog, points_at_file, read_catalog_mending},
     field_edit::{FieldEdit, apply_field_edits, table_text, write_field_edits},
 };
 
 use crate::application::{Context, PACE_APP, exit_on_error, print_error};
-use crate::editor::{EditedFile, edit_in_editor, edit_until_checked, editor_command};
+use crate::editor::{EditedFile, SavedFile, edit_in_editor, edit_until_checked, editor_command};
 use crate::output::{aligned, listed, usage};
 use crate::print::print_lines;
 use crate::prompt::Ask;
@@ -231,14 +231,14 @@ impl ClientEditCmd {
             return Err(without_editor(opened));
         }
         let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
-        let line = edit_client_table(
+        edit_client_table(
             home,
             opened,
             asker,
             |text| edit_in_editor(&editor, text, ".toml"),
             print_error,
-        )?;
-        print_lines([line])
+        )?
+        .print()
     }
 }
 
@@ -317,17 +317,17 @@ fn client_table(home: &Path, catalog: &Catalog, key: ClientKey) -> PaceResult<Cl
 ///
 /// If the catalog reads, so that it has no client `key`: the error names
 /// the closest key of `catalog`. If a mistake in another file keeps the
-/// catalog from reading: that mistake.
+/// catalog from reading while the clients file reads: that mistake.
 fn clients_file_mistake(
     home: &Path,
     path: &Path,
     catalog: &Catalog,
     key: &ClientKey,
 ) -> PaceResult<Box<PaceError>> {
-    match read_catalog(home) {
+    match read_catalog_mending(home, path, None) {
         Err(mistake) if points_at_file(&mistake, path) => Ok(mistake),
-        Err(error) => Err(error),
-        Ok(_) => Err(unknown_client(catalog, key)),
+        Err(error) | Ok(MendedCatalog::Alone(_, error)) => Err(error),
+        Ok(MendedCatalog::Whole(_)) => Err(unknown_client(catalog, key)),
     }
 }
 
@@ -354,14 +354,15 @@ fn unknown_client(catalog: &Catalog, key: &ClientKey) -> Box<PaceError> {
 /// `home` reads the clients file with it, and write it in its place; the
 /// sentence that says so. A mistake is shown with `report`, a mistake of
 /// the file as it is before the editor opens, and `asker` offers to open
-/// the table again.
+/// the table again. When the clients file reads alone but another file has
+/// a mistake of its own, pace saves the table and leaves that mistake.
 fn edit_client_table(
     home: &Path,
     opened: ClientTable,
     asker: &dyn Ask,
     edit: impl FnMut(&str) -> PaceResult<String>,
     report: impl Fn(&PaceError),
-) -> PaceResult<String> {
+) -> PaceResult<SavedFile> {
     let ClientTable {
         key,
         path,
@@ -375,7 +376,7 @@ fn edit_client_table(
     }
     let replace = |edited: &str| FieldEdit::replace_table(&path, &[key.as_str()], edited);
     let command = format!("pace client edit {key}");
-    let (edited, catalog) = edit_until_checked(
+    let (edited, read) = edit_until_checked(
         EditedFile {
             path: &path,
             command: &command,
@@ -385,18 +386,21 @@ fn edit_client_table(
         edit,
         |edited| {
             let whole = apply_field_edits(&path, &text, &[replace(edited)])?;
-            read_catalog_with(home, &path, &whole)
+            read_catalog_mending(home, &path, Some(&whole))
         },
         report,
     )?;
     write_field_edits(vec![replace(&edited)])?;
-    let name = catalog
-        .client(&key)
-        .map_or(name, |saved| saved.name.clone());
-    Ok(format!(
-        "Saved the client `{key}` ({name}) in {}.",
-        path.display()
-    ))
+    let saved_name = |client: Option<&Client>| client.map_or(name, |saved| saved.name.clone());
+    let (name, left) = match read {
+        MendedCatalog::Whole(catalog) => (saved_name(catalog.client(&key)), None),
+        MendedCatalog::Alone(records, mistake) => (
+            saved_name(records.clients.iter().find(|client| client.key == key)),
+            Some(mistake),
+        ),
+    };
+    let line = format!("Saved the client `{key}` ({name}) in {}.", path.display());
+    Ok(SavedFile::new(home, line, left))
 }
 
 /// The error of `pace client edit` without a terminal and without an
@@ -436,6 +440,7 @@ fn client_key(text: &str) -> PaceResult<ClientKey> {
 mod tests {
     use jiff::{SignedDuration, civil::date};
     use pace_core::{Money, Rate, Rates, RoundingPer};
+    use pace_store::catalog::read_catalog;
 
     use super::*;
     use crate::prompt::Scripted;
@@ -574,7 +579,8 @@ mod tests {
             },
             |_| {},
         )
-        .unwrap();
+        .unwrap()
+        .line;
 
         assert_eq!(
             opened.into_inner(),
@@ -677,7 +683,8 @@ mod tests {
             |text| Ok(text.replace("EURO", "EUR")),
             |error| reported.borrow_mut().push(error.to_string()),
         )
-        .unwrap();
+        .unwrap()
+        .line;
 
         assert_eq!(
             reported.into_inner(),

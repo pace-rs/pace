@@ -4,10 +4,12 @@
 use std::path::Path;
 
 use jiff::{SignedDuration, civil::date};
-use pace_core::{ProjectKey, RoleKind, RoundingMode, RoundingPer};
+use pace_core::{Catalog, ProjectKey, RoleKind, RoundingMode, RoundingPer};
 use pace_error::PaceError;
 use pace_store::{
-    catalog::{points_at_file, read_catalog, read_catalog_with, write_catalog_file},
+    catalog::{
+        MendedCatalog, points_at_file, read_catalog, read_catalog_mending, write_catalog_file,
+    },
     testing::scratch_dir,
 };
 
@@ -582,13 +584,26 @@ fn version_typo_in_clients_file_names_version() -> TestResult {
     Ok(())
 }
 
+/// The catalog of `home` with `text` in place of the file `mended`, which
+/// must read whole.
+fn read_whole_with(
+    home: &Path,
+    mended: &Path,
+    text: &str,
+) -> Result<Catalog, Box<dyn std::error::Error>> {
+    match read_catalog_mending(home, mended, Some(text))? {
+        MendedCatalog::Whole(catalog) => Ok(catalog),
+        MendedCatalog::Alone(_, mistake) => Err(mistake.to_string().into()),
+    }
+}
+
 #[test]
 fn edited_roles_text_reads_in_place_of_roles_file() -> TestResult {
     let dir = plan_home()?;
     let roles_file = dir.path().join("roles.toml");
     let edited = ROLES.replace("name = \"Work\"", "name = \"Paid work\"");
 
-    let catalog = read_catalog_with(dir.path(), &roles_file, &edited)?;
+    let catalog = read_whole_with(dir.path(), &roles_file, &edited)?;
 
     let names: Vec<&str> = catalog.roles().map(|role| role.name.as_str()).collect();
     assert_eq!(names, ["Paid work"]);
@@ -601,7 +616,7 @@ fn edited_roles_text_that_drops_project_role_points_at_project() -> TestResult {
     let dir = plan_home()?;
     let roles_file = dir.path().join("roles.toml");
 
-    let error = read_catalog_with(dir.path(), &roles_file, "version = 1\n")
+    let error = read_catalog_mending(dir.path(), &roles_file, Some("version = 1\n"))
         .err()
         .ok_or("the catalog must not read")?;
 
@@ -615,7 +630,7 @@ fn edited_roles_text_for_missing_roles_file_reads() -> TestResult {
     let dir = home(&[])?;
     let roles_file = dir.path().join("roles.toml");
 
-    let catalog = read_catalog_with(dir.path(), &roles_file, ROLES)?;
+    let catalog = read_whole_with(dir.path(), &roles_file, ROLES)?;
 
     assert_eq!(catalog.roles().count(), 1);
     Ok(())
@@ -637,7 +652,7 @@ fn edited_text_of_new_project_record_reads() -> TestResult {
     let dir = home(&[("roles.toml", ROLES), ("clients.toml", CLIENTS)])?;
     let record = dir.path().join("projects/acme-webshop.toml");
 
-    let catalog = read_catalog_with(dir.path(), &record, PROJECT)?;
+    let catalog = read_whole_with(dir.path(), &record, PROJECT)?;
 
     assert_eq!(catalog.projects().count(), 1);
     Ok(())
@@ -651,5 +666,90 @@ fn error_points_at_file_of_its_mistake_only() -> TestResult {
 
     assert!(points_at_file(&error, &dir.path().join("roles.toml")));
     assert!(!points_at_file(&error, &dir.path().join("clients.toml")));
+    Ok(())
+}
+
+/// The record of `acme-webshop` with a mistake: `billable` is no boolean.
+fn broken_project() -> String {
+    PROJECT.replace("billable = true", "billable = \"yes\"")
+}
+
+/// A `PACE_HOME` whose clients file and project record have a mistake.
+fn home_with_two_mistakes() -> std::io::Result<tempfile::TempDir> {
+    home(&[
+        ("roles.toml", ROLES),
+        ("clients.toml", &CLIENTS.replace("\"EUR\"", "\"EURO\"")),
+        ("projects/acme-webshop.toml", &broken_project()),
+    ])
+}
+
+#[test]
+fn mended_file_shows_its_own_mistake_before_mistake_of_earlier_file() -> TestResult {
+    let dir = home_with_two_mistakes()?;
+    let record = dir.path().join("projects/acme-webshop.toml");
+
+    let error = read_catalog_mending(dir.path(), &record, None)
+        .err()
+        .ok_or("the record must not read")?;
+
+    assert!(points_at_file(&error, &record), "{error:?}");
+    assert!(points_at_file(
+        &*read_error(dir.path())?,
+        &dir.path().join("clients.toml")
+    ));
+    Ok(())
+}
+
+#[test]
+fn mended_file_that_reads_alone_leaves_mistake_of_other_file() -> TestResult {
+    let dir = home_with_two_mistakes()?;
+    let record = dir.path().join("projects/acme-webshop.toml");
+
+    let MendedCatalog::Alone(records, mistake) =
+        read_catalog_mending(dir.path(), &record, Some(PROJECT))?
+    else {
+        return Err("a mistake of the clients file must be left".into());
+    };
+
+    assert!(points_at_file(&mistake, &dir.path().join("clients.toml")));
+    let projects: Vec<&str> = records
+        .projects
+        .iter()
+        .map(|record| record.name.as_str())
+        .collect();
+    assert_eq!(projects, ["Webshop relaunch"]);
+    assert_eq!(records.roles.len(), 1);
+    assert_eq!(records.clients.len(), 0);
+    Ok(())
+}
+
+#[test]
+fn records_are_checked_against_each_other_only_once_every_file_reads() -> TestResult {
+    let dir = home(&[
+        ("roles.toml", ROLES),
+        ("clients.toml", CLIENTS),
+        ("projects/acme-webshop.toml", &broken_project()),
+    ])?;
+    let record = dir.path().join("projects/acme-webshop.toml");
+
+    let left = read_catalog_mending(
+        dir.path(),
+        &dir.path().join("clients.toml"),
+        Some("version = 1\n"),
+    )?;
+
+    assert!(
+        matches!(&left, MendedCatalog::Alone(_, mistake) if points_at_file(mistake, &record)),
+        "{left:?}"
+    );
+    std::fs::write(&record, PROJECT)?;
+    let error = read_catalog_mending(
+        dir.path(),
+        &dir.path().join("clients.toml"),
+        Some("version = 1\n"),
+    )
+    .err()
+    .ok_or("the project's client must be missing")?;
+    assert!(error.is_code("pace::core::unknown-client"), "{error:?}");
     Ok(())
 }

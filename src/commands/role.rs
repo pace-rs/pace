@@ -6,12 +6,14 @@ use abscissa_core::{Command, Runnable};
 use pace_core::{ArchiveReason, Archived, Catalog, Ids, Role, RoleId, RoleKey};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, closest_name};
 use pace_store::{
-    catalog::{ROLES_FILE, points_at_file, read_catalog_with, write_catalog_file},
+    catalog::{
+        MendedCatalog, ROLES_FILE, points_at_file, read_catalog_mending, write_catalog_file,
+    },
     field_edit::{FieldEdit, FieldValue, write_field_edits},
 };
 
 use crate::clock::{RandomIds, clock_for_run};
-use crate::editor::{EditedFile, edit_in_editor, edit_until_checked, editor_command};
+use crate::editor::{EditedFile, SavedFile, edit_in_editor, edit_until_checked, editor_command};
 use crate::output::{aligned, counted, listed, usage};
 use crate::print::print_lines;
 use crate::prompt::Ask;
@@ -313,24 +315,26 @@ impl Runnable for RoleEditCmd {
 fn edit_roles(context: &Context) -> PaceResult<()> {
     let home = &context.dirs.data.path;
     let editor = editor_command(context.editor.as_deref(), true)?;
-    let line = edit_roles_file(
+    edit_roles_file(
         home,
         &context.terminal,
         |text| edit_in_editor(&editor, text, ".toml"),
         print_error,
-    )?;
-    print_lines([line])
+    )?
+    .print()
 }
 
 /// Let the user change the roles file of `home` with `edit` until the
 /// catalog reads it, and write it; the sentence that says so. A mistake is
 /// shown with `report`, a mistake of the file as it is before the editor
-/// opens, and `asker` offers to open the file again.
+/// opens, and `asker` offers to open the file again. When the saved file
+/// reads alone but another file has a mistake of its own, pace saves it
+/// and leaves that mistake.
 ///
 /// # Errors
 ///
-/// If a mistake in another file of the catalog keeps it from reading, as
-/// the roles file can't mend it; without a terminal, the roles file's
+/// If a mistake in another file of the catalog keeps it from reading while
+/// the roles file reads, as the roles file can't mend it; without a terminal, the roles file's
 /// mistake or [`no_terminal_to_edit`]; if the user leaves a mistake in the
 /// file, or the file can't be read or written.
 fn edit_roles_file(
@@ -338,7 +342,7 @@ fn edit_roles_file(
     asker: &dyn Ask,
     edit: impl FnMut(&str) -> PaceResult<String>,
     report: impl Fn(&PaceError),
-) -> PaceResult<String> {
+) -> PaceResult<SavedFile> {
     let roles_file = home.join(ROLES_FILE);
     let text = match std::fs::read_to_string(&roles_file) {
         Ok(text) => text,
@@ -352,9 +356,11 @@ fn edit_roles_file(
             .attach_context("path", roles_file.display().to_string()));
         }
     };
-    let mistake = match read_catalog_with(home, &roles_file, &text) {
-        Err(mistake) if !points_at_file(&mistake, &roles_file) => return Err(mistake),
-        checked => checked.err(),
+    let mistake = match read_catalog_mending(home, &roles_file, Some(&text)) {
+        Ok(MendedCatalog::Whole(_)) => None,
+        Ok(MendedCatalog::Alone(_, mistake)) => return Err(mistake),
+        Err(mistake) if points_at_file(&mistake, &roles_file) => Some(mistake),
+        Err(error) => return Err(error),
     };
     if !asker.can_ask() {
         return Err(mistake.map_or_else(
@@ -369,7 +375,7 @@ fn edit_roles_file(
     if let Some(mistake) = &mistake {
         report(mistake);
     }
-    let (edited, catalog) = edit_until_checked(
+    let (edited, read) = edit_until_checked(
         EditedFile {
             path: &roles_file,
             command: "pace role edit",
@@ -377,15 +383,20 @@ fn edit_roles_file(
         &text,
         asker,
         edit,
-        |text| read_catalog_with(home, &roles_file, text),
+        |text| read_catalog_mending(home, &roles_file, Some(text)),
         report,
     )?;
     write_catalog_file(&roles_file, &edited)?;
-    Ok(format!(
+    let (roles, left) = match read {
+        MendedCatalog::Whole(catalog) => (catalog.roles().count(), None),
+        MendedCatalog::Alone(records, mistake) => (records.roles.len(), Some(mistake)),
+    };
+    let line = format!(
         "Saved {}, with {}.",
         roles_file.display(),
-        counted(catalog.roles().count(), "role")
-    ))
+        counted(roles, "role")
+    );
+    Ok(SavedFile::new(home, line, left))
 }
 
 /// The error of `pace role edit` without a terminal: it names the file to
@@ -540,7 +551,8 @@ mod tests {
             },
             |_| {},
         )
-        .unwrap();
+        .unwrap()
+        .line;
 
         assert_eq!(opened.into_inner(), NEW_ROLES_FILE);
         assert_eq!(
@@ -563,6 +575,41 @@ mod tests {
         .unwrap();
 
         assert_eq!(reported.into_inner(), ["`aera` is not a role kind"]);
+        assert_eq!(
+            std::fs::read_to_string(home.path().join(ROLES_FILE)).unwrap(),
+            WORK
+        );
+    }
+
+    #[test]
+    fn roles_file_that_reads_alone_is_saved_leaving_mistake_of_clients_file() {
+        let home = pace_store::testing::scratch_dir().unwrap();
+        let broken = WORK.replace("kind = \"area\"", "kind = \"aera\"");
+        std::fs::write(home.path().join(ROLES_FILE), broken).unwrap();
+        let clients_file = home.path().join("clients.toml");
+        std::fs::write(&clients_file, "version = 1\n\n[acme]\nname = 1\n").unwrap();
+
+        let saved = edit_roles_file(
+            home.path(),
+            &Scripted::confirming([]),
+            saving(&[WORK]),
+            |_| {},
+        )
+        .unwrap();
+
+        assert!(
+            saved.line.ends_with("roles.toml, with 1 role."),
+            "{}",
+            saved.line
+        );
+        let left = saved.left.unwrap();
+        assert!(points_at_file(&left, &clients_file), "{left:?}");
+        assert!(
+            left.to_string().starts_with(
+                "the catalog doesn't read until this mistake is fixed: `pace client edit KEY` opens it\n"
+            ),
+            "{left}"
+        );
         assert_eq!(
             std::fs::read_to_string(home.path().join(ROLES_FILE)).unwrap(),
             WORK

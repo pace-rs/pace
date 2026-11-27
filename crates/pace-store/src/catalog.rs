@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pace_core::{Catalog, ProjectKey};
+use pace_core::{Catalog, Client, ProjectKey, ProjectRecord, Role};
 use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
 
 use crate::disk::write_atomically;
@@ -59,18 +59,72 @@ pub fn project_record_path(home: &Path, key: &ProjectKey) -> PathBuf {
 /// such as a project whose client doesn't exist. Each error points at the
 /// file and the line.
 pub fn read_catalog(home: &Path) -> PaceResult<Catalog> {
-    read_catalog_replacing(home, None)
+    let sources = read_sources(home, None)?;
+    let files = read_files(&sources);
+    match files.mistakes.into_iter().next() {
+        Some((_, mistake)) => Err(mistake),
+        None => files.records.check(&files.mentions, &sources),
+    }
 }
 
-/// [`read_catalog`], with `text` in place of the file `replaced`, such as
-/// the roles file as the user edited it. The file itself stays as it is;
-/// the errors name it, so a mistake in `text` points at its line.
+/// The catalog as a command that mends one of its files reads it.
+#[derive(Debug)]
+pub enum MendedCatalog {
+    /// Every file reads, and [`Catalog::new`] takes the records.
+    Whole(Catalog),
+    /// The mended file reads alone, but the mistake of another file keeps
+    /// the catalog from reading. The records of the files that read are
+    /// not checked against each other: a client's rates name projects, so
+    /// the check needs every record.
+    Alone(CatalogRecords, Box<PaceError>),
+}
+
+/// The records of the catalog's files, each file read alone.
+#[derive(Debug, Default)]
+pub struct CatalogRecords {
+    /// The roles of the roles file.
+    pub roles: Vec<Role>,
+    /// The clients of the clients file.
+    pub clients: Vec<Client>,
+    /// The project records, by the names of their files.
+    pub projects: Vec<ProjectRecord>,
+}
+
+/// [`read_catalog`] for a command that mends the file `mended`, a path in
+/// `home`, with `text` in its place if given.
+///
+/// The text is such as the roles file as the user edited it. The file
+/// itself stays as it is; the errors name it, so a mistake in `text`
+/// points at its line. pace reads every file alone first; a mistake of
+/// `mended` comes before the mistakes of the other files, whatever its
+/// place.
 ///
 /// # Errors
 ///
-/// As [`read_catalog`].
-pub fn read_catalog_with(home: &Path, replaced: &Path, text: &str) -> PaceResult<Catalog> {
-    read_catalog_replacing(home, Some((replaced, text)))
+/// If a file can't be read; if `mended` has a mistake of its own, as
+/// [`read_catalog`] finds it; or if every file reads and [`Catalog::new`]
+/// refuses the records.
+pub fn read_catalog_mending(
+    home: &Path,
+    mended: &Path,
+    text: Option<&str>,
+) -> PaceResult<MendedCatalog> {
+    let sources = read_sources(home, text.map(|text| (mended, text)))?;
+    let files = read_files(&sources);
+    let mut mistakes = files.mistakes;
+    if let Some(at) = mistakes
+        .iter()
+        .position(|(index, _)| sources[*index].1.path == mended)
+    {
+        return Err(mistakes.swap_remove(at).1);
+    }
+    match mistakes.into_iter().next() {
+        Some((_, mistake)) => Ok(MendedCatalog::Alone(files.records, mistake)),
+        None => files
+            .records
+            .check(&files.mentions, &sources)
+            .map(MendedCatalog::Whole),
+    }
 }
 
 /// Whether `error` of [`read_catalog`] points at the file `path`, so that
@@ -90,8 +144,9 @@ pub fn write_catalog_file(path: &Path, text: &str) -> PaceResult<()> {
     write_atomically(path, text)
 }
 
-/// [`read_catalog`], with the text of one file `replaced`.
-fn read_catalog_replacing(home: &Path, replaced: Option<(&Path, &str)>) -> PaceResult<Catalog> {
+/// The catalog's files in `home`, roles, clients, then the records by
+/// name, with the text of one file `replaced`.
+fn read_sources(home: &Path, replaced: Option<(&Path, &str)>) -> PaceResult<Vec<(Kind, Source)>> {
     let read = |path: PathBuf| match replaced {
         Some((replaced, text)) if path == replaced => Ok(Some(Source {
             path,
@@ -120,19 +175,54 @@ fn read_catalog_replacing(home: &Path, replaced: Option<(&Path, &str)>) -> PaceR
             sources.push((Kind::Project, source));
         }
     }
+    Ok(sources)
+}
 
-    let mut mentions = Mentions::default();
-    let (mut roles, mut clients, mut projects) = (Vec::new(), Vec::new(), Vec::new());
+/// The catalog's files, each read alone.
+#[derive(Debug, Default)]
+struct ReadFiles {
+    /// The records of the files that read.
+    records: CatalogRecords,
+    /// Where the records name others.
+    mentions: Mentions,
+    /// The mistakes of the files that don't read, in their order, with the
+    /// index of their source.
+    mistakes: Vec<(usize, Box<PaceError>)>,
+}
+
+/// Read each of `sources` alone: a file's reader only records where it
+/// names another file's record, so one file's mistake leaves the others.
+fn read_files(sources: &[(Kind, Source)]) -> ReadFiles {
+    let mut files = ReadFiles::default();
+    let records = &mut files.records;
     for (index, (kind, source)) in sources.iter().enumerate() {
         let file = kind.file(source);
-        let mut mentions = mentions.of_source(index);
-        match kind {
-            Kind::Roles => roles = roles::read_roles(&file, &mut mentions)?,
-            Kind::Clients => clients = clients::read_clients(&file, &mut mentions)?,
-            Kind::Project => projects.push(projects::read_project(&file, &mut mentions)?),
+        let mut mentions = files.mentions.of_source(index);
+        let read = match kind {
+            Kind::Roles => {
+                roles::read_roles(&file, &mut mentions).map(|roles| records.roles = roles)
+            }
+            Kind::Clients => {
+                clients::read_clients(&file, &mut mentions).map(|clients| records.clients = clients)
+            }
+            Kind::Project => projects::read_project(&file, &mut mentions)
+                .map(|project| records.projects.push(project)),
+        };
+        if let Err(mistake) = read {
+            files.mistakes.push((index, mistake));
         }
     }
-    Catalog::new(roles, clients, projects).map_err(|error| mentions.point(error, &sources))
+    files
+}
+
+impl CatalogRecords {
+    /// The catalog of the records, checked against each other by
+    /// [`Catalog::new`]; an error points at the spot in `sources` that
+    /// `mentions` recorded.
+    fn check(self, mentions: &Mentions, sources: &[(Kind, Source)]) -> PaceResult<Catalog> {
+        Catalog::new(self.roles, self.clients, self.projects)
+            .map_err(|error| mentions.point(error, sources))
+    }
 }
 
 /// The three kinds of file the catalog comes from.

@@ -8,7 +8,8 @@ use pace_core::{ArchiveReason, Archived, Catalog, Ids, ProjectId, ProjectKey, Pr
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, closest_name};
 use pace_store::{
     catalog::{
-        points_at_file, project_record_path, read_catalog, read_catalog_with, write_catalog_file,
+        MendedCatalog, points_at_file, project_record_path, read_catalog_mending,
+        write_catalog_file,
     },
     field_edit::{FieldEdit, FieldValue, write_field_edits},
     toml_file::{TomlFile, TomlTable, TomlValue},
@@ -17,7 +18,7 @@ use pace_store::{
 use crate::application::{Context, PACE_APP, exit_on_error, print_error};
 use crate::clock::{RandomIds, clock_for_run};
 use crate::commands::project_init::ProjectInitCmd;
-use crate::editor::{EditedFile, edit_in_editor, edit_until_checked, editor_command};
+use crate::editor::{EditedFile, SavedFile, edit_in_editor, edit_until_checked, editor_command};
 use crate::output::{aligned, listed, usage};
 use crate::print::print_lines;
 use crate::prompt::Ask;
@@ -404,14 +405,14 @@ impl ProjectEditCmd {
             return Err(without_editor(opened));
         }
         let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
-        let line = edit_record(
+        edit_record(
             home,
             opened,
             asker,
             |text| edit_in_editor(&editor, text, ".toml"),
             print_error,
-        )?;
-        print_lines([line])
+        )?
+        .print()
     }
 }
 
@@ -477,17 +478,17 @@ fn opened_record(home: &Path, catalog: &Catalog, key: ProjectKey) -> PaceResult<
 ///
 /// If the catalog reads, so that it has no record of `key`: the error
 /// names the closest key of `catalog`. If a mistake in another file keeps
-/// the catalog from reading: that mistake.
+/// the catalog from reading while the record reads: that mistake.
 fn record_mistake(
     home: &Path,
     path: &Path,
     catalog: &Catalog,
     key: &ProjectKey,
 ) -> PaceResult<Box<PaceError>> {
-    match read_catalog(home) {
+    match read_catalog_mending(home, path, None) {
         Err(mistake) if points_at_file(&mistake, path) => Ok(mistake),
-        Err(error) => Err(error),
-        Ok(_) => Err(unknown_project(catalog, key)),
+        Err(error) | Ok(MendedCatalog::Alone(_, error)) => Err(error),
+        Ok(MendedCatalog::Whole(_)) => Err(unknown_project(catalog, key)),
     }
 }
 
@@ -495,14 +496,15 @@ fn record_mistake(
 /// catalog of `home` reads it with the same key and ID, and write it; the
 /// sentence that says so. A mistake is shown with `report`, a mistake of
 /// the file as it is before the editor opens, and `asker` offers to open
-/// the record again.
+/// the record again. When the record reads alone but another file has a
+/// mistake of its own, pace saves the record and leaves that mistake.
 fn edit_record(
     home: &Path,
     opened: OpenedRecord,
     asker: &dyn Ask,
     edit: impl FnMut(&str) -> PaceResult<String>,
     report: impl Fn(&PaceError),
-) -> PaceResult<String> {
+) -> PaceResult<SavedFile> {
     let OpenedRecord {
         key,
         id,
@@ -515,7 +517,7 @@ fn edit_record(
         report(mistake);
     }
     let command = format!("pace project edit {key}");
-    let (edited, catalog) = edit_until_checked(
+    let (edited, read) = edit_until_checked(
         EditedFile {
             path: &path,
             command: &command,
@@ -525,18 +527,22 @@ fn edit_record(
         edit,
         |edited| {
             same_identity(&path, edited, &key, id)?;
-            read_catalog_with(home, &path, edited)
+            read_catalog_mending(home, &path, Some(edited))
         },
         report,
     )?;
     write_catalog_file(&path, &edited)?;
-    let name = catalog
-        .project(&key)
-        .map_or(name, |saved| saved.name.clone());
-    Ok(format!(
-        "Saved the project `{key}` ({name}) in {}.",
-        path.display()
-    ))
+    let saved_name =
+        |record: Option<&ProjectRecord>| record.map_or(name, |saved| saved.name.clone());
+    let (name, left) = match read {
+        MendedCatalog::Whole(catalog) => (saved_name(catalog.project(&key)), None),
+        MendedCatalog::Alone(records, mistake) => (
+            saved_name(records.projects.iter().find(|record| record.key == key)),
+            Some(mistake),
+        ),
+    };
+    let line = format!("Saved the project `{key}` ({name}) in {}.", path.display());
+    Ok(SavedFile::new(home, line, left))
 }
 
 /// The record file `path` with `text`, to read its key and its ID.
@@ -659,6 +665,7 @@ fn project_key(text: &str) -> PaceResult<ProjectKey> {
 #[cfg(test)]
 mod tests {
     use jiff::civil::date;
+    use pace_store::catalog::read_catalog;
 
     use super::*;
     use crate::prompt::Scripted;
@@ -766,7 +773,8 @@ mod tests {
             saving(&[&renamed, &fixed]),
             |error| reported.borrow_mut().push(error.to_string()),
         )
-        .unwrap();
+        .unwrap()
+        .line;
 
         assert_eq!(
             reported.into_inner(),
@@ -843,7 +851,8 @@ mod tests {
             saving(&[&other_id, &fixed]),
             |error| reported.borrow_mut().push(error.to_string()),
         )
-        .unwrap();
+        .unwrap()
+        .line;
 
         assert_eq!(
             reported.into_inner(),

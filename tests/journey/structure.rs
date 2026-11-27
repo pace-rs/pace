@@ -717,3 +717,97 @@ fn broken_project_record_reaches_project_edit_that_keeps_its_id() -> TestResult 
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+/// The editor that sets `billable = true` in a record.
+const FIX_BILLABLE: &str = "sed -i -e 's/^billable = \"yes\"/billable = true/'";
+
+/// The editor that sets `currency = "EUR"` in a client's table.
+const FIX_CURRENCY: &str = "sed -i -e 's/^currency = \"EURO\"/currency = \"EUR\"/'";
+
+/// A sandbox whose clients file and record of `webshop` have a mistake.
+fn sandbox_with_broken_clients_file_and_record() -> Result<Sandbox, Box<dyn std::error::Error>> {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "home/clients.toml",
+        &CLIENTS.replace("currency = \"EUR\"", "currency = \"EURO\""),
+    )?;
+    sandbox.write("home/projects/webshop.toml", BROKEN_WEBSHOP)?;
+    Ok(sandbox)
+}
+
+/// The transcripts of `client edit acme`, `project edit webshop` in the
+/// given order, each fixing its file, and of `project list` after them.
+fn mend_clients_file_and_record(
+    sandbox: &Sandbox,
+    client_first: bool,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let client = || {
+        run(sandbox
+            .pace_at("09:00")
+            .env("VISUAL", FIX_CURRENCY)
+            .args(["client", "edit", "acme"]))
+    };
+    let project = || {
+        run(sandbox
+            .pace_at("09:00")
+            .env("VISUAL", FIX_BILLABLE)
+            .args(["project", "edit", "webshop"]))
+    };
+    let (first, second) = if client_first {
+        (client()?, project()?)
+    } else {
+        (project()?, client()?)
+    };
+    let list = run(sandbox.pace_at("09:01").args(["project", "list"]))?;
+    Ok(format!("{first}\n{second}\n{list}"))
+}
+
+#[cfg(unix)]
+#[test]
+fn client_edit_saves_clients_file_and_names_project_edit_for_broken_record() -> TestResult {
+    let sandbox = sandbox_with_broken_clients_file_and_record()?;
+
+    let output = mend_clients_file_and_record(&sandbox, true)?;
+
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn project_edit_saves_record_and_names_client_edit_for_broken_clients_file() -> TestResult {
+    let sandbox = sandbox_with_broken_clients_file_and_record()?;
+
+    let output = mend_clients_file_and_record(&sandbox, false)?;
+
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn two_broken_records_are_mended_one_after_other() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write("home/projects/webshop.toml", BROKEN_WEBSHOP)?;
+    sandbox.write(
+        "home/projects/garden.toml",
+        &BROKEN_WEBSHOP
+            .replace("000000000001", "000000000002")
+            .replace("webshop", "garden")
+            .replace("Webshop", "Garden"),
+    )?;
+
+    let garden = run(sandbox
+        .pace_at("09:00")
+        .env("VISUAL", FIX_BILLABLE)
+        .args(["project", "edit", "garden"]))?;
+    let webshop = run(sandbox
+        .pace_at("09:00")
+        .env("VISUAL", FIX_BILLABLE)
+        .args(["project", "edit", "webshop"]))?;
+    let list = run(sandbox.pace_at("09:01").args(["project", "list"]))?;
+
+    let output = format!("{garden}\n{webshop}\n{list}");
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

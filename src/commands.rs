@@ -16,7 +16,7 @@ pub mod tracking;
 use std::path::{Path, PathBuf};
 
 use abscissa_core::{Command, Configurable, Runnable};
-use pace_store::catalog::{CLIENTS_FILE, ROLES_FILE};
+use pace_store::catalog::{CLIENTS_FILE, PROJECTS_DIR, ROLES_FILE};
 
 use self::{
     client::ClientCmd,
@@ -170,6 +170,25 @@ impl EntryPoint {
     }
 }
 
+/// The command that mends the catalog file `file` of `home`, the other
+/// way round from [`EntryPoint::mended_catalog_file`]: `pace role edit`,
+/// `pace client edit KEY` or `pace project edit KEY`; `None` for a file
+/// that is no catalog file.
+pub(crate) fn mending_command(home: &Path, file: &Path) -> Option<String> {
+    if file == home.join(ROLES_FILE) {
+        return Some("pace role edit".to_owned());
+    }
+    if file == home.join(CLIENTS_FILE) {
+        return Some("pace client edit KEY".to_owned());
+    }
+    let is_record = file.parent() == Some(home.join(PROJECTS_DIR).as_path())
+        && file
+            .extension()
+            .is_some_and(|extension| extension == "toml");
+    let key = file.file_stem()?.to_str()?;
+    is_record.then(|| format!("pace project edit {key}"))
+}
+
 #[cfg(test)]
 mod tests {
     use clap::Parser;
@@ -196,6 +215,38 @@ mod tests {
             mended(&["pace", "project", "edit", "webshop"]),
             Some(PathBuf::from("home/projects/webshop.toml"))
         );
+    }
+
+    #[test]
+    fn each_catalog_file_names_command_that_mends_it() {
+        let home = Path::new("home");
+        let command = |file: &str| mending_command(home, &home.join(file));
+
+        assert_eq!(command("roles.toml").as_deref(), Some("pace role edit"));
+        assert_eq!(
+            command("clients.toml").as_deref(),
+            Some("pace client edit KEY")
+        );
+        assert_eq!(
+            command("projects/webshop.toml").as_deref(),
+            Some("pace project edit webshop")
+        );
+        assert_eq!(
+            mended(&["pace", "project", "edit", "webshop"]),
+            Some(home.join("projects/webshop.toml"))
+        );
+    }
+
+    #[test]
+    fn file_outside_catalog_names_no_command() {
+        let home = Path::new("home");
+
+        assert_eq!(mending_command(home, Path::new("other/roles.toml")), None);
+        assert_eq!(
+            mending_command(home, &home.join("projects/notes.txt")),
+            None
+        );
+        assert_eq!(mending_command(home, &home.join("pace.toml")), None);
     }
 
     #[test]

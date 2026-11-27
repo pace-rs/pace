@@ -1,10 +1,14 @@
-//! Editing text in the user's editor: `VISUAL`, else `EDITOR`; and the
-//! round trip that opens a file again until its check takes it.
+//! Editing text in the user's editor: `VISUAL`, else `EDITOR`; the round
+//! trip that opens a file again until its check takes it; and what pace
+//! says once it saved a catalog file.
 
 use std::{ffi::OsString, io::Write as _, path::Path, process::Command};
 
-use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
+use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Severity};
 
+use crate::application::print_error;
+use crate::commands::mending_command;
+use crate::print::print_lines;
 use crate::prompt::Ask;
 
 /// The editor the user set: `VISUAL`, else `EDITOR`; a variable that is
@@ -167,6 +171,60 @@ pub fn edit_until_checked<T>(
         }
         edited = edit(&edited)?;
     }
+}
+
+/// What `pace role edit`, `client edit` and `project edit` say once they
+/// saved a catalog file: the sentence that says so, and the mistake of
+/// another file that still keeps the catalog from reading.
+#[derive(Debug)]
+pub struct SavedFile {
+    /// The sentence that says what pace saved.
+    pub line: String,
+    /// The mistake of another file, as a warning that names the command
+    /// which edits that file.
+    pub left: Option<Box<PaceError>>,
+}
+
+impl SavedFile {
+    /// The sentence `line`, and the mistake `left` of another catalog file
+    /// of `home`, if any.
+    #[must_use]
+    pub fn new(home: &Path, line: String, left: Option<Box<PaceError>>) -> Self {
+        Self {
+            line,
+            left: left.map(|mistake| left_mistake(home, mistake)),
+        }
+    }
+
+    /// Print the sentence, then the mistake left, if any.
+    ///
+    /// # Errors
+    ///
+    /// If the standard output takes no more.
+    pub fn print(self) -> PaceResult<()> {
+        print_lines([self.line])?;
+        if let Some(mistake) = &self.left {
+            print_error(mistake);
+        }
+        Ok(())
+    }
+}
+
+/// `mistake` of a catalog file of `home` that is left after pace saved
+/// another one: a warning that names the command which edits its file.
+fn left_mistake(home: &Path, mistake: Box<PaceError>) -> Box<PaceError> {
+    let command = mistake
+        .snippet_name()
+        .and_then(|file| mending_command(home, Path::new(file)));
+    let line = command.map_or_else(
+        || "the catalog doesn't read until this mistake is fixed".to_owned(),
+        |command| {
+            format!("the catalog doesn't read until this mistake is fixed: `{command}` opens it")
+        },
+    );
+    mistake
+        .prepend_guidance_line(line)
+        .attach_severity(Severity::Warning)
 }
 
 #[cfg(test)]

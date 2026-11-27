@@ -39,6 +39,6 @@ it; `project edit` also refuses a changed key or ID.
   [`print`](../print.rs), [`project`](../project.rs), [`prompt`](../prompt.rs),
   [`questions`](../questions/), [`select`](../select.rs),
   [`session`](../session.rs).
-- Used by: [`application`](../application.rs).
+- Used by: [`application`](../application.rs), [`editor`](../editor.rs).
 
 <!-- /uses -->

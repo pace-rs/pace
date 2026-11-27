@@ -20,7 +20,7 @@ use jiff::civil::Date;
 use miette::{MietteHandler, MietteHandlerOpts, ReportHandler};
 use pace_core::Catalog;
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_store::catalog::{points_at_file, read_catalog};
+use pace_store::catalog::{MendedCatalog, points_at_file, read_catalog, read_catalog_mending};
 
 use crate::clock::{TEST_NOW, clock_for_run};
 use crate::config::load_settings;
@@ -178,18 +178,21 @@ impl PaceApp {
 
 /// The catalog in `home`. A command that mends the catalog file `mended`,
 /// a path in `home`, gets an empty catalog when a mistake in that file
-/// keeps the catalog from reading; it reads the file it mends itself.
+/// keeps the catalog from reading, whatever the other files hold; it reads
+/// the file it mends itself.
 ///
 /// # Errors
 ///
 /// If the catalog doesn't read for a mistake in any other file: the error
 /// points at the line.
 fn catalog_for(home: &Path, mended: Option<&Path>) -> PaceResult<Catalog> {
-    match read_catalog(home) {
-        Ok(catalog) => Ok(catalog),
-        Err(error) if mended.is_some_and(|file| points_at_file(&error, file)) => {
-            Ok(Catalog::default())
-        }
+    let Some(mended) = mended else {
+        return read_catalog(home);
+    };
+    match read_catalog_mending(home, mended, None) {
+        Ok(MendedCatalog::Whole(catalog)) => Ok(catalog),
+        Ok(MendedCatalog::Alone(_, mistake)) => Err(mistake),
+        Err(error) if points_at_file(&error, mended) => Ok(Catalog::default()),
         Err(error) => Err(error),
     }
 }
@@ -356,6 +359,20 @@ mod tests {
         let error = catalog_for(home.path(), Some(&home.path().join("roles.toml"))).unwrap_err();
 
         assert!(points_at_file(&error, &home.path().join("clients.toml")));
+    }
+
+    #[test]
+    fn mistake_of_mended_file_lets_command_run_after_mistake_of_earlier_file() {
+        let home = home_with("clients.toml", "version = 1\n\n[acme]\nname = 1\n");
+        std::fs::write(
+            home.path().join("roles.toml"),
+            "version = 1\n\n[work]\nkind = \"aera\"\n",
+        )
+        .unwrap();
+
+        let clients = catalog_for(home.path(), Some(&home.path().join("clients.toml")));
+
+        assert_eq!(clients.unwrap(), Catalog::default());
     }
 
     #[test]
