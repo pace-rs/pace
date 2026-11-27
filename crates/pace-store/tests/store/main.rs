@@ -1,5 +1,6 @@
 //! Behaviour of `pace_store`.
 
+mod catalog;
 mod device;
 mod devices;
 mod failures;

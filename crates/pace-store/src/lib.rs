@@ -1,5 +1,5 @@
-//! The event store of pace: its port, its driver, its backends, and pace's
-//! TOML file reader and writer.
+//! The event store of pace: its port, its driver, its backends, the reader
+//! of the catalog, and pace's TOML file reader and writer.
 //!
 //! - [`EventStore`]: the port, the trait every backend implements.
 //! - [`Tracker`]: the blocking driver of `pace_core`'s tracking machine; it
@@ -9,6 +9,8 @@
 //!   through a machine-local index.
 //! - [`device_id`]: this machine's device ID, kept in the machine directory;
 //!   [`existing_device_id`] reads it without creating one.
+//! - [`catalog`]: [`read_catalog`](catalog::read_catalog) reads the roles,
+//!   the clients and the project records of `PACE_HOME` into the `Catalog`.
 //! - [`toml_file`]: span-aware reading of pace's TOML files, so errors name
 //!   the file and the line.
 //! - [`field_edit`]: the field writer of pace's TOML files, which keeps
@@ -49,6 +51,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+pub mod catalog;
 mod disk;
 pub mod field_edit;
 mod files;

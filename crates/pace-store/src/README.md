@@ -7,12 +7,13 @@ appends under a lock and reads without one, `format.rs` writes and reads the
 event files, `index.rs` keeps the machine-local index of them, and `machine.rs`
 the device ID and the cursors. `disk.rs` holds the file operations they share,
 `hlc.rs` the HLC as pace's files keep it, and `renames.rs` the renames that put
-the files of one write in place, all or none. `toml_file.rs` reads pace's TOML
-files with spans, so an error points at its line; `field_edit.rs` writes them
-field by field, so the comments and the order of a file edited by hand survive.
-`testing.rs`, behind the feature `testing`, gives tests a scratch directory in
-memory, the in-memory `MemoryStore` and `Raced`; `testing/contract.rs` holds the
-store contract every backend passes.
+the files of one write in place, all or none. `catalog.rs` reads the roles, the
+clients and the project records of `PACE_HOME` into pace_core's `Catalog`.
+`toml_file.rs` reads pace's TOML files with spans, so an error points at its
+line; `field_edit.rs` writes them field by field, so the comments and the order
+of a file edited by hand survive. `testing.rs`, behind the feature `testing`,
+gives tests a scratch directory in memory, the in-memory `MemoryStore` and
+`Raced`; `testing/contract.rs` holds the store contract every backend passes.
 
 ## Files
 
@@ -20,13 +21,14 @@ store contract every backend passes.
 
 | File                             | What it holds                                                                                                                                      |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`catalog.rs`](catalog.rs)       | The catalog's files in `PACE_HOME`: `roles.toml`, `clients.toml` and `projects/<key>.toml`, read into one `Catalog`.                               |
 | [`disk.rs`](disk.rs)             | The store's files on disk: atomic writes, the lock, the event files of a device directory, and the error of a failed file operation.               |
 | [`field_edit.rs`](field_edit.rs) | The field writer of pace's TOML files: it sets, removes and appends single fields, so the comments and the order of a file edited by hand survive. |
 | [`files.rs`](files.rs)           | The `files` backend: TOML event files in `PACE_HOME`.                                                                                              |
 | [`format.rs`](format.rs)         | The TOML format of event files.                                                                                                                    |
 | [`hlc.rs`](hlc.rs)               | The HLC as pace's files keep it: as text in the event files, as milliseconds since the epoch and the counter in the machine directory.             |
 | [`index.rs`](index.rs)           | The machine-local index of the event files.                                                                                                        |
-| [`lib.rs`](lib.rs)               | The event store of pace: its port, its driver, its backends, and pace's TOML file reader and writer.                                               |
+| [`lib.rs`](lib.rs)               | The event store of pace: its port, its driver, its backends, the reader of the catalog, and pace's TOML file reader and writer.                    |
 | [`machine.rs`](machine.rs)       | The machine directory: this machine's device ID and how far it wrote its own log.                                                                  |
 | [`port.rs`](port.rs)             | The event store port: the trait every backend implements.                                                                                          |
 | [`renames.rs`](renames.rs)       | The renames that put the files of one write in place, all or none: the event files of a batch, or the TOML files of a field edit.                  |
@@ -34,6 +36,7 @@ store contract every backend passes.
 | [`testing.rs`](testing.rs)       | For tests of pace and of store backends: a scratch directory, an in-memory `EventStore`, and the store contract every backend must keep.           |
 | [`toml_file.rs`](toml_file.rs)   | pace's TOML files, read with spans so every error can point at its line.                                                                           |
 | [`tracker.rs`](tracker.rs)       | The tracker: the blocking driver of the tracking machine, over the event store.                                                                    |
+| [`catalog/`](catalog/)           | The catalog's files in `PACE_HOME`: `roles.toml`, `clients.toml` and `projects/<key>.toml`, read into one `Catalog`.                               |
 | [`files/`](files/)               | The `files` backend: TOML event files in `PACE_HOME`.                                                                                              |
 | [`format/`](format/)             | The TOML format of event files.                                                                                                                    |
 | [`index/`](index/)               | The machine-local index of the event files.                                                                                                        |
