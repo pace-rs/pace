@@ -270,6 +270,79 @@ fn index_deleted_is_rebuilt_to_same_state() -> TestResult {
     Ok(())
 }
 
+/// A `Tracker` over the files of the device of these tests, standing for
+/// the next run of pace: nothing it reads is parsed in this process yet.
+fn next_run(
+    home: &std::path::Path,
+    machine_dir: &std::path::Path,
+    clock: &Arc<TestClock>,
+) -> Result<Tracker<FilesStore>, Box<dyn std::error::Error>> {
+    let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
+    Ok(machine(home, machine_dir, device, clock, 2))
+}
+
+/// The index of `machine_dir` after a `begin` at 09:00 and an `end` at
+/// 10:00 on 2026-11-26, with the time range of that day.
+fn index_after_append(
+    home: &std::path::Path,
+    machine_dir: &std::path::Path,
+    clock: &Arc<TestClock>,
+) -> Result<(String, TimeRange), Box<dyn std::error::Error>> {
+    let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
+    let tracker = machine(home, machine_dir, device, clock, 1);
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
+    clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
+    _ = tracker.run(&Command::End(End::default()))?;
+    let today = TimeRange::new(
+        Some(at("2026-11-26T00:00[Europe/Berlin]")?),
+        Some(at("2026-11-27T00:00[Europe/Berlin]")?),
+    )?;
+    Ok((
+        std::fs::read_to_string(machine_dir.join("index.json"))?,
+        today,
+    ))
+}
+
+#[test]
+fn append_leaves_index_that_next_run_keeps() -> TestResult {
+    let dir = scratch_dir()?;
+    let home = dir.path().join("home");
+    let machine_dir = dir.path().join("machine");
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let (written, today) = index_after_append(&home, &machine_dir, &clock)?;
+    let modified = std::fs::metadata(machine_dir.join("index.json"))?.modified()?;
+
+    _ = next_run(&home, &machine_dir, &clock)?.state(&today)?;
+
+    assert_eq!(
+        std::fs::read_to_string(machine_dir.join("index.json"))?,
+        written
+    );
+    assert_eq!(
+        std::fs::metadata(machine_dir.join("index.json"))?.modified()?,
+        modified
+    );
+    Ok(())
+}
+
+#[test]
+fn index_saved_by_append_equals_rebuilt_index() -> TestResult {
+    let dir = scratch_dir()?;
+    let home = dir.path().join("home");
+    let machine_dir = dir.path().join("machine");
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let (written, today) = index_after_append(&home, &machine_dir, &clock)?;
+
+    std::fs::remove_file(machine_dir.join("index.json"))?;
+    _ = next_run(&home, &machine_dir, &clock)?.state(&today)?;
+
+    assert_eq!(
+        std::fs::read_to_string(machine_dir.join("index.json"))?,
+        written
+    );
+    Ok(())
+}
+
 #[test]
 fn clock_reading_out_of_range_in_cursors_stops_writing() -> TestResult {
     let dir = scratch_dir()?;

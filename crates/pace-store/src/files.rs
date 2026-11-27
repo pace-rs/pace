@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::disk::{
     DEVICE_FILE, FileOp, check_version, create_dir, event_files, io_error, lock_file,
-    prepare_temporary_file, relative_name, write_atomically,
+    prepare_temporary_file, relative_name, write_atomically, write_cache_atomically,
 };
 use crate::format::parse_events;
 use crate::machine::detect_cloned_device;
@@ -100,8 +100,8 @@ struct FoundFile {
     path: PathBuf,
 }
 
-/// An event file as a batch that forgets an entry leaves it, so the
-/// clean-up after the batch doesn't parse it again.
+/// An event file as a batch leaves it, so that neither the index nor the
+/// clean-up after the batch parses it again.
 struct AfterBatch {
     path: PathBuf,
     text: String,
@@ -167,7 +167,7 @@ impl FilesStore {
         let dir = self.device_dir(self.device);
         create_dir(&dir)?;
 
-        let (index, _) = self.refreshed_index()?;
+        let (mut index, _) = self.refreshed_index()?;
         let index_path = self.machine.join(INDEX_FILE);
         let own_prefix = format!("{}/", self.device);
         let own_last = max_hlc(
@@ -208,7 +208,7 @@ impl FilesStore {
             .collect();
 
         let tombstones = batch_tombstones(&recorded);
-        let (written, held) =
+        let (written, after_batch) =
             self.prepare_batch(&dir, device_info.split, &recorded, &tombstones)?;
         // The cursor goes ahead of the log, before the renames: a cursor
         // ahead of the own log passes the clone check, a log ahead of the
@@ -222,7 +222,8 @@ impl FilesStore {
         // put back, leaves part of the batch; the error names that file.
         rename_all(written, rename, KEPT_EVENTS_HINT)?;
         // The batch is in the log: what follows can fail without failing it.
-        for file in held {
+        for file in after_batch {
+            summarize_written_file(&mut index, &self.events_dir(), &file);
             self.parsed.remember(file.path, file.text, file.events);
         }
         // The files the batch wrote hold no events of the entries it
@@ -230,6 +231,10 @@ impl FilesStore {
         // Their marks wait for the next append, which finds nothing left to
         // take out: a cursor save here would cost a sync.
         warnings.extend(self.clean_own_log(&dir, &index, &tombstones, &mut cursors));
+        // With the summaries of the files it wrote, so that the next run
+        // neither parses them again nor saves the index. A file the clean-up
+        // changed differs from its summary, and the next run parses it.
+        _ = save_index(&self.machine, &index_path, &index);
         Ok(Appended::Recorded {
             events: recorded,
             warnings,
@@ -237,8 +242,8 @@ impl FilesStore {
     }
 
     /// The batch's events `recorded`, each in a temporary file next to the
-    /// event file that `split` names for it, and, if the batch forgets
-    /// entries, the text and events each file holds then. The events of the
+    /// event file that `split` names for it, and the text and events each
+    /// file holds then, unless its old text doesn't parse. The events of the
     /// entries the `tombstones` forget leave the files in the same write.
     fn prepare_batch(
         &self,
@@ -256,7 +261,7 @@ impl FilesStore {
                 .push(event.clone());
         }
         let mut written = Vec::new();
-        let mut held = Vec::new();
+        let mut after_batch = Vec::new();
         for (relative, events) in by_file {
             let path = dir.join(relative);
             let before = match std::fs::read_to_string(&path) {
@@ -264,13 +269,14 @@ impl FilesStore {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
                 Err(error) => return Err(io_error(FileOp::Read, &path, error)),
             };
-            let (text, holds) = self.with_batch(&path, before.as_deref(), &events, &forgotten)?;
+            let (text, file_events) =
+                self.with_batch(&path, before.as_deref(), &events, &forgotten)?;
             let (temporary, path) = prepare_temporary_file(&path, &text)?;
-            if let Some(holds) = holds {
-                held.push(AfterBatch {
+            if let Some(file_events) = file_events {
+                after_batch.push(AfterBatch {
                     path: path.clone(),
                     text,
-                    events: holds,
+                    events: file_events,
                 });
             }
             written.push(Prepared {
@@ -279,7 +285,7 @@ impl FilesStore {
                 before,
             });
         }
-        Ok((written, held))
+        Ok((written, after_batch))
     }
 
     /// This device's `device.toml`, written with its split on first use.
@@ -319,11 +325,7 @@ impl FilesStore {
                 let name = relative_name(&self.events_dir(), &path);
                 let metadata = std::fs::metadata(&path)
                     .map_err(|error| io_error(FileOp::Read, &path, error))?;
-                let modified = metadata
-                    .modified()
-                    .ok()
-                    .and_then(|time| time.duration_since(SystemTime::UNIX_EPOCH).ok())
-                    .map(|since| since.as_nanos());
+                let modified = modified_nanos(&metadata);
                 let unchanged = index.files.get(&name).is_some_and(|summary| {
                     summary.len == metadata.len() && summary.modified == modified
                 });
@@ -471,12 +473,39 @@ impl EventStore for FilesStore {
     }
 }
 
+/// Save the index, without a sync: it is a cache, which the next run
+/// rebuilds if it doesn't read.
 fn save_index(machine: &Path, path: &Path, index: &Index) -> PaceResult<()> {
     create_dir(machine)?;
     let text = serde_json::to_string(index).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write the index", error).ask_report()
     })?;
-    write_atomically(path, &text)
+    write_cache_atomically(path, &text)
+}
+
+/// The modification time of an event file as the index keeps it.
+fn modified_nanos(metadata: &std::fs::Metadata) -> Option<u128> {
+    metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(SystemTime::UNIX_EPOCH).ok())
+        .map(|since| since.as_nanos())
+}
+
+/// Put the summary of `file`, an event file the batch just wrote, into
+/// `index`, with the length and modification time the file has now, as the
+/// next refresh compares them. If the file can't be read, the entry stays,
+/// and the next refresh parses the file.
+fn summarize_written_file(index: &mut Index, events_dir: &Path, file: &AfterBatch) {
+    let Ok(metadata) = std::fs::metadata(&file.path) else {
+        return;
+    };
+    let mut summary = summarize(&file.events);
+    summary.len = metadata.len();
+    summary.modified = modified_nanos(&metadata);
+    _ = index
+        .files
+        .insert(relative_name(events_dir, &file.path), summary);
 }
 
 fn write_device_info_file(path: &Path, file: &DeviceInfoFile) -> PaceResult<()> {

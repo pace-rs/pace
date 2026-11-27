@@ -95,24 +95,61 @@ pub(crate) fn relative_name(events: &Path, path: &Path) -> String {
 }
 
 /// Write `text` to `path` through a temporary file next to it, which is
-/// renamed over `path`: a reader sees the old text or the new, never a
-/// part. Creates the directory of `path` if it is missing.
+/// synced and renamed over `path`: a reader sees the old text or the new,
+/// never a part. Creates the directory of `path` if it is missing.
 ///
 /// # Errors
 ///
 /// If the directory, the temporary file or the rename fails.
 pub fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
-    let (temporary, path) = prepare_temporary_file(path, text)?;
+    let (temporary, path) = temporary_file(path, text, Durability::Synced)?;
     _ = temporary
         .persist(&path)
         .map_err(|error| io_error(FileOp::Write, &path, error.error))?;
     Ok(())
 }
 
-/// `text` in a temporary file next to `path`, ready to be renamed over it.
+/// [`write_atomically`] for a cache that pace rebuilds when it doesn't read,
+/// such as the index: the temporary file is not synced before the rename,
+/// so a command that writes syncs only pace's own data. A crash right after
+/// this write can leave the cache empty or old, and the next run rebuilds
+/// it.
+///
+/// # Errors
+///
+/// If the directory, the temporary file or the rename fails.
+pub(crate) fn write_cache_atomically(path: &Path, text: &str) -> PaceResult<()> {
+    let (temporary, path) = temporary_file(path, text, Durability::Cache)?;
+    _ = temporary
+        .persist(&path)
+        .map_err(|error| io_error(FileOp::Write, &path, error.error))?;
+    Ok(())
+}
+
+/// Whether a write waits until the disk holds the file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Durability {
+    /// The file is synced before it is renamed: pace's own data.
+    Synced,
+    /// No sync: a cache that pace rebuilds when it doesn't read.
+    Cache,
+}
+
+/// `text` in a temporary file next to `path`, synced and ready to be
+/// renamed over it.
 pub(crate) fn prepare_temporary_file(
     path: &Path,
     text: &str,
+) -> PaceResult<(tempfile::NamedTempFile, PathBuf)> {
+    temporary_file(path, text, Durability::Synced)
+}
+
+/// `text` in a temporary file next to `path`, ready to be renamed over it,
+/// synced if `durability` asks for it.
+fn temporary_file(
+    path: &Path,
+    text: &str,
+    durability: Durability,
 ) -> PaceResult<(tempfile::NamedTempFile, PathBuf)> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     create_dir(dir)?;
@@ -122,7 +159,10 @@ pub(crate) fn prepare_temporary_file(
         .map_err(|error| io_error(FileOp::CreateTemporary, dir, error))?;
     temporary
         .write_all(text.as_bytes())
-        .and_then(|()| temporary.as_file().sync_all())
+        .and_then(|()| match durability {
+            Durability::Synced => temporary.as_file().sync_all(),
+            Durability::Cache => Ok(()),
+        })
         .map_err(|error| io_error(FileOp::Write, temporary.path(), error))?;
     Ok((temporary, path.to_path_buf()))
 }

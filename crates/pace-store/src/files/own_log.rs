@@ -163,9 +163,14 @@ impl FilesStore {
     }
 
     /// The text of the event file `path` with the batch's `events` appended,
-    /// where `before` is its text if it exists. If `forgotten` names
-    /// entries, their events but the tombstones leave the file in the same
-    /// write, and the events the file then holds come with the text.
+    /// where `before` is its text if it exists, and the events the file then
+    /// holds, so that the append can put them into the index. If
+    /// `forgotten` names entries, their events but the tombstones leave the
+    /// file in the same write. The events of `before` come from this
+    /// process's parsed files when the read before the batch parsed it. If
+    /// `before` doesn't parse and the batch forgets nothing, the batch is
+    /// appended as text without its events, as before the index took them:
+    /// the next read names the mistake.
     pub(super) fn with_batch(
         &self,
         path: &Path,
@@ -175,14 +180,18 @@ impl FilesStore {
     ) -> PaceResult<(String, Option<Events>)> {
         let Some(before) = before else {
             let text = format!("{}\n{}", file_header(), serialize_events(events)?);
-            return Ok((text, (!forgotten.is_empty()).then(|| events.into())));
+            return Ok((text, Some(events.into())));
         };
-        if forgotten.is_empty() {
-            return Ok((format!("{before}\n{}", serialize_events(events)?), None));
-        }
-        let old = self.parsed.events(path, before.to_owned(), |text| {
+        let parsed = self.parsed.events(path, before.to_owned(), |text| {
             parse_events(path, text, self.device)
-        })?;
+        });
+        let old = match parsed {
+            Ok(old) => old,
+            Err(_) if forgotten.is_empty() => {
+                return Ok((format!("{before}\n{}", serialize_events(events)?), None));
+            }
+            Err(error) => return Err(error),
+        };
         let mut held: Vec<RecordedEvent> = old
             .iter()
             .filter(|recorded| !erased(&recorded.event.kind, forgotten))
