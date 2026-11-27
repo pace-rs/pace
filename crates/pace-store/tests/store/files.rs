@@ -284,7 +284,7 @@ tags = ["dev"]
 "#;
 
 #[test]
-fn entry_begun_written_before_the_entry_fields_reads_unchanged() -> TestResult {
+fn entry_begun_written_before_entry_fields_reads_unchanged() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
     _ = setup
         .tracker(Split::Month)

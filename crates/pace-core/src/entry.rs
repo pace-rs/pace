@@ -107,7 +107,8 @@ pub struct Entry {
     /// Whether it is billable, where it differs from its project; see
     /// [`effective_billable`](Self::effective_billable).
     pub billable: Option<bool>,
-    /// Whether it may overlap other entries: `--allow-overlap` was given.
+    /// Whether its overlap is marked as intended: a command gave it
+    /// `--allow-overlap`. Nothing takes the mark back.
     pub allow_overlap: bool,
     /// Its interruptions.
     pub holds: Vec<EntryHold>,

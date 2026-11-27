@@ -200,8 +200,9 @@ pub struct EntryChanges {
     pub determined_by: Change<DeterminedBy>,
     /// Billable or not, or none: the project's flag again.
     pub billable: Change<bool>,
-    /// Whether the overlap is allowed from now on: `--allow-overlap` was
-    /// given to an entry that didn't have it.
+    /// Whether the entry's overlap is marked as intended from now on:
+    /// `--allow-overlap` was given to an entry without the mark. Nothing
+    /// takes the mark back.
     pub allow_overlap: bool,
 }
 

@@ -349,6 +349,20 @@ fn adjust_into_another_entry_needs_allow_overlap() -> TestResult {
 }
 
 #[test]
+fn adjust_allow_overlap_alone_marks_entry_once() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("09:10", &["adjust", "--allow-overlap"]),
+        ("09:20", &["adjust", "--allow-overlap"]),
+    ])?;
+    assert!(event_text(&sandbox)?.contains("allow-overlap = true"));
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
 fn adjust_last_without_ended_entry_has_nothing_to_do() -> TestResult {
     let sandbox = Sandbox::new()?;
 

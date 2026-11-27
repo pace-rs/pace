@@ -250,6 +250,9 @@ fn adjusted(
             parts.push(format!("untagged {}", removed.join(", ")));
         }
     }
+    if changes.allow_overlap {
+        parts.push("overlap allowed".to_owned());
+    }
     let net = if changes.start.is_some() || changes.end.is_some() {
         format!("; {} net now", format_duration(after.net(now)))
     } else {

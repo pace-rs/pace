@@ -36,6 +36,6 @@ $ pace adjust --start 09:30 --allow-overlap   # at 10:30
 success: true
 exit_code: 0
 ----- stdout -----
-Adjusted [ID-2] "Call ACME": start 09:30 (was 10:00); 1h net now.
+Adjusted [ID-2] "Call ACME": start 09:30 (was 10:00), overlap allowed; 1h net now.
 
 ----- stderr -----

@@ -1,0 +1,29 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace adjust --allow-overlap   # at 09:10
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write offer": overlap allowed.
+
+----- stderr -----
+
+$ pace adjust --allow-overlap   # at 09:20
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing to change
+  help: give `--start`, `--end`, `--note`, `--project`, `--tag`, `--untag` or `--allow-overlap`
