@@ -21,17 +21,16 @@ use std::{
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Appended, Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, EventKind, Hlc, ReadScope,
-    RecordedEvent,
+    Appended, Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, Hlc, ReadScope, RecordedEvent,
 };
-use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
+use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
 use crate::disk::{
     DEVICE_FILE, FileOp, check_version, create_dir, event_files, io_error, lock, prepare,
     relative_name, write_atomically,
 };
-use crate::format::{file_header, parse_events, serialize_events};
+use crate::format::parse_events;
 use crate::machine::clone_detected;
 use crate::{
     EventStore, Split,
@@ -43,6 +42,7 @@ mod own_log;
 mod parsed;
 mod renames;
 
+use own_log::{Tombstone, batch_tombstones, index_tombstones};
 use parsed::{Events, Parsed};
 use renames::{Prepared, persist, rename_all};
 
@@ -93,6 +93,14 @@ const INDEX_FILE: &str = "index.json";
 struct FoundFile {
     device: DeviceId,
     path: PathBuf,
+}
+
+/// An event file as a batch that forgets an entry leaves it, so the
+/// clean-up after the batch doesn't parse it again.
+struct AfterBatch {
+    path: PathBuf,
+    text: String,
+    events: Events,
 }
 
 /// The event files found while refreshing the index, by their name in it.
@@ -172,6 +180,11 @@ impl FilesStore {
         }
 
         let device_file = self.device_file(&dir, &now)?;
+        // The tombstones this machine hasn't applied yet go first: their
+        // marks are saved with the cursor below, and the batch is written
+        // onto the cleaned files.
+        let mut warnings =
+            self.clean_own_log(&dir, &index, &index_tombstones(&index), &mut cursors);
         // After the latest event of every log, and after the cursor, which
         // may be ahead of the own log (below).
         let mut last = max_hlc(index.files.values(), &index_path)?.max(cursors.last_written);
@@ -190,31 +203,9 @@ impl FilesStore {
             })
             .collect();
 
-        let mut by_file: BTreeMap<String, Vec<RecordedEvent>> = BTreeMap::new();
-        for event in &recorded {
-            by_file
-                .entry(device_file.split.file(&event.event.about))
-                .or_default()
-                .push(event.clone());
-        }
-        let mut written = Vec::new();
-        for (relative, events) in by_file {
-            let path = dir.join(relative);
-            let before = match std::fs::read_to_string(&path) {
-                Ok(text) => Some(text),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-                Err(error) => return Err(io_error(FileOp::Read, &path, error)),
-            };
-            let mut text = before.clone().unwrap_or_else(file_header);
-            text.push('\n');
-            text.push_str(&serialize_events(&events)?);
-            let (temporary, path) = prepare(&path, &text)?;
-            written.push(Prepared {
-                temporary,
-                path,
-                before,
-            });
-        }
+        let tombstones = batch_tombstones(&recorded);
+        let (written, held) =
+            self.prepare_batch(&dir, device_file.split, &recorded, &tombstones)?;
         // The cursor goes ahead of the log, before the renames: a cursor
         // ahead of the own log passes the clone check, a log ahead of the
         // cursor doesn't. So a failure or a stop from here on never locks
@@ -227,65 +218,64 @@ impl FilesStore {
         // put back, leaves part of the batch; the error names that file.
         rename_all(written, rename)?;
         // The batch is in the log: what follows can fail without failing it.
-        let warnings = self.clean_own_log(&dir, &index, &recorded, cursors);
+        for file in held {
+            self.parsed.remember(file.path, file.text, file.events);
+        }
+        // The files the batch wrote hold no events of the entries it
+        // forgets; other own files may (left by an interrupted resplit).
+        // Their marks wait for the next append, which finds nothing left to
+        // take out: a cursor save here would cost a sync.
+        warnings.extend(self.clean_own_log(&dir, &index, &tombstones, &mut cursors));
         Ok(Appended::Recorded {
             events: recorded,
             warnings,
         })
     }
 
-    /// Remove the events of forgotten entries from this device's own files,
-    /// for each tombstone this machine hasn't applied yet. A cleaning that
-    /// fails becomes one of the returned warnings and stays out of the
-    /// cursors' `cleaned`, so the next append tries it again.
-    fn clean_own_log(
+    /// The batch's events `recorded`, each in a temporary file next to the
+    /// event file that `split` names for it, and, if the batch forgets
+    /// entries, the text and events each file holds then. The events of the
+    /// entries the `tombstones` forget leave the files in the same write.
+    fn prepare_batch(
         &self,
         dir: &Path,
-        index: &Index,
+        split: Split,
         recorded: &[RecordedEvent],
-        mut cursors: Cursors,
-    ) -> Vec<PaceError> {
-        let tombstones: Vec<(EntryId, i64)> = index
-            .files
-            .values()
-            .flat_map(|summary| summary.forgotten.iter().copied())
-            .chain(
-                recorded
-                    .iter()
-                    .filter_map(|recorded| match recorded.event.kind {
-                        EventKind::EntryForgotten { entry } => {
-                            Some((entry, recorded.event.about.timestamp().as_millisecond()))
-                        }
-                        _ => None,
-                    }),
-            )
-            .collect();
-        let mut cleaned = false;
-        let mut warnings = Vec::new();
-        for (entry, about) in tombstones {
-            if cursors.cleaned.contains(&entry) {
-                continue;
-            }
-            match self.forget_in_own_log(dir, index, entry, about) {
-                Ok(()) => {
-                    cleaned |= cursors.cleaned.insert(entry);
-                }
-                Err(error) => warnings.push(
-                    *PaceError::with_source(
-                        ErrorKind::InputOutput,
-                        "pace recorded the command but kept the events of the forgotten entry {entry} in this device's files",
-                        error,
-                    )
-                    .attach_context("entry", entry.to_string())
-                    .attach_hint("pace removes them with the next command that writes")
-                    .attach_severity(Severity::Warning),
-                ),
-            }
+        tombstones: &[Tombstone],
+    ) -> PaceResult<(Vec<Prepared>, Vec<AfterBatch>)> {
+        let forgotten: BTreeSet<EntryId> = tombstones.iter().map(|(entry, _)| *entry).collect();
+        let mut by_file: BTreeMap<String, Vec<RecordedEvent>> = BTreeMap::new();
+        for event in recorded {
+            by_file
+                .entry(split.file(&event.event.about))
+                .or_default()
+                .push(event.clone());
         }
-        if cleaned && let Err(error) = cursors.save(&self.machine) {
-            warnings.push(*error.attach_severity(Severity::Warning));
+        let mut written = Vec::new();
+        let mut held = Vec::new();
+        for (relative, events) in by_file {
+            let path = dir.join(relative);
+            let before = match std::fs::read_to_string(&path) {
+                Ok(text) => Some(text),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+                Err(error) => return Err(io_error(FileOp::Read, &path, error)),
+            };
+            let (text, holds) = self.with_batch(&path, before.as_deref(), &events, &forgotten)?;
+            let (temporary, path) = prepare(&path, &text)?;
+            if let Some(holds) = holds {
+                held.push(AfterBatch {
+                    path: path.clone(),
+                    text,
+                    events: holds,
+                });
+            }
+            written.push(Prepared {
+                temporary,
+                path,
+                before,
+            });
         }
-        warnings
+        Ok((written, held))
     }
 
     /// This device's `device.toml`, written with its split on first use.

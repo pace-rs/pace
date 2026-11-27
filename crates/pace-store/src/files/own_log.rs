@@ -7,16 +7,44 @@ use std::{
 };
 
 use pace_core::{DeviceId, EntryId, EventKind, RecordedEvent};
-use pace_error::PaceResult;
+use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
 
 use crate::Split;
 use crate::disk::{
     DEVICE_FILE, FileOp, create_dir, event_files, io_error, lock, prepare, relative_name,
     remove_empty_dirs, write_atomically,
 };
+use crate::files::parsed::Events;
 use crate::files::{FilesStore, Resplit, read_device_file, write_device_file};
 use crate::format::{file_header, parse_events, serialize_events};
 use crate::index::Index;
+use crate::machine::Cursors;
+
+/// A tombstone: the forgotten entry, and the moment its events are filed
+/// under, in milliseconds.
+pub type Tombstone = (EntryId, i64);
+
+/// The tombstones in the files of `index`.
+pub fn index_tombstones(index: &Index) -> Vec<Tombstone> {
+    index
+        .files
+        .values()
+        .flat_map(|summary| summary.forgotten.iter().copied())
+        .collect()
+}
+
+/// The tombstones among the events `recorded`.
+pub fn batch_tombstones(recorded: &[RecordedEvent]) -> Vec<Tombstone> {
+    recorded
+        .iter()
+        .filter_map(|recorded| match recorded.event.kind {
+            EventKind::EntryForgotten { entry } => {
+                Some((entry, recorded.event.about.timestamp().as_millisecond()))
+            }
+            _ => None,
+        })
+        .collect()
+}
 
 impl FilesStore {
     /// Rewrite this device's event files split by `split`, and record the
@@ -100,12 +128,82 @@ impl FilesStore {
         })
     }
 
+    /// Remove the events of forgotten entries from this device's own files,
+    /// for each of `tombstones` this machine hasn't applied yet, and mark it
+    /// in `cursors`' `cleaned`; the caller saves them. A cleaning that fails
+    /// becomes one of the returned warnings and stays unmarked, so the next
+    /// append tries it again.
+    pub(super) fn clean_own_log(
+        &self,
+        dir: &Path,
+        index: &Index,
+        tombstones: &[Tombstone],
+        cursors: &mut Cursors,
+    ) -> Vec<PaceError> {
+        let mut warnings = Vec::new();
+        for &(entry, about) in tombstones {
+            if cursors.cleaned.contains(&entry) {
+                continue;
+            }
+            match self.forget_in_own_log(dir, index, entry, about) {
+                Ok(()) => _ = cursors.cleaned.insert(entry),
+                Err(error) => warnings.push(
+                    *PaceError::with_source(
+                        ErrorKind::InputOutput,
+                        "pace recorded the command but kept the events of the forgotten entry {entry} in this device's files",
+                        error,
+                    )
+                    .attach_context("entry", entry.to_string())
+                    .attach_hint("pace removes them with the next command that writes")
+                    .attach_severity(Severity::Warning),
+                ),
+            }
+        }
+        warnings
+    }
+
+    /// The text of the event file `path` with the batch's `events` appended,
+    /// where `before` is its text if it exists. If `forgotten` names
+    /// entries, their events but the tombstones leave the file in the same
+    /// write, and the events the file then holds come with the text.
+    pub(super) fn with_batch(
+        &self,
+        path: &Path,
+        before: Option<&str>,
+        events: &[RecordedEvent],
+        forgotten: &BTreeSet<EntryId>,
+    ) -> PaceResult<(String, Option<Events>)> {
+        let Some(before) = before else {
+            let text = format!("{}\n{}", file_header(), serialize_events(events)?);
+            return Ok((text, (!forgotten.is_empty()).then(|| events.into())));
+        };
+        if forgotten.is_empty() {
+            return Ok((format!("{before}\n{}", serialize_events(events)?), None));
+        }
+        let old = self.parsed.events(path, before.to_owned(), |text| {
+            parse_events(path, text, self.device)
+        })?;
+        let mut held: Vec<RecordedEvent> = old
+            .iter()
+            .filter(|recorded| !erased(&recorded.event.kind, forgotten))
+            .cloned()
+            .collect();
+        let unchanged = held.len() == old.len();
+        held.extend_from_slice(events);
+        let text = if unchanged {
+            format!("{before}\n{}", serialize_events(events)?)
+        } else {
+            format!("{}\n{}", file_header(), serialize_events(&held)?)
+        };
+        Ok((text, Some(held.into())))
+    }
+
     /// Remove the events of a forgotten entry from every file of this
     /// device's own log that holds them; the tombstone stays. Other
     /// devices' files are theirs to clean. The index skips the files whose
     /// events are about other moments than `about`, the moment in
     /// milliseconds that the entry's events are filed under.
-    pub(super) fn forget_in_own_log(
+    fn forget_in_own_log(
         &self,
         dir: &Path,
         index: &Index,
@@ -120,11 +218,50 @@ impl FilesStore {
                     .is_none_or(|(min, max)| about < min || max < about)
             });
             if !elsewhere {
-                forget_in_file(&path, self.device, entry)?;
+                self.forget_in_file(&path, &BTreeSet::from([entry]))?;
             }
         }
         Ok(())
     }
+}
+
+impl FilesStore {
+    /// Remove the events of the entries `forgotten` from this device's
+    /// event file `path`, but their tombstones; a file left without events
+    /// is removed.
+    fn forget_in_file(&self, path: &Path, forgotten: &BTreeSet<EntryId>) -> PaceResult<()> {
+        let text = match std::fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(io_error(FileOp::Read, path, error)),
+        };
+        let events = self
+            .parsed
+            .events(path, text, |text| parse_events(path, text, self.device))?;
+        let kept: Vec<RecordedEvent> = events
+            .iter()
+            .filter(|recorded| !erased(&recorded.event.kind, forgotten))
+            .cloned()
+            .collect();
+        if kept.len() == events.len() {
+            return Ok(());
+        }
+        if kept.is_empty() {
+            return std::fs::remove_file(path)
+                .map_err(|error| io_error(FileOp::Remove, path, error));
+        }
+        let text = format!("{}\n{}", file_header(), serialize_events(&kept)?);
+        write_atomically(path, &text)?;
+        self.parsed.remember(path.to_path_buf(), text, kept.into());
+        Ok(())
+    }
+}
+
+/// Whether forgetting the entries `forgotten` takes an event of `kind` out
+/// of the log: every event of theirs but the tombstone.
+fn erased(kind: &EventKind, forgotten: &BTreeSet<EntryId>) -> bool {
+    !matches!(kind, EventKind::EntryForgotten { .. })
+        && mentioned_entry(kind).is_some_and(|entry| forgotten.contains(&entry))
 }
 
 /// The events of a device's files as `split` files them.
@@ -169,35 +306,6 @@ impl Layout {
     }
 }
 
-/// Remove the events of `entry` from the event file `path`, but its
-/// tombstone; a file left without events is removed.
-fn forget_in_file(path: &Path, device: DeviceId, entry: EntryId) -> PaceResult<()> {
-    let text = match std::fs::read_to_string(path) {
-        Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(io_error(FileOp::Read, path, error)),
-    };
-    let events = parse_events(path, &text, device)?;
-    let kept: Vec<RecordedEvent> = events
-        .iter()
-        .filter(|recorded| {
-            matches!(recorded.event.kind, EventKind::EntryForgotten { .. })
-                || mentioned_entry(&recorded.event.kind) != Some(entry)
-        })
-        .cloned()
-        .collect();
-    if kept.len() == events.len() {
-        return Ok(());
-    }
-    if kept.is_empty() {
-        return std::fs::remove_file(path).map_err(|error| io_error(FileOp::Remove, path, error));
-    }
-    let mut text = file_header();
-    text.push('\n');
-    text.push_str(&serialize_events(&kept)?);
-    write_atomically(path, &text)
-}
-
 /// The entry an event is about, if any.
 const fn mentioned_entry(kind: &EventKind) -> Option<EntryId> {
     match kind {
@@ -211,5 +319,158 @@ const fn mentioned_entry(kind: &EventKind) -> Option<EntryId> {
         | EventKind::EntryAdjusted { entry, .. }
         | EventKind::EntryForgotten { entry } => Some(*entry),
         EventKind::BatchUndone { .. } => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use pace_core::{
+        Clock, Command, Policy, ReadScope, Rules, SequentialIds, State,
+        command::{Begin, Forget},
+        testing::TestClock,
+    };
+
+    use super::*;
+    use crate::{
+        EventStore, Tracker, files::renames::persist, machine::Cursors, testing::scratch_dir,
+    };
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    /// A laptop and a desktop that share `PACE_HOME`, each with its own
+    /// machine directory and monthly files.
+    struct Pair {
+        dir: tempfile::TempDir,
+        clock: Arc<TestClock>,
+        laptop: DeviceId,
+        desktop: DeviceId,
+    }
+
+    impl Pair {
+        fn new() -> Result<Self, Box<dyn std::error::Error>> {
+            Ok(Self {
+                dir: scratch_dir()?,
+                clock: Arc::new(TestClock::new("2026-11-26T09:00[Europe/Berlin]".parse()?)),
+                laptop: "0193a8d0-000d-7000-8000-000000000001".parse()?,
+                desktop: "0193a8d0-000d-7000-8000-000000000002".parse()?,
+            })
+        }
+
+        fn machine(&self, device: DeviceId) -> PathBuf {
+            self.dir.path().join("machine").join(device.to_string())
+        }
+
+        fn store(&self, device: DeviceId) -> FilesStore {
+            FilesStore::new(
+                self.dir.path().join("home"),
+                self.machine(device),
+                device,
+                device.to_string(),
+                self.clock.clone(),
+                Split::Month,
+            )
+        }
+
+        fn tracker(&self, device: DeviceId, seed: u16) -> Tracker<FilesStore> {
+            Tracker::new(
+                self.store(device),
+                self.clock.clone(),
+                Arc::new(SequentialIds::starting_at(&self.clock.now(), seed)),
+                Policy::default(),
+                device,
+            )
+        }
+
+        /// The entry the laptop begins at 09:00, "Write offer".
+        fn write_offer(&self) -> Result<EntryId, Box<dyn std::error::Error>> {
+            let tracker = self.tracker(self.laptop, 1);
+            _ = tracker.run(&Command::Begin(Begin {
+                note: Some("Write offer".parse()?),
+                ..Begin::default()
+            }))?;
+            let state = tracker.state(&pace_time::TimeRange::everything())?;
+            Ok(state.open().next().ok_or("the running entry")?.id)
+        }
+
+        /// The texts the laptop renames over its event files when it
+        /// appends the batch of `command`, in the order of the renames.
+        fn renamed_texts(
+            &self,
+            command: &Command,
+        ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+            let store = self.store(self.laptop);
+            let marker = store.marker()?;
+            let now = self.clock.now();
+            let batch = Rules {
+                state: &State::from_events(&store.read(&ReadScope::everything())?),
+                now: &now,
+                device: self.laptop,
+                ids: &SequentialIds::starting_at(&now, 3),
+                policy: &Policy::default(),
+            }
+            .decide(command)?;
+            let mut texts = Vec::new();
+            _ = store.append_with(batch, marker, |temporary, path| {
+                texts.push(std::fs::read_to_string(temporary.path())?);
+                persist(temporary, path)
+            })?;
+            Ok(texts)
+        }
+    }
+
+    #[test]
+    fn forget_takes_entry_out_of_its_file_in_same_rename() -> TestResult {
+        let pair = Pair::new()?;
+        let entry = pair.write_offer()?;
+        pair.clock.set("2026-11-26T09:30[Europe/Berlin]".parse()?);
+
+        let texts = pair.renamed_texts(&Command::Forget(Forget { entry }))?;
+
+        let [text] = texts.as_slice() else {
+            return Err(format!("one file renamed, not {}", texts.len()).into());
+        };
+        assert!(text.contains("type = \"entry.forgotten\""), "{text}");
+        assert!(!text.contains("type = \"entry.begun\""), "{text}");
+        Ok(())
+    }
+
+    #[test]
+    fn tombstone_from_other_device_leaves_own_file_before_batch() -> TestResult {
+        let pair = Pair::new()?;
+        let entry = pair.write_offer()?;
+        pair.clock.set("2026-11-26T09:30[Europe/Berlin]".parse()?);
+        _ = pair
+            .tracker(pair.desktop, 2)
+            .run(&Command::Forget(Forget { entry }))?;
+        pair.clock.set("2026-11-26T09:45[Europe/Berlin]".parse()?);
+
+        let texts = pair.renamed_texts(&Command::Begin(Begin::default()))?;
+
+        let [text] = texts.as_slice() else {
+            return Err(format!("one file renamed, not {}", texts.len()).into());
+        };
+        assert!(!text.contains(&entry.to_string()), "{text}");
+        Ok(())
+    }
+
+    #[test]
+    fn forgotten_entry_is_marked_cleaned_by_next_write() -> TestResult {
+        let pair = Pair::new()?;
+        let entry = pair.write_offer()?;
+        let tracker = pair.tracker(pair.laptop, 2);
+        pair.clock.set("2026-11-26T09:30[Europe/Berlin]".parse()?);
+        _ = tracker.run(&Command::Forget(Forget { entry }))?;
+        pair.clock.set("2026-11-26T09:45[Europe/Berlin]".parse()?);
+
+        _ = tracker.run(&Command::Begin(Begin::default()))?;
+
+        assert!(
+            Cursors::load(&pair.machine(pair.laptop))?
+                .cleaned
+                .contains(&entry)
+        );
+        Ok(())
     }
 }
