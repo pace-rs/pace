@@ -40,7 +40,7 @@ fn other_decimals_are_refused_and_named(#[case] text: &str) -> TestResult {
 }
 
 #[test]
-fn too_many_decimals_says_how_many_the_currency_has() -> TestResult {
+fn too_many_decimals_says_how_many_currency_has() -> TestResult {
     let error = Money::parse_decimal("95.555", eur()?).err();
 
     assert_eq!(

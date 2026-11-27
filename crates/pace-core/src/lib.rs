@@ -63,7 +63,10 @@ pub mod testing;
 mod text;
 mod tracking;
 
-pub use catalog::{Currency, Money, Totals};
+pub use catalog::{
+    ArchiveReason, Archived, Currency, Money, Role, RoleKind, Rounding, RoundingMode, RoundingPer,
+    Totals,
+};
 pub use command::Command;
 pub use entry::{Entry, EntryCatch, EntryHold, EntryOrigin, EntryPause, EntryState, ProjectRef};
 pub use event::{
