@@ -19,7 +19,8 @@
 //! [`billable_charges`] rounds and prices billable time, for the report's
 //! [`Revenue`] and for the [`Bill`] of a client, which [`Bill::build`]
 //! decides from the [`State`] and the [`Catalog`]. A billed entry keeps its
-//! frozen [`Billing`] from its `billing.marked` event.
+//! frozen [`Billing`] from its `billing.marked` event. [`export_entries`]
+//! gives the entries of a period one by one, unsplit, for `pace export`.
 //!
 //! Every timestamp is a jiff [`ZonedDateTime`](jiff::ZonedDateTime), so
 //! entries keep the zone they were recorded in. All IDs are UUIDv7.
@@ -63,6 +64,7 @@ mod catalog;
 pub mod command;
 mod entry;
 mod event;
+mod export;
 mod id;
 mod key;
 mod open;
@@ -92,6 +94,7 @@ pub use entry::{Entry, EntryCatch, EntryHold, EntryOrigin, EntryPause, EntryStat
 pub use event::{
     Batch, Change, ChangeMarker, Device, EntryChanges, Event, EventKind, Hlc, RecordedEvent,
 };
+pub use export::{ExportEntry, ExportInput, ExportPrice, export_entries};
 pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId, RoleId};
 pub use key::{ClientKey, ProjectKey, RoleKey, Tag};
 pub use open::EntryVerb;

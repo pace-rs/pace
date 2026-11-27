@@ -13,9 +13,11 @@ rounds billable time by the client's rule and prices it at the rate of each
 entry's start day, for the report's revenue and for the bill; it also holds the
 frozen `Billing` of a billed entry. `bill.rs` decides the `Bill` of a client
 from the state and the catalog: its ended, billable entries that are not billed
-yet, or a refusal for an overlap or an entry before the first rate. The
-`testing` feature adds `testing.rs` for the tests of other crates: a settable
-clock, deterministic IDs and the lock the test doubles share.
+yet, or a refusal for an overlap or an entry before the first rate. `export.rs`
+gives the entries of a period for `pace export`, one by one and unsplit, each
+with its frozen price once billed, else the rate of its start day. The `testing`
+feature adds `testing.rs` for the tests of other crates: a settable clock,
+deterministic IDs and the lock the test doubles share.
 
 ## Files
 
@@ -29,6 +31,7 @@ clock, deterministic IDs and the lock the test doubles share.
 | [`command.rs`](command.rs)   | The use cases as data; see `Command`.                                                                                                                                                              |
 | [`entry.rs`](entry.rs)       | Entries: a stretch of tracked time with its note, project, tags and role, its holds, pauses and catches, and what it is doing now.                                                                 |
 | [`event.rs`](event.rs)       | The events of the log: what happened to an entry or a batch, as the core decided it.                                                                                                               |
+| [`export.rs`](export.rs)     | The export of `pace export`: one row per entry that starts in a period and passes the report's filters, unsplit, as plain data the app renders.                                                    |
 | [`id.rs`](id.rs)             | The IDs of events, batches, devices, entries, projects and roles, each a UUIDv7.                                                                                                                   |
 | [`key.rs`](key.rs)           | The names people type: the keys of projects, roles and clients such as `acme-webshop`, and tags.                                                                                                   |
 | [`lib.rs`](lib.rs)           | The domain of pace: its rules, its step machine and its commands.                                                                                                                                  |

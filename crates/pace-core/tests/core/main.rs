@@ -4,6 +4,7 @@ mod bill;
 mod billing;
 mod catalog;
 mod commands;
+mod export;
 mod hlc;
 mod ids;
 mod invoice;

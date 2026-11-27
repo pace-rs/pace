@@ -118,10 +118,11 @@ fn catalog_with(
 /// What an entry is begun or logged with.
 #[derive(Default)]
 pub(crate) struct Fields {
-    project: Option<ProjectRef>,
-    tags: BTreeSet<pace_core::Tag>,
-    role: Option<RoleId>,
-    determined_by: Option<DeterminedBy>,
+    pub(crate) project: Option<ProjectRef>,
+    pub(crate) note: Option<String>,
+    pub(crate) tags: BTreeSet<pace_core::Tag>,
+    pub(crate) role: Option<RoleId>,
+    pub(crate) determined_by: Option<DeterminedBy>,
 }
 
 pub(crate) fn on(project_id: &str) -> Fallible<Fields> {
@@ -176,7 +177,7 @@ impl Log {
             EventKind::EntryBegun {
                 entry,
                 project: fields.project,
-                note: None,
+                note: fields.note,
                 tags: fields.tags,
                 role: fields.role,
                 determined_by: fields.determined_by,
@@ -195,7 +196,7 @@ impl Log {
                 entry,
                 end: berlin(end)?,
                 project: fields.project,
-                note: None,
+                note: fields.note,
                 tags: fields.tags,
                 role: fields.role,
                 determined_by: fields.determined_by,
@@ -236,7 +237,13 @@ impl Log {
         self.record(to, EventKind::EntryResumed { entry })
     }
 
-    fn pause(&mut self, entry: EntryId, from: &str, to: &str, kind: PauseKind) -> Fallible<()> {
+    pub(crate) fn pause(
+        &mut self,
+        entry: EntryId,
+        from: &str,
+        to: &str,
+        kind: PauseKind,
+    ) -> Fallible<()> {
         self.record(
             from,
             EventKind::EntryPaused {
