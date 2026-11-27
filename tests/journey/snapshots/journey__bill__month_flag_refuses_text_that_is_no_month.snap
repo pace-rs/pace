@@ -1,0 +1,13 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --month 2026-13   # at 15:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+error: invalid value '2026-13' for '--month <YYYY-MM>': `2026-13` is no month; give one as YYYY-MM, such as 2026-11
+
+For more information, try '--help'.

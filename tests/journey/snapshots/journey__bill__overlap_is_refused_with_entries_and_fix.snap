@@ -1,0 +1,14 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill   # at 15:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::core::bill-overlap
+
+  × pace bills no time twice, but these entries overlap: [ID-1] and [ID-2] share 09:30–10:00 on 2026-10-05
+  help: move one entry of each pair with `pace adjust <id> --start` or `--end`, or allow the overlap with `pace adjust <id> --allow-overlap`

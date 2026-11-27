@@ -1,7 +1,10 @@
 //! Output drawn by code: the canvas a table fits, bars and headings, the
-//! report's table, the report's rows in the schema of JSON and CSV, and
-//! the report from a Tera template.
+//! tables of the report and the bill, their rows in the schema of JSON and
+//! CSV, and both from a Tera template.
 
+mod bill_period;
+mod bill_rows;
+mod bill_table;
 mod report_compare;
 mod report_rows;
 mod report_table;
@@ -10,6 +13,9 @@ pub mod schema;
 
 use std::{ffi::OsString, io::IsTerminal as _};
 
+pub use bill_period::BillPeriod;
+pub use bill_rows::{BillRows, bill_rows};
+pub use bill_table::{BillTable, bill_table};
 use jiff::SignedDuration;
 pub use report_rows::{ReportRows, report_rows};
 pub use report_table::{ReportTable, nothing_tracked, report_table};

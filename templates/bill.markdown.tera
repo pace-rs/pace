@@ -1,0 +1,29 @@
+{#- The bill of `pace bill --format markdown`: a table per project. It
+    receives the JSON document of the schema, version 1: `version`, `kind`
+    and `rows`. -#}
+{%- set parts = rows | group_by(attribute="part") -%}
+{%- set bill = parts.bill | default(value=[]) | group_by(attribute="group") -%}
+{%- set client = bill.client | default(value=[]) | first -%}
+{%- set lines = bill.line | default(value=[]) | group_by(attribute="key") -%}
+# Bill for {{ client.name | default(value="a client") }}
+
+{{ client.period | default(value="") }}
+{% for project in bill.project | default(value=[]) %}
+## {{ project.name | default(value=project.key) | replace(from="|", to="&#124;") }}
+
+| Date | Note | Hours | Rate | Amount |
+| ---- | ---- | ----: | ---: | -----: |
+{% for line in lines[project.key] | default(value=[]) -%}
+| {{ line.date }} | {{ line.note | default(value="") | replace(from="|", to="&#124;") }} | {{ line.billed }} | {{ line.rate }} {{ line.currency }} | {{ line.amount }} {{ line.currency }} |
+{% endfor -%}
+| **Total** | | **{{ project.billed }}** | | **{{ project.amount }} {{ project.currency }}** |
+{% endfor -%}
+{%- for total in bill.total | default(value=[]) %}
+**Total:** {{ total.billed }}{% if total.billed_seconds != total.net_seconds %} billed of {{ total.net }} net{% endif %}, {{ total.amount }} {{ total.currency }}.
+{% endfor -%}
+{%- for share in parts.interruptions | default(value=[]) %}
+Hold time: {{ share.held }} of {{ share.gross }} ({{ share.percent }}%).
+{% endfor -%}
+{%- for row in parts.left_out | default(value=[]) %}
+Left out {{ row.short }}{% if row.note %} "{{ row.note }}"{% endif %}, which is running; end it to bill it.
+{% endfor -%}

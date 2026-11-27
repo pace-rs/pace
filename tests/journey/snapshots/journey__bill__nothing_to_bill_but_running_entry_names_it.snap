@@ -1,0 +1,21 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace begin Write the offer --project acme-blog   # at 2026-10-30T16:00[Europe/Berlin]
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write the offer" at 16:00.
+Project: acme-blog (from --project).
+
+----- stderr -----
+
+$ pace bill   # at 15:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing to bill for acme in October 2026
+  help: end [ID-1] "Write the offer" to bill it

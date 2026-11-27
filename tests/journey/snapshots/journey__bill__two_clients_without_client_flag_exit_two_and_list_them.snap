@@ -1,0 +1,12 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill   # at 15:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace bills one client at a time, and knows 2: acme and beta
+  help: name one with `--client <key>`

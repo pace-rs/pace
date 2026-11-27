@@ -42,6 +42,8 @@ pub enum Column {
     Start,
     /// When something ends, in RFC 9557 with its zone.
     End,
+    /// A period in words: `October 2026`, `2026-11-02 to 2026-11-26`.
+    Period,
     /// How many.
     Count,
     /// Net time in seconds.
@@ -62,6 +64,10 @@ pub enum Column {
     BilledSeconds,
     /// Billed time, readable.
     Billed,
+    /// Gross time in seconds: end minus start.
+    GrossSeconds,
+    /// Gross time, readable.
+    Gross,
     /// Hold time in seconds.
     HeldSeconds,
     /// Hold time, readable.
@@ -70,6 +76,9 @@ pub enum Column {
     PausedSeconds,
     /// Pause time, readable.
     Paused,
+    /// An hourly rate: a decimal string with every digit of the minor
+    /// unit, in the currency of [`Column::Currency`].
+    Rate,
     /// Money: a decimal string with every digit of the minor unit.
     Amount,
     /// The ISO 4217 code of the amount's currency.
@@ -114,7 +123,7 @@ impl Column {
 }
 
 /// The name of each column, in the order of [`Column`].
-const COLUMN_NAMES: [(Column, &str); 40] = [
+const COLUMN_NAMES: [(Column, &str); 44] = [
     (Column::Part, "part"),
     (Column::Group, "group"),
     (Column::Key, "key"),
@@ -125,6 +134,7 @@ const COLUMN_NAMES: [(Column, &str); 40] = [
     (Column::Date, "date"),
     (Column::Start, "start"),
     (Column::End, "end"),
+    (Column::Period, "period"),
     (Column::Count, "count"),
     (Column::NetSeconds, "net_seconds"),
     (Column::Net, "net"),
@@ -135,10 +145,13 @@ const COLUMN_NAMES: [(Column, &str); 40] = [
     (Column::Budget, "budget"),
     (Column::BilledSeconds, "billed_seconds"),
     (Column::Billed, "billed"),
+    (Column::GrossSeconds, "gross_seconds"),
+    (Column::Gross, "gross"),
     (Column::HeldSeconds, "held_seconds"),
     (Column::Held, "held"),
     (Column::PausedSeconds, "paused_seconds"),
     (Column::Paused, "paused"),
+    (Column::Rate, "rate"),
     (Column::Amount, "amount"),
     (Column::Currency, "currency"),
     (Column::Reason, "reason"),
@@ -169,6 +182,8 @@ pub enum Length {
     Budget,
     /// Billed time.
     Billed,
+    /// Gross time.
+    Gross,
     /// Hold time.
     Held,
     /// Pause time.
@@ -184,6 +199,7 @@ impl Length {
             Self::Target => (Column::TargetSeconds, Column::Target),
             Self::Budget => (Column::BudgetSeconds, Column::Budget),
             Self::Billed => (Column::BilledSeconds, Column::Billed),
+            Self::Gross => (Column::GrossSeconds, Column::Gross),
             Self::Held => (Column::HeldSeconds, Column::Held),
             Self::Paused => (Column::PausedSeconds, Column::Paused),
         }
@@ -197,7 +213,7 @@ impl Length {
             Self::Net => Some((Column::ChangeNetSeconds, Column::ChangeNet)),
             Self::Held => Some((Column::ChangeHeldSeconds, Column::ChangeHeld)),
             Self::Paused => Some((Column::ChangePausedSeconds, Column::ChangePaused)),
-            Self::Target | Self::Budget | Self::Billed => None,
+            Self::Target | Self::Budget | Self::Billed | Self::Gross => None,
         }
     }
 }
@@ -207,6 +223,8 @@ impl Length {
 pub enum SchemaKind {
     /// The report of `reflect`.
     Reflect,
+    /// The bill of `bill`.
+    Bill,
 }
 
 impl SchemaKind {
@@ -215,6 +233,7 @@ impl SchemaKind {
     pub const fn name(self) -> &'static str {
         match self {
             Self::Reflect => "reflect",
+            Self::Bill => "bill",
         }
     }
 
@@ -224,6 +243,7 @@ impl SchemaKind {
     pub const fn columns(self) -> &'static [Column] {
         match self {
             Self::Reflect => REFLECT_COLUMNS,
+            Self::Bill => BILL_COLUMNS,
         }
     }
 
@@ -233,6 +253,7 @@ impl SchemaKind {
     pub const fn previous_columns(self) -> &'static [Column] {
         match self {
             Self::Reflect => REFLECT_PREVIOUS_COLUMNS,
+            Self::Bill => &[],
         }
     }
 
@@ -241,6 +262,7 @@ impl SchemaKind {
     pub const fn change_columns(self) -> &'static [Column] {
         match self {
             Self::Reflect => REFLECT_CHANGE_COLUMNS,
+            Self::Bill => &[],
         }
     }
 }
@@ -310,6 +332,35 @@ const REFLECT_COLUMNS: &[Column] = &[
     Column::OtherId,
     Column::OtherShort,
     Column::Running,
+];
+
+/// The columns of `bill`.
+const BILL_COLUMNS: &[Column] = &[
+    Column::Part,
+    Column::Group,
+    Column::Key,
+    Column::Id,
+    Column::Short,
+    Column::Name,
+    Column::Client,
+    Column::Date,
+    Column::Start,
+    Column::End,
+    Column::Period,
+    Column::Count,
+    Column::NetSeconds,
+    Column::Net,
+    Column::Percent,
+    Column::BilledSeconds,
+    Column::Billed,
+    Column::GrossSeconds,
+    Column::Gross,
+    Column::HeldSeconds,
+    Column::Held,
+    Column::Rate,
+    Column::Amount,
+    Column::Currency,
+    Column::Note,
 ];
 
 /// The value of a cell.
@@ -451,6 +502,13 @@ impl Row {
     pub fn money(self, money: &Money) -> Self {
         self.text(Column::Amount, money.to_string())
             .text(Column::Currency, money.currency().code())
+    }
+
+    /// The row with the hourly `rate` under [`Column::Rate`], as a decimal;
+    /// [`Row::money`] names the currency.
+    #[must_use]
+    pub fn rate(self, rate: &Money) -> Self {
+        self.text(Column::Rate, rate.to_string())
     }
 }
 
@@ -662,12 +720,21 @@ mod tests {
     }
 
     #[test]
+    fn columns_of_each_kind_follow_column_order() {
+        for kind in [SchemaKind::Reflect, SchemaKind::Bill] {
+            let columns = kind.columns();
+            assert!(columns.is_sorted(), "{kind:?}");
+        }
+    }
+
+    #[test]
     fn every_length_pairs_seconds_with_readable_column() {
         let lengths = [
             Length::Net,
             Length::Target,
             Length::Budget,
             Length::Billed,
+            Length::Gross,
             Length::Held,
             Length::Paused,
         ];

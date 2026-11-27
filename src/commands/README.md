@@ -6,11 +6,14 @@ declares the entry point and the subcommands. A tracking command opens a
 `pace_core::Command` to the tracker. A command that adds something, such as
 `role add`, `client add`, `project add` or `project init`, drives a flow of
 `questions` and writes its field edits. `reflect` reads the period's events,
-builds the `pace_core::Report` and draws it with `render`. `setup` drives the
-step machine of `setup.rs` through the asker, and writes the edits once the user
-accepts the summary. `role edit`, `client edit` and `project edit` open a file,
-or one client's table, in the editor until the catalog reads it; `project edit`
-also refuses a changed key or ID.
+builds the `pace_core::Report` and draws it with `render`. `bill` picks the
+client, reads the events from the period's start on, so the state holds every
+entry that may overlap one on the bill, builds the `pace_core::Bill` and draws
+it with `render` too. `setup` drives the step machine of `setup.rs` through the
+asker, and writes the edits once the user accepts the summary. `role edit`,
+`client edit` and `project edit` open a file, or one client's table, in the
+editor until the catalog reads it; `project edit` also refuses a changed key or
+ID.
 
 ## Files
 
@@ -18,6 +21,7 @@ also refuses a changed key or ID.
 
 | File                                 | What it holds                                                                                                                       |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [`bill.rs`](bill.rs)                 | `pace bill`: the bill of a client over a period, as a table, JSON, CSV or Markdown from a template.                                 |
 | [`client.rs`](client.rs)             | `pace client`: add, list and edit the clients in `clients.toml`.                                                                    |
 | [`completions.rs`](completions.rs)   | `pace completions`: the completion script for a shell.                                                                              |
 | [`config.rs`](config.rs)             | `pace config`                                                                                                                       |

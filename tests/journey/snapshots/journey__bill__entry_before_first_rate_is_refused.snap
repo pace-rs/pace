@@ -1,0 +1,23 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace log Draft the sitemap --project beta-site --from 2026-10-10 09:00 --to 2026-10-10 10:00   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-1] "Draft the sitemap" from 2026-10-10 09:00 to 2026-10-10 10:00 (1h).
+Project: beta-site (from --project).
+
+----- stderr -----
+
+$ pace bill --client beta   # at 15:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::core::bill-before-first-rate
+
+  × no rate of the client beta holds on the start day of [ID-1] (2026-10-10)
+  help: add an earlier rate to clients.toml

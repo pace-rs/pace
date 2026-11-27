@@ -1,6 +1,6 @@
-//! The report of `reflect` from a Tera template, for `--format text`,
-//! `markdown` and `html`: the built-in templates and the reader of a
-//! template file.
+//! The report of `reflect` and the bill of `bill` from a Tera template,
+//! for `--format text`, `markdown` and `html`: the built-in templates and
+//! the reader of a template file.
 //!
 //! A template receives the JSON document of the schema, version 1:
 //! `version`, `kind` and `rows`. Tera escapes HTML in a template whose
@@ -14,15 +14,18 @@ use serde::Serialize;
 /// The template names Tera escapes HTML in.
 const HTML_SUFFIXES: [&str; 4] = [".html", ".htm", ".html.tera", ".htm.tera"];
 
-/// A built-in template of the report.
+/// A built-in template of a report or a bill.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuiltInTemplate {
-    /// Plain text to paste into a mail: no box drawing, no colour.
-    Text,
-    /// Markdown, with a table per part.
-    Markdown,
-    /// An HTML page, with a table per part.
-    Html,
+    /// The report of `reflect` as plain text to paste into a mail: no box
+    /// drawing, no colour.
+    ReflectText,
+    /// The report of `reflect` in Markdown, with a table per part.
+    ReflectMarkdown,
+    /// The report of `reflect` as an HTML page, with a table per part.
+    ReflectHtml,
+    /// The bill of `bill` in Markdown, with a table per project.
+    BillMarkdown,
 }
 
 impl BuiltInTemplate {
@@ -31,9 +34,10 @@ impl BuiltInTemplate {
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
-            Self::Text => "reflect.text.tera",
-            Self::Markdown => "reflect.markdown.tera",
-            Self::Html => "reflect.html.tera",
+            Self::ReflectText => "reflect.text.tera",
+            Self::ReflectMarkdown => "reflect.markdown.tera",
+            Self::ReflectHtml => "reflect.html.tera",
+            Self::BillMarkdown => "bill.markdown.tera",
         }
     }
 
@@ -41,9 +45,10 @@ impl BuiltInTemplate {
     #[must_use]
     pub const fn source(self) -> &'static str {
         match self {
-            Self::Text => include_str!("../../templates/reflect.text.tera"),
-            Self::Markdown => include_str!("../../templates/reflect.markdown.tera"),
-            Self::Html => include_str!("../../templates/reflect.html.tera"),
+            Self::ReflectText => include_str!("../../templates/reflect.text.tera"),
+            Self::ReflectMarkdown => include_str!("../../templates/reflect.markdown.tera"),
+            Self::ReflectHtml => include_str!("../../templates/reflect.html.tera"),
+            Self::BillMarkdown => include_str!("../../templates/bill.markdown.tera"),
         }
     }
 }
@@ -290,9 +295,10 @@ mod tests {
     fn built_in_templates_render_report_without_rows() {
         let document = schema_document(SchemaKind::Reflect, &[]);
         for template in [
-            BuiltInTemplate::Text,
-            BuiltInTemplate::Markdown,
-            BuiltInTemplate::Html,
+            BuiltInTemplate::ReflectText,
+            BuiltInTemplate::ReflectMarkdown,
+            BuiltInTemplate::ReflectHtml,
+            BuiltInTemplate::BillMarkdown,
         ] {
             let rendered = render_report_template(&ReportTemplate::BuiltIn(template), &document);
 

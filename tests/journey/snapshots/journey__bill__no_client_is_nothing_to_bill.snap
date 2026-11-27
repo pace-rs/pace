@@ -1,0 +1,12 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill   # at 15:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × pace knows no client to bill
+  help: `pace client add <key>` adds one

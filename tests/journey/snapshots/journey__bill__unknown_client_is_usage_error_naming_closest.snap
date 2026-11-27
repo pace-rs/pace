@@ -1,0 +1,12 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --client amce   # at 15:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace doesn't know the client `amce`
+  help: did you mean `acme`?

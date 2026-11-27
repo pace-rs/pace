@@ -1,0 +1,31 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace log Plan the relaunch --project acme-webshop --from 2026-11-05 09:00 --to 2026-11-05 10:00   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-1] "Plan the relaunch" from 2026-11-05 09:00 to 2026-11-05 10:00 (1h).
+Project: acme-webshop (from --project).
+
+----- stderr -----
+
+$ pace bill   # at 15:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing to bill for acme in October 2026
+  help: a bill takes the ended, billable entries that are not billed yet
+
+
+$ pace bill --format json   # at 15:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing to bill for acme in October 2026
+  help: a bill takes the ended, billable entries that are not billed yet

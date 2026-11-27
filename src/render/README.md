@@ -16,6 +16,12 @@ pace's root, embedded with `include_str!`; a `ReportTemplate::File` is a
 template of the user's own. A template receives the JSON document of the schema,
 `SchemaDocument`.
 
+`bill_table.rs` draws the bill of `bill` per project, with the note cut to fit
+the canvas; `bill_rows.rs` turns it into rows of the schema, of kind `bill`, and
+`bill_period.rs` names its period: `October 2026` for a calendar month. The
+template `bill.markdown.tera` receives those rows, as the reflect templates
+receive theirs.
+
 With `--compare`, `report_compare.rs` words the `ReportComparison` of the core:
 the cells `was 3h`, `+2h 15m` and `+75%` beside a number of the table, the
 signed changes of the rows, and the highlights. A row of the schema holds the
@@ -26,13 +32,16 @@ CSV under the columns `previous_<column>`.
 
 <!-- files -->
 
-| File                                       | What it holds                                                                                                                                       |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`report_compare.rs`](report_compare.rs)   | The comparison of `reflect --compare` in words: the previous value and the change beside a number, for the table and the rows, and the highlights.  |
-| [`report_rows.rs`](report_rows.rs)         | The report of `reflect` as rows of the schema, for `--format json` and `--format csv`: one row per line of the report, each under its part.         |
-| [`report_table.rs`](report_table.rs)       | The report of `reflect` as a table for the terminal: its parts in the plan's order, with bars for the time per role, project and day.               |
-| [`report_template.rs`](report_template.rs) | The report of `reflect` from a Tera template, for `--format text`, `markdown` and `html`: the built-in templates and the reader of a template file. |
-| [`schema.rs`](schema.rs)                   | The schema of pace's JSON and CSV, version 1: the column names in one place, and the writers of both formats.                                       |
+| File                                       | What it holds                                                                                                                                                                                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`bill_period.rs`](bill_period.rs)         | The period of a bill in words: `October 2026` for a calendar month, a day, or the first and the last day.                                                                                                                                                                |
+| [`bill_rows.rs`](bill_rows.rs)             | The bill of `bill` as rows of the schema, for `--format json`, `csv` and its templates: the client and the period, the lines of each project with their entries, the project's totals, the bill's totals, the share of hold time, and the running entries it leaves out. |
+| [`bill_table.rs`](bill_table.rs)           | The bill of `bill` as a table for the terminal: per project its lines with date, note, hours, rate and amount, and its total; then the bill's totals, the share of hold time and the running entries it leaves out.                                                      |
+| [`report_compare.rs`](report_compare.rs)   | The comparison of `reflect --compare` in words: the previous value and the change beside a number, for the table and the rows, and the highlights.                                                                                                                       |
+| [`report_rows.rs`](report_rows.rs)         | The report of `reflect` as rows of the schema, for `--format json` and `--format csv`: one row per line of the report, each under its part.                                                                                                                              |
+| [`report_table.rs`](report_table.rs)       | The report of `reflect` as a table for the terminal: its parts in the plan's order, with bars for the time per role, project and day.                                                                                                                                    |
+| [`report_template.rs`](report_template.rs) | The report of `reflect` and the bill of `bill` from a Tera template, for `--format text`, `markdown` and `html`: the built-in templates and the reader of a template file.                                                                                               |
+| [`schema.rs`](schema.rs)                   | The schema of pace's JSON and CSV, version 1: the column names in one place, and the writers of both formats.                                                                                                                                                            |
 
 <!-- /files -->
 

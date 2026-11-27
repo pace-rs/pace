@@ -1,0 +1,34 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --format markdown   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+# Bill for ACME GmbH
+
+October 2026
+
+## Company blog
+
+| Date | Note | Hours | Rate | Amount |
+| ---- | ---- | ----: | ---: | -----: |
+| 2026-10-20 | Write the launch post | 1h 30m | 95.00 EUR | 142.50 EUR |
+| **Total** | | **1h 30m** | | **142.50 EUR** |
+
+## Webshop relaunch
+
+| Date | Note | Hours | Rate | Amount |
+| ---- | ---- | ----: | ---: | -----: |
+| 2026-10-05 | Plan the relaunch | 2h 15m | 120.00 EUR | 270.00 EUR |
+| 2026-10-07 | Fix the checkout | 2h 30m | 120.00 EUR | 300.00 EUR |
+| **Total** | | **4h 45m** | | **570.00 EUR** |
+
+**Total:** 6h 15m billed of 6h net, 712.50 EUR.
+
+Hold time: 30m of 6h 30m (8%).
+
+Left out [ID-1] "Write the offer", which is running; end it to bill it.
+
+----- stderr -----

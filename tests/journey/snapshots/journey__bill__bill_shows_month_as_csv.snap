@@ -1,0 +1,23 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --format csv   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+part,group,key,id,short,name,client,date,start,end,period,count,net_seconds,net,percent,billed_seconds,billed,gross_seconds,gross,held_seconds,held,rate,amount,currency,note
+bill,client,acme,,,ACME GmbH,,,2026-10-01T00:00:00+02:00[Europe/Berlin],2026-11-01T00:00:00+01:00[Europe/Berlin],October 2026,,,,,,,,,,,,,,
+bill,line,acme-blog,[ID-1],,Company blog,acme,2026-10-20,,,,1,4800,1h 20m,,5400,1h 30m,,,,,95.00,142.50,EUR,Write the launch post
+bill,entry,acme-blog,[ID-2],[ID-2],,acme,2026-10-20,,,,,4800,1h 20m,,,,,,,,,,,Write the launch post
+bill,project,acme-blog,[ID-1],,Company blog,acme,,,,,1,4800,1h 20m,,5400,1h 30m,,,,,,142.50,EUR,
+bill,line,acme-webshop,[ID-3],,Webshop relaunch,acme,2026-10-05,,,,1,7800,2h 10m,,8100,2h 15m,,,,,120.00,270.00,EUR,Plan the relaunch
+bill,entry,acme-webshop,[ID-4],[ID-4],,acme,2026-10-05,,,,,7800,2h 10m,,,,,,,,,,,Plan the relaunch
+bill,line,acme-webshop,[ID-3],,Webshop relaunch,acme,2026-10-07,,,,1,9000,2h 30m,,9000,2h 30m,,,,,120.00,300.00,EUR,Fix the checkout
+bill,entry,acme-webshop,[ID-5],[ID-5],,acme,2026-10-07,,,,,9000,2h 30m,,,,,,,,,,,Fix the checkout
+bill,project,acme-webshop,[ID-3],,Webshop relaunch,acme,,,,,2,16800,4h 40m,,17100,4h 45m,,,,,,570.00,EUR,
+bill,total,,,,,acme,,,,,,21600,6h,,22500,6h 15m,,,,,,712.50,EUR,
+interruptions,hold_share,,,,,,,,,,,,,8,,,23400,6h 30m,1800,30m,,,,
+left_out,running,,[ID-6],[ID-6],,,,2026-10-30T16:00:00+01:00[Europe/Berlin],,,,,,,,,,,,,,,,Write the offer
+
+----- stderr -----

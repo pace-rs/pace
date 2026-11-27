@@ -31,7 +31,7 @@ ends with a summary of the changes.
 | [`project.rs`](project.rs)         | The project context: which project the working directory belongs to.                                                                                                                        |
 | [`prompt.rs`](prompt.rs)           | Asking the user, only when a terminal is attached: the `Ask` trait and the `Terminal` that the edge finds once.                                                                             |
 | [`questions.rs`](questions.rs)     | The question machine: a `Flow` gives questions and takes answers without I/O, and `ask_flow` drives it through the asker.                                                                   |
-| [`render.rs`](render.rs)           | Output drawn by code: the canvas a table fits, bars and headings, the report's table, the report's rows in the schema of JSON and CSV, and the report from a Tera template.                 |
+| [`render.rs`](render.rs)           | Output drawn by code: the canvas a table fits, bars and headings, the tables of the report and the bill, their rows in the schema of JSON and CSV, and both from a Tera template.           |
 | [`select.rs`](select.rs)           | Choosing the entry a command acts on: by its ID or short ID, `--last`, or the open entry.                                                                                                   |
 | [`session.rs`](session.rs)         | What a tracking command works with: the tracker over the files backend, with this machine's device ID, the clock and the settings.                                                          |
 | [`setup.rs`](setup.rs)             | The guided tour of `pace setup`: a step machine without I/O that asks for the settings, the roles, the clients and this directory's project, and ends with the field edits of what changed. |
@@ -40,7 +40,7 @@ ends with a summary of the changes.
 | [`config/`](config/)               | Settings and the layers they come from.                                                                                                                                                     |
 | [`dirs/`](dirs/)                   | The three places pace keeps files: the global config file, the data directory (`PACE_HOME`) and the machine directory.                                                                      |
 | [`questions/`](questions/)         | The question machine: a `Flow` gives questions and takes answers without I/O, and `ask_flow` drives it through the asker.                                                                   |
-| [`render/`](render/)               | Output drawn by code: the canvas a table fits, bars and headings, the report's table, the report's rows in the schema of JSON and CSV, and the report from a Tera template.                 |
+| [`render/`](render/)               | Output drawn by code: the canvas a table fits, bars and headings, the tables of the report and the bill, their rows in the schema of JSON and CSV, and both from a Tera template.           |
 | [`setup/`](setup/)                 | The guided tour of `pace setup`: a step machine without I/O that asks for the settings, the roles, the clients and this directory's project, and ends with the field edits of what changed. |
 
 <!-- /files -->

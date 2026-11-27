@@ -1,5 +1,6 @@
 //! The command line: the entry point and its subcommands.
 
+pub mod bill;
 pub mod client;
 pub mod completions;
 pub mod config;
@@ -22,6 +23,7 @@ use pace_error::PaceError;
 use pace_store::catalog::{CLIENTS_FILE, PROJECTS_DIR, ROLES_FILE};
 
 use self::{
+    bill::BillCmd,
     client::ClientCmd,
     completions::CompletionsCmd,
     config::ConfigCmd,
@@ -124,6 +126,9 @@ pub enum PaceCmd {
     /// revenue and breaks
     #[command(visible_alias = "ref")]
     Reflect(ReflectCmd),
+
+    /// Show the bill of a client: the billable entries of a period, priced
+    Bill(BillCmd),
 
     /// Keep the roles: the lasting responsibilities time goes to
     #[command(subcommand)]

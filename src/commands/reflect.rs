@@ -136,9 +136,9 @@ impl ReflectFormat {
     /// The built-in template of a format that comes from one.
     const fn template(self) -> Option<BuiltInTemplate> {
         match self {
-            Self::Text => Some(BuiltInTemplate::Text),
-            Self::Markdown => Some(BuiltInTemplate::Markdown),
-            Self::Html => Some(BuiltInTemplate::Html),
+            Self::Text => Some(BuiltInTemplate::ReflectText),
+            Self::Markdown => Some(BuiltInTemplate::ReflectMarkdown),
+            Self::Html => Some(BuiltInTemplate::ReflectHtml),
             Self::Table | Self::Json | Self::Csv => None,
         }
     }
