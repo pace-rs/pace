@@ -1,0 +1,51 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --plain   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+This week: Mon 2026-11-23 to Sun 2026-11-29, Europe/Berlin
+Tracked 5h 45m, untracked 81h 15m.
+
+Time per role
+  No role  3h 45m   65%  ########################################
+  Work         2h   35%  #####################
+
+Time per project
+  Relaunch of the webshop~      2h   35%  ####################
+  No project                3h 45m   65%  ######################################
+
+Time per day
+  Mon 2026-11-23       -
+  Tue 2026-11-24      4h   70%  ########################################
+  Wed 2026-11-25       -
+  Thu 2026-11-26  1h 45m   30%  #################
+  Fri 2026-11-27       -
+  Sat 2026-11-28       -
+  Sun 2026-11-29       -
+
+Target vs. actual
+  Family  0s   of 80h  0%
+  Work    2h  of 100h  2%
+  The weekly targets add up to 180h, more than the 168h of a week.
+
+Revenue
+  No rate on 2026-11-24 for 2h of Relaunch of the webshop for the spring
+  collection; `pace client edit acme` gives it a rate.
+
+Interruptions
+  1 hold, 15m: inner 0, outer 1 (15m), unknown 0.
+  Most frequent reasons: the delivery service rang the bell twice 1.
+
+Who decided
+  By me           -
+  By others       -
+  Unmarked   5h 45m  100%  ########################################
+
+Overlaps
+  [ID-1] and [ID-2] both cover 2026-11-24 10:00–2026-11-24 11:00; change one with
+  `pace adjust <id>`.
+
+----- stderr -----

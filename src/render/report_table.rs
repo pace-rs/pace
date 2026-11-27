@@ -77,7 +77,8 @@ pub fn report_table(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         decided_part(table, canvas),
         overlaps_part(table, canvas),
     ];
-    let mut lines = vec![title(table), summary(table.report)];
+    let mut lines = canvas.wrap(&title(table), "");
+    lines.push(summary(table.report));
     for part in parts.into_iter().filter(|part| !part.is_empty()) {
         lines.push(String::new());
         lines.extend(part);
@@ -252,11 +253,21 @@ fn time_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
     lines
 }
 
+/// The indent of the lines of a part.
+const INDENT: &str = "  ";
+
+/// `text` as lines of a part, wrapped to `canvas` after the indent.
+fn sentence(text: &str, canvas: Canvas) -> Vec<String> {
+    canvas.wrap(text, INDENT)
+}
+
 /// Cells in columns: the first column left-aligned, the others right, each
-/// as wide as its widest cell; each line indented by two spaces.
-fn columns(rows: &[Vec<String>]) -> Vec<String> {
+/// as wide as its widest cell; each line indented by two spaces. On a
+/// canvas too narrow for the row, the first column is cut, down to the
+/// shortest a label keeps.
+fn columns(rows: &[Vec<String>], canvas: Canvas) -> Vec<String> {
     let count = rows.iter().map(Vec::len).max().unwrap_or(0);
-    let widths: Vec<usize> = (0..count)
+    let mut widths: Vec<usize> = (0..count)
         .map(|column| {
             rows.iter()
                 .filter_map(|row| row.get(column))
@@ -265,6 +276,11 @@ fn columns(rows: &[Vec<String>]) -> Vec<String> {
                 .unwrap_or(0)
         })
         .collect();
+    let row_width = INDENT.len() + widths.iter().sum::<usize>() + 2 * count.saturating_sub(1);
+    if let Some(first) = widths.first_mut() {
+        let over = row_width.saturating_sub(canvas.width);
+        *first = first.saturating_sub(over).max(SHORTEST_LABEL.min(*first));
+    }
     rows.iter()
         .map(|row| {
             let cells: Vec<String> = row
@@ -273,13 +289,16 @@ fn columns(rows: &[Vec<String>]) -> Vec<String> {
                 .enumerate()
                 .map(|(column, (cell, width))| {
                     if column == 0 {
+                        let cell = canvas.fit(cell, *width);
                         format!("{cell:<width$}")
                     } else {
                         format!("{cell:>width$}")
                     }
                 })
                 .collect();
-            format!("  {}", cells.join("  ")).trim_end().to_owned()
+            format!("{INDENT}{}", cells.join("  "))
+                .trim_end()
+                .to_owned()
         })
         .collect()
 }
@@ -301,11 +320,14 @@ fn targets_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         .map(|target| target_row(target, table.catalog, canvas))
         .collect();
     let mut lines = vec![canvas.heading("Target vs. actual")];
-    lines.extend(columns(&rows));
+    lines.extend(columns(&rows, canvas));
     if let Some(total) = above_week {
-        lines.push(format!(
-            "  The weekly targets add up to {}, more than the 168h of a week.",
-            format_duration(total)
+        lines.extend(sentence(
+            &format!(
+                "The weekly targets add up to {}, more than the 168h of a week.",
+                format_duration(total)
+            ),
+            canvas,
         ));
     }
     lines
@@ -333,7 +355,7 @@ fn budgets_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         .map(|budget| budget_row(budget, table.catalog, canvas))
         .collect();
     let mut lines = vec![canvas.heading("Budgets, used to date")];
-    lines.extend(columns(&rows));
+    lines.extend(columns(&rows, canvas));
     lines
 }
 
@@ -381,13 +403,10 @@ fn revenue_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         ]);
     }
     let mut lines = vec![canvas.heading("Revenue")];
-    lines.extend(columns(&rows));
-    lines.extend(
-        revenue
-            .no_rate
-            .iter()
-            .map(|charge| no_rate_line(charge, table.catalog)),
-    );
+    lines.extend(columns(&rows, canvas));
+    for charge in &revenue.no_rate {
+        lines.extend(sentence(&no_rate_line(charge, table.catalog), canvas));
+    }
     lines
 }
 
@@ -431,7 +450,7 @@ fn no_rate_line(charge: &Charge, catalog: &Catalog) -> String {
         |client| format!("`pace client edit {client}` gives it a rate"),
     );
     format!(
-        "  No rate on {} for {} of {project}; {fix}.",
+        "No rate on {} for {} of {project}; {fix}.",
         charge.date,
         marked(charge.billed, charge.running)
     )
@@ -460,22 +479,26 @@ fn holds_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
             }
         })
         .collect();
-    let mut lines = vec![
-        canvas.heading("Interruptions"),
-        format!(
-            "  {}, {}: {}.",
+    let mut lines = vec![canvas.heading("Interruptions")];
+    lines.extend(sentence(
+        &format!(
+            "{}, {}: {}.",
             counted(holds.count, "hold"),
             format_duration(holds.time),
             sources.join(", ")
         ),
-    ];
+        canvas,
+    ));
     if !holds.reasons.is_empty() {
         let reasons: Vec<String> = holds
             .reasons
             .iter()
             .map(|reason| format!("{} {}", reason.reason, reason.count))
             .collect();
-        lines.push(format!("  Most frequent reasons: {}.", reasons.join(", ")));
+        lines.extend(sentence(
+            &format!("Most frequent reasons: {}.", reasons.join(", ")),
+            canvas,
+        ));
     }
     lines
 }
@@ -501,12 +524,12 @@ fn pauses_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
                 format!("{kind} {} ({})", share.count, format_duration(share.time))
             })
             .collect();
-        lines.push(format!("  Pauses: {}.", pauses.join(", ")));
+        lines.extend(sentence(&format!("Pauses: {}.", pauses.join(", ")), canvas));
     }
     if !report.catches.is_empty() {
-        lines.push(format!(
-            "  {}.",
-            capitalised(&counted(report.catches.len(), "catch"))
+        lines.extend(sentence(
+            &format!("{}.", capitalised(&counted(report.catches.len(), "catch"))),
+            canvas,
         ));
     }
     lines
@@ -541,7 +564,7 @@ fn overlaps_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
                 start,
                 end,
             } => Some(format!(
-                "  {} and {} both cover {}–{}; change one with `pace adjust <id>`.",
+                "{} and {} both cover {}–{}; change one with `pace adjust <id>`.",
                 table.state.short_id(*first),
                 table.state.short_id(*second),
                 format_moment(start, table.now),
@@ -554,7 +577,9 @@ fn overlaps_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         return Vec::new();
     }
     let mut lines = vec![canvas.heading("Overlaps")];
-    lines.extend(overlaps);
+    for overlap in &overlaps {
+        lines.extend(sentence(overlap, canvas));
+    }
     lines
 }
 
@@ -642,6 +667,42 @@ mod tests {
         );
 
         assert_eq!(lines[1].chars().filter(|c| *c == '█').count(), BAR_WIDTH);
+    }
+
+    #[test]
+    fn columns_cut_first_column_on_narrow_canvas() {
+        let rows = vec![
+            vec![
+                "Relaunch of the webshop".to_owned(),
+                "5h 15m".to_owned(),
+                "of 10h".to_owned(),
+                "53%".to_owned(),
+            ],
+            vec![
+                "Blog".to_owned(),
+                "1h".to_owned(),
+                "of 2h".to_owned(),
+                "50%".to_owned(),
+            ],
+        ];
+
+        let lines = columns(&rows, canvas(36, true));
+
+        assert_eq!(
+            lines,
+            [
+                "  Relaunch of …  5h 15m  of 10h  53%",
+                "  Blog               1h   of 2h  50%",
+            ]
+        );
+        assert!(
+            lines.iter().all(|line| line.chars().count() <= 36),
+            "{lines:#?}"
+        );
+        assert_eq!(
+            columns(&rows, canvas(80, true))[0],
+            "  Relaunch of the webshop  5h 15m  of 10h  53%"
+        );
     }
 
     #[test]

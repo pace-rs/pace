@@ -105,6 +105,31 @@ impl Canvas {
         }
     }
 
+    /// `text` in lines that fit the canvas, each after `indent`. The words
+    /// break at spaces, but not inside a command in backticks; a word
+    /// longer than a line stays whole.
+    #[must_use]
+    pub fn wrap(&self, text: &str, indent: &str) -> Vec<String> {
+        let room = self.width.saturating_sub(indent.chars().count());
+        let mut lines = Vec::new();
+        let mut line = String::new();
+        for word in unbroken_words(text) {
+            let wanted = line.chars().count() + 1 + word.chars().count();
+            if !line.is_empty() && wanted > room {
+                lines.push(format!("{indent}{line}"));
+                line.clear();
+            }
+            if !line.is_empty() {
+                line.push(' ');
+            }
+            line.push_str(&word);
+        }
+        if !line.is_empty() {
+            lines.push(format!("{indent}{line}"));
+        }
+        lines
+    }
+
     /// `text` cut to `width` columns, its end marked by `…`, or by `~` on
     /// a plain canvas.
     #[must_use]
@@ -117,6 +142,26 @@ impl Canvas {
         cut.push(mark);
         cut
     }
+}
+
+/// The words of `text` between spaces; a span in backticks stays one
+/// word.
+fn unbroken_words(text: &str) -> Vec<String> {
+    let mut words: Vec<String> = Vec::new();
+    let mut in_code = false;
+    for word in text.split(' ').filter(|word| !word.is_empty()) {
+        match words.last_mut() {
+            Some(last) if in_code => {
+                last.push(' ');
+                last.push_str(word);
+            }
+            _ => words.push(word.to_owned()),
+        }
+        if word.matches('`').count() % 2 == 1 {
+            in_code = !in_code;
+        }
+    }
+    words
 }
 
 #[cfg(test)]
@@ -217,6 +262,37 @@ mod tests {
         assert_eq!(canvas.bar(1, 1, 1), "\x1b[36m█\x1b[0m");
         assert_eq!(canvas.heading("Time"), "\x1b[1mTime\x1b[0m");
         assert_eq!(BLOCKS.heading("Time"), "Time");
+    }
+
+    #[test]
+    fn wrap_breaks_words_to_fit_after_indent() {
+        let narrow = Canvas {
+            width: 20,
+            ..BLOCKS
+        };
+
+        assert_eq!(
+            narrow.wrap("No rate on 2026-11-24 for 2h of Webshop.", "  "),
+            ["  No rate on", "  2026-11-24 for 2h", "  of Webshop."]
+        );
+        assert_eq!(narrow.wrap("Short.", ""), ["Short."]);
+    }
+
+    #[test]
+    fn wrap_keeps_command_and_word_longer_than_line_whole() {
+        let narrow = Canvas {
+            width: 10,
+            ..BLOCKS
+        };
+
+        assert_eq!(
+            narrow.wrap("see `pace client edit acme` now", "  "),
+            ["  see", "  `pace client edit acme`", "  now"]
+        );
+        assert_eq!(
+            narrow.wrap("a-very-long-word", "  "),
+            ["  a-very-long-word"]
+        );
     }
 
     #[test]

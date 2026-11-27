@@ -328,6 +328,103 @@ fn unknown_device_name_or_id_is_usage_error() -> TestResult {
     Ok(())
 }
 
+const BUSY_ROLES: &str = r#"version = 1
+
+[work]
+id = "0193a7c4-0000-7000-8000-0000000000a1"
+kind = "area"
+name = "Work"
+weekly-target = "100h"
+
+[family]
+id = "0193a7c4-0000-7000-8000-0000000000a3"
+kind = "area"
+name = "Family"
+weekly-target = "80h"
+"#;
+
+const LATE_RATE: &str = r#"version = 1
+
+[acme]
+name = "ACME GmbH"
+currency = "EUR"
+
+[[acme.rates]]
+hourly = 95
+from = 2027-01-01
+"#;
+
+const LONG_PROJECT: &str = r#"version = 1
+id = "0193a7c4-0000-7000-8000-000000000002"
+key = "acme-relaunch"
+name = "Relaunch of the webshop for the spring collection"
+client = "acme"
+role = "work"
+billable = true
+"#;
+
+#[test]
+fn sentence_lines_wrap_to_eighty_columns() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write("home/roles.toml", BUSY_ROLES)?;
+    sandbox.write("home/clients.toml", LATE_RATE)?;
+    sandbox.write("home/projects/acme-relaunch.toml", LONG_PROJECT)?;
+    sandbox.write_config("[reports]\ntime-zone = \"Europe/Berlin\"\n")?;
+    let steps: [(&str, &[&str]); 6] = [
+        (
+            "09:00",
+            &[
+                "log",
+                "Plan the spring collection",
+                "--project",
+                "acme-relaunch",
+                "--from",
+                "2026-11-24 09:00",
+                "--to",
+                "2026-11-24 11:00",
+            ],
+        ),
+        (
+            "09:00",
+            &[
+                "log",
+                "Review the photos",
+                "--allow-overlap",
+                "--from",
+                "2026-11-24 10:00",
+                "--to",
+                "2026-11-24 12:00",
+            ],
+        ),
+        ("09:00", &["begin", "Write the newsletter"]),
+        (
+            "10:00",
+            &[
+                "hold",
+                "--outer",
+                "--reason",
+                "the delivery service rang the bell twice",
+            ],
+        ),
+        ("10:15", &["resume"]),
+        ("11:00", &["end"]),
+    ];
+    for (time, args) in steps {
+        _ = run(sandbox.pace_at(time).args(args))?;
+    }
+
+    let raw = run(sandbox.pace_at("15:00").args(["reflect", "--plain"]))?;
+    let output = sandbox.journey(&[("15:00", &["reflect", "--plain"])])?;
+
+    let long: Vec<&str> = raw
+        .lines()
+        .filter(|line| line.chars().count() > 80)
+        .collect();
+    assert!(long.is_empty(), "{long:#?}");
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
 #[test]
 fn overlap_is_named_by_short_ids() -> TestResult {
     let sandbox = catalog_sandbox()?;
