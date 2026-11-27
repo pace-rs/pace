@@ -66,7 +66,7 @@ const FLAGS: [&str; 22] = [
     "month",
     "mark-billed",
     "invoice",
-    "format",
+    "done-when",
     "json",
     "start-over",
     "visible",
