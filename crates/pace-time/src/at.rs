@@ -4,6 +4,7 @@
 use jiff::{
     SignedDuration, ZonedDateTime,
     civil::{Date, DateTime, Time},
+    fmt::friendly::SpanParser,
     tz::AmbiguousOffset,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult};
@@ -41,7 +42,7 @@ impl At {
 /// Read a `--at` time, seen from `now` and in the time zone of `now`.
 ///
 /// - `HH:MM` is the most recent such time: `23:30` typed at 00:15 means
-///   yesterday 23:30.
+///   yesterday 23:30. `HH:MM:SS` adds the seconds.
 /// - `yesterday HH:MM` and `YYYY-MM-DD HH:MM` name the day.
 /// - A relative time goes back from now in whole seconds: `-15m`,
 ///   `-1h30m`, `15m ago`.
@@ -79,24 +80,41 @@ pub fn parse_at(input: &str, now: &ZonedDateTime) -> PaceResult<At> {
         return in_the_past(datetime, now);
     }
 
-    if let Ok(duration) = text.parse::<SignedDuration>() {
+    if let Some(duration) = relative_time(&text) {
         return back_from_now(input, duration, now);
     }
 
     Err(no_time(input))
 }
 
-/// `H:MM` or `HH:MM`.
+/// `H:MM` or `HH:MM`, with seconds if they follow: `HH:MM:SS`.
 fn clock_time(text: &str) -> Option<Time> {
-    let (hour, minute) = text.split_once(':')?;
+    let mut parts = text.split(':');
+    let (hour, minute, second) = (parts.next()?, parts.next()?, parts.next());
     let digits = |part: &str| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit());
-    if !(digits(hour) && digits(minute) && hour.len() <= 2 && minute.len() == 2) {
+    let two_digits = |part: &str| digits(part) && part.len() == 2;
+    if parts.next().is_some()
+        || !(digits(hour) && hour.len() <= 2 && two_digits(minute))
+        || !second.is_none_or(two_digits)
+    {
         return None;
     }
-    Time::new(hour.parse().ok()?, minute.parse().ok()?, 0, 0).ok()
+    let second = second.map_or(Some(0), |second| second.parse().ok())?;
+    Time::new(hour.parse().ok()?, minute.parse().ok()?, second, 0).ok()
 }
 
-/// `YYYY-MM-DD HH:MM` or `YYYY-MM-DDTHH:MM`.
+/// A time back from now in jiff's friendly format: `-15m`, `-1h30m`,
+/// `15m ago`. A text with `:` is a clock time, never a duration, and the ISO
+/// 8601 format (`PT15M`) is no part of pace's grammar.
+fn relative_time(text: &str) -> Option<SignedDuration> {
+    const FRIENDLY: SpanParser = SpanParser::new();
+    if text.contains(':') {
+        return None;
+    }
+    FRIENDLY.parse_duration(text).ok()
+}
+
+/// `YYYY-MM-DD HH:MM` or `YYYY-MM-DDTHH:MM`, with seconds if they follow.
 fn date_and_time(text: &str) -> Option<DateTime> {
     let (date, time) = text.split_once([' ', 't'])?;
     Some(date.parse::<Date>().ok()?.to_datetime(clock_time(time)?))

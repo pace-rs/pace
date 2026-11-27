@@ -53,6 +53,17 @@ fn clock_time_means_the_most_recent_such_time(
 }
 
 #[rstest]
+#[case::earlier_today("08:30:00", "2026-11-26T08:30:00+01:00[Europe/Berlin]")]
+#[case::with_seconds("08:30:15", "2026-11-26T08:30:15+01:00[Europe/Berlin]")]
+#[case::later_than_now_means_yesterday("09:30:00", "2026-11-25T09:30:00+01:00[Europe/Berlin]")]
+#[case::yesterday("yesterday 17:00:30", "2026-11-25T17:00:30+01:00[Europe/Berlin]")]
+#[case::date_and_time("2026-11-25 17:00:30", "2026-11-25T17:00:30+01:00[Europe/Berlin]")]
+fn clock_time_may_carry_seconds(#[case] input: &str, #[case] expected: &str) -> TestResult {
+    assert_eq!(exact(input, "2026-11-26T09:00[Europe/Berlin]")?, expected);
+    Ok(())
+}
+
+#[rstest]
 #[case("yesterday 17:00", "2026-11-25T17:00:00+01:00[Europe/Berlin]")]
 #[case("Yesterday 17:00", "2026-11-25T17:00:00+01:00[Europe/Berlin]")]
 #[case("yesterday 23:59", "2026-11-25T23:59:00+01:00[Europe/Berlin]")]
@@ -116,6 +127,10 @@ fn relative_time_forward_suggests_going_back(#[case] input: &str) -> TestResult 
 #[case::no_such_hour("25:00")]
 #[case::no_such_minute("12:60")]
 #[case::yesterday_without_time("yesterday")]
+#[case::no_such_second("08:30:60")]
+#[case::clock_time_back_from_now("-08:30:00")]
+#[case::iso_duration("-PT15M")]
+#[case::duration_with_clock_time("-1d 02:00:00")]
 #[case::words("soon")]
 #[case::empty("")]
 fn text_that_is_no_time_explains_the_grammar(#[case] input: &str) -> TestResult {
