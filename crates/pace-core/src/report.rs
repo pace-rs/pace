@@ -226,6 +226,15 @@ impl Report {
         })
     }
 
+    /// Whether a time of the report counts a running entry up to now: an
+    /// entry the period counts runs, or an entry of a project with a
+    /// budget runs, as a budget counts every entry, also one outside the
+    /// period or the filter.
+    #[must_use]
+    pub fn marks_running(&self) -> bool {
+        !self.running.is_empty() || self.budgets.iter().any(|budget| budget.running)
+    }
+
     /// Whether the report of `state` needs every event, not only the
     /// period's: an entry that passes `filter` has a project with a budget.
     #[must_use]

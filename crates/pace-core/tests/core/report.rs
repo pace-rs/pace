@@ -496,6 +496,35 @@ fn running_entry_marks_its_role_target_and_project_budget() -> TestResult {
 }
 
 #[test]
+fn running_entry_outside_period_still_marks_report() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.log("2026-11-18T09:00", "2026-11-18T12:00", on(WEBSHOP)?)?;
+    let catalog = catalog_with(Some(35), Some(7), Some(10))?;
+    let last_week = days("2026-11-16", "2026-11-23")?;
+    let ended = report(
+        &log.state(),
+        &catalog,
+        &last_week,
+        &ReportFilter::default(),
+        LATER,
+    )?;
+    _ = log.begin("2026-11-26T09:00", on(WEBSHOP)?)?;
+
+    let running = report(
+        &log.state(),
+        &catalog,
+        &last_week,
+        &ReportFilter::default(),
+        "2026-11-26T11:00",
+    )?;
+
+    assert!(!ended.marks_running());
+    assert_eq!(running.running, Vec::new());
+    assert!(running.marks_running());
+    Ok(())
+}
+
+#[test]
 fn holds_and_pauses_are_not_net_time_of_their_day() -> TestResult {
     let mut log = Log::new(1)?;
     let entry = log.begin("2026-11-24T09:00", on(WEBSHOP)?)?;

@@ -83,7 +83,7 @@ pub fn report_table(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         lines.push(String::new());
         lines.extend(part);
     }
-    if !table.report.running.is_empty() {
+    if table.report.marks_running() {
         lines.push(String::new());
         lines.push(format!("{RUNNING} counts a running entry up to now."));
     }

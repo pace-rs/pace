@@ -139,6 +139,36 @@ fn running_entry_marks_its_target_and_budget() -> TestResult {
 }
 
 #[test]
+fn running_entry_outside_period_marks_budget_with_footnote() -> TestResult {
+    let sandbox = catalog_sandbox()?;
+    _ = run(sandbox.pace_at("09:00").args([
+        "log",
+        "Plan relaunch",
+        "--project",
+        "acme-webshop",
+        "--from",
+        "2026-11-18 09:00",
+        "--to",
+        "2026-11-18 12:00",
+    ]))?;
+    _ = run(sandbox
+        .pace_at("09:00")
+        .args(["begin", "Write offer", "--project", "acme-webshop"]))?;
+
+    let output = run(sandbox.pace_at("11:00").args(["reflect", "last-week"]))?;
+
+    assert!(
+        output.contains("\n  Webshop relaunch  5h*  of 10h  50%\n"),
+        "{output}"
+    );
+    assert!(
+        output.contains("\n\n* counts a running entry up to now.\n"),
+        "{output}"
+    );
+    Ok(())
+}
+
+#[test]
 fn ref_is_short_for_reflect() -> TestResult {
     let sandbox = week_sandbox()?;
 
