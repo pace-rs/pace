@@ -4,19 +4,25 @@
 //! with their hints and end the process with pace's
 //! [`ExitCode`](pace_error::ExitCode)s.
 
-use std::{ffi::OsString, fmt, path::Path, process};
+use std::{
+    ffi::OsString,
+    fmt,
+    path::{Path, PathBuf},
+    process,
+};
 
 use abscissa_core::{
     Application, FrameworkError, Shutdown, StandardPaths,
     application::{self, AppCell},
     config::{CfgCell, Reader},
 };
+use jiff::civil::Date;
 use miette::{MietteHandler, MietteHandlerOpts, ReportHandler};
 use pace_core::Catalog;
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_store::catalog::{points_at_file, read_catalog};
 
-use crate::clock::TEST_NOW;
+use crate::clock::{TEST_NOW, clock_for_run};
 use crate::config::load_settings;
 use crate::dirs::resolve_dirs;
 use crate::editor::editor_variable;
@@ -62,6 +68,22 @@ pub struct Context {
     pub test_now: Option<OsString>,
     /// This device's readable name, from the hostname.
     pub host: String,
+    /// The working directory pace runs in.
+    pub cwd: PathBuf,
+}
+
+impl Context {
+    /// Today in the configured time zone, as the clock of this run sees
+    /// it.
+    ///
+    /// # Errors
+    ///
+    /// If `PACE_TEST_NOW` is set but no RFC 9557 time, or the system's zone
+    /// is unknown.
+    pub fn today(&self) -> PaceResult<Date> {
+        let clock = clock_for_run(&self.settings.settings.time_zone, self.test_now.clone())?;
+        Ok(clock.now().date())
+    }
 }
 
 impl PaceApp {
@@ -137,6 +159,7 @@ impl PaceApp {
             editor: editor_variable(|name: &str| -> Option<OsString> { std::env::var_os(name) }),
             test_now: std::env::var_os(TEST_NOW),
             host: device_name(&gethostname::gethostname()),
+            cwd,
         });
 
         self.after_config(()).map_err(|error| {

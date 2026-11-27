@@ -172,13 +172,40 @@ impl Sandbox {
         &self,
         steps: &[(&str, &[&str])],
     ) -> Result<String, Box<dyn std::error::Error>> {
+        self.journey_in("", steps)
+    }
+
+    /// [`Sandbox::journey`] with each step run in `work/<relative>`; the
+    /// line of a step names the directory, unless it is `work/` itself.
+    pub(crate) fn journey_in(
+        &self,
+        relative: &str,
+        steps: &[(&str, &[&str])],
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        self.redact_ids(&self.transcript_in(relative, steps)?)
+    }
+
+    /// The transcript of [`Sandbox::journey_in`] before its IDs are
+    /// redacted, for a test that adds files to it and redacts the whole.
+    pub(crate) fn transcript_in(
+        &self,
+        relative: &str,
+        steps: &[(&str, &[&str])],
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let mut transcript = String::new();
+        let place = if relative.is_empty() {
+            String::new()
+        } else {
+            format!(" in work/{relative}")
+        };
         for (time, args) in steps {
-            writeln!(transcript, "$ pace {}   # at {time}", args.join(" "))?;
-            transcript.push_str(&run(self.pace_at(time).args(*args))?);
+            writeln!(transcript, "$ pace {}   # at {time}{place}", args.join(" "))?;
+            let mut command = self.pace_at(time);
+            _ = command.current_dir(self.path("work").join(relative));
+            transcript.push_str(&run(command.args(*args))?);
             transcript.push('\n');
         }
-        self.redact_ids(&transcript)
+        Ok(transcript)
     }
 
     /// `text` with every ID that pace made in this sandbox replaced by

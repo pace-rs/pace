@@ -1,0 +1,25 @@
+---
+source: tests/journey/project_init.rs
+expression: output
+---
+$ pace project init   # at 09:00 in work/laptop/webshop
+success: true
+exit_code: 0
+----- stdout -----
+Found the record of the project `webshop` (Webshop relaunch).
+Wrote the manifest .pace.toml, which links this directory to the project.
+pace took these defaults: key `webshop` from the directory name; `pace project edit webshop` changes them.
+
+----- stderr -----
+
+--- home/projects/webshop.toml ---
+version = 1
+id = "[ID-1]"
+key = "webshop"
+name = "Webshop relaunch"
+--- work/laptop/webshop/.pace.toml ---
+version = 1
+
+[project]
+id = "[ID-1]"
+key = "webshop"

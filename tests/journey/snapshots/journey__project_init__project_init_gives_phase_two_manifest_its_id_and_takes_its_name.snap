@@ -1,0 +1,37 @@
+---
+source: tests/journey/project_init.rs
+expression: output
+---
+$ pace project init   # at 09:00 in work/webshop
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `webshop` (Webshop relaunch), not billable.
+Wrote the project's ID into .pace.toml and removed its name, which the record holds.
+pace took these defaults: name `Webshop relaunch` from the manifest, no client, no role and not billable, as it has no client; `pace project edit webshop` changes them.
+
+----- stderr -----
+
+$ pace now   # at 09:01 in work/webshop
+success: true
+exit_code: 0
+----- stdout -----
+Nothing is running.
+New entries here go to Webshop relaunch (webshop, from [SANDBOX]/work/webshop/.pace.toml, the nearest manifest).
+
+----- stderr -----
+
+--- home/projects/webshop.toml ---
+version = 1
+id = "[ID-1]"
+key = "webshop"
+name = "Webshop relaunch"
+billable = false
+--- work/webshop/.pace.toml ---
+version = 1
+
+[project]
+# the shop of ACME
+key = "webshop"
+default-tags = ["dev"]
+id = "[ID-1]"

@@ -12,7 +12,6 @@ use pace_store::{
 };
 
 use crate::application::{Context, PACE_APP, exit_on_error, print_error};
-use crate::clock::clock_for_run;
 use crate::editor::{EditedFile, edit_in_editor, edit_until_checked, editor_command};
 use crate::output::{aligned, listed, usage};
 use crate::print::print_lines;
@@ -120,22 +119,18 @@ impl ClientAddCmd {
                 .map_err(usage)?,
         };
         let clients_file = context.dirs.data.path.join(CLIENTS_FILE);
-        let flow =
-            AddClientFlow::new(&context.catalog, &clients_file, key, today(context)?, flags)?;
+        let flow = AddClientFlow::new(
+            &context.catalog,
+            &clients_file,
+            key,
+            context.today()?,
+            flags,
+        )?;
         let asked = ask_flow(flow, &context.terminal)?;
         let lines = added_lines(&asked);
         write_field_edits(asked.edits)?;
         print_lines(lines)
     }
-}
-
-/// Today in the user's time zone.
-fn today(context: &Context) -> PaceResult<Date> {
-    let clock = clock_for_run(
-        &context.settings.settings.time_zone,
-        context.test_now.clone(),
-    )?;
-    Ok(clock.now().date())
 }
 
 /// What `pace client add` says it did, and the defaults it took.
@@ -178,7 +173,7 @@ pub struct ClientListCmd {}
 impl Runnable for ClientListCmd {
     fn run(&self) {
         exit_on_error(PACE_APP.context().and_then(|context| {
-            let today = today(context)?;
+            let today = context.today()?;
             print_lines(client_lines(&context.catalog, today))
         }));
     }

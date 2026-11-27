@@ -1,0 +1,12 @@
+---
+source: tests/journey/project_init.rs
+expression: output
+---
+$ pace project init   # at 09:00 in work/webshop
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × the manifest [SANDBOX]/work/webshop/.pace.toml links its directory to the project `webshop` already
+  help: `pace project edit webshop` changes the project's record

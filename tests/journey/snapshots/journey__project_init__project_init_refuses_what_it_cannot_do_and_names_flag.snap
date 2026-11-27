@@ -1,0 +1,22 @@
+---
+source: tests/journey/project_init.rs
+expression: output
+---
+$ pace project init   # at 09:00 in work/___
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace has no terminal to ask "What is the project's key, such as acme-webshop?", which has no default
+  help: answer it with `--key`
+
+
+$ pace project init --name Shop   # at 09:00 in work/webshop
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × the project `webshop` has a record already, which `pace project init` doesn't change with `--name`
+  help: leave the flags out, and change the record with `pace project edit webshop`

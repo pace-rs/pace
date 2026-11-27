@@ -1,0 +1,74 @@
+---
+source: tests/journey/project_init.rs
+expression: output
+---
+$ pace project init   # at 09:00 in work/webshop
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `webshop` (webshop), not billable.
+Wrote the manifest .pace.toml, which links this directory to the project.
+pace took these defaults: key `webshop` from the directory name, name `webshop` from the directory name, no client, no role and not billable, as it has no client; `pace project edit webshop` changes them.
+
+----- stderr -----
+
+$ pace begin Checkout   # at 09:01 in work/webshop
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Checkout" at 09:01.
+Project: webshop (from [SANDBOX]/work/webshop/.pace.toml, the nearest manifest).
+
+----- stderr -----
+
+$ pace now --json   # at 09:30 in work/webshop
+success: true
+exit_code: 0
+----- stdout -----
+{
+  "version": 1,
+  "now": "2026-11-26T09:30:00+01:00[Europe/Berlin]",
+  "open": [
+    {
+      "id": "[ID-1]",
+      "short": "[ID-1]",
+      "state": "running",
+      "note": "Checkout",
+      "project": {
+        "id": "[ID-2]"
+      },
+      "tags": [],
+      "start": "2026-11-26T09:01:00+01:00[Europe/Berlin]",
+      "since": "2026-11-26T09:01:00+01:00[Europe/Berlin]",
+      "net_seconds": 1740,
+      "net": "29m",
+      "gross_seconds": 1740,
+      "held_seconds": 0,
+      "paused_seconds": 0,
+      "this_device": true
+    }
+  ],
+  "project": {
+    "id": "[ID-2]",
+    "key": "webshop",
+    "name": "webshop",
+    "kind": "manifest",
+    "path": "[SANDBOX]/work/webshop/.pace.toml",
+    "reason": "from [SANDBOX]/work/webshop/.pace.toml, the nearest manifest"
+  }
+}
+
+----- stderr -----
+
+--- home/projects/webshop.toml ---
+version = 1
+id = "[ID-2]"
+key = "webshop"
+name = "webshop"
+billable = false
+--- work/webshop/.pace.toml ---
+version = 1
+
+[project]
+id = "[ID-2]"
+key = "webshop"
