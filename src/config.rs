@@ -155,15 +155,16 @@ impl Value {
     }
 }
 
-/// Why a value doesn't fit a key; becomes a [`PaceError`] with the place
-/// the value came from.
-struct Invalid {
-    message: String,
-    hint: String,
+/// A value that doesn't fit its setting: `guidance` names it as `{value}`.
+/// The caller adds where the value came from.
+fn invalid(guidance: &'static str, value: &str, hint: impl Into<String>) -> Box<PaceError> {
+    PaceError::new(ErrorKind::Configuration, guidance)
+        .attach_context("value", value)
+        .attach_hint(hint)
 }
 
 impl Settings {
-    fn set(&mut self, key: &str, value: &Value) -> Result<(), Invalid> {
+    fn set(&mut self, key: &str, value: &Value) -> PaceResult<()> {
         if key == "most-recent-count" {
             self.most_recent_count = parse_count(value)?;
             return Ok(());
@@ -174,17 +175,14 @@ impl Settings {
             "time-zone" => self.time_zone = parse_time_zone(value)?,
             "week-start" => self.week_start = parse_weekday(value)?,
             "holds.default-source" => self.default_hold_source = parse_hold_source(value)?,
-            "storage.split" => {
-                self.split = value.parse().map_err(|error: Box<PaceError>| Invalid {
-                    message: error.to_string(),
-                    hint: error.hint().unwrap_or_default().to_owned(),
-                })?;
-            }
+            "storage.split" => self.split = value.parse()?,
             _ => {
-                return Err(Invalid {
-                    message: format!("`{key}` has no parser"),
-                    hint: "this is a bug in pace".to_owned(),
-                });
+                return Err(PaceError::new(
+                    ErrorKind::Internal,
+                    "the setting `{key}` has no parser",
+                )
+                .attach_context("key", key)
+                .ask_report());
             }
         }
         Ok(())
@@ -207,15 +205,18 @@ impl Settings {
     }
 }
 
-fn parse_count(value: &Value) -> Result<usize, Invalid> {
+fn parse_count(value: &Value) -> PaceResult<usize> {
     match value {
         Value::Number(number) => usize::try_from(*number).ok(),
         Value::Text(text) => text.parse::<usize>().ok(),
     }
     .filter(|count| *count > 0)
-    .ok_or_else(|| Invalid {
-        message: format!("`{}` is not a whole number from 1", value.text()),
-        hint: "write a number like `9`".to_owned(),
+    .ok_or_else(|| {
+        invalid(
+            "`{value}` is not a whole number from 1",
+            &value.text(),
+            "write a number like `9`",
+        )
     })
 }
 
@@ -225,15 +226,17 @@ const HOLD_SOURCES: [(&str, HoldSource); 3] = [
     ("unknown", HoldSource::Unknown),
 ];
 
-fn parse_hold_source(value: &str) -> Result<HoldSource, Invalid> {
+fn parse_hold_source(value: &str) -> PaceResult<HoldSource> {
     HOLD_SOURCES
         .iter()
         .find(|(name, _)| *name == value)
         .map(|(_, source)| *source)
-        .ok_or_else(|| Invalid {
-            message: format!("`{value}` is not a source of holds"),
-            hint: "use `inner` (you broke off), `outer` (someone interrupted) or `unknown`"
-                .to_owned(),
+        .ok_or_else(|| {
+            invalid(
+                "`{value}` is not a source of holds",
+                value,
+                "use `inner` (you broke off), `outer` (someone interrupted) or `unknown`",
+            )
         })
 }
 
@@ -244,7 +247,7 @@ fn hold_source_name(source: HoldSource) -> &'static str {
         .map_or("unknown", |(name, _)| name)
 }
 
-fn parse_time_zone(value: &str) -> Result<TimeZoneSetting, Invalid> {
+fn parse_time_zone(value: &str) -> PaceResult<TimeZoneSetting> {
     if value == "system" {
         return Ok(TimeZoneSetting::System);
     }
@@ -255,17 +258,18 @@ fn parse_time_zone(value: &str) -> Result<TimeZoneSetting, Invalid> {
         .available()
         .map(|name| name.as_str().to_owned())
         .collect();
-    Err(Invalid {
-        message: format!("`{value}` is not a time zone pace knows"),
-        hint: closest(value, names.iter().map(String::as_str)).map_or_else(
-            || {
-                "use a name from the IANA time zone database, like `Europe/Berlin`, or \
-                 `system`"
-                    .to_owned()
-            },
-            |name| format!("did you mean `{name}`?"),
-        ),
-    })
+    let hint = closest(value, names.iter().map(String::as_str)).map_or_else(
+        || {
+            "use a name from the IANA time zone database, like `Europe/Berlin`, or `system`"
+                .to_owned()
+        },
+        |name| format!("did you mean `{name}`?"),
+    );
+    Err(invalid(
+        "`{value}` is not a time zone pace knows",
+        value,
+        hint,
+    ))
 }
 
 const WEEKDAYS: [(&str, Weekday); 7] = [
@@ -278,18 +282,18 @@ const WEEKDAYS: [(&str, Weekday); 7] = [
     ("sunday", Weekday::Sunday),
 ];
 
-fn parse_weekday(value: &str) -> Result<Weekday, Invalid> {
+fn parse_weekday(value: &str) -> PaceResult<Weekday> {
     let lowercase = value.to_lowercase();
     WEEKDAYS
         .iter()
         .find(|(name, _)| *name == lowercase)
         .map(|(_, day)| *day)
-        .ok_or_else(|| Invalid {
-            message: format!("`{value}` is not a day of the week"),
-            hint: closest(&lowercase, WEEKDAYS.iter().map(|(name, _)| *name)).map_or_else(
+        .ok_or_else(|| {
+            let hint = closest(&lowercase, WEEKDAYS.iter().map(|(name, _)| *name)).map_or_else(
                 || "use a day name like `monday`".to_owned(),
                 |name| format!("did you mean `{name}`?"),
-            ),
+            );
+            invalid("`{value}` is not a day of the week", value, hint)
         })
 }
 
@@ -362,11 +366,12 @@ pub fn load_settings(
             what: "the global config file",
             noun: "setting",
             code: "pace::config",
+            kind: ErrorKind::Configuration,
             version: FILE_VERSION,
         };
         for (name, value, span) in file_values(&file, home, &mut project_paths)? {
-            settings.set(name, &value).map_err(|invalid| {
-                file.error_at(span.clone(), invalid.message, invalid.hint, "this value")
+            settings.set(name, &value).map_err(|error| {
+                file.point_at(error, span.clone(), "this value")
                     .attach_error_code("pace::config::invalid-value")
             })?;
             set_origin(
@@ -385,13 +390,9 @@ pub fn load_settings(
             continue;
         };
         let value = Value::Text(value.to_string_lossy().into_owned());
-        settings.set(key.name, &value).map_err(|invalid| {
-            PaceError::new(ErrorKind::Configuration, "{variable}: {message}")
-                .attach_context("variable", key.variable)
-                .attach_context("message", invalid.message)
-                .attach_hint(invalid.hint)
-                .attach_error_code("pace::config::invalid-value")
-        })?;
+        settings
+            .set(key.name, &value)
+            .map_err(|error| from_variable(error, key.variable))?;
         set_origin(&mut origins, key.name, Origin::Env(key.variable));
     }
 
@@ -401,6 +402,15 @@ pub fn load_settings(
         project_paths,
         warnings: unknown_variables(variables),
     })
+}
+
+/// `error`, about the value of the variable `variable`, with a first line
+/// that names the variable.
+fn from_variable(error: Box<PaceError>, variable: &str) -> Box<PaceError> {
+    error
+        .prepend_guidance_line("the setting given by {variable} is not valid")
+        .attach_context("variable", variable)
+        .attach_error_code("pace::config::invalid-value")
 }
 
 fn read_config_file(config_file: &Located) -> PaceResult<Option<String>> {
@@ -528,13 +538,8 @@ fn project_path(
         .string(written, project, "a project key like `acme-webshop`")?
         .parse::<ProjectKey>()
         .map_err(|error| {
-            file.error_at(
-                project.span(),
-                error.to_string(),
-                error.hint().unwrap_or_default(),
-                "this key",
-            )
-            .attach_error_code("pace::config::invalid-value")
+            file.point_at(error, project.span(), "this key")
+                .attach_error_code("pace::config::invalid-value")
         })?;
 
     let relative_to_home = written
@@ -547,6 +552,7 @@ fn project_path(
             return Err(file.error_at(
                 dir.span(),
                 "pace cannot find your home directory to expand `~`",
+                [],
                 "write the full path",
                 "this path",
             ));
@@ -557,7 +563,8 @@ fn project_path(
         return Err(file
             .error_at(
                 dir.span(),
-                format!("`{written}` is not an absolute path"),
+                "`{path}` is not an absolute path",
+                [("path", written.to_owned())],
                 "write the full path, or start it with `~/`",
                 "relative path",
             )

@@ -10,6 +10,7 @@ exit_code: 1
 pace::project::invalid-value
 
   × `acme` is no project ID
+  ╰─▶ `acme` is not a UUIDv7
    ╭─[[SANDBOX]/work/.pace.toml:2:6]
  1 │ [project]
  2 │ id = "acme"

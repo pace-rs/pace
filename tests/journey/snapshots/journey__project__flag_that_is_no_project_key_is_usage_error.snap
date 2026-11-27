@@ -7,5 +7,6 @@ exit_code: 2
 ----- stdout -----
 
 ----- stderr -----
-  × --project: `Acme Webshop` is not a project key
+  × the project given by --project is not valid
+  │ `Acme Webshop` is not a project key
   help: a key has lowercase letters, digits and single dashes, like `acme-webshop`

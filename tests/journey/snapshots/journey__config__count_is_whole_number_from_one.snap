@@ -41,5 +41,6 @@ exit_code: 1
 ----- stderr -----
 pace::config::invalid-value
 
-  × PACE_MOST_RECENT_COUNT: `-3` is not a whole number from 1
+  × the setting given by PACE_MOST_RECENT_COUNT is not valid
+  │ `-3` is not a whole number from 1
   help: write a number like `9`

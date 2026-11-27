@@ -9,5 +9,5 @@ exit_code: 1
 ----- stderr -----
 pace::project::two-manifests
 
-  × [SANDBOX]/work has both a pace.toml and a .pace.toml
+  × the directory [SANDBOX]/work has both a pace.toml and a .pace.toml
   help: keep one of them: pace reads either name, but not both

@@ -141,16 +141,14 @@ pub fn discover_project(
     }))
 }
 
+/// The project key `key`, which `given_by` gave; its error gets a first
+/// line that names `given_by`.
 fn parse_key(key: &str, given_by: &str) -> PaceResult<ProjectKey> {
     key.parse().map_err(|error: Box<PaceError>| {
-        PaceError::new(
-            ErrorKind::InvalidInput,
-            "{given_by}: `{key}` is not a project key",
-        )
-        .attach_context("given_by", given_by)
-        .attach_context("key", key)
-        .attach_hint(error.hint().unwrap_or_default())
-        .attach_exit_code(ExitCode::Usage)
+        error
+            .prepend_guidance_line("the project given by {given_by} is not valid")
+            .attach_context("given_by", given_by)
+            .attach_exit_code(ExitCode::Usage)
     })
 }
 
@@ -167,7 +165,7 @@ fn nearest_manifest(cwd: &Path) -> PaceResult<Option<PathBuf>> {
             _ => {
                 return Err(PaceError::new(
                     ErrorKind::Project,
-                    "{dir} has both a pace.toml and a .pace.toml",
+                    "the directory {dir} has both a pace.toml and a .pace.toml",
                 )
                 .attach_context("dir", dir.display().to_string())
                 .attach_hint("keep one of them: pace reads either name, but not both")
@@ -190,6 +188,7 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
         what: "the project manifest",
         noun: "key",
         code: "pace::project",
+        kind: ErrorKind::Project,
         version: MANIFEST_VERSION,
     };
     let table = file.parse()?;
@@ -211,13 +210,8 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
             "key" => {
                 let text = file.string("key", value, "a project key like `acme-webshop`")?;
                 project_key = Some(text.parse::<ProjectKey>().map_err(|error| {
-                    file.error_at(
-                        value.span(),
-                        error.to_string(),
-                        error.hint().unwrap_or_default(),
-                        "this key",
-                    )
-                    .attach_error_code("pace::project::invalid-value")
+                    file.point_at(error, value.span(), "this key")
+                        .attach_error_code("pace::project::invalid-value")
                 })?);
             }
             "id" => {
@@ -226,13 +220,15 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
                     value,
                     "the project's ID, written by `pace project init`",
                 )?;
-                id = Some(text.parse::<ProjectId>().map_err(|_| {
+                id = Some(text.parse::<ProjectId>().map_err(|error| {
                     file.error_at(
                         value.span(),
-                        format!("`{text}` is no project ID"),
+                        "`{id}` is no project ID",
+                        [("id", text.to_owned())],
                         "`pace project init` writes the ID; remove the line to go by the key",
                         "this ID",
                     )
+                    .attach_source(error)
                     .attach_error_code("pace::project::invalid-value")
                 })?);
             }

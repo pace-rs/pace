@@ -5,25 +5,19 @@
 //! its type. pace reads strictly: an unknown key, a missing or foreign field,
 //! an unknown type or version stops it with the file and the line.
 
-use std::{
-    collections::BTreeSet,
-    fmt::{self, Display},
-    ops::Range,
-    path::Path,
-    str::FromStr,
-};
+use std::{collections::BTreeSet, ops::Range, path::Path, str::FromStr};
 
 use jiff::{Timestamp, ZonedDateTime};
 use pace_core::{
     BatchId, Change, DeviceId, EntryChanges, EntryId, Event, EventId, EventKind, Hlc, HoldSource,
     PauseKind, ProjectId, ProjectKey, ProjectRef, RecordedEvent, Tag,
 };
-use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
+use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
 use crate::hlc::hlc_text;
-use crate::toml_file::{TomlFile, closest, in_file_order};
+use crate::toml_file::{TomlCause, TomlFile, closest, in_file_order};
 
 /// The version of the event file format.
 pub const FILE_VERSION: u32 = 1;
@@ -151,7 +145,13 @@ pub fn parse_events(path: &Path, text: &str, device: DeviceId) -> PaceResult<Vec
             let span = record.span();
             recorded(record.into_inner(), device).map_err(|invalid| {
                 event_file(path, text)
-                    .error_at(span, invalid.message, invalid.hint, "this event")
+                    .error_at(
+                        span,
+                        invalid.guidance,
+                        invalid.context,
+                        invalid.hint,
+                        "this event",
+                    )
                     .attach_error_code("pace::store::invalid-event")
             })
         })
@@ -165,6 +165,7 @@ fn event_file<'a>(path: &'a Path, text: &'a str) -> TomlFile<'a> {
         what: "an event file",
         noun: "key",
         code: "pace::store",
+        kind: ErrorKind::InputOutput,
         version: i64::from(FILE_VERSION),
     }
 }
@@ -180,7 +181,7 @@ const REPAIR: &str = "repair the file, or restore it from a backup";
 fn explain(path: &Path, text: &str, error: toml::de::Error) -> Box<PaceError> {
     let file = event_file(path, text);
     let Ok(table) = file.parse() else {
-        return broken(path, text, error, "the event file {file} is not valid TOML")
+        return broken(&file, error, "the event file {file} is not valid TOML")
             .attach_error_code("pace::store::syntax");
     };
     for (key, value) in in_file_order(table.get_ref()) {
@@ -200,32 +201,19 @@ fn explain(path: &Path, text: &str, error: toml::de::Error) -> Box<PaceError> {
             }
         }
     }
-    broken(path, text, error, "pace cannot read the event file {file}")
+    broken(&file, error, "pace cannot read the event file {file}")
         .attach_error_code("pace::store::invalid-file")
 }
 
-/// The error `guidance` about the event file `path`, caused by `error`.
-fn broken(path: &Path, text: &str, error: toml::de::Error, guidance: &str) -> Box<PaceError> {
+/// The error `guidance` about the event file `file`, caused by `error`.
+fn broken(file: &TomlFile<'_>, error: toml::de::Error, guidance: &'static str) -> Box<PaceError> {
     let span = error.span().unwrap_or(0..0);
     let label = error.message().trim().to_owned();
-    PaceError::with_source(ErrorKind::InputOutput, guidance, TomlCause(error))
-        .attach_context("file", path.display().to_string())
-        .attach_hint(REPAIR)
-        .attach_snippet(Snippet::new(path.display().to_string(), text, span, label))
+    let error = PaceError::with_source(file.kind, guidance, TomlCause(error))
+        .attach_context("file", file.path.display().to_string())
+        .attach_hint(REPAIR);
+    file.point_at(error, span, &label)
 }
-
-/// The TOML error behind a broken event file. It shows only its message:
-/// its own rendering repeats the snippet the error already shows.
-#[derive(Debug)]
-struct TomlCause(toml::de::Error);
-
-impl Display for TomlCause {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.0.message().trim())
-    }
-}
-
-impl std::error::Error for TomlCause {}
 
 fn unknown_key(file: &TomlFile<'_>, name: &str, span: Range<usize>) -> Box<PaceError> {
     let hint = closest(name, KEYS.iter().copied()).map_or_else(
@@ -234,7 +222,8 @@ fn unknown_key(file: &TomlFile<'_>, name: &str, span: Range<usize>) -> Box<PaceE
     );
     file.error_at(
         span,
-        format!("`{name}` is not a key pace knows in an event"),
+        "`{key}` is not a key pace knows in an event",
+        [("key", name.to_owned())],
         hint,
         "unknown key",
     )
@@ -247,33 +236,56 @@ fn newer_or_broken(path: &Path, text: &str, key: &str, version: u32) -> Box<Pace
         .find(key)
         .map_or(0..0, |start| start..start + key.len());
     let hint = if version > FILE_VERSION {
-        "a newer pace may have written it on another device; update pace"
+        NEWER
     } else {
         READ_ONLY
     };
     file.error_at(
         span,
-        format!("this pace reads version {FILE_VERSION} of event files, not {version}"),
+        "this pace reads version {reads} of event files, not {found}",
+        [
+            ("reads", FILE_VERSION.to_string()),
+            ("found", version.to_string()),
+        ],
         hint,
         "this version",
     )
     .attach_error_code("pace::store::version")
 }
 
-/// Why a record is no valid event.
+/// Why a record is no valid event: a guidance with its context, and how to
+/// go on.
 struct Invalid {
-    message: String,
-    hint: String,
+    guidance: &'static str,
+    context: Vec<(&'static str, String)>,
+    hint: &'static str,
 }
 
 impl Invalid {
-    fn new(message: impl Into<String>) -> Self {
+    /// The record is wrong; event files are for reading.
+    const fn new(guidance: &'static str) -> Self {
         Self {
-            message: message.into(),
-            hint: READ_ONLY.to_owned(),
+            guidance,
+            context: Vec::new(),
+            hint: READ_ONLY,
         }
     }
+
+    /// A newer pace may know the record.
+    fn newer(guidance: &'static str) -> Self {
+        Self {
+            hint: NEWER,
+            ..Self::new(guidance)
+        }
+    }
+
+    fn with(mut self, key: &'static str, value: impl Into<String>) -> Self {
+        self.context.push((key, value.into()));
+        self
+    }
 }
+
+const NEWER: &str = "a newer pace may have written it on another device; update pace";
 
 fn parse_hlc(text: &str) -> Option<Hlc> {
     let (wall, counter) = text.split_once('/')?;
@@ -516,10 +528,7 @@ fn present(record: &Record) -> Vec<&'static str> {
 fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> {
     let event_type = checked_type(&record)?;
     let hlc = parse_hlc(&record.hlc).ok_or_else(|| {
-        Invalid::new(format!(
-            "`{}` is no HLC like `2026-11-26T08:02:11.204Z/0`",
-            record.hlc
-        ))
+        Invalid::new("`{hlc}` is no HLC like `2026-11-26T08:02:11.204Z/0`").with("hlc", &record.hlc)
     })?;
 
     let event_kind = event_kind(&record, event_type)?;
@@ -541,36 +550,35 @@ fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> 
 /// fields of its type, and a project either by ID or by key.
 fn checked_type(record: &Record) -> Result<EventType, Invalid> {
     let kind = &record.kind;
-    let event_type = EventType::parse(kind).ok_or_else(|| Invalid {
-        message: format!("pace doesn't know the event type `{kind}`"),
-        hint: "a newer pace may have written it on another device; update pace".to_owned(),
+    let event_type = EventType::parse(kind).ok_or_else(|| {
+        Invalid::newer("pace doesn't know the event type `{type}`").with("type", kind)
     })?;
     let allowed = event_type.allowed();
     if record.v != EVENT_VERSION {
-        return Err(Invalid {
-            message: format!(
-                "pace reads version {EVENT_VERSION} of `{kind}`, not {}",
-                record.v
-            ),
-            hint: if record.v > EVENT_VERSION {
-                "a newer pace may have written it on another device; update pace".to_owned()
-            } else {
-                READ_ONLY.to_owned()
-            },
-        });
+        let guidance = "pace reads version {reads} of `{type}`, not {found}";
+        let invalid = if record.v > EVENT_VERSION {
+            Invalid::newer(guidance)
+        } else {
+            Invalid::new(guidance)
+        };
+        return Err(invalid
+            .with("reads", EVENT_VERSION.to_string())
+            .with("type", kind)
+            .with("found", record.v.to_string()));
     }
     if let Some(foreign) = present(record)
         .into_iter()
         .find(|field| !allowed.contains(field))
     {
-        return Err(Invalid::new(format!(
-            "an event of type `{kind}` has no `{foreign}`"
-        )));
+        return Err(Invalid::new("an event of type `{type}` has no `{field}`")
+            .with("type", kind)
+            .with("field", foreign));
     }
     if record.project.is_some() && record.project_key.is_some() {
-        return Err(Invalid::new(format!(
-            "an event of type `{kind}` has `project` and `project-key`; it needs one"
-        )));
+        return Err(Invalid::new(
+            "an event of type `{type}` has `project` and `project-key`; it needs one",
+        )
+        .with("type", kind));
     }
     Ok(event_type)
 }
@@ -579,7 +587,11 @@ fn checked_type(record: &Record) -> Result<EventType, Invalid> {
 /// needs and misses.
 fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Invalid> {
     let kind = &record.kind;
-    let needs = |field: &str| Invalid::new(format!("an event of type `{kind}` needs `{field}`"));
+    let needs = |field: &str| {
+        Invalid::new("an event of type `{type}` needs `{field}`")
+            .with("type", kind)
+            .with("field", field)
+    };
     let entry = record.entry.ok_or_else(|| needs("entry"));
     let project = record
         .project
@@ -634,9 +646,10 @@ fn adjusted(record: &Record, project: Option<ProjectRef>) -> Result<EntryChanges
         .iter()
         .find(|field| !["note", "project"].contains(&field.as_str()))
     {
-        return Err(Invalid::new(format!(
-            "`cleared` names `{unknown}`; only `note` and `project` can be cleared"
-        )));
+        return Err(Invalid::new(
+            "`cleared` names `{field}`; only `note` and `project` can be cleared",
+        )
+        .with("field", unknown));
     }
     Ok(EntryChanges {
         start: record.start.clone(),
@@ -649,9 +662,9 @@ fn adjusted(record: &Record, project: Option<ProjectRef>) -> Result<EntryChanges
 
 fn change<T>(field: &str, value: Option<T>, cleared: &[String]) -> Result<Change<T>, Invalid> {
     match (value, cleared.iter().any(|name| name == field)) {
-        (Some(_), true) => Err(Invalid::new(format!(
-            "`{field}` is set and cleared at once"
-        ))),
+        (Some(_), true) => {
+            Err(Invalid::new("`{field}` is set and cleared at once").with("field", field))
+        }
         (Some(value), false) => Ok(Change::Set(value)),
         (None, true) => Ok(Change::Clear),
         (None, false) => Ok(Change::Keep),

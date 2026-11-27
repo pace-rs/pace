@@ -276,6 +276,8 @@ fn an_unknown_key_in_an_event_file_names_the_file_and_line() -> TestResult {
         error.to_string(),
         "`notes` is not a key pace knows in an event"
     );
+    assert_eq!(error.context_value("key"), Some("notes"));
+    assert_eq!(error.kind(), pace_error::ErrorKind::InputOutput);
     assert!(error.hint().is_some_and(|hint| hint.contains("pace edit")));
     let report = format!("{error:?}");
     assert!(report.contains("2026-11.toml"), "{report}");

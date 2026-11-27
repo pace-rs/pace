@@ -9,7 +9,8 @@ exit_code: 1
 ----- stderr -----
 pace::config::syntax
 
-  × [SANDBOX]/config/pace.global.toml is not valid TOML
+  × the file [SANDBOX]/config/pace.global.toml is not valid TOML
+  ╰─▶ invalid basic string, expected `"`
    ╭─[[SANDBOX]/config/pace.global.toml:1:27]
  1 │ time-zone = "Europe/Berlin
    ·                           ▲

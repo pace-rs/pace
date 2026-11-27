@@ -9,5 +9,6 @@ exit_code: 1
 ----- stderr -----
 pace::config::invalid-value
 
-  × PACE_WEEK_START: `someday` is not a day of the week
+  × the setting given by PACE_WEEK_START is not valid
+  │ `someday` is not a day of the week
   help: use a day name like `monday`

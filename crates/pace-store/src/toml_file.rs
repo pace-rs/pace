@@ -2,7 +2,11 @@
 //!
 //! Config files, project manifests and event files share this reader.
 
-use std::{ops::Range, path::Path};
+use std::{
+    fmt::{self, Display},
+    ops::Range,
+    path::Path,
+};
 
 use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
 use toml::{
@@ -22,9 +26,24 @@ pub struct TomlFile<'a> {
     pub noun: &'static str,
     /// The prefix of error codes: `pace::config`, `pace::project`.
     pub code: &'static str,
+    /// What its errors are related to: the configuration, the project.
+    pub kind: ErrorKind,
     /// The `version` this pace reads.
     pub version: i64,
 }
+
+/// The TOML error behind a file that is no valid TOML. It shows only its
+/// message: its own rendering repeats the snippet the error already shows.
+#[derive(Debug)]
+pub struct TomlCause(pub toml::de::Error);
+
+impl Display for TomlCause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0.message().trim())
+    }
+}
+
+impl std::error::Error for TomlCause {}
 
 /// The entries of a table in the order they appear in the file.
 pub type Entries<'t, 'i> = Vec<(&'t Spanned<DeString<'i>>, &'t Spanned<DeValue<'i>>)>;
@@ -42,14 +61,21 @@ impl<'a> TomlFile<'a> {
     ///
     /// # Errors
     ///
-    /// If it is no valid TOML; the snippet points at the spot.
+    /// If it is no valid TOML; the snippet points at the spot, and the TOML
+    /// error is the cause.
     pub fn parse(&self) -> PaceResult<Spanned<DeTable<'a>>> {
         DeTable::parse(self.text).map_err(|error| {
-            PaceError::new(ErrorKind::Configuration, "{file} is not valid TOML")
-                .attach_context("file", self.path.display().to_string())
-                .attach_hint("fix the TOML at the marked spot")
-                .attach_error_code(format!("{}::syntax", self.code))
-                .attach_snippet(self.snippet(error.span().unwrap_or(0..0), error.message().trim()))
+            let span = error.span().unwrap_or(0..0);
+            let label = error.message().trim().to_owned();
+            PaceError::with_source(
+                self.kind,
+                "the file {file} is not valid TOML",
+                TomlCause(error),
+            )
+            .attach_context("file", self.path.display().to_string())
+            .attach_hint("fix the TOML at the marked spot")
+            .attach_error_code(format!("{}::syntax", self.code))
+            .attach_snippet(self.snippet(span, &label))
         })
     }
 
@@ -57,18 +83,34 @@ impl<'a> TomlFile<'a> {
         Snippet::new(self.path.display().to_string(), self.text, span, label)
     }
 
-    /// An error about a spot in the file; the snippet shows file and line.
+    /// An error about a spot in the file: the `guidance` with its
+    /// `{placeholders}` filled from `context`, the hint, and a snippet that
+    /// shows file and line with `label` at `span`.
     #[must_use]
     pub fn error_at(
         &self,
         span: Range<usize>,
-        message: impl Into<String>,
+        guidance: &'static str,
+        context: impl IntoIterator<Item = (&'static str, String)>,
         hint: impl Into<String>,
         label: &str,
     ) -> Box<PaceError> {
-        PaceError::new(ErrorKind::Configuration, message)
-            .attach_hint(hint)
-            .attach_snippet(self.snippet(span, label))
+        let error = context.into_iter().fold(
+            PaceError::new(self.kind, guidance),
+            |error, (key, value)| error.attach_context(key, value),
+        );
+        self.point_at(error.attach_hint(hint), span, label)
+    }
+
+    /// `error`, pointed at `span` of the file with `label`.
+    #[must_use]
+    pub fn point_at(
+        &self,
+        error: Box<PaceError>,
+        span: Range<usize>,
+        label: &str,
+    ) -> Box<PaceError> {
+        error.attach_snippet(self.snippet(span, label))
     }
 
     /// An unknown key, with the closest of `known` or the list of them.
@@ -80,7 +122,8 @@ impl<'a> TomlFile<'a> {
         );
         self.error_at(
             span,
-            format!("`{name}` is not a {} pace knows", self.noun),
+            "`{key}` is not a {noun} pace knows",
+            [("key", name.to_owned()), ("noun", self.noun.to_owned())],
             hint,
             "unknown key",
         )
@@ -102,15 +145,19 @@ impl<'a> TomlFile<'a> {
         } else {
             format!("write `version = {}`", self.version)
         };
-        let found =
-            version.map_or_else(|| value.get_ref().type_str().to_owned(), |v| v.to_string());
+        let found = version.map_or_else(
+            || with_article(value.get_ref().type_str()),
+            |version| version.to_string(),
+        );
         Err(self
             .error_at(
                 value.span(),
-                format!(
-                    "this pace reads version {} of {}, not {found}",
-                    self.version, self.what
-                ),
+                "this pace reads version {reads} of {what}, not {found}",
+                [
+                    ("reads", self.version.to_string()),
+                    ("what", self.what.to_owned()),
+                    ("found", found),
+                ],
                 hint,
                 "this version",
             )
@@ -129,13 +176,13 @@ impl<'a> TomlFile<'a> {
         expects: &str,
     ) -> PaceResult<&'v str> {
         value.get_ref().as_str().ok_or_else(|| {
-            self.error_at(
-                value.span(),
-                format!("`{name}` takes {expects}"),
+            self.wrong_type(
+                name,
+                value,
+                expects,
                 format!("write it as text, for example `{name} = \"…\"`"),
                 &with_article(value.get_ref().type_str()),
             )
-            .attach_error_code(format!("{}::invalid-value", self.code))
         })
     }
 
@@ -159,14 +206,33 @@ impl<'a> TomlFile<'a> {
             } else {
                 with_article(value.get_ref().type_str())
             };
-            self.error_at(
-                value.span(),
-                format!("`{name}` takes {expects}"),
+            self.wrong_type(
+                name,
+                value,
+                expects,
                 format!("write it as a number, for example `{name} = 9`"),
                 &label,
             )
-            .attach_error_code(format!("{}::invalid-value", self.code))
         })
+    }
+
+    /// A value of `name` that is not what it takes (`expects`).
+    fn wrong_type(
+        &self,
+        name: &str,
+        value: &Spanned<DeValue<'_>>,
+        expects: &str,
+        hint: String,
+        label: &str,
+    ) -> Box<PaceError> {
+        self.error_at(
+            value.span(),
+            "`{key}` takes {expects}",
+            [("key", name.to_owned()), ("expects", expects.to_owned())],
+            hint,
+            label,
+        )
+        .attach_error_code(format!("{}::invalid-value", self.code))
     }
 
     /// The value as a table.
@@ -182,7 +248,8 @@ impl<'a> TomlFile<'a> {
         value.get_ref().as_table().ok_or_else(|| {
             self.error_at(
                 value.span(),
-                format!("`{name}` is a table"),
+                "`{key}` is a table",
+                [("key", name.to_owned())],
                 format!("write it as `[{name}]` with its keys below"),
                 &with_article(value.get_ref().type_str()),
             )
@@ -222,4 +289,83 @@ pub fn closest<'a>(input: &str, names: impl Iterator<Item = &'a str>) -> Option<
         .filter(|(score, _)| *score > 0.8)
         .max_by(|a, b| a.0.total_cmp(&b.0))
         .map(|(_, name)| name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    fn manifest(text: &str) -> TomlFile<'_> {
+        TomlFile {
+            path: Path::new("pace.toml"),
+            text,
+            what: "the project manifest",
+            noun: "key",
+            code: "pace::project",
+            kind: ErrorKind::Project,
+            version: 1,
+        }
+    }
+
+    #[test]
+    fn broken_toml_keeps_its_cause_and_the_kind_of_the_file() -> TestResult {
+        let error = manifest("key = ")
+            .parse()
+            .err()
+            .ok_or("broken TOML fails")?;
+
+        assert_eq!(error.kind(), ErrorKind::Project);
+        assert_eq!(error.context_value("file"), Some("pace.toml"));
+        let source = std::error::Error::source(&*error).ok_or("the TOML error is the cause")?;
+        assert!(!source.to_string().is_empty(), "{source:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn error_at_fills_its_guidance_from_the_context() {
+        let error = manifest("key = 1\n").error_at(
+            6..7,
+            "`{name}` takes text",
+            [("name", "key".to_owned())],
+            "write it as text",
+            "an integer",
+        );
+
+        assert_eq!(error.to_string(), "`key` takes text");
+        assert_eq!(error.context_value("name"), Some("key"));
+        assert_eq!(error.kind(), ErrorKind::Project);
+    }
+
+    #[test]
+    fn unknown_key_names_the_key_in_its_context() {
+        let error = manifest("nmae = 1\n").unknown_key("nmae", 0..4, &["name"]);
+
+        assert_eq!(error.to_string(), "`nmae` is not a key pace knows");
+        assert_eq!(error.context_value("key"), Some("nmae"));
+        assert_eq!(error.hint(), Some("did you mean `name`?"));
+    }
+
+    #[test]
+    fn version_too_new_names_both_versions() -> TestResult {
+        let file = manifest("version = 2\n");
+        let table = file.parse()?;
+        let value = table
+            .get_ref()
+            .get("version")
+            .ok_or("the file has a version")?;
+
+        let error = file
+            .check_version(value)
+            .err()
+            .ok_or("version 2 is refused")?;
+
+        assert_eq!(
+            error.to_string(),
+            "this pace reads version 1 of the project manifest, not 2"
+        );
+        assert_eq!(error.context_value("found"), Some("2"));
+        Ok(())
+    }
 }
