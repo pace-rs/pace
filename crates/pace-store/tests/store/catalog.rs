@@ -7,7 +7,7 @@ use jiff::{SignedDuration, civil::date};
 use pace_core::{ProjectKey, RoleKind, RoundingMode, RoundingPer};
 use pace_error::PaceError;
 use pace_store::{
-    catalog::{read_catalog, read_catalog_with, write_catalog_file},
+    catalog::{points_at_file, read_catalog, read_catalog_with, write_catalog_file},
     testing::scratch_dir,
 };
 
@@ -640,5 +640,16 @@ fn edited_text_of_new_project_record_reads() -> TestResult {
     let catalog = read_catalog_with(dir.path(), &record, PROJECT)?;
 
     assert_eq!(catalog.projects().count(), 1);
+    Ok(())
+}
+
+#[test]
+fn error_points_at_file_of_its_mistake_only() -> TestResult {
+    let dir = home(&[("roles.toml", "version = 1\n\n[work]\nkind = \"aera\"\n")])?;
+
+    let error = read_error(dir.path())?;
+
+    assert!(points_at_file(&error, &dir.path().join("roles.toml")));
+    assert!(!points_at_file(&error, &dir.path().join("clients.toml")));
     Ok(())
 }

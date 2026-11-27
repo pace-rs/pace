@@ -73,6 +73,13 @@ pub fn read_catalog_with(home: &Path, replaced: &Path, text: &str) -> PaceResult
     read_catalog_replacing(home, Some((replaced, text)))
 }
 
+/// Whether `error` of [`read_catalog`] points at the file `path`, so that
+/// a change of that file can mend it.
+#[must_use]
+pub fn points_at_file(error: &PaceError, path: &Path) -> bool {
+    error.snippet_name() == Some(path.display().to_string().as_str())
+}
+
 /// Write `text` as the catalog file `path` whole, through a temporary file
 /// next to it, such as the roles file once the user edited it.
 ///

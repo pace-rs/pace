@@ -4,12 +4,22 @@ expression: output
 ---
 $ pace role edit   # at 09:00
 success: false
-exit_code: 2
+exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-  × `pace role edit` has no terminal to open [SANDBOX]/home/roles.toml in an editor
-  help: edit the file by hand, or add a role with `pace role add`
+pace::roles::missing-key
+
+  × the role `work` has no `id`
+  │ `pace role edit` has no terminal to open [SANDBOX]/home/roles.toml in an editor
+   ╭─[[SANDBOX]/home/roles.toml:3:2]
+ 2 │ 
+ 3 │ [work]
+   ·  ──┬─
+   ·    ╰── this role
+ 4 │ kind = "aera"
+   ╰────
+  help: add `id` to the role
 
 
 $ pace now   # at 09:01

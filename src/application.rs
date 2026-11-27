@@ -14,7 +14,7 @@ use abscissa_core::{
 use miette::{MietteHandler, MietteHandlerOpts, ReportHandler};
 use pace_core::Catalog;
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_store::catalog::read_catalog;
+use pace_store::catalog::{points_at_file, read_catalog};
 
 use crate::clock::TEST_NOW;
 use crate::config::load_settings;
@@ -117,7 +117,7 @@ impl PaceApp {
         for warning in &settings.warnings {
             eprint!("{}", render(warning, self.style));
         }
-        let catalog = catalog_for(&dirs.data.path, command.mends_catalog())?;
+        let catalog = catalog_for(&dirs.data.path, command.mended_catalog_file())?;
         let project = discover_project(
             command.project.as_deref(),
             std::env::var_os("PACE_PROJECT"),
@@ -150,18 +150,20 @@ impl PaceApp {
     }
 }
 
-/// The catalog in `home`. A command that `mends` the catalog's files gets
-/// an empty catalog when they don't read; it reads the file it mends
-/// itself.
+/// The catalog in `home`. A command that mends the catalog file `mended`
+/// gets an empty catalog when a mistake in that file keeps the catalog
+/// from reading; it reads the file it mends itself.
 ///
 /// # Errors
 ///
-/// If the catalog doesn't read and the command doesn't mend it: the error
+/// If the catalog doesn't read for a mistake in any other file: the error
 /// points at the line.
-fn catalog_for(home: &Path, mends: bool) -> PaceResult<Catalog> {
+fn catalog_for(home: &Path, mended: Option<&str>) -> PaceResult<Catalog> {
     match read_catalog(home) {
         Ok(catalog) => Ok(catalog),
-        Err(_) if mends => Ok(Catalog::default()),
+        Err(error) if mended.is_some_and(|file| points_at_file(&error, &home.join(file))) => {
+            Ok(Catalog::default())
+        }
         Err(error) => Err(error),
     }
 }
@@ -292,30 +294,42 @@ mod tests {
         assert_eq!(style, Style::default());
     }
 
-    fn broken_home() -> tempfile::TempDir {
+    fn home_with(file: &str, text: &str) -> tempfile::TempDir {
         let home = pace_store::testing::scratch_dir().unwrap();
-        std::fs::write(
-            home.path().join("roles.toml"),
-            "version = 1\n\n[work]\nkind = \"aera\"\n",
-        )
-        .unwrap();
+        std::fs::write(home.path().join(file), text).unwrap();
         home
+    }
+
+    fn broken_home() -> tempfile::TempDir {
+        home_with("roles.toml", "version = 1\n\n[work]\nkind = \"aera\"\n")
     }
 
     #[test]
     fn broken_catalog_stops_command_that_does_not_mend_it() {
         let home = broken_home();
 
-        let error = catalog_for(home.path(), false).unwrap_err();
+        let error = catalog_for(home.path(), None).unwrap_err();
 
         assert_eq!(error.kind(), ErrorKind::InvalidInput);
     }
 
     #[test]
-    fn broken_catalog_is_empty_for_command_that_mends_it() {
+    fn broken_catalog_is_empty_for_command_that_mends_broken_file() {
         let home = broken_home();
 
-        assert_eq!(catalog_for(home.path(), true).unwrap(), Catalog::default());
+        assert_eq!(
+            catalog_for(home.path(), Some("roles.toml")).unwrap(),
+            Catalog::default()
+        );
+    }
+
+    #[test]
+    fn mistake_in_other_file_stops_command_that_mends_roles_file() {
+        let home = home_with("clients.toml", "version = 1\n\n[acme]\nname = 1\n");
+
+        let error = catalog_for(home.path(), Some("roles.toml")).unwrap_err();
+
+        assert!(points_at_file(&error, &home.path().join("clients.toml")));
     }
 
     #[test]

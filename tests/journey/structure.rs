@@ -179,7 +179,7 @@ fn role_edit_without_terminal_names_roles_file() -> TestResult {
 }
 
 #[test]
-fn broken_roles_file_stops_every_command_but_role_edit() -> TestResult {
+fn broken_roles_file_shows_its_line_to_role_edit_and_now() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write(
         "home/roles.toml",
@@ -187,6 +187,16 @@ fn broken_roles_file_stops_every_command_but_role_edit() -> TestResult {
     )?;
 
     let output = sandbox.journey(&[("09:00", &["role", "edit"]), ("09:01", &["now"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn mistake_in_clients_file_stops_role_edit_at_its_line() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write("home/clients.toml", "version = 1\n\n[acme]\nname = 1\n")?;
+
+    let output = sandbox.journey(&[("09:00", &["role", "edit"])])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

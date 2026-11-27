@@ -14,6 +14,7 @@ pub mod tracking;
 use std::path::PathBuf;
 
 use abscissa_core::{Command, Configurable, Runnable};
+use pace_store::catalog::ROLES_FILE;
 
 use self::{
     client::ClientCmd,
@@ -152,11 +153,14 @@ impl Runnable for EntryPoint {
 impl Configurable<()> for EntryPoint {}
 
 impl EntryPoint {
-    /// Whether the command mends a file of the catalog, so that it runs
-    /// even when the catalog doesn't read: `pace role edit` opens the
-    /// broken roles file to fix it.
-    pub(crate) const fn mends_catalog(&self) -> bool {
-        matches!(self.cmd, Some(PaceCmd::Role(RoleCmd::Edit(_))))
+    /// The catalog file the command mends, so that it runs even when a
+    /// mistake in that file keeps the catalog from reading: `pace role
+    /// edit` opens the broken roles file to fix it.
+    pub(crate) const fn mended_catalog_file(&self) -> Option<&'static str> {
+        match self.cmd {
+            Some(PaceCmd::Role(RoleCmd::Edit(_))) => Some(ROLES_FILE),
+            _ => None,
+        }
     }
 }
 
@@ -166,15 +170,17 @@ mod tests {
 
     use super::*;
 
-    fn mends(args: &[&str]) -> bool {
-        EntryPoint::try_parse_from(args).unwrap().mends_catalog()
+    fn mended(args: &[&str]) -> Option<&'static str> {
+        EntryPoint::try_parse_from(args)
+            .unwrap()
+            .mended_catalog_file()
     }
 
     #[test]
-    fn only_role_edit_mends_catalog() {
-        assert!(mends(&["pace", "role", "edit"]));
-        assert!(!mends(&["pace", "role", "list"]));
-        assert!(!mends(&["pace", "now"]));
-        assert!(!mends(&["pace"]));
+    fn only_role_edit_mends_catalog_file_and_that_is_roles_file() {
+        assert_eq!(mended(&["pace", "role", "edit"]), Some(ROLES_FILE));
+        assert_eq!(mended(&["pace", "role", "list"]), None);
+        assert_eq!(mended(&["pace", "now"]), None);
+        assert_eq!(mended(&["pace"]), None);
     }
 }

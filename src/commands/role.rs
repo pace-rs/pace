@@ -6,7 +6,7 @@ use abscissa_core::{Command, Runnable};
 use pace_core::{ArchiveReason, Archived, Catalog, Ids, Role, RoleId, RoleKey};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, closest_name};
 use pace_store::{
-    catalog::{ROLES_FILE, read_catalog_with, write_catalog_file},
+    catalog::{ROLES_FILE, points_at_file, read_catalog_with, write_catalog_file},
     field_edit::{FieldEdit, FieldValue, write_field_edits},
 };
 
@@ -299,15 +299,10 @@ impl Runnable for RoleEditCmd {
 /// write it.
 fn edit_roles(context: &Context) -> PaceResult<()> {
     let home = &context.dirs.data.path;
-    let roles_file = home.join(ROLES_FILE);
-    let asker = &context.terminal;
-    if !asker.can_ask() {
-        return Err(no_terminal_to_edit(&roles_file));
-    }
     let editor = editor_command(context.editor.as_deref(), true)?;
     let line = edit_roles_file(
         home,
-        asker,
+        &context.terminal,
         |text| edit_in_editor(&editor, text, ".toml"),
         print_error,
     )?;
@@ -318,6 +313,13 @@ fn edit_roles(context: &Context) -> PaceResult<()> {
 /// catalog reads it, and write it; the sentence that says so. A mistake is
 /// shown with `report`, a mistake of the file as it is before the editor
 /// opens, and `asker` offers to open the file again.
+///
+/// # Errors
+///
+/// If a mistake in another file of the catalog keeps it from reading, as
+/// the roles file can't mend it; without a terminal, the roles file's
+/// mistake or [`no_terminal_to_edit`]; if the user leaves a mistake in the
+/// file, or the file can't be read or written.
 fn edit_roles_file(
     home: &Path,
     asker: &dyn Ask,
@@ -337,8 +339,22 @@ fn edit_roles_file(
             .attach_context("path", roles_file.display().to_string()));
         }
     };
-    if let Err(mistake) = read_catalog_with(home, &roles_file, &text) {
-        report(&mistake);
+    let mistake = match read_catalog_with(home, &roles_file, &text) {
+        Err(mistake) if !points_at_file(&mistake, &roles_file) => return Err(mistake),
+        checked => checked.err(),
+    };
+    if !asker.can_ask() {
+        return Err(mistake.map_or_else(
+            || no_terminal_to_edit(&roles_file),
+            |mistake| {
+                mistake
+                    .append_guidance_line(NO_TERMINAL)
+                    .attach_context("roles-file", roles_file.display().to_string())
+            },
+        ));
+    }
+    if let Some(mistake) = &mistake {
+        report(mistake);
     }
     let (edited, catalog) = edit_until_checked(
         EditedFile {
@@ -362,14 +378,15 @@ fn edit_roles_file(
 /// The error of `pace role edit` without a terminal: it names the file to
 /// edit by hand.
 fn no_terminal_to_edit(roles_file: &Path) -> Box<PaceError> {
-    PaceError::new(
-        ErrorKind::InvalidInput,
-        "`pace role edit` has no terminal to open {path} in an editor",
-    )
-    .attach_context("path", roles_file.display().to_string())
-    .attach_hint("edit the file by hand, or add a role with `pace role add`")
-    .attach_exit_code(ExitCode::Usage)
+    PaceError::new(ErrorKind::InvalidInput, NO_TERMINAL)
+        .attach_context("roles-file", roles_file.display().to_string())
+        .attach_hint("edit the file by hand, or add a role with `pace role add`")
+        .attach_exit_code(ExitCode::Usage)
 }
+
+/// The line that says `pace role edit` has no terminal for the editor; its
+/// placeholder is `{roles-file}`.
+const NO_TERMINAL: &str = "`pace role edit` has no terminal to open {roles-file} in an editor";
 
 /// `text` as a role key; a usage error if it is none.
 fn role_key(text: &str) -> PaceResult<RoleKey> {
@@ -563,6 +580,75 @@ mod tests {
             events.into_inner(),
             ["`aera` is not a role kind", "opened true"]
         );
+        assert_eq!(
+            std::fs::read_to_string(home.path().join(ROLES_FILE)).unwrap(),
+            WORK
+        );
+    }
+
+    #[test]
+    fn edit_stops_at_mistake_in_other_catalog_file_before_editor_opens() {
+        let home = pace_store::testing::scratch_dir().unwrap();
+        std::fs::write(home.path().join(ROLES_FILE), WORK).unwrap();
+        let clients_file = home.path().join("clients.toml");
+        std::fs::write(&clients_file, "version = 1\n\n[acme]\nname = 1\n").unwrap();
+        let reported = std::cell::RefCell::new(Vec::new());
+
+        let error = edit_roles_file(
+            home.path(),
+            &Scripted::confirming([]),
+            saving(&[]),
+            |error| reported.borrow_mut().push(error.to_string()),
+        )
+        .unwrap_err();
+
+        assert!(points_at_file(&error, &clients_file), "{error:?}");
+        assert_eq!(reported.into_inner(), Vec::<String>::new());
+    }
+
+    #[test]
+    fn edit_without_terminal_shows_mistake_of_roles_file() {
+        let home = pace_store::testing::scratch_dir().unwrap();
+        let roles_file = home.path().join(ROLES_FILE);
+        std::fs::write(
+            &roles_file,
+            WORK.replace("kind = \"area\"", "kind = \"aera\""),
+        )
+        .unwrap();
+
+        let error = edit_roles_file(
+            home.path(),
+            &Scripted::without_terminal(),
+            saving(&[]),
+            |_| {},
+        )
+        .unwrap_err();
+
+        assert!(points_at_file(&error, &roles_file), "{error:?}");
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "`aera` is not a role kind\n`pace role edit` has no terminal to open {} in an editor",
+                roles_file.display()
+            )
+        );
+        assert_ne!(error.hint(), no_terminal_to_edit(&roles_file).hint());
+    }
+
+    #[test]
+    fn edit_without_terminal_names_file_to_edit_by_hand() {
+        let home = pace_store::testing::scratch_dir().unwrap();
+        std::fs::write(home.path().join(ROLES_FILE), WORK).unwrap();
+
+        let error = edit_roles_file(
+            home.path(),
+            &Scripted::without_terminal(),
+            saving(&[]),
+            |_| {},
+        )
+        .unwrap_err();
+
+        assert_eq!(error.exit_code(), ExitCode::Usage);
         assert_eq!(
             std::fs::read_to_string(home.path().join(ROLES_FILE)).unwrap(),
             WORK

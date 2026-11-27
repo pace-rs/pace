@@ -229,6 +229,12 @@ impl PaceError {
         self.error_code.as_deref() == Some(code)
     }
 
+    /// The name of the file the snippet points at, if the error has one.
+    #[must_use]
+    pub fn snippet_name(&self) -> Option<&str> {
+        self.snippet.as_ref().map(|snippet| snippet.source.name())
+    }
+
     /// A context value by key, if present.
     #[must_use]
     pub fn context_value(&self, key: &str) -> Option<&str> {

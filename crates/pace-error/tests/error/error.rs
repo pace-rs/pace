@@ -185,3 +185,16 @@ fn snippet_points_at_the_offending_line() -> TestResult {
     assert!(report.contains("did you mean `time-zone`?"), "{report}");
     Ok(())
 }
+
+#[test]
+fn snippet_name_is_the_file_it_points_at() {
+    let error = PaceError::new(ErrorKind::Configuration, "unknown key").attach_snippet(
+        Snippet::new("pace.global.toml", "version = 1\n", 0..7, "here"),
+    );
+
+    assert_eq!(error.snippet_name(), Some("pace.global.toml"));
+    assert_eq!(
+        PaceError::new(ErrorKind::Configuration, "unknown key").snippet_name(),
+        None
+    );
+}
