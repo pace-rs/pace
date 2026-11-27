@@ -134,11 +134,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # Fails if `pace config show`, `now`, `begin`, `adjust --last`, `undo`
       # or `forget --last` takes longer than 50 ms on three years of history
-      # (restart proposal, 3.1); the results go into the job summary.
+      # (restart proposal, 3.1); the results go into the job summary. On
+      # Windows the bench only reports: the medians of GitHub's Windows runner
+      # spread too far between runs to hold a budget (3.15).
       - run: cargo bench --bench latency
+        continue-on-error: ${{ matrix.os == 'windows-latest' }}
       # On Windows, a second run without Defender's real-time scan shows how
-      # much of the time the scanner takes. It is for the summary only and
-      # never fails the job; users run with the scanner on.
+      # much of the time the scanner takes; users run with the scanner on.
       - name: latency without Defender's real-time scan
         if: always() && runner.os == 'Windows'
         continue-on-error: true
