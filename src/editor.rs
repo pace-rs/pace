@@ -220,7 +220,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn editor_gets_text_in_file_with_suffix_and_returns_saved_text() {
-        let editor = "sh -c 'case \"$0\" in *.toml) sed -i s/draft/offer/ \"$0\";; esac'";
+        // POSIX sed: GNU's `-i` without a suffix fails on macOS's BSD sed.
+        let editor = "sh -c 'case \"$0\" in *.toml) \
+            sed s/draft/offer/ \"$0\" > \"$0.new\" && mv \"$0.new\" \"$0\";; esac'";
 
         let text = edit_in_editor(editor, "note = \"draft\"\n", ".toml").unwrap();
 
