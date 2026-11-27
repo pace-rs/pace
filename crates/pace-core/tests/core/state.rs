@@ -939,3 +939,61 @@ fn overlaps_name_each_pair_with_time_it_shares() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn entries_that_only_touch_do_not_overlap() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.push(
+        "2026-11-26T08:00[Europe/Berlin]",
+        logged(entry(1)?, "2026-11-26T09:00[Europe/Berlin]")?,
+    )?;
+    _ = log.push(
+        "2026-11-26T09:00[Europe/Berlin]",
+        logged(entry(2)?, "2026-11-26T10:00[Europe/Berlin]")?,
+    )?;
+    let state = State::from_events(&log.events);
+
+    assert_eq!(state.overlaps(&at(NOW)?), []);
+    Ok(())
+}
+
+#[test]
+fn overlapping_range_leaves_out_entry_that_only_touches_it() -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push(
+        "2026-11-26T09:00[Europe/Berlin]",
+        logged(e, "2026-11-26T10:00[Europe/Berlin]")?,
+    )?;
+    let state = State::from_events(&log.events);
+    let overlapping = |start: &str, end: &str| -> Result<Vec<EntryId>, jiff::Error> {
+        let (start, end) = (at(start)?, at(end)?);
+        Ok(state
+            .overlapping(&start, &end, &[], &at(NOW)?)
+            .map(|entry| entry.id)
+            .collect())
+    };
+
+    assert_eq!(
+        overlapping(
+            "2026-11-26T08:00[Europe/Berlin]",
+            "2026-11-26T09:00[Europe/Berlin]"
+        )?,
+        []
+    );
+    assert_eq!(
+        overlapping(
+            "2026-11-26T10:00[Europe/Berlin]",
+            "2026-11-26T11:00[Europe/Berlin]"
+        )?,
+        []
+    );
+    assert_eq!(
+        overlapping(
+            "2026-11-26T09:59[Europe/Berlin]",
+            "2026-11-26T11:00[Europe/Berlin]"
+        )?,
+        [e]
+    );
+    Ok(())
+}
