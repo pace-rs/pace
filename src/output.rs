@@ -302,10 +302,7 @@ fn held(
     reason: Option<&str>,
 ) -> String {
     let (state, now) = (&outcome.state, &outcome.now);
-    let open = outcome
-        .before
-        .entry(entry.id)
-        .and_then(|before| before.holds.iter().find(|hold| hold.end.is_none()));
+    let open = outcome.before.entry(entry.id).and_then(Entry::open_hold);
     if let Some(hold) = open {
         return reason_is_now(outcome, entry, "held", &hold.start, reason);
     }
@@ -330,10 +327,7 @@ fn paused(
     kind: PauseKind,
     reason: Option<&str>,
 ) -> String {
-    let open = outcome
-        .before
-        .entry(entry.id)
-        .and_then(|before| before.pauses.iter().find(|pause| pause.end.is_none()));
+    let open = outcome.before.entry(entry.id).and_then(Entry::open_pause);
     if let Some(pause) = open {
         return reason_is_now(outcome, entry, "paused", &pause.start, reason);
     }
