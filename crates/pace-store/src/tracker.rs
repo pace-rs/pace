@@ -84,7 +84,7 @@ impl<S: EventStore> Tracker<S> {
                 appending,
             } = reading.decide(marker, events)?;
             match appending.appended(self.store.append(batch, read)?, self.clock.now())? {
-                AfterAppend::Done(outcome) => return Ok(outcome),
+                AfterAppend::Done(outcome) => return Ok(*outcome),
                 AfterAppend::ReadAgain(again) => reading = again,
             }
         }

@@ -102,8 +102,8 @@ pub struct Appending<'a> {
 /// What comes after an append.
 #[derive(Debug)]
 pub enum AfterAppend<'a> {
-    /// The batch is in the store.
-    Done(Outcome),
+    /// The batch is in the store; boxed, since an outcome holds two states.
+    Done(Box<Outcome>),
     /// Another command wrote since the read: read and decide again.
     ReadAgain(Reading<'a>),
 }
@@ -192,10 +192,10 @@ impl<'a> Appending<'a> {
             Appended::Recorded {
                 events: recorded,
                 warnings,
-            } => Ok(AfterAppend::Done(Outcome {
+            } => Ok(AfterAppend::Done(Box::new(Outcome {
                 warnings,
-                ..outcome(self.events, self.before, recorded, self.now)
-            })),
+                ..outcome(&self.events, self.before, recorded, self.now)
+            }))),
             Appended::Stale if self.run.attempt < ATTEMPTS => Reading::at(
                 CommandRun {
                     attempt: self.run.attempt + 1,
@@ -211,7 +211,7 @@ impl<'a> Appending<'a> {
 
 /// What a command did, from the events it read and the ones it appended.
 fn outcome(
-    events: Vec<RecordedEvent>,
+    events: &[RecordedEvent],
     before: State,
     recorded: Vec<RecordedEvent>,
     now: ZonedDateTime,
@@ -228,13 +228,12 @@ fn outcome(
         .filter(|event| undone_batches.contains(&event.batch))
         .cloned()
         .collect();
-    let mut all = events;
-    all.extend(recorded.iter().cloned());
+    let state = before.clone().followed_by(&recorded, events);
     Outcome {
         recorded,
         warnings: Vec::new(),
         before,
-        state: State::from_events(&all),
+        state,
         undone,
         now,
     }

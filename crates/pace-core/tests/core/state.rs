@@ -658,3 +658,178 @@ fn entry_outside_state_shows_its_whole_id() -> TestResult {
     assert_eq!(state.short_id(unknown), unknown.to_string());
     Ok(())
 }
+
+// a batch on top of the state
+
+/// The state of `read` followed by `batch`, beside the state built from
+/// all events.
+fn followed_and_rebuilt(read: &[RecordedEvent], batch: &[RecordedEvent]) -> (State, State) {
+    let followed = State::from_events(read).followed_by(batch, read);
+    let all: Vec<RecordedEvent> = read.iter().chain(batch).cloned().collect();
+    (followed, State::from_events(&all))
+}
+
+/// A day with an entry ended at 10:00 and one running since then.
+fn day(log: &mut Log) -> Result<(EntryId, EntryId), Box<dyn std::error::Error>> {
+    let (first, second) = (entry(1)?, entry(2)?);
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(first))?;
+    let switched = log.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        EventKind::EntryEnded { entry: first },
+    )?;
+    log.push_in(switched, "2026-11-26T10:00[Europe/Berlin]", begun(second))?;
+    Ok((first, second))
+}
+
+#[test]
+fn batch_after_read_events_gives_state_of_all_events() -> TestResult {
+    let mut log = Log::new(1)?;
+    let (first, second) = day(&mut log)?;
+    let read = log.events.clone();
+    _ = log.push("2026-11-26T11:00[Europe/Berlin]", note_set(first, "Call"))?;
+    _ = log.push(
+        "2026-11-26T11:05[Europe/Berlin]",
+        EventKind::EntryHeld {
+            entry: second,
+            source: HoldSource::Outer,
+            reason: None,
+        },
+    )?;
+
+    let (followed, rebuilt) = followed_and_rebuilt(&read, &log.events[read.len()..]);
+
+    assert_eq!(followed, rebuilt);
+    assert_eq!(
+        followed.entry(first).ok_or("first")?.note.as_deref(),
+        Some("Call")
+    );
+    Ok(())
+}
+
+#[test]
+fn forget_on_top_removes_entry_as_rebuild_does() -> TestResult {
+    let mut log = Log::new(1)?;
+    let (first, _) = day(&mut log)?;
+    let read = log.events.clone();
+    _ = log.push(
+        "2026-11-26T11:00[Europe/Berlin]",
+        EventKind::EntryForgotten { entry: first },
+    )?;
+
+    let (followed, rebuilt) = followed_and_rebuilt(&read, &log.events[read.len()..]);
+
+    assert_eq!(followed, rebuilt);
+    assert!(followed.entry(first).is_none());
+    Ok(())
+}
+
+#[test]
+fn undo_on_top_builds_entries_of_undone_batch_again() -> TestResult {
+    let mut log = Log::new(1)?;
+    let (first, second) = day(&mut log)?;
+    let adjusted = log.push("2026-11-26T11:00[Europe/Berlin]", note_set(first, "Call"))?;
+    let read = log.events.clone();
+    let undo = log.push(
+        "2026-11-26T11:05[Europe/Berlin]",
+        EventKind::BatchUndone { batch: adjusted },
+    )?;
+    // An undo is filed with each moment of the batch it undoes.
+    log.push_in(
+        undo,
+        "2026-11-26T11:05[Europe/Berlin]",
+        EventKind::BatchUndone { batch: adjusted },
+    )?;
+
+    let (followed, rebuilt) = followed_and_rebuilt(&read, &log.events[read.len()..]);
+
+    assert_eq!(followed, rebuilt);
+    assert_eq!(
+        followed.entry(first).ok_or("first")?.note.as_deref(),
+        Some("Write offer")
+    );
+    assert_eq!(
+        followed
+            .last_undoable(log.device)
+            .map(|target| target.batch),
+        rebuilt.last_undoable(log.device).map(|target| target.batch)
+    );
+    assert!(followed.entry(second).is_some());
+    Ok(())
+}
+
+#[test]
+fn undo_of_begin_on_top_removes_entry_as_rebuild_does() -> TestResult {
+    let mut log = Log::new(1)?;
+    let (first, second) = day(&mut log)?;
+    let began = log.push("2026-11-26T11:00[Europe/Berlin]", begun(entry(3)?))?;
+    _ = log.push(
+        "2026-11-26T11:30[Europe/Berlin]",
+        EventKind::CatchNoted {
+            entry: entry(3)?,
+            text: "call the tax office".to_owned(),
+        },
+    )?;
+    let read = log.events.clone();
+    _ = log.push(
+        "2026-11-26T11:40[Europe/Berlin]",
+        EventKind::BatchUndone { batch: began },
+    )?;
+
+    let (followed, rebuilt) = followed_and_rebuilt(&read, &log.events[read.len()..]);
+
+    assert_eq!(followed, rebuilt);
+    assert!(followed.entry(entry(3)?).is_none());
+    assert!(followed.entry(first).is_some() && followed.entry(second).is_some());
+    Ok(())
+}
+
+#[test]
+fn batch_merged_before_read_events_gives_state_of_all_events() -> TestResult {
+    let mut laptop = Log::new(1)?;
+    let mut desktop = Log::new(2)?;
+    let (first, _) = day(&mut laptop)?;
+    _ = desktop.push("2026-11-26T10:30[Europe/Berlin]", note_set(first, "Late"))?;
+    let mut read = laptop.events.clone();
+    read.extend(desktop.events);
+    // The laptop's clock runs behind: its adjust merges before the
+    // desktop's, which wins.
+    _ = laptop.push("2026-11-26T10:20[Europe/Berlin]", note_set(first, "Early"))?;
+    let batch = &laptop.events[laptop.events.len() - 1..];
+
+    let (followed, rebuilt) = followed_and_rebuilt(&read, batch);
+
+    assert_eq!(followed, rebuilt);
+    assert_eq!(
+        followed.entry(first).ok_or("first")?.note.as_deref(),
+        Some("Late")
+    );
+    Ok(())
+}
+
+#[test]
+fn undo_on_top_replays_no_later_event_of_its_own_batch() -> TestResult {
+    let mut log = Log::new(1)?;
+    let (first, _) = day(&mut log)?;
+    let adjusted = log.push("2026-11-26T11:00[Europe/Berlin]", note_set(first, "Call"))?;
+    let read = log.events.clone();
+    let undo = log.push(
+        "2026-11-26T11:05[Europe/Berlin]",
+        EventKind::BatchUndone { batch: adjusted },
+    )?;
+    // The same batch goes on with an event about the undone batch's entry,
+    // which the undo must not apply before its turn.
+    log.push_in(
+        undo,
+        "2026-11-26T11:06[Europe/Berlin]",
+        EventKind::CatchNoted {
+            entry: first,
+            text: "call the tax office".to_owned(),
+        },
+    )?;
+
+    let (followed, rebuilt) = followed_and_rebuilt(&read, &log.events[read.len()..]);
+
+    assert_eq!(followed, rebuilt);
+    assert_eq!(followed.entry(first).ok_or("first")?.catches.len(), 1);
+    Ok(())
+}

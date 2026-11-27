@@ -5,8 +5,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use jiff::ZonedDateTime;
 
 use crate::{
-    BatchId, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin, EventKind, HoldSource,
-    PauseKind, ProjectRef, RecordedEvent, Tag,
+    BatchId, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin, EventId, EventKind, Hlc,
+    HoldSource, PauseKind, ProjectRef, RecordedEvent, Tag,
     entry::{Catch, Hold, Pause},
     short_id::short_id_among,
 };
@@ -24,7 +24,15 @@ pub struct State {
     /// Where each batch is in `batches`, so an event finds its batch without
     /// a scan.
     batch_positions: HashMap<BatchId, usize>,
+    /// The entries forgotten for good.
+    forgotten: BTreeSet<EntryId>,
+    /// The merge key of the last event applied, so a batch on top knows
+    /// whether it comes after all of them.
+    last: Option<MergeKey>,
 }
+
+/// Where an event stands in merged order; see [`RecordedEvent::merge_key`].
+type MergeKey = (Hlc, DeviceId, EventId);
 
 /// Whether a later batch took a batch back.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,7 +92,11 @@ impl State {
             })
             .collect();
 
-        let mut state = Self::default();
+        let mut state = Self {
+            forgotten,
+            last: ordered.last().map(|recorded| recorded.merge_key()),
+            ..Self::default()
+        };
         for recorded in ordered {
             let standing = if undone.contains(&recorded.batch) {
                 Standing::Undone
@@ -93,10 +105,91 @@ impl State {
             };
             state.record_batch(recorded, standing);
             if standing == Standing::Kept {
-                state.apply(recorded, &forgotten);
+                state.apply(recorded);
             }
         }
         state
+    }
+
+    /// This state, built from the events of `read`, followed by `batch`:
+    /// the state of all their events, as [`from_events`](Self::from_events)
+    /// builds it.
+    ///
+    /// A batch whose events all merge after the read ones applies on top,
+    /// and an undo builds only the entries of the batch it undoes again. A
+    /// batch that merges between the read events, such as one from a device
+    /// whose clock runs behind, builds the state from all events.
+    #[must_use]
+    pub fn followed_by(mut self, batch: &[RecordedEvent], read: &[RecordedEvent]) -> Self {
+        let mut ordered: Vec<&RecordedEvent> = batch.iter().collect();
+        ordered.sort_by_key(|recorded| recorded.merge_key());
+        let on_top = match (self.last, ordered.first()) {
+            (Some(last), Some(first)) => first.merge_key() > last,
+            _ => true,
+        };
+        if !on_top {
+            let all: Vec<RecordedEvent> = read.iter().chain(batch).cloned().collect();
+            return Self::from_events(&all);
+        }
+        for recorded in ordered {
+            self.record_batch(recorded, Standing::Kept);
+            match recorded.event.kind {
+                EventKind::BatchUndone { batch: undone } => {
+                    self.undo(undone, read.iter().chain(batch));
+                }
+                EventKind::EntryForgotten { entry } => {
+                    _ = self.forgotten.insert(entry);
+                    _ = self.entries.remove(&entry);
+                }
+                _ => self.apply(recorded),
+            }
+            self.last = Some(recorded.merge_key());
+        }
+        self
+    }
+
+    /// Take back the batch `undone`: its events count as never written, so
+    /// the entries they concern are built again from the `events` that
+    /// still count, up to the last one applied.
+    fn undo<'e>(&mut self, undone: BatchId, events: impl Iterator<Item = &'e RecordedEvent>) {
+        let Some(record) = self
+            .batch_positions
+            .get(&undone)
+            .and_then(|&position| self.batches.get_mut(position))
+        else {
+            return;
+        };
+        if record.standing == Standing::Undone {
+            return;
+        }
+        record.standing = Standing::Undone;
+        let concerned = record.entries.clone();
+        for id in &concerned {
+            _ = self.entries.remove(id);
+        }
+        let mut again: Vec<&RecordedEvent> = events
+            .filter(|recorded| {
+                recorded
+                    .event
+                    .kind
+                    .entry()
+                    .is_some_and(|id| concerned.contains(&id))
+                    && self.last.is_none_or(|last| recorded.merge_key() <= last)
+                    && self.standing(recorded.batch) == Some(Standing::Kept)
+            })
+            .collect();
+        again.sort_by_key(|recorded| recorded.merge_key());
+        for recorded in again {
+            self.apply(recorded);
+        }
+    }
+
+    /// Whether the batch `id` still counts, if the state knows it.
+    fn standing(&self, id: BatchId) -> Option<Standing> {
+        self.batch_positions
+            .get(&id)
+            .and_then(|&position| self.batches.get(position))
+            .map(|batch| batch.standing)
     }
 
     fn record_batch(&mut self, recorded: &RecordedEvent, standing: Standing) {
@@ -168,7 +261,7 @@ impl State {
         })
     }
 
-    fn apply(&mut self, recorded: &RecordedEvent, forgotten: &BTreeSet<EntryId>) {
+    fn apply(&mut self, recorded: &RecordedEvent) {
         let at = &recorded.event.at;
         match &recorded.event.kind {
             EventKind::EntryBegun {
@@ -176,34 +269,28 @@ impl State {
                 project,
                 note,
                 tags,
-            } => self.insert(
-                new_entry(
-                    recorded,
-                    *entry,
-                    None,
-                    project.as_ref(),
-                    note.as_ref(),
-                    tags,
-                ),
-                forgotten,
-            ),
+            } => self.insert(new_entry(
+                recorded,
+                *entry,
+                None,
+                project.as_ref(),
+                note.as_ref(),
+                tags,
+            )),
             EventKind::EntryLogged {
                 entry,
                 end,
                 project,
                 note,
                 tags,
-            } => self.insert(
-                new_entry(
-                    recorded,
-                    *entry,
-                    Some(end),
-                    project.as_ref(),
-                    note.as_ref(),
-                    tags,
-                ),
-                forgotten,
-            ),
+            } => self.insert(new_entry(
+                recorded,
+                *entry,
+                Some(end),
+                project.as_ref(),
+                note.as_ref(),
+                tags,
+            )),
             EventKind::EntryHeld {
                 entry,
                 source,
@@ -250,8 +337,8 @@ impl State {
         }
     }
 
-    fn insert(&mut self, entry: Entry, forgotten: &BTreeSet<EntryId>) {
-        if !forgotten.contains(&entry.id) {
+    fn insert(&mut self, entry: Entry) {
+        if !self.forgotten.contains(&entry.id) {
             _ = self.entries.entry(entry.id).or_insert(entry);
         }
     }
