@@ -370,10 +370,10 @@ pub fn read_hint(error: &std::io::Error) -> &'static str {
 
 /// The known name closest to `input`, if any is close enough (Jaro-Winkler
 /// similarity above 0.8).
-pub fn closest_name<'file>(
+pub fn closest_name<'names>(
     input: &str,
-    names: impl Iterator<Item = &'file str>,
-) -> Option<&'file str> {
+    names: impl Iterator<Item = &'names str>,
+) -> Option<&'names str> {
     names
         .map(|name| (strsim::jaro_winkler(input, name), name))
         .filter(|(score, _)| *score > 0.8)

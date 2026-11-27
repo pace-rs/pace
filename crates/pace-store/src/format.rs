@@ -103,8 +103,8 @@ struct File {
 }
 
 #[derive(Debug, Serialize)]
-struct Chunk<'file> {
-    event: &'file [Record],
+struct Chunk<'records> {
+    event: &'records [Record],
 }
 
 /// The header of a new event file.
