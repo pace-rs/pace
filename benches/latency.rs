@@ -17,7 +17,7 @@
 //!
 //! Run with `cargo bench --bench latency`; it fails if the median of a
 //! command is over the budget. In GitHub Actions, the results also go into
-//! the job summary.
+//! the job summary, under a heading with `LATENCY_LABEL` if it is set.
 
 use std::{
     collections::BTreeMap,
@@ -101,8 +101,11 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     ];
 
     if let Some(summary) = std::env::var_os("GITHUB_STEP_SUMMARY") {
+        // CI names a second run, such as one without the virus scanner.
+        let label = std::env::var("LATENCY_LABEL")
+            .map_or_else(|_| String::new(), |label| format!(" ({label})"));
         let mut table = format!(
-            "### Latency on {}\n\n{events} events of three years; budget {BUDGET:?} for the \
+            "### Latency on {}{label}\n\n{events} events of three years; budget {BUDGET:?} for the \
              median, except for building the index.\n\n| Command | Median | p95 |\n\
              | --- | --- | --- |\n\
              | `pace now`, building the index | {elapsed:.1?} | |\n",

@@ -136,6 +136,18 @@ jobs:
       # or `forget --last` takes longer than 50 ms on three years of history
       # (restart proposal, 3.1); the results go into the job summary.
       - run: cargo bench --bench latency
+      # On Windows, a second run without Defender's real-time scan shows how
+      # much of the time the scanner takes. It is for the summary only and
+      # never fails the job; users run with the scanner on.
+      - name: latency without Defender's real-time scan
+        if: always() && runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        env:
+          LATENCY_LABEL: without Defender's real-time scan
+        run: |
+          Set-MpPreference -DisableRealtimeMonitoring $true
+          cargo bench --bench latency
 
   coverage:
     name: coverage
