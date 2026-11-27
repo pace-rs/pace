@@ -8,7 +8,8 @@ use pace_core::{Catalog, ProjectKey, RoleKind, RoundingMode, RoundingPer};
 use pace_error::PaceError;
 use pace_store::{
     catalog::{
-        MendedCatalog, points_at_file, read_catalog, read_catalog_mending, write_catalog_file,
+        MendedCatalog, points_at_file, project_record_keys, read_catalog, read_catalog_mending,
+        write_catalog_file,
     },
     testing::scratch_dir,
 };
@@ -397,6 +398,21 @@ fn hidden_files_and_other_files_in_projects_are_no_records() -> TestResult {
     let catalog = read_catalog(dir.path())?;
 
     assert_eq!(catalog.projects().count(), 0);
+    Ok(())
+}
+
+#[test]
+fn record_keys_come_from_file_names_whether_records_read_or_not() -> TestResult {
+    let dir = home(&[
+        ("projects/webshop.toml", "version = 1\nkey = \"webshop\"\n"),
+        ("projects/garden.toml", "version = 1\nid = \""),
+        ("projects/.pace-a1b2c3.toml", "half a write"),
+        ("projects/notes.md", "# notes"),
+    ])?;
+
+    let keys = project_record_keys(dir.path())?;
+
+    assert_eq!(keys, ["garden", "webshop"]);
     Ok(())
 }
 

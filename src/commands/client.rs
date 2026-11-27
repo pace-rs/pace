@@ -12,6 +12,7 @@ use pace_store::{
 };
 
 use crate::application::{Context, PACE_APP, exit_on_error, print_error};
+use crate::commands::listing_hint;
 use crate::editor::{EditedFile, SavedFile, edit_in_editor, edit_until_checked, editor_command};
 use crate::output::{aligned, listed, usage};
 use crate::print::print_lines;
@@ -338,27 +339,33 @@ fn clients_file_alone(
     match read_catalog_mending(home, path, None) {
         Err(mistake) if points_at_file(&mistake, path) => Ok(ClientAlone::Broken(mistake)),
         Err(error) => Err(error),
-        Ok(MendedCatalog::Alone(mut records, _)) => {
+        Ok(MendedCatalog::Alone(mut records, left)) => {
             match records.clients.iter().position(|client| client.key == *key) {
                 Some(at) => Ok(ClientAlone::Read(records.clients.swap_remove(at))),
                 None => Err(unknown_client(
                     key,
                     records.clients.iter().map(|client| client.key.as_str()),
+                    Some((home, &left)),
                 )),
             }
         }
         Ok(MendedCatalog::Whole(_)) => Err(unknown_client(
             key,
             catalog.clients().map(|client| client.key.as_str()),
+            None,
         )),
     }
 }
 
 /// The error for the client `key` that pace doesn't know: it names the
 /// closest of `keys`.
-fn unknown_client<'key>(key: &ClientKey, keys: impl Iterator<Item = &'key str>) -> Box<PaceError> {
+fn unknown_client<'key>(
+    key: &ClientKey,
+    keys: impl Iterator<Item = &'key str>,
+    left: Option<(&Path, &PaceError)>,
+) -> Box<PaceError> {
     let hint = closest_name(key.as_str(), keys).map_or_else(
-        || "`pace client list` shows the clients".to_owned(),
+        || listing_hint("pace client list", "clients", left),
         |closest| format!("did you mean `{closest}`?"),
     );
     PaceError::new(
@@ -544,7 +551,11 @@ mod tests {
 
     #[test]
     fn edit_of_unknown_client_names_closest_key() {
-        let error = unknown_client(&"amce".parse().unwrap(), ["acme", "globex"].into_iter());
+        let error = unknown_client(
+            &"amce".parse().unwrap(),
+            ["acme", "globex"].into_iter(),
+            None,
+        );
 
         assert_eq!(error.to_string(), "pace doesn't know the client `amce`");
         assert_eq!(error.hint(), Some("did you mean `acme`?"));
@@ -720,6 +731,19 @@ mod tests {
             client_table(home.path(), &Catalog::default(), "amce".parse().unwrap()).unwrap_err();
 
         assert_eq!(error.hint(), Some("did you mean `acme`?"));
+    }
+
+    #[test]
+    fn unknown_client_beside_broken_record_names_command_that_fixes_it() {
+        let home = home_with_acme_and_broken_record();
+
+        let error =
+            client_table(home.path(), &Catalog::default(), "initech".parse().unwrap()).unwrap_err();
+
+        assert_eq!(
+            error.hint(),
+            Some("`pace project edit webshop` fixes the mistake that stops `pace client list`")
+        );
     }
 
     #[test]

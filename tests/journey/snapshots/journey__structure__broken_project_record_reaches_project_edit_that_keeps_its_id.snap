@@ -8,7 +8,7 @@ exit_code: 1
 
 ----- stderr -----
   × pace has no record of the project `garden`
-  help: `pace project list` shows the projects
+  help: `pace project edit webshop` fixes the mistake that stops `pace project list`
 
 
 success: false

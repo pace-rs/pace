@@ -8,8 +8,8 @@ use pace_core::{ArchiveReason, Archived, Catalog, Ids, ProjectId, ProjectKey, Pr
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, closest_name};
 use pace_store::{
     catalog::{
-        MendedCatalog, points_at_file, project_record_path, read_catalog_mending,
-        write_catalog_file,
+        MendedCatalog, points_at_file, project_record_keys, project_record_path,
+        read_catalog_mending, write_catalog_file,
     },
     field_edit::{FieldEdit, FieldValue, write_field_edits},
     toml_file::{TomlFile, TomlTable, TomlValue},
@@ -17,6 +17,7 @@ use pace_store::{
 
 use crate::application::{Context, PACE_APP, exit_on_error, print_error};
 use crate::clock::{RandomIds, clock_for_run};
+use crate::commands::listing_hint;
 use crate::commands::project_init::ProjectInitCmd;
 use crate::editor::{EditedFile, SavedFile, edit_in_editor, edit_until_checked, editor_command};
 use crate::output::{aligned, listed, usage};
@@ -348,9 +349,13 @@ fn known_project<'catalog>(
     catalog: &'catalog Catalog,
     key: &ProjectKey,
 ) -> PaceResult<&'catalog ProjectRecord> {
-    catalog
-        .project(key)
-        .ok_or_else(|| unknown_project(key, catalog.projects().map(|record| record.key.as_str())))
+    catalog.project(key).ok_or_else(|| {
+        unknown_project(
+            key,
+            catalog.projects().map(|record| record.key.as_str()),
+            None,
+        )
+    })
 }
 
 /// The error for the project `key` that pace has no record of: it names
@@ -358,9 +363,10 @@ fn known_project<'catalog>(
 fn unknown_project<'key>(
     key: &ProjectKey,
     keys: impl Iterator<Item = &'key str>,
+    left: Option<(&Path, &PaceError)>,
 ) -> Box<PaceError> {
     let hint = closest_name(key.as_str(), keys).map_or_else(
-        || "`pace project list` shows the projects".to_owned(),
+        || listing_hint("pace project list", "projects", left),
         |closest| format!("did you mean `{closest}`?"),
     );
     PaceError::new(
@@ -495,22 +501,26 @@ fn record_alone(
     match read_catalog_mending(home, path, None) {
         Err(mistake) if points_at_file(&mistake, path) => Ok(RecordAlone::Broken(mistake)),
         Err(error) => Err(error),
-        Ok(MendedCatalog::Alone(mut records, _)) => {
-            match records
+        Ok(MendedCatalog::Alone(mut records, left)) => {
+            let found = records
                 .projects
                 .iter()
-                .position(|record| record.key == *key)
-            {
-                Some(at) => Ok(RecordAlone::Read(records.projects.swap_remove(at))),
-                None => Err(unknown_project(
+                .position(|record| record.key == *key);
+            let Some(at) = found else {
+                let files = project_record_keys(home)?;
+                let keys = records.projects.iter().map(|record| record.key.as_str());
+                return Err(unknown_project(
                     key,
-                    records.projects.iter().map(|record| record.key.as_str()),
-                )),
-            }
+                    keys.chain(files.iter().map(String::as_str)),
+                    Some((home, &left)),
+                ));
+            };
+            Ok(RecordAlone::Read(records.projects.swap_remove(at)))
         }
         Ok(MendedCatalog::Whole(_)) => Err(unknown_project(
             key,
             catalog.projects().map(|record| record.key.as_str()),
+            None,
         )),
     }
 }
@@ -930,6 +940,29 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error.hint(), Some("did you mean `webshop`?"));
+    }
+
+    #[test]
+    fn unknown_project_beside_broken_record_names_its_key() {
+        let (home, _) = home_with_webshop_as(&broken_webshop());
+
+        let error = opened_record(home.path(), &Catalog::default(), "webshob".parse().unwrap())
+            .unwrap_err();
+
+        assert_eq!(error.hint(), Some("did you mean `webshop`?"));
+    }
+
+    #[test]
+    fn unknown_project_beside_broken_record_names_command_that_fixes_it() {
+        let (home, _) = home_with_webshop_as(&broken_webshop());
+
+        let error =
+            opened_record(home.path(), &Catalog::default(), "garden".parse().unwrap()).unwrap_err();
+
+        assert_eq!(
+            error.hint(),
+            Some("`pace project edit webshop` fixes the mistake that stops `pace project list`")
+        );
     }
 
     #[test]

@@ -16,6 +16,7 @@ pub mod tracking;
 use std::path::{Path, PathBuf};
 
 use abscissa_core::{Command, Configurable, Runnable};
+use pace_error::PaceError;
 use pace_store::catalog::{CLIENTS_FILE, PROJECTS_DIR, ROLES_FILE};
 
 use self::{
@@ -187,6 +188,21 @@ pub(crate) fn mending_command(home: &Path, file: &Path) -> Option<String> {
             .is_some_and(|extension| extension == "toml");
     let key = file.file_stem()?.to_str()?;
     is_record.then(|| format!("pace project edit {key}"))
+}
+
+/// The hint for a key that no record has, when no key is close: `list`
+/// shows the `listed` records. While `left`, the mistake of another
+/// catalog file of its home, stops `list`, the hint names the command that
+/// fixes that file instead.
+pub(crate) fn listing_hint(list: &str, listed: &str, left: Option<(&Path, &PaceError)>) -> String {
+    left.and_then(|(home, mistake)| {
+        let file = mistake.snippet_name()?;
+        mending_command(home, Path::new(file))
+    })
+    .map_or_else(
+        || format!("`{list}` shows the {listed}"),
+        |command| format!("`{command}` fixes the mistake that stops `{list}`"),
+    )
 }
 
 #[cfg(test)]

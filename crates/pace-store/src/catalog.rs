@@ -271,6 +271,21 @@ impl Source {
     }
 }
 
+/// The keys of the project records in `home`, ordered by name: the names
+/// of the files in `projects/`, whether the records read or not. A key
+/// that no record has is compared with them.
+///
+/// # Errors
+///
+/// If `projects/` can't be read.
+pub fn project_record_keys(home: &Path) -> PaceResult<Vec<String>> {
+    let files = project_files(&home.join(PROJECTS_DIR))?;
+    Ok(files
+        .iter()
+        .filter_map(|path| path.file_stem()?.to_str().map(str::to_owned))
+        .collect())
+}
+
 /// The project records in `dir`, ordered by name: its `.toml` files, but
 /// for hidden ones such as a field edit's temporary file. None if `dir`
 /// doesn't exist.
