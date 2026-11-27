@@ -7,11 +7,11 @@ use std::{os::unix::fs::PermissionsExt as _, path::Path, sync::Arc};
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, Policy, SequentialIds, Tracker,
+    Clock, Command, DeviceId, Policy, SequentialIds,
     command::{Begin, End, Forget, Hold, Log},
     testing::TestClock,
 };
-use pace_store::{FilesStore, Split, testing::scratch_dir};
+use pace_store::{FilesStore, Split, Tracker, testing::scratch_dir};
 use pace_time::TimeRange;
 
 use crate::TestResult;

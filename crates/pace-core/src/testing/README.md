@@ -1,17 +1,15 @@
 # `testing`
 
-`testing.rs` holds the test clock and the in-memory store. Two parts have their
-own files: `contract.rs` holds the checks of the `EventStore` contract, which
-every backend passes, and `tests.rs` the tests of the test doubles themselves.
+`testing.rs` holds the test clock and the lock of the test doubles. `tests.rs`
+holds the tests of the test clock.
 
 ## Files
 
 <!-- files -->
 
-| File                         | What it holds                                                               |
-| ---------------------------- | --------------------------------------------------------------------------- |
-| [`contract.rs`](contract.rs) | The contract of `EventStore`, as checks that every backend runs.            |
-| [`tests.rs`](tests.rs)       | Tests: The test doubles refuse to read a value that a panicked thread left. |
+| File                   | What it holds                                                             |
+| ---------------------- | ------------------------------------------------------------------------- |
+| [`tests.rs`](tests.rs) | Tests: The test clock refuses to read a time that a panicked thread left. |
 
 <!-- /files -->
 
@@ -19,7 +17,7 @@ every backend passes, and `tests.rs` the tests of the test doubles themselves.
 
 <!-- uses -->
 
-- Uses: [`command`](../command.rs).
+- Uses: no other module.
 - Used by: no other module.
 
 <!-- /uses -->

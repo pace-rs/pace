@@ -10,9 +10,9 @@
 //!
 //! The machine reads no clock and calls no store, so a test drives it with
 //! values, a race included, and each driver picks how a command stays
-//! atomic. [`Tracker::run`](crate::Tracker::run) is the blocking driver. Each
-//! step consumes the state before it: a batch exists only after a decided
-//! read, and an outcome only after its append.
+//! atomic; `pace_store` holds the blocking driver. Each step consumes the
+//! state before it: a batch exists only after a decided read, and an
+//! outcome only after its append.
 
 use std::fmt;
 
@@ -83,8 +83,8 @@ pub struct Reading<'a> {
 pub struct Decided<'a> {
     /// The events of the command.
     pub batch: Batch,
-    /// The marker of the read the batch was decided on, for
-    /// [`EventStore::append`](crate::EventStore::append).
+    /// The marker of the read the batch was decided on, for the store's
+    /// append.
     pub read: ChangeMarker,
     /// The step that takes what the append did.
     pub appending: Appending<'a>,

@@ -1,17 +1,13 @@
-//! The test doubles refuse to read a value that a panicked thread left.
+//! The test clock refuses to read a time that a panicked thread left.
 
 use std::{
     panic::{AssertUnwindSafe, catch_unwind},
-    sync::{Arc, Mutex},
+    sync::Mutex,
 };
 
 use jiff::ZonedDateTime;
-use pace_time::TimeRange;
 
-use crate::{
-    Clock, DeviceId, EventStore,
-    testing::{MemoryStore, TestClock},
-};
+use crate::{Clock, testing::TestClock};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -29,24 +25,6 @@ fn poison<T: Send>(lock: &Mutex<T>) {
             })
             .join();
     });
-}
-
-#[test]
-fn memory_store_refuses_poisoned_storage() -> TestResult {
-    let clock = Arc::new(TestClock::new(nine()?));
-    let store = MemoryStore::new(
-        "0193a8d0-000d-7000-8000-000000000001".parse::<DeviceId>()?,
-        clock,
-    );
-    poison(&store.storage);
-
-    let error = store
-        .read(&TimeRange::new(None, None)?)
-        .err()
-        .ok_or("the store read poisoned storage")?;
-
-    assert_eq!(error.to_string(), "the memory store's lock is poisoned");
-    Ok(())
 }
 
 #[test]

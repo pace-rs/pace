@@ -114,13 +114,13 @@ mod tests {
     use std::sync::Arc;
 
     use pace_core::{
-        Batch, ChangeMarker, Clock, Command, DeviceId, EventStore, Policy, RecordedEvent, Rules,
-        SequentialIds, State, Tracker, command::Begin, testing::TestClock,
+        Batch, ChangeMarker, Clock, Command, DeviceId, Policy, RecordedEvent, Rules, SequentialIds,
+        State, command::Begin, testing::TestClock,
     };
     use pace_time::TimeRange;
 
     use super::*;
-    use crate::{FilesStore, Split, testing::scratch_dir};
+    use crate::{EventStore, FilesStore, Split, Tracker, testing::scratch_dir};
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 

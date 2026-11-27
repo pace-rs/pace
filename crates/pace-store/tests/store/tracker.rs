@@ -3,14 +3,16 @@
 use std::sync::Arc;
 
 use jiff::ZonedDateTime;
-use pace_core::testing::contract::run_store_contract;
 use pace_core::{
-    Clock, Command, DeviceId, EntryState, EventStore, Policy, RecordedEvent, SequentialIds, State,
-    Tracker,
+    Clock, Command, DeviceId, EntryState, Policy, RecordedEvent, SequentialIds, State,
     command::{Adjust, Begin, End, Forget, Log, Resume},
-    testing::{MemoryStore, Raced, TestClock},
+    testing::TestClock,
 };
 use pace_error::ExitCode;
+use pace_store::{
+    EventStore, Tracker,
+    testing::{MemoryStore, Raced, contract::run_store_contract},
+};
 use pace_time::TimeRange;
 
 use crate::TestResult;

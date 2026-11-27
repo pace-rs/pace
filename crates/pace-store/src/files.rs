@@ -21,8 +21,7 @@ use std::{
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Appended, Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, EventKind, EventStore, Hlc,
-    RecordedEvent,
+    Appended, Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, EventKind, Hlc, RecordedEvent,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
 use pace_time::TimeRange;
@@ -35,7 +34,7 @@ use crate::disk::{
 use crate::format::{file_header, parse_events, serialize_events};
 use crate::machine::clone_detected;
 use crate::{
-    Split,
+    EventStore, Split,
     index::{FileSummary, INDEX_VERSION, Index, select, summarize},
     machine::Cursors,
 };

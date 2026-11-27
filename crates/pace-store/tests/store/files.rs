@@ -4,13 +4,15 @@
 use std::{path::Path, sync::Arc};
 
 use jiff::ZonedDateTime;
-use pace_core::testing::contract::run_store_contract;
 use pace_core::{
-    Clock, Command, DeviceId, EventStore, Policy, SequentialIds, Tracker,
+    Clock, Command, DeviceId, Policy, SequentialIds,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause},
-    testing::{Raced, TestClock},
+    testing::TestClock,
 };
-use pace_store::{FilesStore, Split, testing::scratch_dir};
+use pace_store::{
+    EventStore, FilesStore, Split, Tracker,
+    testing::{Raced, contract::run_store_contract, scratch_dir},
+};
 use pace_time::TimeRange;
 use rstest::rstest;
 use tempfile::TempDir;

@@ -10,7 +10,7 @@ license = { workspace = true }
 publish = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
-description = "pace_core: the domain of pace, its rules, ports and commands; no I/O"
+description = "pace_core: the domain of pace, its rules, step machine and commands; no I/O"
 
 [dependencies]
 jiff = { workspace = true, features = ["serde"] }
@@ -20,7 +20,7 @@ serde = { workspace = true, features = ["derive"] }
 uuid = { workspace = true }
 
 [features]
-# The in-memory store, a settable clock and the store contract tests.
+# A settable clock for tests.
 testing = []
 
 [dev-dependencies]

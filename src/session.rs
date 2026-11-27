@@ -3,9 +3,9 @@
 
 use std::{path::PathBuf, sync::Arc};
 
-use pace_core::{Command, DeviceId, Ids, Outcome, Policy, Tracker};
+use pace_core::{Command, DeviceId, Ids, Outcome, Policy};
 use pace_error::PaceResult;
-use pace_store::{FilesStore, Resplit, Split, device_id, existing_device_id};
+use pace_store::{FilesStore, Resplit, Split, Tracker, device_id, existing_device_id};
 use pace_time::TimeRange;
 
 use crate::clock::clock;

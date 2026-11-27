@@ -10,7 +10,7 @@ license = { workspace = true }
 publish = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
-description = "pace_store: the event store backends of pace, devices and state files"
+description = "pace_store: the event store of pace, its port, driver and backends, devices and state files"
 
 [dependencies]
 gethostname = { workspace = true }
@@ -25,14 +25,15 @@ tempfile = { workspace = true }
 toml = { workspace = true }
 
 [features]
-# `pace_store::testing`, for tests that write through a backend.
-testing = []
+# `pace_store::testing`: a scratch directory, the in-memory store and the
+# store contract. The contract runs on `pace_core`'s test clock.
+testing = ["pace_core/testing"]
 
 [dev-dependencies]
 insta = { workspace = true }
 miette = { workspace = true }
-pace_core = { workspace = true, features = ["testing"] }
 pace_store = { path = ".", features = ["testing"] }
+proptest = { workspace = true }
 rstest = { workspace = true }
 
 [lints]

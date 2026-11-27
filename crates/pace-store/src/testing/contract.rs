@@ -7,12 +7,13 @@ use jiff::ZonedDateTime;
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
 
-use crate::testing::TestClock;
-use crate::{
-    Appended, Clock, Command, DeviceId, EntryState, EventStore, Policy, Rules, SequentialIds,
-    State, Tracker,
+use pace_core::{
+    Appended, Clock, Command, DeviceId, EntryState, Policy, Rules, SequentialIds, State,
     command::{Begin, End, Log},
+    testing::TestClock,
 };
+
+use crate::{EventStore, Tracker};
 
 /// Run every check. `new_storage` gives fresh, empty storage for each
 /// check, as a function that opens it for a device with a clock; stores

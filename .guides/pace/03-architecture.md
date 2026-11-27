@@ -1,8 +1,9 @@
 # Architecture
 
-1. `pace_core` has no I/O: the clock, the IDs, the event store and the notifier
-   are ports (`crates/pace-core/src/port.rs`); the app and the backend crates
-   hold the adapters.
+1. `pace_core` has no I/O: it holds the step machine of the use case
+   (`steps.rs`) and the `Clock` and `Ids` traits (`port.rs`). A port's trait and
+   its driver live in the crate of its adapters (restart.md 3.15): the
+   `EventStore` trait and its driver, the `Tracker`, live in `pace_store`.
 2. A command is a serializable value (`pace_core::command`); the rules
    (`rules.rs`) turn it into the events of one batch, or into an error that says
    how to fix it.

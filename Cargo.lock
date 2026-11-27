@@ -820,6 +820,7 @@ dependencies = [
  "pace_error",
  "pace_store",
  "pace_time",
+ "proptest",
  "rstest",
  "serde",
  "serde_json",

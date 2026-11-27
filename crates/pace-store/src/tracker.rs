@@ -1,5 +1,5 @@
-//! The tracker: drives a command's step machine over the ports and says
-//! what it did.
+//! The tracker: the blocking driver of the tracking machine, over the event
+//! store.
 
 use std::sync::Arc;
 
@@ -7,13 +7,14 @@ use jiff::ZonedDateTime;
 use pace_error::PaceResult;
 use pace_time::TimeRange;
 
-use crate::{
-    AfterAppend, Clock, Command, Decided, DeviceId, EventStore, Ids, Outcome, Policy, Reading,
-    State,
+use pace_core::{
+    AfterAppend, Clock, Command, Decided, DeviceId, Ids, Outcome, Policy, Reading, State,
 };
 
-/// The blocking driver of the use cases: it does the I/O for the step
-/// machine that starts with [`Reading`], and holds no rule.
+use crate::EventStore;
+
+/// The blocking driver of the tracking machine: it does the I/O for the
+/// step machine that starts with [`Reading`], and holds no rule.
 ///
 /// Each command reads only what its rules need: tracking commands the open
 /// entries and the time from their `--at` to now, `log` its own time, and

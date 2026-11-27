@@ -5,11 +5,11 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, Policy, SequentialIds, Tracker,
+    Clock, Command, DeviceId, Policy, SequentialIds,
     command::{Begin, End},
     testing::TestClock,
 };
-use pace_store::{FilesStore, Split, device_id, testing::scratch_dir};
+use pace_store::{FilesStore, Split, Tracker, device_id, testing::scratch_dir};
 use pace_time::TimeRange;
 use rstest::rstest;
 

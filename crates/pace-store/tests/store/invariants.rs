@@ -6,10 +6,11 @@ use std::{collections::BTreeSet, sync::Arc};
 
 use jiff::{SignedDuration, ZonedDateTime};
 use pace_core::{
-    Clock, Command, DeviceId, Entry, EntryId, Policy, SequentialIds, State, Tag, Tracker,
+    Clock, Command, DeviceId, Entry, EntryId, Policy, SequentialIds, State, Tag,
     command::{Adjust, Begin, End, Forget, Hold, Log, Pause, Resume},
-    testing::{MemoryStore, TestClock},
+    testing::TestClock,
 };
+use pace_store::{Tracker, testing::MemoryStore};
 use pace_time::TimeRange;
 use proptest::{prelude::*, sample::Index, test_runner::TestCaseError};
 

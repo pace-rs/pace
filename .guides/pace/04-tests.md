@@ -17,10 +17,11 @@
    (`manifest_wins_over_path_mapping`); codegate's casing gate checks it.
 8. Two devices are separate data and machine directories, synced by copying
    device directories (`Sandbox::sync_events_from`).
-9. Core tests build a tracker in-process with `MemoryStore`, `TestClock` and
-   `SequentialIds` (`pace_core::testing`), one seed per simulated device.
+9. Core tests drive the step machine with values. A test that runs commands over
+   a store builds a `Tracker` with `MemoryStore` (`pace_store::testing`),
+   `TestClock` and `SequentialIds`, one seed per simulated device.
 10. Every store backend passes
-    `pace_core::testing::contract::run_store_contract`.
+    `pace_store::testing::contract::run_store_contract`.
 11. A test that runs the binary keeps `LLVM_PROFILE_FILE` (no `env_clear()`), so
     its coverage counts for the CRAP gate.
 12. An interactive path needs a pty and has no journey test yet, so keep its
