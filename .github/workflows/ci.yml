@@ -68,6 +68,8 @@ jobs:
           # In CI, insta writes `.snap.new` files only when asked; the step
           # below uploads them.
           INSTA_UPDATE: new
+      # nextest runs no doctests.
+      - run: cargo test --doc --workspace --all-features
       - name: Upload snapshots of failed tests
         if: failure()
         uses: actions/upload-artifact@v4

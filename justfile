@@ -14,9 +14,10 @@ fmt:
 lint:
     cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-# Run all tests
+# Run all tests; nextest runs no doctests, so cargo test runs them
 test:
     cargo nextest run --workspace --all-features
+    cargo test --doc --workspace --all-features
 
 # Everything CI checks first: formatting, lints, tests; then codegate's gates
 check:

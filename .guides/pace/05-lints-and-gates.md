@@ -4,7 +4,8 @@
    `just check` runs fmt, dprint, clippy, the tests and codegate's gates.
    ```sh
    cargo fmt --all -- --check && dprint check && cargo clippy --workspace \
-     --all-targets --all-features -- -D warnings && cargo nextest run
+     --all-targets --all-features -- -D warnings && cargo nextest run \
+     && cargo test --doc --workspace
    ```
 2. The workspace lints are clippy's `pedantic` and `nursery`, `unwrap_used`,
    `expect_used` and rustc's `unused_results`; CI makes warnings errors. In
