@@ -4,10 +4,14 @@ use crate::support::{Sandbox, run};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-/// All event files of the sandbox, as one text.
+/// All event files of the sandbox, as one text; empty before the first event.
 fn event_text(sandbox: &Sandbox) -> Result<String, Box<dyn std::error::Error>> {
     let mut text = String::new();
-    for device in std::fs::read_dir(sandbox.path("home/events"))? {
+    let events = sandbox.path("home/events");
+    if !events.is_dir() {
+        return Ok(text);
+    }
+    for device in std::fs::read_dir(events)? {
         let file = device?.path().join("2026/2026-11.toml");
         if file.is_file() {
             text.push_str(&std::fs::read_to_string(file)?);
@@ -106,6 +110,25 @@ fn log_enters_time_afterwards() -> TestResult {
         ),
     ])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn log_refuses_duration_that_is_not_positive() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        (
+            "09:00",
+            &["log", "x", "--from", "07:00", "--duration", "30m ago"],
+        ),
+        (
+            "09:00",
+            &["log", "x", "--from", "07:00", "--duration", "0m"],
+        ),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    assert_eq!(event_text(&sandbox)?, "", "nothing is logged");
     Ok(())
 }
 

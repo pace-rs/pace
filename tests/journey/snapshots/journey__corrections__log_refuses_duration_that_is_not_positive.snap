@@ -1,0 +1,22 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace log x --from 07:00 --duration 30m ago   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × the duration `30m ago` is not positive
+  help: did you mean `30m`?
+
+
+$ pace log x --from 07:00 --duration 0m   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × the duration `0m` is not positive
+  help: give a duration longer than zero, like `15m`
