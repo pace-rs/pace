@@ -6,7 +6,10 @@ use std::path::Path;
 use jiff::{SignedDuration, civil::date};
 use pace_core::{ProjectKey, RoleKind, RoundingMode, RoundingPer};
 use pace_error::PaceError;
-use pace_store::{catalog::read_catalog, testing::scratch_dir};
+use pace_store::{
+    catalog::{read_catalog, read_catalog_with, write_catalog_file},
+    testing::scratch_dir,
+};
 
 use crate::TestResult;
 
@@ -576,5 +579,66 @@ fn version_typo_in_clients_file_names_version() -> TestResult {
 
     assert_eq!(error.hint(), Some("did you mean `version`?"));
     assert!(error.is_code("pace::clients::unknown-key"), "{error:?}");
+    Ok(())
+}
+
+#[test]
+fn edited_roles_text_reads_in_place_of_roles_file() -> TestResult {
+    let dir = plan_home()?;
+    let roles_file = dir.path().join("roles.toml");
+    let edited = ROLES.replace("name = \"Work\"", "name = \"Paid work\"");
+
+    let catalog = read_catalog_with(dir.path(), &roles_file, &edited)?;
+
+    let names: Vec<&str> = catalog.roles().map(|role| role.name.as_str()).collect();
+    assert_eq!(names, ["Paid work"]);
+    assert_eq!(std::fs::read_to_string(&roles_file)?, ROLES);
+    Ok(())
+}
+
+#[test]
+fn edited_roles_text_that_drops_project_role_points_at_project() -> TestResult {
+    let dir = plan_home()?;
+    let roles_file = dir.path().join("roles.toml");
+
+    let error = read_catalog_with(dir.path(), &roles_file, "version = 1\n")
+        .err()
+        .ok_or("the catalog must not read")?;
+
+    assert!(error.is_code("pace::core::unknown-role"), "{error:?}");
+    assert_eq!(blamed(&error), Some(("acme-webshop.toml".to_owned(), 6)));
+    Ok(())
+}
+
+#[test]
+fn edited_roles_text_for_missing_roles_file_reads() -> TestResult {
+    let dir = home(&[])?;
+    let roles_file = dir.path().join("roles.toml");
+
+    let catalog = read_catalog_with(dir.path(), &roles_file, ROLES)?;
+
+    assert_eq!(catalog.roles().count(), 1);
+    Ok(())
+}
+
+#[test]
+fn catalog_file_is_written_whole() -> TestResult {
+    let dir = home(&[])?;
+    let roles_file = dir.path().join("roles.toml");
+
+    write_catalog_file(&roles_file, ROLES)?;
+
+    assert_eq!(std::fs::read_to_string(&roles_file)?, ROLES);
+    Ok(())
+}
+
+#[test]
+fn edited_text_of_new_project_record_reads() -> TestResult {
+    let dir = home(&[("roles.toml", ROLES), ("clients.toml", CLIENTS)])?;
+    let record = dir.path().join("projects/acme-webshop.toml");
+
+    let catalog = read_catalog_with(dir.path(), &record, PROJECT)?;
+
+    assert_eq!(catalog.projects().count(), 1);
     Ok(())
 }

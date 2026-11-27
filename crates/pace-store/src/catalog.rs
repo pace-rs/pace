@@ -22,6 +22,7 @@ use std::{
 use pace_core::{Catalog, ProjectKey};
 use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
 
+use crate::disk::write_atomically;
 use crate::toml_file::{TomlFile, read_hint};
 
 /// The version of the roles file, the clients file and the project records
@@ -55,15 +56,57 @@ pub fn project_record_path(home: &Path, key: &ProjectKey) -> PathBuf {
 /// such as a project whose client doesn't exist. Each error points at the
 /// file and the line.
 pub fn read_catalog(home: &Path) -> PaceResult<Catalog> {
+    read_catalog_replacing(home, None)
+}
+
+/// [`read_catalog`], with `text` in place of the file `replaced`, such as
+/// the roles file as the user edited it. The file itself stays as it is;
+/// the errors name it, so a mistake in `text` points at its line.
+///
+/// # Errors
+///
+/// As [`read_catalog`].
+pub fn read_catalog_with(home: &Path, replaced: &Path, text: &str) -> PaceResult<Catalog> {
+    read_catalog_replacing(home, Some((replaced, text)))
+}
+
+/// Write `text` as the catalog file `path` whole, through a temporary file
+/// next to it, such as the roles file once the user edited it.
+///
+/// # Errors
+///
+/// If the directory can't be created or the file can't be written.
+pub fn write_catalog_file(path: &Path, text: &str) -> PaceResult<()> {
+    write_atomically(path, text)
+}
+
+/// [`read_catalog`], with the text of one file `replaced`.
+fn read_catalog_replacing(home: &Path, replaced: Option<(&Path, &str)>) -> PaceResult<Catalog> {
+    let read = |path: PathBuf| match replaced {
+        Some((replaced, text)) if path == replaced => Ok(Some(Source {
+            path,
+            text: text.to_owned(),
+        })),
+        _ => Source::read(path),
+    };
     let mut sources = Vec::new();
-    if let Some(source) = Source::read(home.join(ROLES_FILE))? {
+    if let Some(source) = read(home.join(ROLES_FILE))? {
         sources.push((Kind::Roles, source));
     }
-    if let Some(source) = Source::read(home.join(CLIENTS_FILE))? {
+    if let Some(source) = read(home.join(CLIENTS_FILE))? {
         sources.push((Kind::Clients, source));
     }
-    for path in project_files(&home.join(PROJECTS_DIR))? {
-        if let Some(source) = Source::read(path)? {
+    let projects_dir = home.join(PROJECTS_DIR);
+    let mut project_paths = project_files(&projects_dir)?;
+    if let Some((replaced, _)) = replaced
+        && replaced.parent() == Some(projects_dir.as_path())
+        && !project_paths.iter().any(|path| path == replaced)
+    {
+        project_paths.push(replaced.to_path_buf());
+        project_paths.sort();
+    }
+    for path in project_paths {
+        if let Some(source) = read(path)? {
             sources.push((Kind::Project, source));
         }
     }
