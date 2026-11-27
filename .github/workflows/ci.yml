@@ -82,10 +82,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Keep in sync with `rust-version` in Cargo.toml (N-2 of stable).
+      # The MSRV is `rust-version` of the workspace in Cargo.toml.
+      - name: Read the MSRV from Cargo.toml
+        id: msrv
+        shell: bash
+        run: |
+          version=$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' Cargo.toml)
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.98"
+          toolchain: ${{ steps.msrv.outputs.version }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
