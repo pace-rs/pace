@@ -259,6 +259,25 @@ fn edit_without_entry_takes_the_open_one() -> TestResult {
 }
 
 #[test]
+fn edit_without_terminal_or_editor_names_adjust() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Draft"]))?;
+    _ = run(sandbox.pace_at("10:00").arg("end"))?;
+
+    let refused = run(sandbox
+        .pace_at("10:05")
+        .env_remove("VISUAL")
+        .env_remove("EDITOR")
+        .args(["edit", "--last"]))?;
+
+    let transcript = sandbox.redact_ids(&refused)?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
+#[test]
 fn forget_without_entry_and_nothing_running_names_the_flags() -> TestResult {
     let sandbox = Sandbox::new()?;
 

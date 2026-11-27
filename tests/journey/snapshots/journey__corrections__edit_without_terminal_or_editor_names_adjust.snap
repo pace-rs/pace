@@ -1,0 +1,11 @@
+---
+source: tests/journey/corrections.rs
+expression: transcript
+---
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `pace edit` has no terminal and no editor in VISUAL or EDITOR
+  help: change the entry with `pace adjust`, or set VISUAL or EDITOR

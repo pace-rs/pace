@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
 use crate::commands::tracking::track;
-use crate::editor::edit_in_editor;
+use crate::editor::{edit_in_editor, editor_command};
 use crate::output::short_id;
 use crate::prompt::Ask;
 use crate::select::chosen_entry;
@@ -55,33 +55,54 @@ impl Runnable for EditCmd {
     fn run(&self) {
         exit_on_error(track(|session, context, _| {
             let asker = &context.terminal;
+            let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
             let chosen = chosen_entry(session, asker, self.entry.as_deref(), self.last, "edit")?;
             let now = session.now();
-            let mut text = edit_in_editor(&write(&chosen, session.device(), &now)?, ".toml")?;
-            loop {
-                match read(&text, &chosen.entry, &now) {
-                    Ok(adjust) => {
-                        return Ok(UseCase::Adjust(Adjust {
-                            allow_overlap: self.allow_overlap,
-                            ..adjust
-                        }));
-                    }
-                    Err(error) if error.exit_code() != ExitCode::NothingToDo && asker.can_ask() => {
-                        print_error(&error);
-                        if !asker.confirm("Open the entry again to fix it?")? {
-                            return Err(PaceError::new(
-                                ErrorKind::InvalidInput,
-                                "the entry stays as it was",
-                            )
-                            .attach_hint("`pace edit` opens it again")
-                            .attach_exit_code(ExitCode::NothingToDo));
-                        }
-                        text = edit_in_editor(&text, ".toml")?;
-                    }
-                    Err(error) => return Err(error),
-                }
-            }
+            let adjust = edit_until_read(
+                &write(&chosen, session.device(), &now)?,
+                &chosen.entry,
+                &now,
+                asker,
+                |text| edit_in_editor(&editor, text, ".toml"),
+                print_error,
+            )?;
+            Ok(UseCase::Adjust(Adjust {
+                allow_overlap: self.allow_overlap,
+                ..adjust
+            }))
         }));
+    }
+}
+
+/// The adjustment from `written` once `edit` changed it. A mistake is
+/// shown with `report`; on a terminal the user may open the entry again to
+/// fix it, without one the mistake is the error.
+fn edit_until_read(
+    written: &str,
+    entry: &Entry,
+    now: &ZonedDateTime,
+    asker: &dyn Ask,
+    mut edit: impl FnMut(&str) -> PaceResult<String>,
+    report: impl Fn(&PaceError),
+) -> PaceResult<Adjust> {
+    let mut text = edit(written)?;
+    loop {
+        match read(&text, entry, now) {
+            Ok(adjust) => return Ok(adjust),
+            Err(error) if error.exit_code() != ExitCode::NothingToDo && asker.can_ask() => {
+                report(&error);
+                if !asker.confirm("Open the entry again to fix it?")? {
+                    return Err(PaceError::new(
+                        ErrorKind::InvalidInput,
+                        "the entry stays as it was",
+                    )
+                    .attach_hint("`pace edit` opens it again")
+                    .attach_exit_code(ExitCode::NothingToDo));
+                }
+                text = edit(&text)?;
+            }
+            Err(error) => return Err(error),
+        }
     }
 }
 
@@ -305,5 +326,101 @@ fn change<T: PartialEq>(new: Option<T>, current: Option<&T>) -> Change<T> {
         (Some(new), _) => Change::Set(new),
         (None, Some(_)) => Change::Clear,
         (None, None) => Change::Keep,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, collections::VecDeque};
+
+    use super::*;
+    use crate::prompt::Scripted;
+
+    fn at(time: &str) -> ZonedDateTime {
+        format!("2026-11-26T{time}[Europe/Berlin]").parse().unwrap()
+    }
+
+    fn entry() -> Entry {
+        Entry {
+            id: "0193a8d0-000a-7000-8000-000000000001".parse().unwrap(),
+            device: "0193a8d0-000d-7000-8000-000000000001".parse().unwrap(),
+            start: at("09:00"),
+            end: Some(at("10:00")),
+            project: None,
+            note: Some("Draft".to_owned()),
+            tags: BTreeSet::new(),
+            holds: Vec::new(),
+            pauses: Vec::new(),
+            catches: Vec::new(),
+            origin: EntryOrigin::Live,
+            filed: at("09:00"),
+        }
+    }
+
+    fn saved(note: &str) -> String {
+        format!(
+            "start = \"{}\"\nend = \"{}\"\n{note}\n",
+            at("09:00"),
+            at("10:00")
+        )
+    }
+
+    /// Run [`edit_until_read`] with an editor that saves `texts` in turn;
+    /// also the number of mistakes reported.
+    fn edited(asker: &Scripted, texts: &[String]) -> (PaceResult<Adjust>, usize) {
+        let mut texts: VecDeque<String> = texts.iter().cloned().collect();
+        let reported = Cell::new(0);
+        let result = edit_until_read(
+            &saved("note = \"Draft\""),
+            &entry(),
+            &at("10:05"),
+            asker,
+            |_| Ok(texts.pop_front().unwrap()),
+            |_| reported.set(reported.get() + 1),
+        );
+        (result, reported.get())
+    }
+
+    #[test]
+    fn mistake_declined_leaves_entry_as_it_was() {
+        let asker = Scripted::confirming([false]);
+
+        let (result, reported) = edited(&asker, &[saved("notes = \"Write offer\"")]);
+
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), "the entry stays as it was");
+        assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+        assert_eq!(reported, 1);
+        assert_eq!(asker.questions(), ["Open the entry again to fix it?"]);
+    }
+
+    #[test]
+    fn mistake_fixed_after_opening_again_adjusts_entry() {
+        let asker = Scripted::confirming([true]);
+
+        let (result, reported) = edited(
+            &asker,
+            &[
+                saved("notes = \"Write offer\""),
+                saved("note = \"Write offer\""),
+            ],
+        );
+
+        assert_eq!(result.unwrap().note, Change::Set("Write offer".to_owned()));
+        assert_eq!(reported, 1);
+    }
+
+    #[test]
+    fn mistake_without_terminal_is_error() {
+        let asker = Scripted::without_terminal();
+
+        let (result, reported) = edited(&asker, &[saved("notes = \"Write offer\"")]);
+
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "the edited entry has a mistake"
+        );
+        assert_eq!(reported, 0);
+        assert_eq!(asker.questions(), Vec::<String>::new());
     }
 }

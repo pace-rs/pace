@@ -16,6 +16,7 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 
 use crate::config::load_settings;
 use crate::dirs::resolve_dirs;
+use crate::editor::editor_variable;
 use crate::project::discover_project;
 use crate::prompt::Terminal;
 use crate::{
@@ -48,6 +49,8 @@ pub struct Context {
     pub project: Option<Project>,
     /// The terminal pace asks on, if one is attached.
     pub terminal: Terminal,
+    /// The editor the user set in `VISUAL` or `EDITOR`.
+    pub editor: Option<String>,
 }
 
 impl PaceApp {
@@ -112,6 +115,7 @@ impl PaceApp {
             settings,
             project,
             terminal: Terminal::detect(),
+            editor: editor_variable(|name: &str| -> Option<OsString> { std::env::var_os(name) }),
         });
 
         self.after_config(()).map_err(|error| {
