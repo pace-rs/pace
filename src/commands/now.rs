@@ -2,12 +2,12 @@
 
 use abscissa_core::{Command, Runnable};
 use jiff::{ToSpan, ZonedDateTime};
-use pace_core::{Catalog, Entry, EntryState, ProjectRef, State};
+use pace_core::{Catalog, DeterminedBy, Entry, EntryState, ProjectRef, RoleId, State};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::{TimeFrame, format_duration, format_moment, relative_time};
 use serde::Serialize;
 
-use crate::output::project_label;
+use crate::output::{project_label, role_label};
 use crate::print::print_lines;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
@@ -154,9 +154,15 @@ fn details(
     if let Some(project) = &entry.project {
         details.push(format!("project {}", project_label(project, catalog)));
     }
+    if let Some(role) = entry.effective_role(catalog) {
+        details.push(format!("role {}", role_label(role, catalog)));
+    }
     if !entry.tags.is_empty() {
         let tags: Vec<&str> = entry.tags.iter().map(pace_core::Tag::as_str).collect();
         details.push(format!("tags {}", tags.join(", ")));
+    }
+    if entry.determined_by == Some(DeterminedBy::Others) {
+        details.push("other-determined".to_owned());
     }
     if entry.device != session.device() {
         details.push("on another device".to_owned());
@@ -180,6 +186,14 @@ struct OpenJson<'state> {
     note: Option<&'state str>,
     project: Option<&'state ProjectRef>,
     tags: Vec<&'state str>,
+    /// The key of the role its time goes to, its own or its project's;
+    /// the role's ID without a record.
+    role: Option<String>,
+    determined_by: Option<DeterminedBy>,
+    /// Whether its time is billable, by its own flag or its project's.
+    billable: bool,
+    /// Whether its overlap is marked as intended.
+    allow_overlap: bool,
     start: String,
     since: String,
     net_seconds: i64,
@@ -255,6 +269,12 @@ fn render_json(
                 note: entry.note.as_deref(),
                 project: entry.project.as_ref(),
                 tags: entry.tags.iter().map(pace_core::Tag::as_str).collect(),
+                role: entry
+                    .effective_role(&context.catalog)
+                    .map(|role| role_key(role, &context.catalog)),
+                determined_by: entry.determined_by,
+                billable: entry.effective_billable(&context.catalog),
+                allow_overlap: entry.allow_overlap,
                 start: entry.start.to_string(),
                 since: since.to_string(),
                 net_seconds: entry.net(now).as_secs(),
@@ -275,6 +295,13 @@ fn render_json(
     serde_json::to_string_pretty(&json).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write JSON", error).ask_report()
     })
+}
+
+/// A role for scripts: its key in `catalog`, else its ID.
+fn role_key(role: RoleId, catalog: &Catalog) -> String {
+    catalog
+        .role_by_id(role)
+        .map_or_else(|| role.to_string(), |known| known.key.to_string())
 }
 
 /// Recent entries are those of the last 30 days.

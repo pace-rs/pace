@@ -38,6 +38,10 @@ exit_code: 0
         "id": "[ID-2]"
       },
       "tags": [],
+      "role": null,
+      "determined_by": null,
+      "billable": false,
+      "allow_overlap": false,
       "start": "2026-11-26T09:01:00+01:00[Europe/Berlin]",
       "since": "2026-11-26T09:01:00+01:00[Europe/Berlin]",
       "net_seconds": 1740,

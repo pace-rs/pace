@@ -29,6 +29,10 @@ exit_code: 0
         "id": "0193a7c4-0000-7000-8000-000000000001"
       },
       "tags": [],
+      "role": null,
+      "determined_by": null,
+      "billable": false,
+      "allow_overlap": false,
       "start": "2026-11-26T09:00:00+01:00[Europe/Berlin]",
       "since": "2026-11-26T09:00:00+01:00[Europe/Berlin]",
       "net_seconds": 1800,

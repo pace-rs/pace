@@ -219,3 +219,35 @@ fn now_into_closed_pipe_ends_quietly() -> TestResult {
     assert_eq!(String::from_utf8(output.stderr)?, "");
     Ok(())
 }
+
+#[test]
+fn now_shows_role_and_other_determined_and_json_adds_billable_and_overlap() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("08:50", &["role", "add", "work", "--name", "Work"]),
+        ("08:51", &["client", "add", "acme", "--currency", "EUR"]),
+        (
+            "08:52",
+            &[
+                "project", "add", "webshop", "--name", "Webshop", "--client", "acme", "--role",
+                "work",
+            ],
+        ),
+        (
+            "09:00",
+            &[
+                "--project",
+                "webshop",
+                "begin",
+                "Write offer",
+                "--by-others",
+                "--allow-overlap",
+            ],
+        ),
+        ("09:30", &["now"]),
+        ("09:30", &["now", "--json"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

@@ -39,6 +39,10 @@ exit_code: 0
       "tags": [
         "offer"
       ],
+      "role": null,
+      "determined_by": null,
+      "billable": false,
+      "allow_overlap": false,
       "start": "2026-11-26T09:00:00+01:00[Europe/Berlin]",
       "since": "2026-11-26T10:15:00+01:00[Europe/Berlin]",
       "net_seconds": 4500,
