@@ -1,0 +1,22 @@
+---
+source: tests/journey/doctor.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+error[files]: `someday` is not a day of the week
+  at [SANDBOX]/config/pace.global.toml:2
+  fix: use a day name like `monday`
+
+error[files]: `aera` is not a role kind
+  at [SANDBOX]/home/roles.toml:5
+  fix: a role kind is one of `area`, `area-project`, `meta`; `pace role edit` opens the file
+
+error[files]: `key` is not a key pace knows
+  at [SANDBOX]/work/pace.toml:2
+  fix: pace knows these keys here: version, project
+
+Found 3 errors.
+
+----- stderr -----

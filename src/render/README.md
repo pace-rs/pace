@@ -46,6 +46,7 @@ CSV under the columns `previous_<column>`.
 | [`report_table.rs`](report_table.rs)       | The report of `reflect` as a table for the terminal: its parts in the plan's order, with bars for the time per role, project and day.                                                                                                                                                              |
 | [`report_template.rs`](report_template.rs) | The report of `reflect` and the bill of `bill` from a Tera template, for `--format text`, `markdown` and `html`: the built-in templates and the reader of a template file.                                                                                                                         |
 | [`schema.rs`](schema.rs)                   | The schema of pace's JSON and CSV, version 1: the column names in one place, and the writers of both formats.                                                                                                                                                                                      |
+| [`schema_kind.rs`](schema_kind.rs)         | The kinds of document of the schema, `reflect`, `bill`, `export` and `doctor`, with the columns of each kind's CSV in their order.                                                                                                                                                                 |
 
 <!-- /files -->
 
@@ -54,6 +55,6 @@ CSV under the columns `previous_<column>`.
 <!-- uses -->
 
 - Uses: [`config`](../config/), [`output`](../output.rs).
-- Used by: [`commands`](../commands/).
+- Used by: [`commands`](../commands/), [`doctor`](../doctor/).
 
 <!-- /uses -->

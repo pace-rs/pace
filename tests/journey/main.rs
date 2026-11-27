@@ -6,6 +6,7 @@ mod completions;
 mod config;
 mod corrections;
 mod directories;
+mod doctor;
 mod export;
 mod now;
 mod project;

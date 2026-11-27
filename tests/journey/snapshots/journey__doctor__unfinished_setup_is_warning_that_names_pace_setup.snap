@@ -1,0 +1,14 @@
+---
+source: tests/journey/doctor.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+warning[setup]: a setup was interrupted and waits to be continued
+  at [SANDBOX]/machine/setup.toml
+  fix: continue with `pace setup`
+
+Found 1 warning.
+
+----- stderr -----

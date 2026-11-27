@@ -105,7 +105,7 @@ fn every_mistake_of_every_catalog_file_is_named_with_its_line() -> TestResult {
 }
 
 #[test]
-fn records_that_read_but_disagree_give_the_catalog_check() -> TestResult {
+fn records_that_read_but_disagree_give_catalog_check() -> TestResult {
     let dir = home(&[("projects/acme-webshop.toml", PROJECT_OF_UNKNOWN_CLIENT)])?;
 
     let mistakes = check_catalog_files(dir.path(), gathered(dir.path())?);

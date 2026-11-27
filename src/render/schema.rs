@@ -15,6 +15,8 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::format_duration;
 use serde::{Serialize, Serializer, ser::SerializeMap as _};
 
+pub use crate::render::schema_kind::SchemaKind;
+
 /// The version of the schema; a change to it is a new version.
 pub const SCHEMA_VERSION: u32 = 1;
 
@@ -105,6 +107,21 @@ pub enum Column {
     OtherId,
     /// The short ID of a second entry.
     OtherShort,
+    /// How bad a finding of `doctor` is: `error` or `warning`.
+    Severity,
+    /// The part of pace a finding of `doctor` is about: `directories`,
+    /// `files`, `device`, `setup`, …
+    Area,
+    /// What a finding of `doctor` says is wrong.
+    Message,
+    /// The file a finding of `doctor` is about.
+    File,
+    /// The line in [`Column::File`], counted from 1.
+    Line,
+    /// The short ID of the entry a finding of `doctor` is about.
+    Entry,
+    /// The command or the step that fixes a finding of `doctor`.
+    Fix,
     /// Whether the time counts a running entry up to now.
     Running,
     /// The change of a count from the previous period.
@@ -137,7 +154,7 @@ impl Column {
 }
 
 /// The name of each column, in the order of [`Column`].
-const COLUMN_NAMES: [(Column, &str); 51] = [
+const COLUMN_NAMES: [(Column, &str); 58] = [
     (Column::Part, "part"),
     (Column::Group, "group"),
     (Column::Key, "key"),
@@ -179,6 +196,13 @@ const COLUMN_NAMES: [(Column, &str); 51] = [
     (Column::Invoice, "invoice"),
     (Column::OtherId, "other_id"),
     (Column::OtherShort, "other_short"),
+    (Column::Severity, "severity"),
+    (Column::Area, "area"),
+    (Column::Message, "message"),
+    (Column::File, "file"),
+    (Column::Line, "line"),
+    (Column::Entry, "entry"),
+    (Column::Fix, "fix"),
     (Column::Running, "running"),
     (Column::ChangeCount, "change_count"),
     (Column::ChangeNetSeconds, "change_net_seconds"),
@@ -238,184 +262,6 @@ impl Length {
         }
     }
 }
-
-/// What a document of the schema holds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SchemaKind {
-    /// The report of `reflect`.
-    Reflect,
-    /// The bill of `bill`.
-    Bill,
-    /// The entries of `export`.
-    Export,
-}
-
-impl SchemaKind {
-    /// The kind's name, the `kind` of its JSON document.
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::Reflect => "reflect",
-            Self::Bill => "bill",
-            Self::Export => "export",
-        }
-    }
-
-    /// The columns of the kind's CSV, in their order; the columns of the
-    /// previous period follow them, then the change columns.
-    #[must_use]
-    pub const fn columns(self) -> &'static [Column] {
-        match self {
-            Self::Reflect => REFLECT_COLUMNS,
-            Self::Bill => BILL_COLUMNS,
-            Self::Export => EXPORT_COLUMNS,
-        }
-    }
-
-    /// The columns of the previous period in the kind's CSV, each named
-    /// `previous_<column>`, in their order.
-    #[must_use]
-    pub const fn previous_columns(self) -> &'static [Column] {
-        match self {
-            Self::Reflect => REFLECT_PREVIOUS_COLUMNS,
-            Self::Bill | Self::Export => &[],
-        }
-    }
-
-    /// The change columns of the kind's CSV, after the previous ones.
-    #[must_use]
-    pub const fn change_columns(self) -> &'static [Column] {
-        match self {
-            Self::Reflect => REFLECT_CHANGE_COLUMNS,
-            Self::Bill | Self::Export => &[],
-        }
-    }
-}
-
-/// The columns of `reflect` that its rows set for the previous period.
-const REFLECT_PREVIOUS_COLUMNS: &[Column] = &[
-    Column::Key,
-    Column::Id,
-    Column::Name,
-    Column::Date,
-    Column::Start,
-    Column::End,
-    Column::Count,
-    Column::NetSeconds,
-    Column::Net,
-    Column::HeldSeconds,
-    Column::Held,
-    Column::PausedSeconds,
-    Column::Paused,
-    Column::Amount,
-    Column::Currency,
-];
-
-/// The change columns of `reflect`.
-const REFLECT_CHANGE_COLUMNS: &[Column] = &[
-    Column::ChangeCount,
-    Column::ChangeNetSeconds,
-    Column::ChangeNet,
-    Column::ChangeHeldSeconds,
-    Column::ChangeHeld,
-    Column::ChangePausedSeconds,
-    Column::ChangePaused,
-    Column::ChangeAmount,
-    Column::ChangePercent,
-];
-
-/// The columns of `reflect`.
-const REFLECT_COLUMNS: &[Column] = &[
-    Column::Part,
-    Column::Group,
-    Column::Key,
-    Column::Id,
-    Column::Short,
-    Column::Name,
-    Column::Client,
-    Column::Date,
-    Column::Start,
-    Column::End,
-    Column::Count,
-    Column::NetSeconds,
-    Column::Net,
-    Column::Percent,
-    Column::TargetSeconds,
-    Column::Target,
-    Column::BudgetSeconds,
-    Column::Budget,
-    Column::BilledSeconds,
-    Column::Billed,
-    Column::HeldSeconds,
-    Column::Held,
-    Column::PausedSeconds,
-    Column::Paused,
-    Column::Amount,
-    Column::Currency,
-    Column::Reason,
-    Column::Note,
-    Column::OtherId,
-    Column::OtherShort,
-    Column::Running,
-];
-
-/// The columns of `bill`.
-const BILL_COLUMNS: &[Column] = &[
-    Column::Part,
-    Column::Group,
-    Column::Key,
-    Column::Id,
-    Column::Short,
-    Column::Name,
-    Column::Client,
-    Column::Date,
-    Column::Start,
-    Column::End,
-    Column::Period,
-    Column::Count,
-    Column::NetSeconds,
-    Column::Net,
-    Column::Percent,
-    Column::BilledSeconds,
-    Column::Billed,
-    Column::GrossSeconds,
-    Column::Gross,
-    Column::HeldSeconds,
-    Column::Held,
-    Column::Rate,
-    Column::Amount,
-    Column::Currency,
-    Column::Note,
-];
-
-/// The columns of `export`.
-const EXPORT_COLUMNS: &[Column] = &[
-    Column::Id,
-    Column::Short,
-    Column::Project,
-    Column::ProjectId,
-    Column::Client,
-    Column::Role,
-    Column::Start,
-    Column::End,
-    Column::NetSeconds,
-    Column::Net,
-    Column::GrossSeconds,
-    Column::Gross,
-    Column::HeldSeconds,
-    Column::Held,
-    Column::PausedSeconds,
-    Column::Paused,
-    Column::Rate,
-    Column::Amount,
-    Column::Currency,
-    Column::Note,
-    Column::Tags,
-    Column::DeterminedBy,
-    Column::Billable,
-    Column::Invoice,
-    Column::Running,
-];
 
 /// The value of a cell.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -716,7 +562,9 @@ mod tests {
         let cells: Vec<&str> = lines[1].split(',').collect();
         assert_eq!(
             cells.len(),
-            REFLECT_COLUMNS.len() + REFLECT_PREVIOUS_COLUMNS.len() + REFLECT_CHANGE_COLUMNS.len()
+            SchemaKind::Reflect.columns().len()
+                + SchemaKind::Reflect.previous_columns().len()
+                + SchemaKind::Reflect.change_columns().len()
         );
         assert_eq!(cells[..3], ["time", "tracked", ""]);
         assert!(lines[1].contains(",5400,1h 30m,"), "{}", lines[1]);
@@ -791,6 +639,37 @@ mod tests {
             json,
             "{\n  \"version\": 1,\n  \"kind\": \"reflect\",\n  \"rows\": []\n}"
         );
+    }
+
+    #[test]
+    fn doctor_row_writes_its_finding_in_column_order() -> PaceResult<()> {
+        let rows = [Row::default()
+            .text(Column::Severity, "error")
+            .text(Column::Area, "files")
+            .text(
+                Column::Message,
+                "pace doesn't know the event type `entry.bogun`",
+            )
+            .text(Column::File, "2026-11.toml")
+            .number(Column::Line, 3)
+            .text(Column::Fix, "update pace")];
+
+        let json = schema_json(SchemaKind::Doctor, &rows)?;
+        let csv = schema_csv(SchemaKind::Doctor, &rows);
+
+        assert!(json.contains("\"kind\": \"doctor\""), "{json}");
+        let keys: Vec<&str> = json
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix('"')?.split('"').next())
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                "version", "kind", "rows", "severity", "area", "message", "file", "line", "fix"
+            ]
+        );
+        assert_eq!(csv[0], "severity,area,message,file,line,entry,fix");
+        Ok(())
     }
 
     #[test]

@@ -2,7 +2,7 @@
 //!
 //! Errors from loading the configuration and from the commands are rendered
 //! with their hints and end the process with pace's
-//! [`ExitCode`](pace_error::ExitCode)s.
+//! [`ExitCode`]s.
 
 use std::{
     ffi::OsString,
@@ -19,12 +19,12 @@ use abscissa_core::{
 use jiff::civil::Date;
 use miette::{MietteHandler, MietteHandlerOpts, ReportHandler};
 use pace_core::Catalog;
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_store::catalog::{MendedCatalog, points_at_file, read_catalog, read_catalog_mending};
 
 use crate::clock::{TEST_NOW, clock_for_run};
 use crate::config::load_settings;
-use crate::dirs::resolve_dirs;
+use crate::dirs::{locate_dirs, resolve_dirs};
 use crate::editor::editor_variable;
 use crate::project::discover_project;
 use crate::prompt::Terminal;
@@ -130,33 +130,20 @@ impl PaceApp {
             &cwd,
             executable.as_deref(),
         )?;
-        let dirs = resolve_dirs(inputs, Platform::current)?;
-        let home = directories::BaseDirs::new().map(|base| base.home_dir().to_path_buf());
-        // `config set` creates the file it writes.
-        let creates_config_file = command.writes_config_file() && !dirs.config_file.path.exists();
-        let settings = load_settings(
-            (!creates_config_file).then_some(&dirs.config_file),
-            home.as_deref(),
-            |name: &str| -> Option<OsString> { std::env::var_os(name) },
-            std::env::vars_os().map(|(name, _)| name),
-        )?;
-        for warning in &settings.warnings {
-            eprint!("{}", render(warning, self.style));
-        }
-        let catalog = catalog_for(
-            &dirs.data.path,
-            command.mended_catalog_file(&dirs.data.path).as_deref(),
-        )?;
-        let project = discover_project(
-            command.project.as_deref(),
-            std::env::var_os("PACE_PROJECT"),
-            &cwd,
-            &settings.project_paths,
-            Records {
-                catalog: &catalog,
-                home: &dirs.data.path,
-            },
-        )?;
+        // Doctor names the mistakes that stop every other command here.
+        let (dirs, files) = if command.tolerates_broken_files() {
+            let dirs = locate_dirs(inputs, Platform::current)?;
+            (dirs, LoadedFiles::untouched()?)
+        } else {
+            let dirs = resolve_dirs(inputs, Platform::current)?;
+            let files = self.load_files(command, &dirs, &cwd)?;
+            (dirs, files)
+        };
+        let LoadedFiles {
+            settings,
+            catalog,
+            project,
+        } = files;
         self.context = Some(Context {
             dirs,
             settings,
@@ -192,6 +179,64 @@ impl PaceApp {
 /// If a file can't be read, or every file reads and [`Catalog::new`]
 /// refuses the records for a mistake in another file: the error points at
 /// the line.
+/// What a command reads from pace's files before it runs.
+struct LoadedFiles {
+    settings: Loaded,
+    catalog: Catalog,
+    project: Option<Project>,
+}
+
+impl LoadedFiles {
+    /// The defaults, without reading a file: for `pace doctor`, which reads
+    /// the files itself to name their mistakes.
+    fn untouched() -> PaceResult<Self> {
+        Ok(Self {
+            settings: load_settings(None, None, |_: &str| None, std::iter::empty())?,
+            catalog: Catalog::default(),
+            project: None,
+        })
+    }
+}
+
+impl PaceApp {
+    /// The settings, the catalog and the project of `command`, read from
+    /// the files of `dirs` with `cwd` as the working directory; the
+    /// settings' warnings go to the standard error.
+    fn load_files(&self, command: &EntryPoint, dirs: &Dirs, cwd: &Path) -> PaceResult<LoadedFiles> {
+        let home = directories::BaseDirs::new().map(|base| base.home_dir().to_path_buf());
+        // `config set` creates the file it writes.
+        let creates_config_file = command.writes_config_file() && !dirs.config_file.path.exists();
+        let settings = load_settings(
+            (!creates_config_file).then_some(&dirs.config_file),
+            home.as_deref(),
+            |name: &str| -> Option<OsString> { std::env::var_os(name) },
+            std::env::vars_os().map(|(name, _)| name),
+        )?;
+        for warning in &settings.warnings {
+            eprint!("{}", render(warning, self.style));
+        }
+        let catalog = catalog_for(
+            &dirs.data.path,
+            command.mended_catalog_file(&dirs.data.path).as_deref(),
+        )?;
+        let project = discover_project(
+            command.project.as_deref(),
+            std::env::var_os("PACE_PROJECT"),
+            cwd,
+            &settings.project_paths,
+            Records {
+                catalog: &catalog,
+                home: &dirs.data.path,
+            },
+        )?;
+        Ok(LoadedFiles {
+            settings,
+            catalog,
+            project,
+        })
+    }
+}
+
 fn catalog_for(home: &Path, mended: Option<&Path>) -> PaceResult<Catalog> {
     let Some(mended) = mended else {
         return read_catalog(home);
@@ -249,6 +294,12 @@ pub fn exit_on_error(result: PaceResult<()>) {
         print_error(&error);
         PACE_APP.shutdown_with_exitcode(Shutdown::Crash, error.exit_code().into());
     }
+}
+
+/// End pace with `code` after a command that printed what it found, such
+/// as `pace doctor` with an error among its findings.
+pub fn exit_with(code: ExitCode) {
+    PACE_APP.shutdown_with_exitcode(Shutdown::Crash, code.into());
 }
 
 /// Print an error the way pace prints errors, and go on.

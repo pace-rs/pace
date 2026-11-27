@@ -30,6 +30,7 @@ Commands:
   project      Keep the project records: client, role, billing and budget
   setup        Walk through the settings, roles, clients and this directory's project
   config       Look at pace's configuration
+  doctor       Check pace's directories and files, and say how to fix each problem
   store        Look after how pace keeps its data
   completions  Print the completion script for your shell
   help         Print this message or the help of the given subcommand(s)

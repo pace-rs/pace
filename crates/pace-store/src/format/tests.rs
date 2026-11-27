@@ -540,7 +540,7 @@ fn collecting_reader_of_valid_file_finds_no_mistake() -> TestResult {
 }
 
 #[test]
-fn collecting_reader_names_value_of_wrong_type_and_reads_the_rest() -> TestResult {
+fn collecting_reader_names_value_of_wrong_type_and_reads_rest() -> TestResult {
     let device: DeviceId = id(0xd, 1).parse()?;
     let wrong = event_file_with(&ended().replace("v = 1", "v = \"one\""));
     let text = format!(

@@ -221,7 +221,7 @@ fn own_last(
 }
 
 #[test]
-fn clone_check_without_append_names_the_machine_left_behind() -> TestResult {
+fn clone_check_without_append_names_machine_left_behind() -> TestResult {
     let dir = scratch_dir()?;
     let home = dir.path().join("home");
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));

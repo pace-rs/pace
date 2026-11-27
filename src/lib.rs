@@ -24,6 +24,7 @@ pub mod clock;
 pub mod commands;
 pub mod config;
 pub mod dirs;
+pub mod doctor;
 pub mod editor;
 pub mod origin;
 pub mod output;

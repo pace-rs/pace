@@ -5,6 +5,7 @@ pub mod client;
 pub mod completions;
 pub mod config;
 pub mod corrections;
+pub mod doctor;
 pub mod edit;
 pub mod entry_fields;
 pub mod export;
@@ -30,6 +31,7 @@ use self::{
     completions::CompletionsCmd,
     config::ConfigCmd,
     corrections::{AdjustCmd, ForgetCmd, LogCmd, UndoCmd},
+    doctor::DoctorCmd,
     edit::EditCmd,
     export::ExportCmd,
     now::{NowCmd, NowFormat},
@@ -156,6 +158,9 @@ pub enum PaceCmd {
     #[command(subcommand)]
     Config(ConfigCmd),
 
+    /// Check pace's directories and files, and say how to fix each problem
+    Doctor(DoctorCmd),
+
     /// Look after how pace keeps its data.
     #[command(subcommand)]
     Store(StoreCmd),
@@ -187,6 +192,12 @@ impl EntryPoint {
             &self.cmd,
             Some(PaceCmd::Config(ConfigCmd::Set(_)) | PaceCmd::Setup(_))
         )
+    }
+
+    /// Whether the command runs whatever pace's directories and files
+    /// hold, because it names their mistakes: `pace doctor`.
+    pub(crate) const fn tolerates_broken_files(&self) -> bool {
+        matches!(&self.cmd, Some(PaceCmd::Doctor(_)))
     }
 
     /// The catalog file in `home` that the command mends, so that it runs
@@ -278,6 +289,20 @@ mod tests {
         assert!(writes(&["pace", "setup"]));
         assert!(!writes(&["pace", "config", "get", "week-start"]));
         assert!(!writes(&["pace", "config", "show"]));
+    }
+
+    #[test]
+    fn only_doctor_tolerates_broken_files() {
+        let tolerates = |args: &[&str]| {
+            EntryPoint::try_parse_from(args)
+                .unwrap()
+                .tolerates_broken_files()
+        };
+
+        assert!(tolerates(&["pace", "doctor"]));
+        assert!(tolerates(&["pace", "doctor", "--json"]));
+        assert!(!tolerates(&["pace", "now"]));
+        assert!(!tolerates(&["pace"]));
     }
 
     #[test]

@@ -1,0 +1,39 @@
+---
+source: tests/journey/doctor.rs
+expression: transcript
+---
+$ pace doctor --json   # at 12:00
+success: false
+exit_code: 1
+----- stdout -----
+{
+  "version": 1,
+  "kind": "doctor",
+  "rows": [
+    {
+      "severity": "error",
+      "area": "files",
+      "message": "pace doesn't know the event type `entry.bogun`",
+      "file": "[SANDBOX]/home/events/[ID-1]/2026/2026-11.toml",
+      "line": 23,
+      "fix": "a newer pace may have written it on another device; update pace"
+    },
+    {
+      "severity": "error",
+      "area": "files",
+      "message": "`whereabouts` is not a key pace knows in an event",
+      "file": "[SANDBOX]/home/events/[ID-1]/2026/2026-11.toml",
+      "line": 40,
+      "fix": "event files are for reading; change an entry with `pace edit`"
+    },
+    {
+      "severity": "warning",
+      "area": "setup",
+      "message": "a setup was interrupted and waits to be continued",
+      "file": "[SANDBOX]/machine/setup.toml",
+      "fix": "continue with `pace setup`"
+    }
+  ]
+}
+
+----- stderr -----

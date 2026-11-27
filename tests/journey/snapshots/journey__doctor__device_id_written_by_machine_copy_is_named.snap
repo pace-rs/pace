@@ -1,0 +1,14 @@
+---
+source: tests/journey/doctor.rs
+expression: transcript
+---
+$ pace doctor   # at 11:00
+success: false
+exit_code: 1
+----- stdout -----
+error[device]: another machine writes with this machine's device ID: the log of this ID reaches 2026-11-26T09:00:00.000Z/0, but this machine wrote up to 2026-11-26T08:00:00.000Z/0
+  fix: if this machine was restored from a backup or copied, remove [SANDBOX]/machine/device.toml so it gets a new device ID
+
+Found 1 error.
+
+----- stderr -----

@@ -200,7 +200,7 @@ fn snippet_name_is_the_file_it_points_at() {
 }
 
 #[test]
-fn snippet_line_counts_from_one_to_the_start_of_its_span() {
+fn snippet_line_counts_from_one_to_start_of_its_span() {
     let text = "version = 1\n\n[work]\nkind = \"aera\"\n";
     let start = text.find("kind").unwrap_or_default();
     let error = PaceError::new(ErrorKind::Configuration, "unknown kind")

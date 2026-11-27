@@ -26,6 +26,6 @@ by the flows of `questions`.
 <!-- uses -->
 
 - Uses: [`output`](../output.rs), [`questions`](../questions/).
-- Used by: [`commands`](../commands/).
+- Used by: [`commands`](../commands/), [`doctor`](../doctor/).
 
 <!-- /uses -->

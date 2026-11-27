@@ -12,11 +12,14 @@ period's start on, so the state holds every later billing of its entries; it
 writes the core's `pace_core::export_entries` as rows of the schema. `bill`
 picks the client, reads the events from the period's start on, so the state
 holds every entry that may overlap one on the bill, builds the `pace_core::Bill`
-and draws it with `render` too. `setup` drives the step machine of `setup.rs`
-through the asker, and writes the edits once the user accepts the summary. `role
-edit`, `client edit` and `project edit` open a file, or one client's table, in
-the editor until the catalog reads it; `project edit` also refuses a changed key
-or ID.
+and draws it with `render` too. `doctor` runs the checks of `doctor/` and prints
+their findings as text or as JSON. It reads pace's files itself, so
+`application.rs` hands it the places without reading the settings, the catalog
+or the manifest. `setup` drives the step machine of `setup.rs` through the
+asker, and writes the edits once the user accepts the summary. `role edit`,
+`client edit` and `project edit` open a file, or one client's table, in the
+editor until the catalog reads it; `project edit` also refuses a changed key or
+ID.
 
 ## Files
 
@@ -29,6 +32,7 @@ or ID.
 | [`completions.rs`](completions.rs)     | `pace completions`: the completion script for a shell.                                                                                                                                                    |
 | [`config.rs`](config.rs)               | `pace config`                                                                                                                                                                                             |
 | [`corrections.rs`](corrections.rs)     | Correcting the record: `adjust`, `log`, `undo`, `forget`.                                                                                                                                                 |
+| [`doctor.rs`](doctor.rs)               | `pace doctor`: check the directories, the files, the device and setup, and say how to fix each problem; it changes nothing.                                                                               |
 | [`edit.rs`](edit.rs)                   | `pace edit`: an entry as TOML in the user's editor; the changes become an adjustment.                                                                                                                     |
 | [`entry_fields.rs`](entry_fields.rs)   | The flags of an entry's role, who decided and billable, which `begin`, `log` and `adjust` share.                                                                                                          |
 | [`export.rs`](export.rs)               | `pace export`: every entry of a period, one row each, as JSON or CSV in the schema of version 1.                                                                                                          |
@@ -49,11 +53,12 @@ or ID.
 <!-- uses -->
 
 - Uses: [`application`](../application.rs), [`clock`](../clock.rs),
-  [`config`](../config/), [`dirs`](../dirs/), [`editor`](../editor.rs),
-  [`origin`](../origin.rs), [`output`](../output.rs), [`print`](../print.rs),
-  [`project`](../project.rs), [`prompt`](../prompt.rs),
+  [`config`](../config/), [`dirs`](../dirs/), [`doctor`](../doctor/),
+  [`editor`](../editor.rs), [`origin`](../origin.rs), [`output`](../output.rs),
+  [`print`](../print.rs), [`project`](../project.rs), [`prompt`](../prompt.rs),
   [`questions`](../questions/), [`render`](../render/),
   [`select`](../select.rs), [`session`](../session.rs), [`setup`](../setup/).
-- Used by: [`application`](../application.rs), [`editor`](../editor.rs).
+- Used by: [`application`](../application.rs), [`doctor`](../doctor/),
+  [`editor`](../editor.rs).
 
 <!-- /uses -->

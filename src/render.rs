@@ -13,6 +13,7 @@ mod report_rows;
 mod report_table;
 mod report_template;
 pub mod schema;
+mod schema_kind;
 
 use std::{ffi::OsString, io::IsTerminal as _};
 

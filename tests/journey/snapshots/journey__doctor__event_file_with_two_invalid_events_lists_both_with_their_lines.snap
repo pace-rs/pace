@@ -1,0 +1,37 @@
+---
+source: tests/journey/doctor.rs
+expression: transcript
+---
+$ pace now   # at 12:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::store::unknown-key
+
+  × `whereabouts` is not a key pace knows in an event
+    ╭─[[SANDBOX]/home/events/[ID-1]/2026/2026-11.toml:40:1]
+ 39 │ entry = "[ID-2]"
+ 40 │ whereabouts = "office"
+    · ─────┬─────
+    ·      ╰── unknown key
+    ╰────
+  help: event files are for reading; change an entry with `pace edit`
+
+
+$ pace doctor   # at 12:00
+success: false
+exit_code: 1
+----- stdout -----
+error[files]: pace doesn't know the event type `entry.bogun`
+  at [SANDBOX]/home/events/[ID-1]/2026/2026-11.toml:23
+  fix: a newer pace may have written it on another device; update pace
+
+error[files]: `whereabouts` is not a key pace knows in an event
+  at [SANDBOX]/home/events/[ID-1]/2026/2026-11.toml:40
+  fix: event files are for reading; change an entry with `pace edit`
+
+Found 2 errors.
+
+----- stderr -----
