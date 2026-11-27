@@ -1,7 +1,7 @@
 //! The `--at` grammar of the tracking commands.
 
 use jiff::ZonedDateTime;
-use pace_time::{At, parse_at};
+use pace_time::{At, NOT_UNDERSTOOD, parse_at};
 use proptest::{
     prelude::*,
     strategy::ValueTree as _,
@@ -168,6 +168,22 @@ fn text_that_is_no_time_explains_the_grammar(#[case] input: &str) -> TestResult 
         "use `HH:MM`, `yesterday HH:MM`, `YYYY-MM-DD HH:MM` or a time back from now \
          like `-15m`"
     );
+    Ok(())
+}
+
+#[test]
+fn only_text_that_is_no_time_carries_not_understood_code() -> TestResult {
+    let now = at(NOW)?;
+
+    let unreadable = parse_at("soon", &now)
+        .err()
+        .ok_or("`soon` must be rejected")?;
+    let future = parse_at("2026-11-26 23:00", &now)
+        .err()
+        .ok_or("a time ahead must be rejected")?;
+
+    assert!(unreadable.is_code(NOT_UNDERSTOOD));
+    assert!(!future.is_code(NOT_UNDERSTOOD));
     Ok(())
 }
 

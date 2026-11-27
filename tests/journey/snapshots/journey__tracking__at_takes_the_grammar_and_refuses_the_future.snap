@@ -8,6 +8,8 @@ exit_code: 2
 ----- stdout -----
 
 ----- stderr -----
+pace::time::not-understood
+
   × `soon` is not a time pace understands
   help: use `HH:MM`, `yesterday HH:MM`, `YYYY-MM-DD HH:MM` or a time back from now like `-15m`
 

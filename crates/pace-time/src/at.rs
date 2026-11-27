@@ -41,6 +41,10 @@ impl At {
     }
 }
 
+/// The error code of a text that follows none of [`parse_at`]'s forms; a
+/// time it reads but refuses, such as one in the future, has another.
+pub const NOT_UNDERSTOOD: &str = "pace::time::not-understood";
+
 /// Read a `--at` time, seen from `now` and in the time zone of `now`.
 ///
 /// - `HH:MM` is the most recent such time: `23:30` typed at 00:15 means
@@ -196,6 +200,7 @@ fn no_time(input: &str) -> Box<PaceError> {
         "`{input}` is not a time pace understands",
     )
     .attach_context("input", input)
+    .attach_error_code(NOT_UNDERSTOOD)
     .attach_hint(
         "use `HH:MM`, `yesterday HH:MM`, `YYYY-MM-DD HH:MM` or a time back from now \
          like `-15m`",

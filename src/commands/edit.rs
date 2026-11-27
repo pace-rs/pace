@@ -10,7 +10,7 @@ use pace_core::{
     Tag, Text, command::Adjust,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Snippet};
-use pace_time::parse_at;
+use pace_time::{NOT_UNDERSTOOD, parse_at};
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
@@ -247,13 +247,15 @@ fn read(
             ErrorKind::InvalidInput,
             "the edited entry has a mistake: {message}",
         )
-        .attach_context("message", error.message().trim())
-        .attach_hint("fix the marked spot; nothing was changed");
+        .attach_context("message", error.message().trim());
         match error.span() {
-            Some(span) if !text.trim().is_empty() => {
-                mistake.attach_snippet(Snippet::new(EDITED, text, span, "here"))
+            Some(span) if !text.trim().is_empty() => mistake
+                .attach_snippet(Snippet::new(EDITED, text, span, "here"))
+                .attach_hint("fix the marked spot; nothing was changed"),
+            _ if text.trim().is_empty() => {
+                mistake.attach_hint("write the fields back, at least `start`; nothing was changed")
             }
-            _ => mistake,
+            _ => mistake.attach_hint("fix the named mistake; nothing was changed"),
         }
     })?;
 
@@ -314,7 +316,7 @@ fn read(
 }
 
 /// A time as pace wrote it, or in the `--at` grammar; a mistake points at
-/// it in `text`.
+/// it in `text` and says that nothing was changed.
 fn moment(
     text: &str,
     value: &Spanned<String>,
@@ -328,8 +330,29 @@ fn moment(
     parse_at(value.get_ref(), now)
         .and_then(|at| chosen_moment(value.get_ref(), at, asker, notes))
         .map_err(|error| {
-            error.attach_snippet(Snippet::new(EDITED, text, value.span(), "this time"))
+            let hint = if error.is_code(NOT_UNDERSTOOD) {
+                time_forms(now)
+            } else {
+                error.hint().unwrap_or("give another time").to_owned()
+            };
+            error
+                .attach_hint(format!("{hint}; nothing was changed"))
+                .attach_snippet(Snippet::new(EDITED, text, value.span(), "this time"))
         })
+}
+
+/// The two forms of a time the edited file takes, shown with `now`.
+fn time_forms(now: &ZonedDateTime) -> String {
+    let minute = now
+        .with()
+        .second(0)
+        .subsec_nanosecond(0)
+        .build()
+        .unwrap_or_else(|_| now.clone());
+    format!(
+        "write it as pace does, like `{minute}`, or as `{}`",
+        minute.strftime("%Y-%m-%d %H:%M")
+    )
 }
 
 /// The change from `current` to `new`.
@@ -421,6 +444,13 @@ mod tests {
         .unwrap_err();
 
         assert!(error.to_string().contains("lies in the future"), "{error}");
+        assert!(
+            error
+                .hint()
+                .is_some_and(|hint| hint.ends_with("; nothing was changed")),
+            "{:?}",
+            error.hint()
+        );
         assert_eq!(
             labels(&error),
             [(
@@ -431,7 +461,7 @@ mod tests {
     }
 
     #[test]
-    fn emptied_file_names_the_mistake_in_guidance() {
+    fn emptied_file_names_mistake_in_guidance_and_hint() {
         let error = read(
             "",
             &entry(),
@@ -444,6 +474,61 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "the edited entry has a mistake: missing field `start`"
+        );
+        assert_eq!(
+            error.hint(),
+            Some("write the fields back, at least `start`; nothing was changed")
+        );
+    }
+
+    #[test]
+    fn marked_mistake_hints_at_marked_spot() {
+        let text = format!("start = \"{}\"\nend = 10\n", at("09:00"));
+
+        let error = read(
+            &text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(labels(&error).len(), 1);
+        assert_eq!(
+            error.hint(),
+            Some("fix the marked spot; nothing was changed")
+        );
+    }
+
+    #[test]
+    fn unreadable_time_hints_at_pace_form_and_keeps_entry() {
+        let value = "2026-11-26T09:00:00+01:00[Europe/Berln]";
+        let text = format!("start = \"{value}\"\n");
+
+        let error = read(
+            &text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            format!("`{value}` is not a time pace understands")
+        );
+        assert_eq!(
+            error.hint(),
+            Some(
+                "write it as pace does, like `2026-11-26T10:05:00+01:00[Europe/Berlin]`, \
+                 or as `2026-11-26 10:05`; nothing was changed"
+            )
+        );
+        assert_eq!(
+            labels(&error),
+            [(text.find(value).unwrap() - 1, "this time".to_owned())]
         );
     }
 

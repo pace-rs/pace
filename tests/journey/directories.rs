@@ -73,7 +73,7 @@ fn machine_directory_inside_the_data_is_refused() -> TestResult {
 }
 
 #[test]
-fn machine_directory_inside_the_data_through_parent_is_refused() -> TestResult {
+fn machine_directory_in_data_through_parent_is_refused() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = run(sandbox

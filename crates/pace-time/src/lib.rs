@@ -18,7 +18,7 @@ mod duration;
 mod frame;
 mod range;
 
-pub use at::{At, parse_at};
+pub use at::{At, NOT_UNDERSTOOD, parse_at};
 pub use display::{format_duration, relative_time};
 pub use duration::{elapsed, parse_duration};
 pub use frame::TimeFrame;
