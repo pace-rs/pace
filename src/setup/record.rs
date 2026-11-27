@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use pace_core::{Catalog, ClientKey, ProjectRecord, RoleKey};
 use pace_store::field_edit::{FieldEdit, FieldValue};
 
-use crate::questions::{Answer, Optional, Question, QuestionKind};
+use crate::questions::{Answer, Optional, Question, QuestionKind, told};
 use crate::setup::summary::SetupChange;
 
 /// What the choice of a client or a role offers first.
@@ -19,6 +19,9 @@ const NONE_ITEM: &str = "none";
 pub struct ChangeRecordFlow {
     record_file: PathBuf,
     record: ProjectRecord,
+    /// The catalog the record lives in: a client answer must leave it
+    /// readable.
+    catalog: Catalog,
     /// The clients the choice offers after `none`: key and name.
     clients: Vec<(ClientKey, String)>,
     /// The roles the choice offers after `none`: those in use, and the
@@ -47,6 +50,7 @@ impl ChangeRecordFlow {
         Self {
             record_file: record_file.to_path_buf(),
             record,
+            catalog: catalog.clone(),
             clients,
             roles,
             name: None,
@@ -120,7 +124,9 @@ impl ChangeRecordFlow {
                 self.name = Some(name.to_owned());
             }
             ("record-client", Answer::Choice(index)) => {
-                self.client = Optional::Answered(picked(&self.clients, index)?);
+                let client = picked(&self.clients, index)?;
+                self.check_client(client.as_ref())?;
+                self.client = Optional::Answered(client);
             }
             ("record-role", Answer::Choice(index)) => {
                 self.role = Optional::Answered(picked(&self.roles, index)?);
@@ -129,6 +135,33 @@ impl ChangeRecordFlow {
             (id, answer) => return Err(format!("{answer:?} is no answer to `{id}`")),
         }
         Ok(())
+    }
+
+    /// Check that the catalog still reads with `client` as the record's
+    /// client: a client's rates for this project tie it to that client.
+    ///
+    /// # Errors
+    ///
+    /// The catalog's refusal, told with its hint.
+    fn check_client(&self, client: Option<&ClientKey>) -> Result<(), String> {
+        let changed = ProjectRecord {
+            client: client.cloned(),
+            ..self.record.clone()
+        };
+        let projects = self
+            .catalog
+            .projects()
+            .filter(|project| project.key != self.record.key)
+            .cloned()
+            .chain([changed])
+            .collect();
+        Catalog::new(
+            self.catalog.roles().cloned().collect(),
+            self.catalog.clients().cloned().collect(),
+            projects,
+        )
+        .map(drop)
+        .map_err(|error| told(&error))
     }
 
     /// The changes of the fields whose answer differs from the record.
@@ -222,7 +255,8 @@ fn key_change(
 mod tests {
     use std::collections::BTreeMap;
 
-    use pace_core::{Client, Rates, Role, RoleKind, Rounding};
+    use jiff::civil::date;
+    use pace_core::{Client, Money, ProjectKey, Rate, Rates, Role, RoleKind, Rounding};
 
     use super::*;
 
@@ -244,13 +278,18 @@ mod tests {
     }
 
     fn catalog() -> Catalog {
+        catalog_with_project_rates(BTreeMap::new())
+    }
+
+    /// The catalog whose client `acme` has `project_rates`.
+    fn catalog_with_project_rates(project_rates: BTreeMap<ProjectKey, Rates>) -> Catalog {
         let client = Client {
             key: "acme".parse().unwrap(),
             name: "ACME".to_owned(),
             currency: "EUR".parse().unwrap(),
             rounding: Rounding::NONE,
             rates: Rates::default(),
-            project_rates: BTreeMap::new(),
+            project_rates,
         };
         let role = Role {
             id: "0193a7c4-0000-7000-8000-000000000002".parse().unwrap(),
@@ -341,5 +380,33 @@ mod tests {
             flow.take_answer(Answer::Text("  ".to_owned())),
             Err("a project needs a name".to_owned())
         );
+    }
+
+    #[test]
+    fn client_whose_catalog_would_not_read_is_told_and_asked_again() {
+        let hourly = Money::parse_decimal("120", "EUR".parse().unwrap()).unwrap();
+        let webshop_rates = Rates::new(vec![Rate {
+            hourly,
+            from: date(2026, 1, 1),
+        }])
+        .unwrap();
+        let catalog = catalog_with_project_rates(BTreeMap::from([(
+            "webshop".parse().unwrap(),
+            webshop_rates,
+        )]));
+        let mut flow = ChangeRecordFlow::new(&catalog, Path::new("webshop.toml"), record());
+        flow.take_answer(Answer::Text("Webshop".to_owned()))
+            .unwrap();
+
+        let message = flow.take_answer(Answer::Choice(0)).unwrap_err();
+
+        assert_eq!(
+            message,
+            "the client `acme` has rates for the project `webshop`, which has no client: make \
+             `acme` the project's client, or remove the rates"
+        );
+        assert_eq!(flow.next_question().unwrap().id, "record-client");
+        defaults(&mut flow);
+        assert_eq!(flow.finish(), []);
     }
 }

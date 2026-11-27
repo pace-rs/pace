@@ -50,6 +50,15 @@ impl NewRateFlow {
         self.client.rates.iter().last()
     }
 
+    /// The first day a new rate may begin on, the default of its first
+    /// day: today, or the day after the latest rate's first day if that
+    /// is today or later.
+    fn first_free_day(&self) -> Date {
+        self.latest()
+            .and_then(|latest| latest.from.tomorrow().ok())
+            .map_or(self.today, |after| after.max(self.today))
+    }
+
     /// The next question; `None` once every question has its answer.
     #[must_use]
     pub fn next_question(&self) -> Option<Question> {
@@ -73,7 +82,7 @@ impl NewRateFlow {
             id: "rate-from",
             text: "From which day does the new rate hold?".to_owned(),
             kind: QuestionKind::Text {
-                default: Some(self.today.to_string()),
+                default: Some(self.first_free_day().to_string()),
             },
             flag: "--from",
             flag_answer: None,
@@ -261,5 +270,35 @@ mod tests {
             .unwrap_err();
 
         assert!(message.contains("lots"), "{message}");
+    }
+
+    #[test]
+    fn default_day_follows_latest_rate_that_starts_today() {
+        let mut flow = flow(acme(&[("95.00", TODAY)]));
+        flow.take_answer(Answer::Text("105".to_owned())).unwrap();
+        let question = flow.next_question().unwrap();
+
+        flow.take_answer(question.default_answer().unwrap())
+            .unwrap();
+
+        assert_eq!(
+            question.kind,
+            QuestionKind::Text {
+                default: Some("2026-11-28".to_owned())
+            }
+        );
+    }
+
+    #[test]
+    fn default_day_is_today_after_past_rate() {
+        let mut flow = flow(acme(&[("95.00", date(2026, 1, 1))]));
+        flow.take_answer(Answer::Text("105".to_owned())).unwrap();
+
+        assert_eq!(
+            flow.next_question().unwrap().kind,
+            QuestionKind::Text {
+                default: Some("2026-11-27".to_owned())
+            }
+        );
     }
 }

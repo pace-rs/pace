@@ -464,6 +464,35 @@ fn changed_record_field_is_its_only_edit() {
 }
 
 #[test]
+fn record_client_that_breaks_client_project_rates_is_told_and_asked_again() {
+    let mut client = acme();
+    client.project_rates = BTreeMap::from([("webshop".parse().unwrap(), client.rates.clone())]);
+    let inputs = SetupInputs {
+        catalog: Catalog::new(vec![work()], vec![client], vec![webshop()]).unwrap(),
+        ..second_run()
+    };
+    let mut flow = SetupFlow::new(inputs);
+    while let Some(question) = flow.next_question() {
+        if question.id == "record-client" {
+            break;
+        }
+        let answer = match question.id {
+            "directory" => Answer::YesNo(true),
+            _ => question.default_answer().unwrap(),
+        };
+        flow.take_answer(answer).unwrap();
+    }
+
+    let message = flow.take_answer(Answer::Choice(0)).unwrap_err();
+
+    assert!(
+        message.starts_with("the client `acme` has rates for the project `webshop`"),
+        "{message}"
+    );
+    assert_eq!(flow.next_question().unwrap().id, "record-client");
+}
+
+#[test]
 fn saved_setup_serializes_and_replays_to_same_question() {
     let mut flow = SetupFlow::new(first_run());
     for answer in [
