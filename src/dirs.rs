@@ -215,14 +215,32 @@ fn no_home() -> Box<PaceError> {
     )
 }
 
-/// Resolve the three places. A given path wins over portable mode, portable
-/// mode over the platform's defaults; `platform` is only asked if needed.
+/// Resolve the three places, as [`locate_dirs`] finds them, and refuse a
+/// machine directory inside the data directory ([`machine_inside_data`]).
 ///
 /// # Errors
 ///
 /// If the platform's directories are needed but unknown, or the machine
 /// directory lies inside the data directory.
 pub fn resolve_dirs(
+    inputs: Inputs,
+    platform: impl FnOnce() -> PaceResult<Platform>,
+) -> PaceResult<Dirs> {
+    let dirs = locate_dirs(inputs, platform)?;
+    machine_inside_data(&dirs).map_or(Ok(dirs), Err)
+}
+
+/// Find the three places, without checking them.
+///
+/// A given path wins over portable mode, portable mode over the
+/// platform's defaults; `platform` is only asked if needed. `pace doctor`
+/// locates them, so that it can name a machine directory inside the data
+/// directory.
+///
+/// # Errors
+///
+/// If the platform's directories are needed but unknown.
+pub fn locate_dirs(
     inputs: Inputs,
     platform: impl FnOnce() -> PaceResult<Platform>,
 ) -> PaceResult<Dirs> {
@@ -260,20 +278,27 @@ pub fn resolve_dirs(
         machine: pick(machine, |platform| platform.machine.clone())?,
     };
 
-    if normalised(&dirs.machine.path).starts_with(normalised(&dirs.data.path)) {
-        return Err(PaceError::new(
-            ErrorKind::Directories,
-            "the machine directory {machine} lies inside the data directory {data}",
-        )
-        .attach_context("machine", dirs.machine.path.display().to_string())
-        .attach_context("data", dirs.data.path.display().to_string())
-        .attach_hint(
-            "the data directory may be synced, and the machine directory holds this \
-             device's ID; point PACE_MACHINE_DIR somewhere else",
-        ));
-    }
-
     Ok(dirs)
+}
+
+/// The error when the machine directory of `dirs` lies inside its data
+/// directory, as the file system resolves them; `None` when it doesn't.
+#[must_use]
+pub fn machine_inside_data(dirs: &Dirs) -> Option<Box<PaceError>> {
+    normalised(&dirs.machine.path)
+        .starts_with(normalised(&dirs.data.path))
+        .then(|| {
+            PaceError::new(
+                ErrorKind::Directories,
+                "the machine directory {machine} lies inside the data directory {data}",
+            )
+            .attach_context("machine", dirs.machine.path.display().to_string())
+            .attach_context("data", dirs.data.path.display().to_string())
+            .attach_hint(
+                "the data directory may be synced, and the machine directory holds this \
+                 device's ID; point PACE_MACHINE_DIR somewhere else",
+            )
+        })
 }
 
 #[cfg(test)]

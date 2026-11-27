@@ -10,7 +10,9 @@ use pace_store::testing::scratch_dir;
 
 use pace_error::{ErrorKind, PaceResult};
 
-use crate::dirs::{Dirs, Inputs, Located, Platform, no_home, resolve_dirs};
+use crate::dirs::{
+    Dirs, Inputs, Located, Platform, locate_dirs, machine_inside_data, no_home, resolve_dirs,
+};
 use crate::origin::Origin;
 
 fn path(text: &str) -> PathBuf {
@@ -207,6 +209,36 @@ fn the_machine_directory_must_not_be_inside_the_data_directory() {
             "{machine}"
         );
     }
+}
+
+#[test]
+fn locating_keeps_machine_directory_inside_data_for_doctor_to_name() -> PaceResult<()> {
+    let inputs = Inputs {
+        home: Some(located("/sync/pace", Origin::Env("PACE_HOME"))),
+        machine: Some(located(
+            "/sync/pace/machine",
+            Origin::Env("PACE_MACHINE_DIR"),
+        )),
+        ..Inputs::default()
+    };
+
+    let dirs = locate_dirs(inputs, || Ok(linux()))?;
+
+    assert_eq!(dirs.machine.path, path("/sync/pace/machine"));
+    let error = machine_inside_data(&dirs).ok_or_else(no_home)?;
+    assert_eq!(
+        error.to_string(),
+        "the machine directory /sync/pace/machine lies inside the data directory /sync/pace"
+    );
+    Ok(())
+}
+
+#[test]
+fn machine_directory_beside_data_directory_is_no_problem() -> PaceResult<()> {
+    let dirs = locate_dirs(Inputs::default(), || Ok(linux()))?;
+
+    assert!(machine_inside_data(&dirs).is_none());
+    Ok(())
 }
 
 #[test]
