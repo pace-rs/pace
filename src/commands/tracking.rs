@@ -51,16 +51,27 @@ pub(super) fn at(
         .transpose()
 }
 
-/// A time in the `--at` grammar as a moment. A time that happened twice
-/// asks which one was meant; without a terminal, it takes the earlier one
-/// and says so.
+/// A time in the `--at` grammar as a moment, chosen as
+/// [`chosen_moment`] says.
 pub(super) fn moment(
     value: &str,
     now: &ZonedDateTime,
     asker: &dyn Ask,
     notes: &mut Vec<String>,
 ) -> PaceResult<ZonedDateTime> {
-    match parse_at(value, now).map_err(|error| error.attach_exit_code(ExitCode::Usage))? {
+    let at = parse_at(value, now).map_err(|error| error.attach_exit_code(ExitCode::Usage))?;
+    chosen_moment(value, at, asker, notes)
+}
+
+/// The moment `value` means. A time that happened twice asks which one was
+/// meant; without a terminal, it takes the earlier one and says so.
+pub(super) fn chosen_moment(
+    value: &str,
+    at: At,
+    asker: &dyn Ask,
+    notes: &mut Vec<String>,
+) -> PaceResult<ZonedDateTime> {
+    match at {
         At::Exact(moment) => Ok(moment),
         At::Ambiguous { earlier, later } => {
             let label = |moment: &ZonedDateTime| moment.strftime("%H:%M (%:z)").to_string();

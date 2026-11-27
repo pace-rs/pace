@@ -14,7 +14,7 @@ use pace_time::parse_at;
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
-use crate::commands::tracking::track;
+use crate::commands::tracking::{chosen_moment, track};
 use crate::editor::{edit_in_editor, editor_command};
 use crate::prompt::Ask;
 use crate::select::chosen_entry;
@@ -52,7 +52,7 @@ pub struct EditCmd {
 
 impl Runnable for EditCmd {
     fn run(&self) {
-        exit_on_error(track(|session, context, _| {
+        exit_on_error(track(|session, context, notes| {
             let asker = &context.terminal;
             let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
             let chosen = chosen_entry(session, asker, self.entry.as_deref(), self.last, "edit")?;
@@ -62,6 +62,7 @@ impl Runnable for EditCmd {
                 &chosen.entry,
                 &now,
                 asker,
+                notes,
                 |text| edit_in_editor(&editor, text, ".toml"),
                 print_error,
             )?;
@@ -75,18 +76,20 @@ impl Runnable for EditCmd {
 
 /// The adjustment from `written` once `edit` changed it. A mistake is
 /// shown with `report`; on a terminal the user may open the entry again to
-/// fix it, without one the mistake is the error.
+/// fix it, without one the mistake is the error. What pace chose for the
+/// user goes to `notes`.
 fn edit_until_read(
     written: &str,
     entry: &Entry,
     now: &ZonedDateTime,
     asker: &dyn Ask,
+    notes: &mut Vec<String>,
     mut edit: impl FnMut(&str) -> PaceResult<String>,
     report: impl Fn(&PaceError),
 ) -> PaceResult<Adjust> {
     let mut text = edit(written)?;
     loop {
-        match read(&text, entry, now) {
+        match read(&text, entry, now, asker, notes) {
             Ok(adjust) => return Ok(adjust),
             Err(error) if error.exit_code() != ExitCode::NothingToDo && asker.can_ask() => {
                 report(&error);
@@ -190,7 +193,7 @@ fn write(chosen: &Chosen, device: DeviceId, now: &ZonedDateTime) -> PaceResult<S
         lines.push("# note = \"\"".to_owned());
     }
     if entry.project.is_none() {
-        lines.push("# project-key = \"\"".to_owned());
+        lines.push("# project-key = \"your-key\"".to_owned());
     }
     if entry.tags.is_empty() {
         lines.push("# tags = []".to_owned());
@@ -230,22 +233,34 @@ fn breaks(entry: &Entry, now: &ZonedDateTime) -> Vec<String> {
     holds.chain(pauses).chain(catches).collect()
 }
 
-/// The adjustment the saved `text` asks for.
-fn read(text: &str, entry: &Entry, now: &ZonedDateTime) -> PaceResult<Adjust> {
+/// The adjustment the saved `text` asks for; a time that happened twice is
+/// chosen as [`chosen_moment`] says.
+fn read(
+    text: &str,
+    entry: &Entry,
+    now: &ZonedDateTime,
+    asker: &dyn Ask,
+    notes: &mut Vec<String>,
+) -> PaceResult<Adjust> {
     let edited: Edited = toml::from_str(text).map_err(|error| {
-        let span = error.span().unwrap_or(0..0);
-        mistake(
-            text,
-            span,
-            "the edited entry has a mistake",
-            error.message().trim(),
+        let mistake = PaceError::new(
+            ErrorKind::InvalidInput,
+            "the edited entry has a mistake: {message}",
         )
-        .attach_hint("fix the marked spot; nothing was changed")
+        .attach_context("message", error.message().trim())
+        .attach_hint("fix the marked spot; nothing was changed");
+        match error.span() {
+            Some(span) if !text.trim().is_empty() => {
+                mistake.attach_snippet(Snippet::new(EDITED, text, span, "here"))
+            }
+            _ => mistake,
+        }
     })?;
 
-    let start = moment(text, &edited.start, now)?;
+    let mut moment = |value: &Spanned<String>| moment(text, value, now, asker, notes);
+    let start = moment(&edited.start)?;
     let end = match (&edited.end, &entry.end) {
-        (Some(end), _) => Some(moment(text, end, now)?),
+        (Some(end), _) => Some(moment(end)?),
         (None, Some(_)) => {
             return Err(PaceError::new(
                 ErrorKind::InvalidInput,
@@ -298,28 +313,23 @@ fn read(text: &str, entry: &Entry, now: &ZonedDateTime) -> PaceResult<Adjust> {
     Ok(adjust)
 }
 
-/// A time as pace wrote it, or in the `--at` grammar.
-fn moment(text: &str, value: &Spanned<String>, now: &ZonedDateTime) -> PaceResult<ZonedDateTime> {
+/// A time as pace wrote it, or in the `--at` grammar; a mistake points at
+/// it in `text`.
+fn moment(
+    text: &str,
+    value: &Spanned<String>,
+    now: &ZonedDateTime,
+    asker: &dyn Ask,
+    notes: &mut Vec<String>,
+) -> PaceResult<ZonedDateTime> {
     if let Ok(moment) = value.get_ref().parse::<ZonedDateTime>() {
         return Ok(moment);
     }
     parse_at(value.get_ref(), now)
-        .map(pace_time::At::earlier)
-        .map_err(|_| {
-            mistake(
-                text,
-                value.span(),
-                "`{value}` is no time pace reads",
-                "this time",
-            )
-            .attach_context("value", value.get_ref().clone())
-            .attach_hint("write it as pace did, or as 2026-11-26 09:00; nothing was changed")
+        .and_then(|at| chosen_moment(value.get_ref(), at, asker, notes))
+        .map_err(|error| {
+            error.attach_snippet(Snippet::new(EDITED, text, value.span(), "this time"))
         })
-}
-
-fn mistake(text: &str, span: std::ops::Range<usize>, message: &str, label: &str) -> Box<PaceError> {
-    PaceError::new(ErrorKind::InvalidInput, message)
-        .attach_snippet(Snippet::new(EDITED, text, span, label))
 }
 
 /// The change from `current` to `new`.
@@ -378,10 +388,122 @@ mod tests {
             &entry(),
             &at("10:05"),
             asker,
+            &mut Vec::new(),
             |_| Ok(texts.pop_front().unwrap()),
             |_| reported.set(reported.get() + 1),
         );
         (result, reported.get())
+    }
+
+    /// The labels of the error's snippet: where it points in the file.
+    fn labels(error: &PaceError) -> Vec<(usize, String)> {
+        use miette::Diagnostic;
+        error
+            .labels()
+            .into_iter()
+            .flatten()
+            .map(|label| (label.offset(), label.label().unwrap_or_default().to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn readable_time_in_future_says_so_and_points_at_it() {
+        let text = format!("start = \"{}\"\nend = \"2026-11-26 23:00\"\n", at("09:00"));
+        let mut notes = Vec::new();
+
+        let error = read(
+            &text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut notes,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("lies in the future"), "{error}");
+        assert_eq!(
+            labels(&error),
+            [(
+                text.find("2026-11-26 23:00").unwrap() - 1,
+                "this time".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn emptied_file_names_the_mistake_in_guidance() {
+        let error = read(
+            "",
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "the edited entry has a mistake: missing field `start`"
+        );
+    }
+
+    #[test]
+    fn time_that_happened_twice_without_terminal_is_first_with_note() {
+        let now: ZonedDateTime = "2026-10-25T12:00[Europe/Berlin]".parse().unwrap();
+        let entry = Entry {
+            start: "2026-10-25T01:00[Europe/Berlin]".parse().unwrap(),
+            end: Some("2026-10-25T04:00[Europe/Berlin]".parse().unwrap()),
+            ..entry()
+        };
+        let text = format!(
+            "start = \"02:30\"\nend = \"{}\"\nnote = \"Draft\"\n",
+            entry.end.as_ref().unwrap()
+        );
+        let mut notes = Vec::new();
+
+        let adjust = read(
+            &text,
+            &entry,
+            &now,
+            &Scripted::without_terminal(),
+            &mut notes,
+        )
+        .unwrap();
+
+        assert_eq!(
+            adjust.start.map(|start| start.to_string()),
+            Some("2026-10-25T02:30:00+02:00[Europe/Berlin]".to_owned())
+        );
+        assert_eq!(notes.len(), 1, "{notes:?}");
+    }
+
+    #[test]
+    fn missing_project_offers_key_that_works_once_uncommented() {
+        let chosen = Chosen {
+            state: pace_core::State::default(),
+            entry: entry(),
+        };
+        let written = write(&chosen, entry().device, &at("10:05")).unwrap();
+        let line = written
+            .lines()
+            .find(|line| line.starts_with("# project-key"))
+            .unwrap();
+
+        assert!(
+            line.trim_start_matches("# ").parse::<toml::Table>().is_ok(),
+            "{line}"
+        );
+        let uncommented = written.replace(line, line.trim_start_matches("# "));
+        assert!(
+            read(
+                &uncommented,
+                &entry(),
+                &at("10:05"),
+                &Scripted::without_terminal(),
+                &mut Vec::new()
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -422,9 +544,11 @@ mod tests {
 
         let (result, reported) = edited(&asker, &[saved("notes = \"Write offer\"")]);
 
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "the edited entry has a mistake"
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .starts_with("the edited entry has a mistake: unknown field `notes`")
         );
         assert_eq!(reported, 0);
         assert_eq!(asker.questions(), Vec::<String>::new());
