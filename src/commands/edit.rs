@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Change, Command as UseCase, DeviceId, Entry, EntryOrigin, EntryVerb, OVERLAP, ProjectId,
-    ProjectKey, ProjectRef, Tag, Text, command::Adjust,
+    Catalog, Change, Command as UseCase, DeviceId, Entry, EntryOrigin, EntryVerb, OVERLAP,
+    ProjectId, ProjectKey, ProjectRef, Tag, Text, command::Adjust,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Snippet};
 use pace_time::{NOT_UNDERSTOOD, format_moment, parse_at};
@@ -62,7 +62,7 @@ impl Runnable for EditCmd {
             )?;
             let now = session.now();
             edit_until_applied(
-                &write_entry_text(&chosen, session.device(), &now)?,
+                &write_entry_text(&chosen, session.device(), &now, &context.catalog)?,
                 asker,
                 self.allow_overlap,
                 |text| edit_in_editor(&editor, text, ".toml"),
@@ -187,8 +187,14 @@ struct Edited {
     tags: BTreeSet<Tag>,
 }
 
-/// The entry as a commented TOML file.
-fn write_entry_text(chosen: &Chosen, device: DeviceId, now: &ZonedDateTime) -> PaceResult<String> {
+/// The entry as a commented TOML file; its header names the project by
+/// its record in `catalog`, as the `project` line gives only its ID.
+fn write_entry_text(
+    chosen: &Chosen,
+    device: DeviceId,
+    now: &ZonedDateTime,
+    catalog: &Catalog,
+) -> PaceResult<String> {
     let entry = &chosen.entry;
     let how = match entry.origin {
         EntryOrigin::Live => "begun",
@@ -199,8 +205,15 @@ fn write_entry_text(chosen: &Chosen, device: DeviceId, now: &ZonedDateTime) -> P
     } else {
         "another device"
     };
+    let project = entry
+        .project
+        .as_ref()
+        .and_then(|project| catalog.resolve(project))
+        .map_or_else(String::new, |record| {
+            format!(", project {} ({})", record.name, record.key)
+        });
     let mut lines = vec![format!(
-        "# pace edit: entry {}, {how} on {place}.",
+        "# pace edit: entry {}, {how} on {place}{project}.",
         chosen.state.short_id(entry.id)
     )];
     lines.push(HELP.trim_end().to_owned());
@@ -420,7 +433,7 @@ fn time_forms(now: &ZonedDateTime) -> String {
 mod tests {
     use std::{cell::Cell, collections::VecDeque};
 
-    use pace_core::{HoldSource, PauseKind};
+    use pace_core::{HoldSource, PauseKind, ProjectRecord};
 
     use super::*;
     use crate::prompt::Scripted;
@@ -890,7 +903,8 @@ mod tests {
             state: pace_core::State::default(),
             entry: entry(),
         };
-        let written = write_entry_text(&chosen, entry().device, &at("10:05")).unwrap();
+        let written =
+            write_entry_text(&chosen, entry().device, &at("10:05"), &Catalog::default()).unwrap();
         let line = written
             .lines()
             .find(|line| line.starts_with("# project-key"))
@@ -963,6 +977,12 @@ mod tests {
 
     /// The file pace writes for `entry`, seen from device 2.
     fn written(entry: Entry) -> String {
+        written_with(entry, &Catalog::default())
+    }
+
+    /// The file pace writes for `entry` with the records of `catalog`,
+    /// seen from device 2.
+    fn written_with(entry: Entry, catalog: &Catalog) -> String {
         let chosen = Chosen {
             state: pace_core::State::default(),
             entry,
@@ -971,8 +991,45 @@ mod tests {
             &chosen,
             "0193a8d0-000d-7000-8000-000000000002".parse().unwrap(),
             &at("10:05"),
+            catalog,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn written_project_with_record_names_it_in_header() {
+        let id: ProjectId = "0193a8d0-000c-7000-8000-000000000001".parse().unwrap();
+        let record = ProjectRecord {
+            id,
+            key: "gamma".parse().unwrap(),
+            name: "Gamma relaunch".to_owned(),
+            client: None,
+            role: None,
+            billable: false,
+            budget: None,
+            starts_on: None,
+            ends_on: None,
+            done_when: None,
+            allow_overlap: false,
+            archived: None,
+        };
+        let catalog = Catalog::new(Vec::new(), Vec::new(), vec![record]).unwrap();
+        let entry = Entry {
+            project: Some(ProjectRef::Id(id)),
+            ..entry()
+        };
+
+        let text = written_with(entry, &catalog);
+
+        assert_eq!(
+            text.lines().next(),
+            Some(
+                "# pace edit: entry 0193a8d0-000a-7000-8000-000000000001, begun on another \
+                 device, project Gamma relaunch (gamma)."
+            ),
+            "{text}"
+        );
+        assert!(text.contains(&format!("project = \"{id}\"")), "{text}");
     }
 
     #[test]

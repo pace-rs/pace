@@ -20,7 +20,7 @@ pub fn counted(count: usize, noun: &str) -> String {
 
 /// A project as the user knows it: its key, or its ID.
 #[must_use]
-pub fn project_name(project: &ProjectRef) -> String {
+fn project_name(project: &ProjectRef) -> String {
     match project {
         ProjectRef::Key(key) => key.to_string(),
         ProjectRef::Id(id) => id.to_string(),
@@ -37,16 +37,16 @@ pub fn project_label(project: &ProjectRef, catalog: &Catalog) -> String {
 }
 
 /// One line per event the command appended; for an undo, what it took
-/// back.
+/// back. A project with a record in `catalog` goes by its name.
 ///
 /// # Errors
 ///
 /// If an event names an entry the outcome lacks, or the command appended
 /// events and no line says so: both are bugs.
-pub fn describe_outcome(outcome: &Outcome) -> PaceResult<Vec<String>> {
+pub fn describe_outcome(outcome: &Outcome, catalog: &Catalog) -> PaceResult<Vec<String>> {
     let mut lines = Vec::new();
     for recorded in &outcome.recorded {
-        lines.extend(recorded_line(outcome, recorded)?);
+        lines.extend(recorded_line(outcome, recorded, catalog)?);
     }
     lines.extend(undid(outcome)?);
     if lines.is_empty() && !outcome.recorded.is_empty() {
@@ -62,7 +62,11 @@ pub fn describe_outcome(outcome: &Outcome) -> PaceResult<Vec<String>> {
 
 /// The line for one appended event; an undo's lines come from what it took
 /// back, in [`undid`].
-fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Option<String>> {
+fn recorded_line(
+    outcome: &Outcome,
+    recorded: &RecordedEvent,
+    catalog: &Catalog,
+) -> PaceResult<Option<String>> {
     let (state, before, now) = (&outcome.state, &outcome.before, &outcome.now);
     let at = &recorded.event.at;
     let line = match &recorded.event.kind {
@@ -108,6 +112,7 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
             known(state, *entry)?,
             changes,
             now,
+            catalog,
         ),
         EventKind::EntryForgotten { entry } => {
             let entry = known(before, *entry)?;
@@ -212,6 +217,7 @@ fn adjusted(
     after: &Entry,
     changes: &EntryChanges,
     now: &ZonedDateTime,
+    catalog: &Catalog,
 ) -> String {
     let mut parts = Vec::new();
     if let Some(start) = &changes.start {
@@ -236,7 +242,7 @@ fn adjusted(
         "project",
         &changes.project,
         before.project.as_ref(),
-        project_name,
+        |project| project_label(project, catalog),
     ) {
         parts.push(part);
     }
@@ -401,7 +407,7 @@ fn resumed(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime
 mod tests {
     use std::collections::BTreeSet;
 
-    use pace_core::{BatchId, Event, Hlc};
+    use pace_core::{BatchId, Event, Hlc, ProjectId, ProjectRecord};
 
     use super::*;
 
@@ -474,7 +480,9 @@ mod tests {
             Vec::new(),
         )?;
 
-        let error = describe_outcome(&outcome).err().ok_or("an error")?;
+        let error = describe_outcome(&outcome, &Catalog::default())
+            .err()
+            .ok_or("an error")?;
 
         assert_eq!(error.kind(), ErrorKind::Internal);
         Ok(())
@@ -489,7 +497,9 @@ mod tests {
             Vec::new(),
         )?;
 
-        let error = describe_outcome(&outcome).err().ok_or("an error")?;
+        let error = describe_outcome(&outcome, &Catalog::default())
+            .err()
+            .ok_or("an error")?;
 
         assert_eq!(error.kind(), ErrorKind::Internal);
         Ok(())
@@ -540,7 +550,7 @@ mod tests {
         let undo = recorded(2, 20, EventKind::BatchUndone { batch })?;
         let outcome = outcome(&undone, vec![undo], undone.clone())?;
 
-        let lines = describe_outcome(&outcome)?;
+        let lines = describe_outcome(&outcome, &Catalog::default())?;
 
         assert_eq!(
             lines,
@@ -572,7 +582,9 @@ mod tests {
         )?;
         let outcome = outcome(&[began], vec![undo], vec![forgot])?;
 
-        let error = describe_outcome(&outcome).err().ok_or("an error")?;
+        let error = describe_outcome(&outcome, &Catalog::default())
+            .err()
+            .ok_or("an error")?;
 
         assert_eq!(error.kind(), ErrorKind::Internal);
         Ok(())
@@ -587,7 +599,7 @@ mod tests {
         let switched = vec![ended.clone(), recorded(2, 3, begun(gone))?];
         let outcome = outcome(&[began, ended], vec![undo], switched)?;
 
-        let lines = describe_outcome(&outcome)?;
+        let lines = describe_outcome(&outcome, &Catalog::default())?;
 
         assert_eq!(
             lines,
@@ -601,7 +613,7 @@ mod tests {
         let entry: EntryId = id(0xa, 1)?;
         let began = recorded(1, 1, begun(entry))?;
         let outcome = outcome(&[began], vec![recorded(2, 2, kind)?], Vec::new())?;
-        Ok(describe_outcome(&outcome)?)
+        Ok(describe_outcome(&outcome, &Catalog::default())?)
     }
 
     #[test]
@@ -684,11 +696,72 @@ mod tests {
         let outcome = outcome(&[began], vec![adjusted], Vec::new())?;
 
         assert_eq!(
-            describe_outcome(&outcome)?,
+            describe_outcome(&outcome, &Catalog::default())?,
             [
                 "Adjusted 0001: note removed (was \"Write offer\"), project acme (had none), \
                  untagged draft."
             ]
+        );
+        Ok(())
+    }
+
+    fn record(
+        id: ProjectId,
+        key: &str,
+        name: &str,
+    ) -> Result<ProjectRecord, Box<dyn std::error::Error>> {
+        Ok(ProjectRecord {
+            id,
+            key: key.parse()?,
+            name: name.to_owned(),
+            client: None,
+            role: None,
+            billable: false,
+            budget: None,
+            starts_on: None,
+            ends_on: None,
+            done_when: None,
+            allow_overlap: false,
+            archived: None,
+        })
+    }
+
+    #[test]
+    fn adjustment_names_projects_by_their_records() -> TestResult {
+        let entry: EntryId = id(0xa, 1)?;
+        let (webshop, gamma): (ProjectId, ProjectId) = (id(0xc, 1)?, id(0xc, 2)?);
+        let catalog = Catalog::new(
+            Vec::new(),
+            Vec::new(),
+            vec![
+                record(webshop, "acme-webshop", "Webshop relaunch")?,
+                record(gamma, "gamma", "Gamma relaunch")?,
+            ],
+        )?;
+        let began = recorded(
+            1,
+            1,
+            EventKind::EntryBegun {
+                entry,
+                project: Some(ProjectRef::Key("acme-webshop".parse()?)),
+                note: None,
+                tags: BTreeSet::new(),
+                role: None,
+                determined_by: None,
+                billable: None,
+                allow_overlap: false,
+            },
+        )?;
+        let changes = EntryChanges {
+            project: Change::Set(ProjectRef::Id(gamma)),
+            ..EntryChanges::default()
+        };
+        let adjusted = recorded(2, 2, EventKind::EntryAdjusted { entry, changes })?;
+        let outcome = outcome(&[began], vec![adjusted], Vec::new())?;
+
+        assert_eq!(
+            describe_outcome(&outcome, &catalog)?,
+            ["Adjusted 0001: project Gamma relaunch (was Webshop relaunch)."]
         );
         Ok(())
     }

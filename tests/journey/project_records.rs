@@ -98,6 +98,41 @@ fn entry_recorded_under_key_shows_under_project_once_its_record_exists() -> Test
     Ok(())
 }
 
+/// The ID of the record of `gamma`.
+const GAMMA_ID: &str = "0193a7c4-0000-7000-8000-000000000002";
+
+/// `adjust` names the project it moved the entry from and the one it moved
+/// it to by their records, although the entry was recorded under the key;
+/// `edit` names the record in the header of the file it opens.
+#[cfg(unix)]
+#[test]
+fn adjust_and_edit_name_projects_by_their_records() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write("work/.pace.toml", "[project]\nkey = \"acme-webshop\"\n")?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
+    _ = run(sandbox.pace_at("10:00").arg("end"))?;
+    write_webshop_record(&sandbox)?;
+    sandbox.write(
+        "home/projects/gamma.toml",
+        &format!("version = 1\nid = \"{GAMMA_ID}\"\nkey = \"gamma\"\nname = \"Gamma relaunch\"\n"),
+    )?;
+
+    let adjusted = sandbox.journey(&[("10:05", &["adjust", "--last", "--project", "gamma"])])?;
+    let opened = run(sandbox
+        .pace_at("10:06")
+        .env("VISUAL", "head -n 1")
+        .args(["edit", "--last"]))?;
+
+    let transcript = format!(
+        "{adjusted}\n$ pace edit --last   # VISUAL=head -n 1\n{}",
+        sandbox.redact_ids(&opened)?
+    );
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
 #[test]
 fn manifest_with_name_warns_with_notes_of_command() -> TestResult {
     let sandbox = Sandbox::new()?;

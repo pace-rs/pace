@@ -1,0 +1,22 @@
+---
+source: tests/journey/project_records.rs
+expression: transcript
+---
+$ pace adjust --last --project gamma   # at 10:05
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write offer": project Gamma relaunch (was Webshop relaunch).
+
+----- stderr -----
+
+
+$ pace edit --last   # VISUAL=head -n 1
+success: false
+exit_code: 3
+----- stdout -----
+# pace edit: entry [ID-1], begun on this device, project Gamma relaunch (gamma).
+
+----- stderr -----
+  × the entry is unchanged
+  help: change a value and save the file to adjust the entry

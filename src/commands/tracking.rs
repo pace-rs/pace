@@ -44,7 +44,7 @@ pub(super) fn track_run(
         .iter()
         .flat_map(|project| project.warnings.iter().cloned());
     print_lines(
-        describe_outcome(&outcome)?
+        describe_outcome(&outcome, &context.catalog)?
             .into_iter()
             .chain(notes)
             .chain(warnings)
