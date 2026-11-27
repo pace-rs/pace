@@ -292,27 +292,19 @@ fn read(
         (None, None) => None,
     };
     let note = edited.note.and_then(|note| Text::try_from(note).ok());
-    let current_note = entry
-        .note
-        .clone()
-        .and_then(|note| Text::try_from(note).ok());
 
+    // the whole entry as saved; the core leaves out what didn't change
     let adjust = Adjust {
         entry: Some(entry.id),
-        start: (start != entry.start).then_some(start),
-        end: end.filter(|end| entry.end.as_ref() != Some(end)),
-        note: change(note, current_note.as_ref()),
-        project: change(project, entry.project.as_ref()),
-        tag: edited.tags.difference(&entry.tags).cloned().collect(),
+        start: Some(start),
+        end,
+        note: note.map_or(Change::Clear, Change::Set),
+        project: project.map_or(Change::Clear, Change::Set),
         untag: entry.tags.difference(&edited.tags).cloned().collect(),
+        tag: edited.tags,
         allow_overlap: false,
     };
-    if adjust
-        == (Adjust {
-            entry: Some(entry.id),
-            ..Adjust::default()
-        })
-    {
+    if adjust.changes(entry).is_empty() {
         return Err(
             PaceError::new(ErrorKind::InvalidInput, "the entry is unchanged")
                 .attach_hint("change a value and save the file to adjust the entry")
@@ -376,16 +368,6 @@ fn time_forms(now: &ZonedDateTime) -> String {
         "write it as pace does, like `{minute}`, or as `{}`",
         minute.strftime("%Y-%m-%d %H:%M")
     )
-}
-
-/// The change from `current` to `new`.
-fn change<T: PartialEq>(new: Option<T>, current: Option<&T>) -> Change<T> {
-    match (new, current) {
-        (Some(new), Some(current)) if new == *current => Change::Keep,
-        (Some(new), _) => Change::Set(new),
-        (None, Some(_)) => Change::Clear,
-        (None, None) => Change::Keep,
-    }
 }
 
 #[cfg(test)]

@@ -1584,3 +1584,41 @@ fn only_open_entry_is_the_one() -> TestResult {
     assert_eq!(entry.note.as_deref(), Some("Write offer"));
     Ok(())
 }
+
+// the changes of an adjustment
+
+#[test]
+fn adjustment_changes_only_values_entry_lacks() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run(
+        "09:00",
+        &Command::Begin(Begin {
+            note: Some("Write offer".parse()?),
+            tags: BTreeSet::from(["client".parse()?]),
+            ..Begin::default()
+        }),
+    )?;
+    let state = world.state();
+    let entry = state.open().next().ok_or("the open entry")?;
+
+    let same = Adjust {
+        start: Some(berlin("09:00")?),
+        note: Change::Set("Write offer".parse()?),
+        project: Change::Clear,
+        tag: BTreeSet::from(["client".parse()?]),
+        ..Adjust::default()
+    };
+    let other = Adjust {
+        note: Change::Set("Call".parse()?),
+        untag: BTreeSet::from(["client".parse()?]),
+        ..same.clone()
+    };
+
+    assert!(same.changes(entry).is_empty(), "{:?}", same.changes(entry));
+    let changes = other.changes(entry);
+    assert_eq!(changes.start, None);
+    assert_eq!(changes.note, Change::Set("Call".to_owned()));
+    assert_eq!(changes.project, Change::Keep);
+    assert_eq!(changes.tags, Some(BTreeSet::new()));
+    Ok(())
+}

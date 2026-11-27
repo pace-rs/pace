@@ -265,7 +265,7 @@ impl Rules<'_> {
 
         let start = adjust.start.clone().unwrap_or_else(|| entry.start.clone());
         let end = adjust.end.clone().or_else(|| entry.end.clone());
-        let changes = changes(entry, adjust, &start, end.as_ref());
+        let changes = adjust.changes(entry);
         if changes.is_empty() {
             return Err(nothing_to_do(
                 "nothing to change",
@@ -450,26 +450,27 @@ impl Rules<'_> {
     }
 }
 
-/// The fields `adjust` really changes; a value equal to the current one is
-/// no change.
-fn changes(
-    entry: &Entry,
-    adjust: &Adjust,
-    start: &ZonedDateTime,
-    end: Option<&ZonedDateTime>,
-) -> EntryChanges {
-    let tags: BTreeSet<_> = entry
-        .tags
-        .union(&adjust.tag)
-        .filter(|tag| !adjust.untag.contains(*tag))
-        .cloned()
-        .collect();
-    EntryChanges {
-        start: (*start != entry.start).then(|| start.clone()),
-        end: end.filter(|end| entry.end.as_ref() != Some(*end)).cloned(),
-        note: real_change(&adjust.note.clone().map(String::from), entry.note.as_ref()),
-        project: real_change(&adjust.project, entry.project.as_ref()),
-        tags: (tags != entry.tags).then_some(tags),
+impl Adjust {
+    /// The fields this adjustment really changes in `entry`: a value equal
+    /// to the entry's own is no change.
+    #[must_use]
+    pub fn changes(&self, entry: &Entry) -> EntryChanges {
+        let tags: BTreeSet<_> = entry
+            .tags
+            .union(&self.tag)
+            .filter(|tag| !self.untag.contains(*tag))
+            .cloned()
+            .collect();
+        EntryChanges {
+            start: self.start.clone().filter(|start| *start != entry.start),
+            end: self
+                .end
+                .clone()
+                .filter(|end| entry.end.as_ref() != Some(end)),
+            note: real_change(&self.note.clone().map(String::from), entry.note.as_ref()),
+            project: real_change(&self.project, entry.project.as_ref()),
+            tags: (tags != entry.tags).then_some(tags),
+        }
     }
 }
 
