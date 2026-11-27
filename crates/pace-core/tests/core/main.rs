@@ -6,6 +6,7 @@ mod hlc;
 mod ids;
 mod keys;
 mod money;
+mod report;
 mod rules;
 mod state;
 mod steps;

@@ -14,6 +14,9 @@
 //! [`Money`] and [`Rounding`]: values the store reads and the core takes as
 //! an argument.
 //!
+//! [`Report::build`] computes the report of `reflect` from the [`State`] of
+//! a period's events and the [`Catalog`]; the app reads the events.
+//!
 //! Every timestamp is a jiff [`ZonedDateTime`](jiff::ZonedDateTime), so
 //! entries keep the zone they were recorded in. All IDs are UUIDv7.
 //!
@@ -58,6 +61,7 @@ mod id;
 mod key;
 mod open;
 mod port;
+mod report;
 mod rules;
 mod scope;
 mod short_id;
@@ -81,6 +85,11 @@ pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId, RoleId};
 pub use key::{ClientKey, ProjectKey, RoleKey, Tag};
 pub use open::EntryVerb;
 pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier};
+pub use report::{
+    BudgetUse, DayTime, DecidedShares, HoldReport, HoldShare, PauseShare, ProjectTime, ReasonCount,
+    Report, ReportCatch, ReportFilter, ReportInput, ReportPeriod, ReportWarning, RoleTarget,
+    RoleTime, TOP_REASONS, TimeShare,
+};
 pub use rules::{OVERLAP, Policy, Rules};
 pub use scope::ReadScope;
 pub use state::{Overlap, State, UndoTarget};
