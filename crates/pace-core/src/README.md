@@ -2,10 +2,11 @@
 
 The domain of pace, without I/O: entries and their events, the state built from
 them, the rules that decide what a command records, and the traits for the clock
-and the IDs. `steps.rs` holds a command's step machine: it names the range to
-read, lets `rules.rs` decide and says what the append means, without I/O. The
-event store and the driver of the machine live in `pace_store`. The `testing`
-feature adds `testing.rs`, a settable clock for the tests of other crates.
+and the IDs. `steps.rs` holds a command's step machine: it names what to read,
+lets `rules.rs` decide and says what the append means, without I/O. The event
+store and the driver of the machine live in `pace_store`. The `testing` feature
+adds `testing.rs` for the tests of other crates: a settable clock, deterministic
+IDs and the lock the test doubles share.
 
 ## Files
 

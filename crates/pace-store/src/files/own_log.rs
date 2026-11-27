@@ -130,7 +130,7 @@ impl FilesStore {
 
     /// Remove the events of forgotten entries from this device's own files,
     /// for each of `tombstones` this machine hasn't applied yet, and mark it
-    /// in `cursors`' `cleaned`; the caller saves them. A cleaning that fails
+    /// in `cursors`' `cleaned`; the caller decides when to save them. A cleaning that fails
     /// becomes one of the returned warnings and stays unmarked, so the next
     /// append tries it again.
     pub(super) fn clean_own_log(

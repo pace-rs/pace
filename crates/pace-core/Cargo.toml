@@ -20,7 +20,8 @@ serde = { workspace = true, features = ["derive"] }
 uuid = { workspace = true }
 
 [features]
-# A settable clock for tests.
+# For tests of other crates: a settable clock, deterministic IDs and the lock
+# the test doubles share.
 testing = []
 
 [dev-dependencies]

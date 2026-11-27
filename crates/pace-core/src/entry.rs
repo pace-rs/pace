@@ -10,8 +10,9 @@ use crate::{DeviceId, EntryId, HoldSource, PauseKind, ProjectId, ProjectKey, Tag
 
 /// A reference to a project: its ID, or its key while it has no ID yet.
 ///
-/// A project gets its ID from `pace project init`; until then entries record
-/// the key, and pace resolves it to the ID once the project has one.
+/// A project has only a key until it gets an ID (phase 3 plans
+/// `pace project init` for that); until then entries record the key, and
+/// pace resolves it to the ID once the project has one.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProjectRef {

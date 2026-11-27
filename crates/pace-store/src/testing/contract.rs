@@ -299,7 +299,11 @@ where
 
 /// Device 2 begins an entry that device 1 ends: with a daily split on
 /// device 1 and a monthly one on device 2, the end lies in a file whose
-/// moments are far from what device 1 begins later.
+/// moments are far from what device 1 begins later. Device 2's log on
+/// 21 November carries the check: it stretches the abouts of device 2's
+/// month to meet device 1's file of 20 November. So a read picks device 2's
+/// month with the entry's begin, and one step of widening misses device 1's
+/// file of 3 November with its end.
 fn read_returns_every_event_of_its_entries<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
