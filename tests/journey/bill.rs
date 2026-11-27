@@ -722,8 +722,53 @@ fn entry_billed_on_other_device(sandbox: &Sandbox) -> TestResult {
     Ok(())
 }
 
+/// An entry begun on this device, then ended and billed on a second one,
+/// whose events this device syncs in: the last batch of this device is
+/// the entry's `entry.begun`.
+fn entry_begun_here_billed_on_other_device(sandbox: &Sandbox) -> TestResult {
+    let begun = run(sandbox.pace_at(&october(7, "09:00")).args([
+        "begin",
+        "Fix the checkout",
+        "--project",
+        "acme-webshop",
+    ]))?;
+    assert!(begun.starts_with("success: true"), "{begun}");
+    sandbox.sync_events_to("other-home")?;
+    sandbox.write("other-home/clients.toml", ACME)?;
+    sandbox.write("other-home/projects/acme-webshop.toml", WEBSHOP)?;
+    for (at, args) in [
+        (october(7, "12:00"), &["end"][..]),
+        (
+            "14:00".to_owned(),
+            &["bill", "--mark-billed", "2026-0042"][..],
+        ),
+    ] {
+        let output = run(sandbox
+            .pace_at(&at)
+            .env("PACE_HOME", sandbox.path("other-home"))
+            .env("PACE_MACHINE_DIR", sandbox.path("other-machine"))
+            .args(args))?;
+        assert!(output.starts_with("success: true"), "{output}");
+    }
+    sandbox.sync_events_from("other-home")?;
+    Ok(())
+}
+
 #[test]
 fn undo_of_begin_of_billed_entry_is_refused() -> TestResult {
+    let sandbox = catalog_sandbox(false)?;
+    entry_begun_here_billed_on_other_device(&sandbox)?;
+
+    let output = sandbox.journey(&[
+        ("15:00", &["undo"]),
+        ("15:05", &["undo", "--change-billed"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn undo_of_log_of_billed_entry_is_refused() -> TestResult {
     let sandbox = catalog_sandbox(false)?;
     entry_billed_on_other_device(&sandbox)?;
 
@@ -797,6 +842,28 @@ fn unknown_invoice_is_usage_error_naming_closest() -> TestResult {
     let output = sandbox.journey(&[
         ("15:05", &["bill", "--invoice", "2026-0024"]),
         ("15:06", &["bill", "--invoice", "2026-0042", "last-month"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn invoice_with_unknown_or_other_client_names_client() -> TestResult {
+    let sandbox = october_sandbox()?;
+    _ = run(sandbox
+        .pace_at("15:00")
+        .args(["bill", "--mark-billed", "2026-0042"]))?;
+    sandbox.write("home/clients.toml", &format!("{ACME}{BETA}"))?;
+
+    let output = sandbox.journey(&[
+        (
+            "15:05",
+            &["bill", "--invoice", "2026-0042", "--client", "acm"],
+        ),
+        (
+            "15:06",
+            &["bill", "--invoice", "2026-0042", "--client", "beta"],
+        ),
     ])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())

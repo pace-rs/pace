@@ -171,11 +171,12 @@ fn client_of<'catalog>(entry: &Entry, catalog: &'catalog Catalog) -> Option<&'ca
 ///
 /// [`UNKNOWN_INVOICE`]:
 ///
-/// - If no billed entry of a known client (of `client`, if given) carries
-///   the reference: the hint names the closest reference, or the known
-///   ones.
-/// - If billed entries of several clients carry it: the error names
-///   them, and the hint names `--client`.
+/// - If no billed entry of a known client carries the reference: the hint
+///   names the closest reference, or the known ones.
+/// - If `client` is given and only entries of other clients carry it: the
+///   error names `client`, and the hint names the others.
+/// - If billed entries of several clients carry it and `client` is not
+///   given: the error names them, and the hint names `--client`.
 pub fn invoice_client<'catalog>(
     state: &State,
     catalog: &'catalog Catalog,
@@ -184,23 +185,22 @@ pub fn invoice_client<'catalog>(
 ) -> PaceResult<&'catalog Client> {
     let mut invoices: BTreeMap<&InvoiceRef, BTreeSet<&ClientKey>> = BTreeMap::new();
     for (id, billing) in state.billings() {
-        let Some(key) = state.entry(id).and_then(|entry| client_of(entry, catalog)) else {
-            continue;
-        };
-        if client.is_none_or(|client| client == key) {
+        if let Some(key) = state.entry(id).and_then(|entry| client_of(entry, catalog)) {
             _ = invoices.entry(&billing.invoice).or_default().insert(key);
         }
     }
-    let clients: Vec<&Client> = invoices
-        .get(invoice)
-        .into_iter()
-        .flatten()
+    let Some(owners) = invoices.get(invoice) else {
+        return Err(unknown_invoice(invoice, invoices.keys().copied()));
+    };
+    let clients: Vec<&Client> = owners
+        .iter()
+        .filter(|key| client.is_none_or(|client| client == **key))
         .filter_map(|key| catalog.client(key))
         .collect();
-    match clients.as_slice() {
-        [only] => Ok(only),
-        [] => Err(unknown_invoice(invoice, invoices.keys().copied())),
-        several => {
+    match (clients.as_slice(), client) {
+        ([only], _) => Ok(only),
+        ([], Some(client)) => Err(invoice_of_other_client(invoice, client, owners)),
+        (several, _) => {
             let keys: Vec<&str> = several.iter().map(|client| client.key.as_str()).collect();
             Err(PaceError::new(
                 ErrorKind::InvalidInput,
@@ -213,6 +213,28 @@ pub fn invoice_client<'catalog>(
             .attach_error_code(UNKNOWN_INVOICE))
         }
     }
+}
+
+/// The error of a reference whose entries are of the `owners`, not of
+/// `client`: its hint names the first owner's `--client`.
+fn invoice_of_other_client(
+    invoice: &InvoiceRef,
+    client: &ClientKey,
+    owners: &BTreeSet<&ClientKey>,
+) -> Box<PaceError> {
+    let keys: Vec<&str> = owners.iter().map(|key| key.as_str()).collect();
+    let first = keys.first().copied().unwrap_or_default();
+    PaceError::new(
+        ErrorKind::InvalidInput,
+        "the invoice `{invoice}` is not of the client `{client}`",
+    )
+    .attach_context("invoice", invoice.to_string())
+    .attach_context("client", client.to_string())
+    .attach_hint(format!(
+        "it is of {}: `--client {first}` shows it",
+        keys.join(", ")
+    ))
+    .attach_error_code(UNKNOWN_INVOICE)
 }
 
 /// The error of a reference no billed entry carries: its hint names the

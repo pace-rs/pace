@@ -177,13 +177,11 @@ impl BillCmd {
         let zone = zone(&context.settings.settings.reports_time_zone)?;
         let now = session.now().with_time_zone(zone.clone());
         let state = session.state(&TimeRange::everything())?;
-        let key: Option<ClientKey> = self
-            .client
-            .as_deref()
-            .map(str::parse)
-            .transpose()
-            .map_err(usage)?;
-        let client = invoice_client(&state, catalog, invoice, key.as_ref()).map_err(usage)?;
+        let key = match self.client.as_deref() {
+            Some(text) => Some(&bill_client(catalog, Some(text))?.key),
+            None => None,
+        };
+        let client = invoice_client(&state, catalog, invoice, key).map_err(usage)?;
         let bill = Bill::of_invoice(&InvoiceInput {
             state: &state,
             catalog,

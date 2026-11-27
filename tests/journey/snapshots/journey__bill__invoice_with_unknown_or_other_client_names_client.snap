@@ -1,0 +1,24 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --invoice 2026-0042 --client acm   # at 15:05
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace doesn't know the client `acm`
+  help: did you mean `acme`?
+
+
+$ pace bill --invoice 2026-0042 --client beta   # at 15:06
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+pace::core::unknown-invoice
+
+  × the invoice `2026-0042` is not of the client `beta`
+  help: it is of acme: `--client acme` shows it

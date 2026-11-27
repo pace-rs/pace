@@ -240,6 +240,33 @@ fn reference_of_other_client_is_unknown_to_client() -> TestResult {
     .err()
     .ok_or("acme has no invoice B-7")?;
 
-    assert_eq!(error.to_string(), "pace doesn't know the invoice `B-7`");
+    assert_eq!(
+        error.to_string(),
+        "the invoice `B-7` is not of the client `acme`"
+    );
+    assert_eq!(
+        error.hint(),
+        Some("it is of beta: `--client beta` shows it")
+    );
+    assert!(error.is_code(UNKNOWN_INVOICE));
+    Ok(())
+}
+
+#[test]
+fn unknown_reference_with_client_names_closest_of_all() -> TestResult {
+    let log = two_clients_billed("B-7")?;
+    let catalog = catalog(Rounding::NONE)?;
+
+    let error = invoice_client(
+        &log.state(),
+        &catalog,
+        &"B-8".parse()?,
+        Some(&"acme".parse()?),
+    )
+    .err()
+    .ok_or("nobody has invoice B-8")?;
+
+    assert_eq!(error.to_string(), "pace doesn't know the invoice `B-8`");
+    assert_eq!(error.hint(), Some("did you mean `B-7`?"));
     Ok(())
 }

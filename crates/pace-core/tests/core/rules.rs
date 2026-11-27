@@ -1671,6 +1671,18 @@ fn forget_writes_tombstone_that_undo_skips() -> TestResult {
 
 // billed entries
 
+/// One hour at 100 EUR, billed on invoice 2026-0042.
+fn one_hour_on_2026_0042() -> Result<Billing, Box<dyn std::error::Error>> {
+    let eur = "EUR".parse()?;
+    Ok(Billing {
+        invoice: "2026-0042".parse()?,
+        net: jiff::SignedDuration::from_hours(1),
+        billed: jiff::SignedDuration::from_hours(1),
+        rate: Money::parse_decimal("100", eur)?,
+        amount: Money::parse_decimal("100", eur)?,
+    })
+}
+
 /// An entry logged from 09:00 to 10:00, and its marking on invoice
 /// 2026-0042, recorded at 10:30 by `marking_device` in a batch of its
 /// own, as `bill --mark-billed` writes it.
@@ -1678,14 +1690,7 @@ fn billed_entry(marking_device: u16) -> Result<(World, EntryId), Box<dyn std::er
     let mut world = World::new()?;
     _ = world.run("10:05", &log("Write offer", "09:00", "10:00")?)?;
     let entry = world.only_entry(EntryState::Ended)?;
-    let eur = "EUR".parse()?;
-    let billing = Billing {
-        invoice: "2026-0042".parse()?,
-        net: jiff::SignedDuration::from_hours(1),
-        billed: jiff::SignedDuration::from_hours(1),
-        rate: Money::parse_decimal("100", eur)?,
-        amount: Money::parse_decimal("100", eur)?,
-    };
+    let billing = one_hour_on_2026_0042()?;
     let device = World::on_device(marking_device)?.device;
     world.record_by(
         device,
@@ -1798,7 +1803,7 @@ fn undo_of_marking_batch_takes_billing_back() -> TestResult {
 }
 
 #[test]
-fn undo_of_begin_of_billed_entry_is_refused_unless_change_billed() -> TestResult {
+fn undo_of_log_of_billed_entry_is_refused_unless_change_billed() -> TestResult {
     let (mut world, entry) = billed_entry(2)?;
     let short = world.state().short_id(entry);
 
@@ -1821,6 +1826,34 @@ fn undo_of_begin_of_billed_entry_is_refused_unless_change_billed() -> TestResult
     assert!(error.is_code(BILLED));
     assert_eq!(kinds(&batch), ["batch.undone"]);
     assert_eq!(world.state().entries().count(), 0);
+    Ok(())
+}
+
+#[test]
+fn undo_of_begin_of_billed_entry_is_refused_unless_change_billed() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    let entry = world.only_entry(EntryState::Running)?;
+    let other = World::on_device(2)?.device;
+    world.record_by(other, "10:00", "10:00", EventKind::EntryEnded { entry })?;
+    let billing = one_hour_on_2026_0042()?;
+    world.record_by(
+        other,
+        "10:30",
+        "09:00",
+        EventKind::BillingMarked { entry, billing },
+    )?;
+
+    let error = failure(world.run("11:00", &Command::Undo(Undo::default())))?;
+    let batch = world.run(
+        "11:01",
+        &Command::Undo(Undo {
+            change_billed: true,
+        }),
+    )?;
+
+    assert!(error.is_code(BILLED));
+    assert_eq!(kinds(&batch), ["batch.undone"]);
     Ok(())
 }
 

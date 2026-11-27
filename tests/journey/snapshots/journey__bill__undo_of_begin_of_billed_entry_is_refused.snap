@@ -18,6 +18,6 @@ $ pace undo --change-billed   # at 15:05
 success: true
 exit_code: 0
 ----- stdout -----
-Took back the logged entry [ID-1] "Fix the checkout", 2026-10-07 09:00–2026-10-07 12:00.
+Took back the start of [ID-1] "Fix the checkout" at 2026-10-07 09:00.
 
 ----- stderr -----
