@@ -1,0 +1,21 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace role add work   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (work, area).
+pace took these defaults: name `work` from the key, kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace role archive wrok --reason ended   # at 09:01
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × pace doesn't know the role `wrok`
+  help: did you mean `work`?

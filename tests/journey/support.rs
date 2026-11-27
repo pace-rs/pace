@@ -314,7 +314,8 @@ const fn is_word_char(c: char) -> bool {
 /// The fields of an event that hold an ID pace made.
 const ID_FIELDS: [&str; 4] = ["id", "batch", "entry", "undoes"];
 
-/// The IDs pace made in a sandbox, read from every `events` directory in it.
+/// The IDs pace made in a sandbox, read from every `events` directory in it
+/// and from every roles file, `roles.toml`.
 #[derive(Default)]
 struct MadeIds {
     all: BTreeSet<Uuid>,
@@ -322,8 +323,9 @@ struct MadeIds {
 }
 
 impl MadeIds {
-    /// The IDs in the event files below `root`. Other TOML files, such as
-    /// manifests, hold IDs a test wrote, so they are not read.
+    /// The IDs in the event files and the roles files below `root`. Other
+    /// TOML files, such as manifests, hold IDs a test wrote, so they are
+    /// not read.
     fn find(root: &Path) -> std::io::Result<Self> {
         let mut made = Self::default();
         // Each directory, and whether it is an `events` directory or below one.
@@ -341,10 +343,11 @@ impl MadeIds {
                         _ = made.all.insert(device);
                     }
                     pending.push((path, below_events || is_events));
-                } else if below_events
+                } else if (below_events
                     && path
                         .extension()
-                        .is_some_and(|extension| extension == "toml")
+                        .is_some_and(|extension| extension == "toml"))
+                    || path.file_name().is_some_and(|name| name == "roles.toml")
                 {
                     made.read(&std::fs::read_to_string(&path)?);
                 }
@@ -353,7 +356,8 @@ impl MadeIds {
         Ok(made)
     }
 
-    /// The IDs in the lines `field = "…"` of an event file.
+    /// The IDs in the lines `field = "…"` of an event file or a roles
+    /// file.
     fn read(&mut self, text: &str) {
         for line in text.lines() {
             let Some((field, value)) = line.split_once(" = ") else {

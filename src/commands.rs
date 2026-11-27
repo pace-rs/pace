@@ -5,6 +5,7 @@ pub mod config;
 pub mod corrections;
 pub mod edit;
 pub mod now;
+pub mod role;
 pub mod store;
 pub mod tracking;
 
@@ -18,6 +19,7 @@ use self::{
     corrections::{AdjustCmd, ForgetCmd, LogCmd, UndoCmd},
     edit::EditCmd,
     now::{NowCmd, NowFormat},
+    role::RoleCmd,
     store::StoreCmd,
     tracking::{BeginCmd, CatchCmd, EndCmd, HoldCmd, PauseCmd, ResumeCmd},
 };
@@ -105,6 +107,10 @@ pub enum PaceCmd {
 
     /// Remove an entry for good
     Forget(ForgetCmd),
+
+    /// Keep the roles: the lasting responsibilities time goes to
+    #[command(subcommand)]
+    Role(RoleCmd),
 
     /// Look at pace's configuration.
     #[command(subcommand)]

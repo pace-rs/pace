@@ -19,6 +19,6 @@ rest, and ends with the field edits of the file it writes.
 <!-- uses -->
 
 - Uses: [`prompt`](../prompt.rs).
-- Used by: no other module.
+- Used by: [`commands`](../commands/).
 
 <!-- /uses -->

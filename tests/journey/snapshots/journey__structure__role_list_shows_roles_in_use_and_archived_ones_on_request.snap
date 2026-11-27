@@ -1,0 +1,67 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace role list   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+There are no roles yet; `pace role add <key>` adds one.
+
+----- stderr -----
+
+$ pace role add work --name Work --weekly-target 30h   # at 09:01
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (Work, area).
+pace took these defaults: kind `area` and no purpose; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace role add health --name Health   # at 09:02
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `health` (Health, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace role add review --kind meta   # at 09:03
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `review` (review, meta).
+pace took these defaults: name `review` from the key, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace role archive health --reason inactive   # at 09:04
+success: true
+exit_code: 0
+----- stdout -----
+Archived the role `health` (Health) on 2026-11-26 as inactive.
+
+----- stderr -----
+
+$ pace role list   # at 09:05
+success: true
+exit_code: 0
+----- stdout -----
+key     kind  name    weekly target
+review  meta  review
+work    area  Work    30h
+
+----- stderr -----
+
+$ pace role list --archived   # at 09:06
+success: true
+exit_code: 0
+----- stdout -----
+key     kind  name    weekly target  archived
+health  area  Health                 2026-11-26, inactive
+review  meta  review
+work    area  Work    30h
+
+----- stderr -----

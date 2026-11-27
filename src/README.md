@@ -21,7 +21,7 @@ question machine in `questions.rs`: its flow gives the questions without I/O.
 | [`commands.rs`](commands.rs)       | The command line: the entry point and its subcommands.                                                                             |
 | [`config.rs`](config.rs)           | Settings and the layers they come from.                                                                                            |
 | [`dirs.rs`](dirs.rs)               | The three places pace keeps files: the global config file, the data directory (`PACE_HOME`) and the machine directory.             |
-| [`editor.rs`](editor.rs)           | Editing text in the user's editor: `VISUAL`, else `EDITOR`.                                                                        |
+| [`editor.rs`](editor.rs)           | Editing text in the user's editor: `VISUAL`, else `EDITOR`; and the round trip that opens a file again until its check takes it.   |
 | [`lib.rs`](lib.rs)                 | pace: a local-first command-line time tracker for work and daily life.                                                             |
 | [`origin.rs`](origin.rs)           | Where a setting or a directory comes from.                                                                                         |
 | [`output.rs`](output.rs)           | How tracking commands describe what they did.                                                                                      |

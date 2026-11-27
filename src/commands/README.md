@@ -3,7 +3,8 @@
 The commands, one file per command or group of commands; `src/commands.rs`
 declares the entry point and the subcommands. A tracking command opens a
 `Session`, resolves the project, the entry and the times, and hands a
-`pace_core::Command` to the tracker.
+`pace_core::Command` to the tracker. A command that adds something, such as
+`role add`, drives a flow of `questions` and writes its field edits.
 
 ## Files
 
@@ -16,6 +17,7 @@ declares the entry point and the subcommands. A tracking command opens a
 | [`corrections.rs`](corrections.rs) | Correcting the record: `adjust`, `log`, `undo`, `forget`.                             |
 | [`edit.rs`](edit.rs)               | `pace edit`: an entry as TOML in the user's editor; the changes become an adjustment. |
 | [`now.rs`](now.rs)                 | `pace now`: what is open, and where new entries go.                                   |
+| [`role.rs`](role.rs)               | `pace role`: add, list, archive and edit the roles in `roles.toml`.                   |
 | [`store.rs`](store.rs)             | `pace store`: how pace keeps its data.                                                |
 | [`tracking.rs`](tracking.rs)       | The tracking commands: `begin`, `hold`, `pause`, `resume`, `catch`, `end`.            |
 
@@ -25,10 +27,11 @@ declares the entry point and the subcommands. A tracking command opens a
 
 <!-- uses -->
 
-- Uses: [`application`](../application.rs), [`dirs`](../dirs/),
-  [`editor`](../editor.rs), [`output`](../output.rs), [`print`](../print.rs),
-  [`project`](../project.rs), [`prompt`](../prompt.rs),
-  [`select`](../select.rs), [`session`](../session.rs).
+- Uses: [`application`](../application.rs), [`clock`](../clock.rs),
+  [`dirs`](../dirs/), [`editor`](../editor.rs), [`output`](../output.rs),
+  [`print`](../print.rs), [`project`](../project.rs), [`prompt`](../prompt.rs),
+  [`questions`](../questions/), [`select`](../select.rs),
+  [`session`](../session.rs).
 - Used by: [`application`](../application.rs).
 
 <!-- /uses -->

@@ -1,0 +1,21 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace role add work --name Work --kind area-project --purpose Earn a living with good work --weekly-target 30h   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (Work, area-project).
+
+----- stderr -----
+
+--- home/roles.toml ---
+version = 1
+
+[work]
+id = "[ID-1]"
+kind = "area-project"
+name = "Work"
+purpose = "Earn a living with good work"
+weekly-target = "30h"

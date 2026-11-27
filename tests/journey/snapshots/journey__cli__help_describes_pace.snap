@@ -1,6 +1,6 @@
 ---
 source: tests/journey/cli.rs
-expression: "run(pace().arg(\"--help\"))?"
+expression: "run(sandbox.pace().arg(\"--help\"))?"
 ---
 success: true
 exit_code: 0
@@ -22,6 +22,7 @@ Commands:
   edit         Change an entry in your editor
   undo         Take back the last command of this device
   forget       Remove an entry for good
+  role         Keep the roles: the lasting responsibilities time goes to
   config       Look at pace's configuration
   store        Look after how pace keeps its data
   completions  Print the completion script for your shell

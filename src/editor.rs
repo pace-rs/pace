@@ -1,8 +1,11 @@
-//! Editing text in the user's editor: `VISUAL`, else `EDITOR`.
+//! Editing text in the user's editor: `VISUAL`, else `EDITOR`; and the
+//! round trip that opens a file again until its check takes it.
 
-use std::{ffi::OsString, io::Write as _, process::Command};
+use std::{ffi::OsString, io::Write as _, path::Path, process::Command};
 
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
+
+use crate::prompt::Ask;
 
 /// The editor the user set: `VISUAL`, else `EDITOR`; a variable that is
 /// empty or no UTF-8 counts as unset. The edge reads it once.
@@ -108,9 +111,201 @@ pub fn edit_in_editor(editor: &str, text: &str, suffix: &str) -> PaceResult<Stri
     })
 }
 
+/// What [`edit_until_checked`] edits: the file, and the command that
+/// opens it again.
+#[derive(Debug, Clone, Copy)]
+pub struct EditedFile<'file> {
+    /// The file the text is written to once it is checked.
+    pub path: &'file Path,
+    /// The command that edits it: `pace role edit`.
+    pub command: &'file str,
+}
+
+/// Let the user change `text` of `file` with `edit` until `check` takes it;
+/// the text and what `check` made of it.
+///
+/// A mistake, an error of the kind `InvalidInput`, is shown with `report`,
+/// and the user may open the edited text again to fix it. Other errors,
+/// such as a failing editor, end the round trip.
+///
+/// # Errors
+///
+/// If the text comes back unchanged, or the user leaves a mistake, the
+/// error exits with 3 and the file stays as it was. Without a terminal, a
+/// mistake is the error.
+pub fn edit_until_checked<T>(
+    file: EditedFile<'_>,
+    text: &str,
+    asker: &dyn Ask,
+    mut edit: impl FnMut(&str) -> PaceResult<String>,
+    mut check: impl FnMut(&str) -> PaceResult<T>,
+    report: impl Fn(&PaceError),
+) -> PaceResult<(String, T)> {
+    let path = file.path.display().to_string();
+    let mut edited = edit(text)?;
+    loop {
+        if edited == text {
+            return Err(
+                PaceError::new(ErrorKind::InvalidInput, "nothing changed in {path}")
+                    .attach_context("path", path)
+                    .attach_exit_code(ExitCode::NothingToDo),
+            );
+        }
+        let error = match check(&edited) {
+            Ok(checked) => return Ok((edited, checked)),
+            Err(error) if error.kind() == ErrorKind::InvalidInput && asker.can_ask() => error,
+            Err(error) => return Err(error),
+        };
+        report(&error);
+        if !asker.confirm(&format!("Open {path} again to fix it?"), true)? {
+            return Err(
+                PaceError::new(ErrorKind::InvalidInput, "{path} stays as it was")
+                    .attach_context("path", path)
+                    .attach_hint(format!("`{}` opens it again", file.command))
+                    .attach_exit_code(ExitCode::NothingToDo),
+            );
+        }
+        edited = edit(&edited)?;
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+
     use super::*;
+    use crate::prompt::Scripted;
+
+    /// The roles file, as `pace role edit` edits it.
+    fn roles() -> EditedFile<'static> {
+        EditedFile {
+            path: Path::new("roles.toml"),
+            command: "pace role edit",
+        }
+    }
+
+    /// A check that takes text without `oops`, its length as what it made.
+    fn no_oops(text: &str) -> PaceResult<usize> {
+        if text.contains("oops") {
+            Err(PaceError::new(
+                ErrorKind::InvalidInput,
+                "the text says oops",
+            ))
+        } else {
+            Ok(text.len())
+        }
+    }
+
+    /// An editor that saves `saved` in turn, whatever it was given.
+    fn editor(saved: &[&str]) -> impl FnMut(&str) -> PaceResult<String> {
+        let mut saved: Vec<String> = saved.iter().rev().map(|&text| text.to_owned()).collect();
+        move |_| {
+            saved.pop().ok_or_else(|| {
+                PaceError::new(ErrorKind::Internal, "the test has no more saved texts")
+            })
+        }
+    }
+
+    #[test]
+    fn checked_text_comes_back_with_what_check_made() {
+        let edit = editor(&["version = 1\n[work]\n"]);
+
+        let (text, length) = edit_until_checked(
+            roles(),
+            "version = 1\n",
+            &Scripted::without_terminal(),
+            edit,
+            no_oops,
+            |_| {},
+        )
+        .unwrap();
+
+        assert_eq!(text, "version = 1\n[work]\n");
+        assert_eq!(length, 19);
+    }
+
+    #[test]
+    fn mistake_fixed_after_opening_again_is_checked() {
+        let edit = editor(&["oops", "fixed"]);
+        let asker = Scripted::confirming([true]);
+        let reported = RefCell::new(Vec::new());
+
+        let (text, _) = edit_until_checked(roles(), "before", &asker, edit, no_oops, |error| {
+            reported.borrow_mut().push(error.to_string());
+        })
+        .unwrap();
+
+        assert_eq!(text, "fixed");
+        assert_eq!(reported.into_inner(), ["the text says oops"]);
+        assert_eq!(asker.questions(), ["Open roles.toml again to fix it?"]);
+    }
+
+    #[test]
+    fn mistake_left_keeps_file_and_names_command() {
+        let edit = editor(&["oops"]);
+        let asker = Scripted::confirming([false]);
+
+        let error =
+            edit_until_checked(roles(), "before", &asker, edit, no_oops, |_| {}).unwrap_err();
+
+        assert_eq!(error.to_string(), "roles.toml stays as it was");
+        assert_eq!(error.hint(), Some("`pace role edit` opens it again"));
+        assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    }
+
+    #[test]
+    fn mistake_without_terminal_is_error() {
+        let edit = editor(&["oops"]);
+
+        let error = edit_until_checked(
+            roles(),
+            "before",
+            &Scripted::without_terminal(),
+            edit,
+            no_oops,
+            |_| {},
+        )
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "the text says oops");
+    }
+
+    #[test]
+    fn unchanged_text_has_nothing_to_do() {
+        let edit = editor(&["before"]);
+
+        let error = edit_until_checked(
+            roles(),
+            "before",
+            &Scripted::without_terminal(),
+            edit,
+            no_oops,
+            |_| {},
+        )
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "nothing changed in roles.toml");
+        assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    }
+
+    #[test]
+    fn failing_check_of_other_kind_opens_nothing_again() {
+        let edit = editor(&["after"]);
+        let asker = Scripted::confirming([true]);
+
+        let error = edit_until_checked(
+            roles(),
+            "before",
+            &asker,
+            edit,
+            |_| -> PaceResult<()> { Err(PaceError::new(ErrorKind::InputOutput, "disk full")) },
+            |_| {},
+        )
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "disk full");
+        assert_eq!(asker.questions(), Vec::<String>::new());
+    }
 
     fn env<'vars>(vars: &'vars [(&str, &str)]) -> impl Fn(&str) -> Option<OsString> + 'vars {
         move |name| {

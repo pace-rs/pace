@@ -1,0 +1,26 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace role add health --kind meta   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `health` (health, meta).
+pace took these defaults: name `health` from the key, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+--- home/roles.toml ---
+version = 1
+
+# what I am paid for
+[work]
+id = "[ID-1]"
+kind = "area"
+name = "Work"
+
+[health]
+id = "[ID-2]"
+kind = "meta"
+name = "health"
