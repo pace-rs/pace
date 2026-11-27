@@ -55,10 +55,18 @@ impl Ids for RandomIds {
 ///
 /// # Errors
 ///
-/// If a named zone is unknown, which the config check prevents.
+/// If the system's zone is unknown, such as with `TZ=Nowhere/Invalid`, or
+/// a named zone is unknown, which the config check prevents.
 pub fn zone(setting: &TimeZoneSetting) -> PaceResult<TimeZone> {
     match setting {
-        TimeZoneSetting::System => Ok(TimeZone::system()),
+        TimeZoneSetting::System => TimeZone::try_system().map_err(|error| {
+            PaceError::with_source(
+                ErrorKind::Time,
+                "pace cannot tell the time zone of the system",
+                error,
+            )
+            .attach_hint("set `time-zone` to a name like `Europe/Berlin`")
+        }),
         TimeZoneSetting::Named(name) => jiff::tz::db().get(name).map_err(|error| {
             PaceError::with_source(
                 ErrorKind::Time,

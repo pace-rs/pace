@@ -231,3 +231,16 @@ fn version_in_hex_is_read_as_its_number() -> TestResult {
     assert!(output.contains(", not 16"), "{output}");
     Ok(())
 }
+
+#[test]
+fn unknown_system_time_zone_stops_pace_before_it_records() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = run(sandbox
+        .pace()
+        .env("TZ", "Nowhere/Invalid")
+        .args(["begin", "zone test"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    assert!(!sandbox.path("home/events").exists());
+    Ok(())
+}

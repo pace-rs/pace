@@ -1,0 +1,12 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × pace cannot tell the time zone of the system
+  ╰─▶ `TZ` environment variable set, but failed to read value: failed to read `TZ` environment variable value as a TZif file after attempting (and failing) a tzdb lookup for that same value
+  help: set `time-zone` to a name like `Europe/Berlin`
