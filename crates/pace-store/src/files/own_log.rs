@@ -163,7 +163,7 @@ impl Layout {
         }
         in_place &= by_file.len() == files.len();
         for events in by_file.values_mut() {
-            events.sort_by_key(|recorded| recorded.hlc);
+            events.sort_by_key(RecordedEvent::merge_key);
         }
         Ok(Self {
             by_file,

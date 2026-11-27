@@ -44,8 +44,9 @@ pub struct UndoTarget {
 }
 
 impl State {
-    /// Apply `events`, from any number of devices, in merged order: by
-    /// [`Hlc`](crate::Hlc), ties broken by device ID.
+    /// Apply `events`, from any number of devices and in any order, in
+    /// merged order: by [`Hlc`](crate::Hlc), ties broken by device ID, then
+    /// by event ID ([`RecordedEvent::merge_key`]).
     #[must_use]
     pub fn from_events(events: &[RecordedEvent]) -> Self {
         let mut ordered: Vec<&RecordedEvent> = events.iter().collect();

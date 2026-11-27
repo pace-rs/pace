@@ -181,19 +181,22 @@ pub struct RecordedEvent {
 }
 
 impl RecordedEvent {
-    /// The key of the merged order: the HLC, ties broken by device ID. The
-    /// result is the same on every device.
+    /// The key of the merged order: the HLC, ties broken by device ID and
+    /// then by event ID. No two events share the key, so the order is total
+    /// and the same on every device, whatever order the events come in. Two
+    /// events of one device share an HLC when two machines run with a copy of
+    /// one machine directory.
     #[must_use]
-    pub const fn merge_key(&self) -> (Hlc, DeviceId) {
-        (self.hlc, self.device)
+    pub const fn merge_key(&self) -> (Hlc, DeviceId, EventId) {
+        (self.hlc, self.device, self.event.id)
     }
 }
 
 /// A hybrid logical clock: the wall time of recording plus a counter.
 ///
 /// It orders the events of all devices the same way on every device, and
-/// keeps the order of one device when its clock jumps back. Ties between
-/// devices are broken by the device ID.
+/// keeps the order of one device when its clock jumps back. Ties are broken
+/// by [`RecordedEvent::merge_key`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Hlc {
     wall: Timestamp,

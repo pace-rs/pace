@@ -500,3 +500,57 @@ fn entries_from_two_devices_can_both_be_open() -> TestResult {
     assert_eq!(open, [entry(1)?, entry(2)?]);
     Ok(())
 }
+
+fn note_set(entry: EntryId, note: &str) -> EventKind {
+    EventKind::EntryAdjusted {
+        entry,
+        changes: EntryChanges {
+            note: Change::Set(note.to_owned()),
+            ..EntryChanges::default()
+        },
+    }
+}
+
+#[test]
+fn events_with_one_hlc_and_one_device_merge_by_event_id_in_either_input_order() -> TestResult {
+    // A copied machine directory writes two events with one HLC and one device.
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = log.push("2026-11-26T10:00[Europe/Berlin]", note_set(e, "first"))?;
+    _ = log.push("2026-11-26T10:00[Europe/Berlin]", note_set(e, "second"))?;
+    let mut reversed = log.events.clone();
+    reversed.reverse();
+
+    let forward = State::from_events(&log.events);
+    let backward = State::from_events(&reversed);
+
+    assert_eq!(forward, backward);
+    assert_eq!(
+        forward.entry(e).ok_or("entry")?.note.as_deref(),
+        Some("second")
+    );
+    Ok(())
+}
+
+#[test]
+fn hlc_tie_across_two_devices_goes_to_the_higher_device_id() -> TestResult {
+    let mut laptop = Log::new(1)?;
+    let mut desktop = Log::new(2)?;
+    let e = entry(1)?;
+    _ = laptop.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = desktop.push("2026-11-26T10:00[Europe/Berlin]", note_set(e, "desktop"))?;
+    _ = laptop.push("2026-11-26T10:00[Europe/Berlin]", note_set(e, "laptop"))?;
+
+    for merged in [
+        [desktop.events.clone(), laptop.events.clone()].concat(),
+        [laptop.events.clone(), desktop.events.clone()].concat(),
+    ] {
+        let state = State::from_events(&merged);
+        assert_eq!(
+            state.entry(e).ok_or("entry")?.note.as_deref(),
+            Some("desktop")
+        );
+    }
+    Ok(())
+}

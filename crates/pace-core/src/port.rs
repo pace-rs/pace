@@ -119,8 +119,9 @@ pub trait EventStore: Send + Sync {
     /// From the logs of all devices: every event of every entry whose time
     /// overlaps `range` (an open entry lasts until now, whatever the range),
     /// and the `batch.undone` events of their batches. A backend may return
-    /// more events, never fewer; their order doesn't matter. The contract
-    /// tests in `testing::contract` check this.
+    /// more events, never fewer, and in any order: the state sorts them by
+    /// [`RecordedEvent::merge_key`]. The contract tests in
+    /// `testing::contract` check this.
     fn read(
         &self,
         range: &TimeRange,
