@@ -162,7 +162,8 @@ impl Sandbox {
         command
     }
 
-    /// `pace` run in `work/` without any `PACE_*` variable.
+    /// `pace` run in `work/` without any `PACE_*` variable, and without the
+    /// variables by which the caller's shell sets colour, graphics or width.
     pub fn bare_pace(&self) -> Command {
         let mut command = pace();
         for (key, _) in std::env::vars_os() {
@@ -170,12 +171,12 @@ impl Sandbox {
                 _ = command.env_remove(key);
             }
         }
+        for key in HOST_OUTPUT_VARIABLES {
+            _ = command.env_remove(key);
+        }
         // Wide enough that long temporary paths never wrap, so snapshots are
         // the same on every OS.
-        _ = command
-            .env_remove("NO_COLOR")
-            .env("COLUMNS", "500")
-            .current_dir(self.path("work"));
+        _ = command.env("COLUMNS", "500").current_dir(self.path("work"));
         command
     }
 
@@ -197,6 +198,17 @@ impl Sandbox {
         settings
     }
 }
+
+/// The variables by which a shell turns colour or miette's graphics on or
+/// off. A journey test removes them, so its snapshot is the same in every
+/// shell.
+const HOST_OUTPUT_VARIABLES: [&str; 5] = [
+    "NO_COLOR",
+    "CLICOLOR",
+    "CLICOLOR_FORCE",
+    "FORCE_COLOR",
+    "NO_GRAPHICS",
+];
 
 /// A word that may be an ID: letters, digits and hyphens.
 const fn is_word_char(c: char) -> bool {

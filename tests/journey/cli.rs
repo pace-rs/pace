@@ -1,15 +1,17 @@
-use crate::support::{pace, run};
+use crate::support::{Sandbox, run};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
 fn version_names_the_binary_and_its_version() -> TestResult {
-    insta::assert_snapshot!(run(pace().arg("--version"))?);
+    let sandbox = Sandbox::new()?;
+    insta::assert_snapshot!(run(sandbox.pace().arg("--version"))?);
     Ok(())
 }
 
 #[test]
 fn help_describes_pace() -> TestResult {
-    insta::assert_snapshot!(run(pace().arg("--help"))?);
+    let sandbox = Sandbox::new()?;
+    insta::assert_snapshot!(run(sandbox.pace().arg("--help"))?);
     Ok(())
 }
