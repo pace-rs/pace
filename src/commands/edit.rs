@@ -249,10 +249,10 @@ fn read(
         )
         .attach_context("message", error.message().trim());
         match error.span() {
-            Some(span) if !text.trim().is_empty() => mistake
+            Some(span) if !span.is_empty() && !text.trim().is_empty() => mistake
                 .attach_snippet(Snippet::new(EDITED, text, span, "here"))
                 .attach_hint("fix the marked spot; nothing was changed"),
-            _ if text.trim().is_empty() => {
+            _ if lacks_start(text) => {
                 mistake.attach_hint("write the fields back, at least `start`; nothing was changed")
             }
             _ => mistake.attach_hint("fix the named mistake; nothing was changed"),
@@ -336,9 +336,25 @@ fn moment(
                 error.hint().unwrap_or("give another time").to_owned()
             };
             error
-                .attach_hint(format!("{hint}; nothing was changed"))
+                .attach_hint(unchanged(&hint))
                 .attach_snippet(Snippet::new(EDITED, text, value.span(), "this time"))
         })
+}
+
+/// Whether the edited `text` is TOML without a `start`: a missing field
+/// has no spot in the file to mark.
+fn lacks_start(text: &str) -> bool {
+    toml::from_str::<toml::Table>(text).is_ok_and(|table| !table.contains_key("start"))
+}
+
+/// `hint` with the words that nothing was changed: after it, or before
+/// it when it asks, so no punctuation follows the question mark.
+fn unchanged(hint: &str) -> String {
+    if hint.ends_with('?') {
+        format!("nothing was changed; {hint}")
+    } else {
+        format!("{hint}; nothing was changed")
+    }
 }
 
 /// The two forms of a time the edited file takes, shown with `now`.
@@ -478,6 +494,52 @@ mod tests {
         assert_eq!(
             error.hint(),
             Some("write the fields back, at least `start`; nothing was changed")
+        );
+    }
+
+    #[test]
+    fn missing_start_marks_no_spot_and_hints_at_field() {
+        let text = format!(
+            "# pace edit: entry 0193, begun on this device.\n# Started at 09:00.\nend = \"{}\"\n",
+            at("10:00")
+        );
+
+        let error = read(
+            &text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "the edited entry has a mistake: missing field `start`"
+        );
+        assert_eq!(labels(&error), []);
+        assert_eq!(
+            error.hint(),
+            Some("write the fields back, at least `start`; nothing was changed")
+        );
+    }
+
+    #[test]
+    fn time_in_future_by_offset_asks_after_saying_nothing_changed() {
+        let text = "start = \"+15m\"\n";
+
+        let error = read(
+            text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.hint(),
+            Some("nothing was changed; did you mean `-15m`?")
         );
     }
 
