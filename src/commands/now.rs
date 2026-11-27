@@ -4,7 +4,7 @@ use abscissa_core::{Command, Runnable};
 use jiff::{ToSpan, ZonedDateTime};
 use pace_core::{Entry, EntryState, ProjectRef, State};
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_time::{TimeFrame, clock, format_duration, relative_time};
+use pace_time::{TimeFrame, format_duration, format_moment, relative_time};
 use serde::Serialize;
 
 use crate::output::project_name;
@@ -90,8 +90,8 @@ fn render_text(
             "Overlap: {} and {} both cover {}–{}; change one with `pace adjust <id>`.",
             state.short_id(overlap.first.id),
             state.short_id(overlap.second.id),
-            clock(&overlap.start, now),
-            clock(&overlap.end, now)
+            format_moment(&overlap.start, now),
+            format_moment(&overlap.end, now)
         ));
     }
     if let Some(project) = &context.project {
@@ -105,8 +105,13 @@ fn render_text(
 
 fn headline(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
     let name = state.entry_name(entry);
-    let since =
-        |moment: &ZonedDateTime| format!("{} ({})", clock(moment, now), relative_time(moment, now));
+    let since = |moment: &ZonedDateTime| {
+        format!(
+            "{} ({})",
+            format_moment(moment, now),
+            relative_time(moment, now)
+        )
+    };
     match entry.state() {
         EntryState::Held => {
             let hold = entry.open_hold();
@@ -129,7 +134,7 @@ fn headline(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
 fn details(entry: &Entry, session: &Session, now: &ZonedDateTime) -> Vec<String> {
     let mut details = vec![format!("{} net so far", format_duration(entry.net(now)))];
     if entry.state() != EntryState::Running {
-        details.push(format!("begun at {}", clock(&entry.start, now)));
+        details.push(format!("begun at {}", format_moment(&entry.start, now)));
     }
     let (held, paused) = (entry.hold_time(now), entry.pause_time(now));
     if !held.is_zero() {

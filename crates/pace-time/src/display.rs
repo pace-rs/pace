@@ -60,24 +60,28 @@ pub fn relative_time(then: &ZonedDateTime, now: &ZonedDateTime) -> String {
 /// A moment as the user reads it: `HH:MM` on the day of `now`, else with
 /// the date; in the zone of `now`.
 #[must_use]
-pub fn clock(moment: &ZonedDateTime, now: &ZonedDateTime) -> String {
-    clock_as(moment, now, "%H:%M")
+pub fn format_moment(moment: &ZonedDateTime, now: &ZonedDateTime) -> String {
+    format_moment_as(moment, now, "%H:%M")
 }
 
-/// `moment` as [`clock`] shows it, but `HH:MM:SS` when `other` is another
-/// moment of the same minute: a text that names both tells them apart, and
-/// its hint names a time the user can give.
+/// `moment` as [`format_moment`] shows it, but `HH:MM:SS` when `other` is
+/// another moment of the same minute: a text that names both tells them
+/// apart, and its hint names a time the user can give.
 #[must_use]
-pub fn clock_against(moment: &ZonedDateTime, other: &ZonedDateTime, now: &ZonedDateTime) -> String {
-    let shown = clock(moment, now);
-    if moment.timestamp() != other.timestamp() && shown == clock(other, now) {
-        clock_as(moment, now, "%H:%M:%S")
+pub fn format_moment_against(
+    moment: &ZonedDateTime,
+    other: &ZonedDateTime,
+    now: &ZonedDateTime,
+) -> String {
+    let shown = format_moment(moment, now);
+    if moment.timestamp() != other.timestamp() && shown == format_moment(other, now) {
+        format_moment_as(moment, now, "%H:%M:%S")
     } else {
         shown
     }
 }
 
-fn clock_as(moment: &ZonedDateTime, now: &ZonedDateTime, time: &str) -> String {
+fn format_moment_as(moment: &ZonedDateTime, now: &ZonedDateTime, time: &str) -> String {
     let local = moment.with_time_zone(now.time_zone().clone());
     if local.date() == now.date() {
         local.strftime(time).to_string()

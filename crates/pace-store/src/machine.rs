@@ -7,7 +7,9 @@ use pace_core::{DeviceId, EntryId, Hlc, Ids};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
-use crate::disk::{DEVICE_FILE, FileOp, check_version, io_error, prepare, write_atomically};
+use crate::disk::{
+    DEVICE_FILE, FileOp, check_version, io_error, prepare_temporary_file, write_atomically,
+};
 use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts, hlc_text};
 
 const CURSORS_FILE: &str = "cursors.toml";
@@ -51,7 +53,7 @@ pub fn device_id(machine: &Path, ids: &dyn Ids) -> PaceResult<DeviceIdentity> {
     }
     let id = DeviceId::try_from(ids.next_id())?;
     let path = machine.join(DEVICE_FILE);
-    let (temporary, path) = prepare(
+    let (temporary, path) = prepare_temporary_file(
         &path,
         &toml_text(
             &path,
@@ -166,7 +168,7 @@ impl Cursors {
 
     /// Write the cursors to the machine directory.
     pub(crate) fn save(&self, machine: &Path) -> PaceResult<()> {
-        write(
+        write_machine_file(
             &machine.join(CURSORS_FILE),
             &CursorsFile {
                 version: CURSORS_VERSION,
@@ -196,7 +198,7 @@ pub(crate) fn clone_detected(machine: &Path, own_last: Hlc, remembered: Hlc) -> 
     .attach_error_code("pace::store::device-cloned")
 }
 
-fn write<T: Serialize>(path: &Path, value: &T) -> PaceResult<()> {
+fn write_machine_file<T: Serialize>(path: &Path, value: &T) -> PaceResult<()> {
     write_atomically(path, &toml_text(path, value)?)
 }
 

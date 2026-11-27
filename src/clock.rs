@@ -78,7 +78,10 @@ pub fn zone(setting: &TimeZoneSetting) -> PaceResult<TimeZone> {
 ///
 /// If `PACE_TEST_NOW` is set but no RFC 9557 time, or the system's zone is
 /// unknown.
-pub fn clock(setting: &TimeZoneSetting, test_now: Option<OsString>) -> PaceResult<Arc<dyn Clock>> {
+pub fn clock_for_run(
+    setting: &TimeZoneSetting,
+    test_now: Option<OsString>,
+) -> PaceResult<Arc<dyn Clock>> {
     let zone = zone(setting)?;
     let Some(test_now) = test_now.filter(|value| !value.is_empty()) else {
         return Ok(Arc::new(SystemClock::new(zone)));
@@ -115,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_time_is_seen_in_the_configured_zone() -> Result<(), Box<dyn std::error::Error>> {
-        let clock = clock(
+        let clock = clock_for_run(
             &TimeZoneSetting::Named(TimeZone::get("America/New_York")?),
             Some("2026-11-26T09:00[Europe/Berlin]".into()),
         )?;
@@ -129,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_time_that_is_no_time_names_its_variable_first() {
-        let Err(error) = clock(
+        let Err(error) = clock_for_run(
             &TimeZoneSetting::Named(TimeZone::UTC),
             Some("tomorrow".into()),
         ) else {

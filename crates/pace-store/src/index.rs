@@ -168,7 +168,10 @@ fn span(moments: &[i64]) -> Option<(i64, i64)> {
 /// where an open entry began, those with an event recorded since the
 /// scope's moment, and every file with events about the same entries as
 /// a selected file.
-pub(crate) fn select(files: &BTreeMap<String, FileSummary>, scope: &ReadScope) -> BTreeSet<String> {
+pub(crate) fn select_event_files(
+    files: &BTreeMap<String, FileSummary>,
+    scope: &ReadScope,
+) -> BTreeSet<String> {
     let ended_elsewhere: BTreeSet<EntryId> = files
         .values()
         .flat_map(|summary| summary.ends_elsewhere.iter().copied())

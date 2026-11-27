@@ -19,7 +19,7 @@ use pace_core::{HoldSource, ProjectKey};
 use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
 use pace_store::Split;
 
-use pace_store::toml_file::{TomlFile, TomlKey, TomlValue, closest, read_hint};
+use pace_store::toml_file::{TomlFile, TomlKey, TomlValue, closest_name, read_hint};
 
 use crate::{dirs::Located, origin::Origin};
 
@@ -267,7 +267,7 @@ fn parse_time_zone(value: &str) -> PaceResult<TimeZoneSetting> {
         .available()
         .map(|name| name.as_str().to_owned())
         .collect();
-    let hint = closest(value, names.iter().map(String::as_str)).map_or_else(
+    let hint = closest_name(value, names.iter().map(String::as_str)).map_or_else(
         || {
             "use a name from the IANA time zone database, like `Europe/Berlin`, or `system`"
                 .to_owned()
@@ -297,10 +297,11 @@ fn parse_weekday(value: &str) -> PaceResult<Weekday> {
         .into_iter()
         .find(|day| weekday_name(*day) == lowercase)
         .ok_or_else(|| {
-            let hint = closest(&lowercase, WEEKDAYS.into_iter().map(weekday_name)).map_or_else(
-                || "use a day name like `monday`".to_owned(),
-                |name| format!("did you mean `{name}`?"),
-            );
+            let hint = closest_name(&lowercase, WEEKDAYS.into_iter().map(weekday_name))
+                .map_or_else(
+                    || "use a day name like `monday`".to_owned(),
+                    |name| format!("did you mean `{name}`?"),
+                );
             invalid("`{value}` is not a day of the week", value, hint)
         })
 }
@@ -618,7 +619,7 @@ fn unknown_variables(variables: impl Iterator<Item = OsString>) -> Vec<PaceError
             // Scored without the shared `PACE_`, which would make every
             // pair of names look close.
             let without_prefix = |name: &'static str| name.strip_prefix(PREFIX).unwrap_or(name);
-            let hint = closest(
+            let hint = closest_name(
                 name.strip_prefix(PREFIX).unwrap_or(&name),
                 known.iter().copied().map(without_prefix),
             )

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
 use crate::hlc::hlc_text;
-use crate::toml_file::{TomlCause, TomlFile, closest};
+use crate::toml_file::{TomlCause, TomlFile, closest_name};
 
 /// The version of the event file format.
 pub(crate) const FILE_VERSION: u32 = 1;
@@ -119,7 +119,7 @@ pub(crate) fn file_header() -> String {
 ///
 /// If an event cannot be written as TOML, which is a bug.
 pub(crate) fn serialize_events(events: &[RecordedEvent]) -> PaceResult<String> {
-    let records: Vec<Record> = events.iter().map(record).collect();
+    let records: Vec<Record> = events.iter().map(record_from_event).collect();
     toml::to_string(&Chunk { event: &records }).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write an event as TOML", error)
             .ask_report()
@@ -147,7 +147,7 @@ pub(crate) fn parse_events(
         .into_iter()
         .map(|record| {
             let span = record.span();
-            recorded(record.into_inner(), device).map_err(|invalid| {
+            event_from_record(record.into_inner(), device).map_err(|invalid| {
                 event_file(path, text)
                     .error_at(
                         span,
@@ -216,7 +216,7 @@ fn broken(file: &TomlFile<'_>, error: toml::de::Error, guidance: &'static str) -
 }
 
 fn unknown_key(file: &TomlFile<'_>, name: &str, span: Range<usize>) -> Box<PaceError> {
-    let hint = closest(name, KEYS.iter().copied()).map_or_else(
+    let hint = closest_name(name, KEYS.iter().copied()).map_or_else(
         || READ_ONLY.to_owned(),
         |known| format!("did you mean `{known}`? {READ_ONLY}"),
     );
@@ -295,7 +295,7 @@ fn parse_hlc(text: &str) -> Option<Hlc> {
     ))
 }
 
-fn record(recorded: &RecordedEvent) -> Record {
+fn record_from_event(recorded: &RecordedEvent) -> Record {
     let event = &recorded.event;
     let mut record = Record {
         id: event.id,
@@ -525,7 +525,7 @@ fn present(record: &Record) -> Vec<&'static str> {
 /// The event a record holds: its type parsed and its version and fields
 /// checked ([`checked_type`]), its HLC parsed and its fields turned into an
 /// [`EventKind`] ([`event_kind`]).
-fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, InvalidRecord> {
+fn event_from_record(record: Record, device: DeviceId) -> Result<RecordedEvent, InvalidRecord> {
     let event_type = checked_type(&record)?;
     let hlc = parse_hlc(&record.hlc).ok_or_else(|| {
         InvalidRecord::new("`{hlc}` is no HLC like `2026-11-26T08:02:11.204Z/0`")

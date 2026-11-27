@@ -55,13 +55,13 @@ pub(super) fn at(
     notes: &mut Vec<String>,
 ) -> PaceResult<Option<ZonedDateTime>> {
     value
-        .map(|value| moment(value, now, asker, notes))
+        .map(|value| parse_moment(value, now, asker, notes))
         .transpose()
 }
 
 /// A time in the `--at` grammar as a moment, chosen as
 /// [`chosen_moment`] says.
-pub(super) fn moment(
+pub(super) fn parse_moment(
     value: &str,
     now: &ZonedDateTime,
     asker: &dyn Ask,
@@ -509,7 +509,7 @@ mod tests {
         let asker = Scripted::choosing([1]);
         let mut notes = Vec::new();
 
-        let moment = moment("02:30", &clocks_set_back(), &asker, &mut notes).unwrap();
+        let moment = parse_moment("02:30", &clocks_set_back(), &asker, &mut notes).unwrap();
 
         assert_eq!(
             moment.to_string(),
@@ -530,7 +530,7 @@ mod tests {
         let asker = Scripted::without_terminal();
         let mut notes = Vec::new();
 
-        let moment = moment("02:30", &clocks_set_back(), &asker, &mut notes).unwrap();
+        let moment = parse_moment("02:30", &clocks_set_back(), &asker, &mut notes).unwrap();
 
         assert_eq!(
             moment.to_string(),

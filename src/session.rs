@@ -8,7 +8,7 @@ use pace_error::PaceResult;
 use pace_store::{FilesStore, Resplit, Split, Tracker, device_id, existing_device_id};
 use pace_time::TimeRange;
 
-use crate::clock::clock;
+use crate::clock::clock_for_run;
 use crate::{
     application::{Context, print_error},
     clock::RandomIds,
@@ -67,7 +67,7 @@ impl Session {
     }
 
     fn with_device(context: &Context, ids: Arc<dyn Ids>, device: DeviceId) -> PaceResult<Self> {
-        let clock = clock(
+        let clock = clock_for_run(
             &context.settings.settings.time_zone,
             context.test_now.clone(),
         )?;

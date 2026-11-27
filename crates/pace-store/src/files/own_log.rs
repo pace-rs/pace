@@ -11,8 +11,8 @@ use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
 
 use crate::Split;
 use crate::disk::{
-    DEVICE_FILE, FileOp, create_dir, event_files, io_error, lock, prepare, relative_name,
-    remove_empty_dirs, write_atomically,
+    DEVICE_FILE, FileOp, create_dir, event_files, io_error, lock_file, prepare_temporary_file,
+    relative_name, remove_empty_dirs, write_atomically,
 };
 use crate::files::parsed::Events;
 use crate::files::{FilesStore, Resplit, read_device_info_file, write_device_info_file};
@@ -71,7 +71,7 @@ impl FilesStore {
             });
         }
         create_dir(&self.machine)?;
-        let _lock = lock(&self.machine.join("lock"))?;
+        let _lock = lock_file(&self.machine.join("lock"))?;
         let device_path = dir.join(DEVICE_FILE);
         let from = if device_path.is_file() {
             read_device_info_file(&device_path)?.split
@@ -102,7 +102,7 @@ impl FilesStore {
             let mut text = file_header();
             text.push('\n');
             text.push_str(&serialize_events(events)?);
-            written.push(prepare(&dir.join(relative), &text)?);
+            written.push(prepare_temporary_file(&dir.join(relative), &text)?);
         }
         let new_files: BTreeSet<PathBuf> = written.iter().map(|(_, path)| path.clone()).collect();
         for (temporary, path) in written {

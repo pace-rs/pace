@@ -1,7 +1,7 @@
 //! Durations and moments as pace shows them.
 
 use jiff::{SignedDuration, ZonedDateTime};
-use pace_time::{clock, clock_against, format_duration, relative_time};
+use pace_time::{format_duration, format_moment, format_moment_against, relative_time};
 use rstest::rstest;
 
 use crate::TestResult;
@@ -56,7 +56,7 @@ fn an_old_moment_shows_its_date_in_the_zone_of_now() -> TestResult {
 #[case::other_zone_in_zone_of_now("2026-11-26T08:00:00[UTC]", "09:00")]
 #[case::date_in_zone_of_now("2026-11-25T23:30:00[UTC]", "00:30")]
 fn moments_show_clock_time_on_day_of_now(#[case] moment: &str, #[case] text: &str) -> TestResult {
-    assert_eq!(clock(&at(moment)?, &at(NOW)?), text);
+    assert_eq!(format_moment(&at(moment)?, &at(NOW)?), text);
     Ok(())
 }
 
@@ -86,6 +86,9 @@ fn moment_shows_seconds_against_other_of_same_minute(
     #[case] other: &str,
     #[case] text: &str,
 ) -> TestResult {
-    assert_eq!(clock_against(&at(moment)?, &at(other)?, &at(NOW)?), text);
+    assert_eq!(
+        format_moment_against(&at(moment)?, &at(other)?, &at(NOW)?),
+        text
+    );
     Ok(())
 }

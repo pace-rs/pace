@@ -6,7 +6,7 @@ use pace_core::{
     RecordedEvent, State, Tag,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_time::{clock, format_duration};
+use pace_time::{format_duration, format_moment};
 
 /// `1 event`, `2 events`.
 #[must_use]
@@ -60,7 +60,7 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
         EventKind::EntryBegun { entry, .. } => format!(
             "Began {} at {}.",
             state.entry_name(known(state, *entry)?),
-            clock(at, now)
+            format_moment(at, now)
         ),
         EventKind::EntryEnded { entry } => ended(state, known(state, *entry)?, at, now),
         EventKind::EntryHeld {
@@ -88,8 +88,8 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
             format!(
                 "Logged {} from {} to {} ({}).",
                 state.entry_name(entry),
-                clock(at, now),
-                clock(end, now),
+                format_moment(at, now),
+                format_moment(end, now),
                 format_duration(entry.net(now))
             )
         }
@@ -135,7 +135,7 @@ fn undid(outcome: &Outcome) -> PaceResult<Vec<String>> {
 
 /// The line for one undone event.
 fn took_back(before: &State, recorded: &RecordedEvent, now: &ZonedDateTime) -> PaceResult<String> {
-    let at = clock(&recorded.event.at, now);
+    let at = format_moment(&recorded.event.at, now);
     Ok(match &recorded.event.kind {
         EventKind::EntryBegun { entry, .. } => format!(
             "Took back the start of {} at {at}.",
@@ -208,16 +208,16 @@ fn adjusted(
     if let Some(start) = &changes.start {
         parts.push(format!(
             "start {} (was {})",
-            clock(start, now),
-            clock(&before.start, now)
+            format_moment(start, now),
+            format_moment(&before.start, now)
         ));
     }
     if let Some(end) = &changes.end {
         let was = before
             .end
             .as_ref()
-            .map_or_else(|| "open".to_owned(), |end| clock(end, now));
-        parts.push(format!("end {} (was {was})", clock(end, now)));
+            .map_or_else(|| "open".to_owned(), |end| format_moment(end, now));
+        parts.push(format!("end {} (was {was})", format_moment(end, now)));
     }
     let quoted = |text: &String| format!("\"{text}\"");
     if let Some(part) = changed("note", &changes.note, before.note.as_ref(), quoted) {
@@ -288,7 +288,7 @@ fn ended(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime) 
     format!(
         "Ended {} at {} after {}{details}.",
         state.entry_name(entry),
-        clock(at, now),
+        format_moment(at, now),
         format_duration(entry.net(now))
     )
 }
@@ -315,7 +315,7 @@ fn held(
     format!(
         "Held {} at {}{from}{why}.",
         state.short_id(entry.id),
-        clock(at, now)
+        format_moment(at, now)
     )
 }
 
@@ -334,7 +334,7 @@ fn paused(
     format!(
         "Paused {} at {} {}.",
         outcome.state.short_id(entry.id),
-        clock(at, &outcome.now),
+        format_moment(at, &outcome.now),
         pause_kind(kind)
     )
 }
@@ -350,7 +350,7 @@ fn reason_is_now(
     format!(
         "{} is {how} since {}; the reason is now: {}.",
         outcome.state.short_id(entry.id),
-        clock(since, &outcome.now),
+        format_moment(since, &outcome.now),
         reason.unwrap_or_default()
     )
 }
@@ -381,7 +381,7 @@ fn resumed(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime
     format!(
         "Resumed {} at {}{after}.",
         state.short_id(entry.id),
-        clock(at, now)
+        format_moment(at, now)
     )
 }
 

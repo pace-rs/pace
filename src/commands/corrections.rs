@@ -9,7 +9,7 @@ use pace_core::{
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::parse_duration;
 
-use crate::commands::tracking::{at, moment, tags, text, track};
+use crate::commands::tracking::{at, parse_moment, tags, text, track};
 use crate::prompt::Ask;
 use crate::select::{Target, chosen_entry, target_entry};
 use crate::{
@@ -144,7 +144,7 @@ impl Runnable for LogCmd {
     fn run(&self) {
         exit_on_error(track(|session, context, notes| {
             let now = session.now();
-            let start = moment(&self.from, &now, &context.terminal, notes)?;
+            let start = parse_moment(&self.from, &now, &context.terminal, notes)?;
             // clap gives `--duration` or `--to`; like `--at`, a missing time is now
             let end = match self.duration.as_deref() {
                 Some(duration) => end_after(&start, duration)?,

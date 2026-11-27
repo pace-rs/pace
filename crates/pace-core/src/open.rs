@@ -3,7 +3,7 @@
 
 use jiff::ZonedDateTime;
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
-use pace_time::clock;
+use pace_time::format_moment;
 
 use crate::{Entry, State};
 
@@ -139,8 +139,14 @@ impl Entry {
     #[must_use]
     pub fn clock_times(&self, now: &ZonedDateTime) -> String {
         self.end.as_ref().map_or_else(
-            || format!("since {}", clock(&self.start, now)),
-            |end| format!("{}–{}", clock(&self.start, now), clock(end, now)),
+            || format!("since {}", format_moment(&self.start, now)),
+            |end| {
+                format!(
+                    "{}–{}",
+                    format_moment(&self.start, now),
+                    format_moment(end, now)
+                )
+            },
         )
     }
 }

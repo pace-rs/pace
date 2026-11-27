@@ -194,7 +194,7 @@ impl<'a> TomlFile<'a> {
     /// An unknown key, with the closest of `known` or the list of them.
     #[must_use]
     pub fn unknown_key(&self, name: &str, span: Range<usize>, known: &[&str]) -> Box<PaceError> {
-        let hint = closest(name, known.iter().copied()).map_or_else(
+        let hint = closest_name(name, known.iter().copied()).map_or_else(
             || format!("pace knows these {}s here: {}", self.noun, known.join(", ")),
             |known| format!("did you mean `{known}`?"),
         );
@@ -370,7 +370,7 @@ pub fn read_hint(error: &std::io::Error) -> &'static str {
 
 /// The known name closest to `input`, if any is close enough (Jaro-Winkler
 /// similarity above 0.8).
-pub fn closest<'a>(input: &str, names: impl Iterator<Item = &'a str>) -> Option<&'a str> {
+pub fn closest_name<'a>(input: &str, names: impl Iterator<Item = &'a str>) -> Option<&'a str> {
     names
         .map(|name| (strsim::jaro_winkler(input, name), name))
         .filter(|(score, _)| *score > 0.8)

@@ -10,7 +10,7 @@ use pace_core::{
     ProjectKey, ProjectRef, Tag, Text, command::Adjust,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Snippet};
-use pace_time::{NOT_UNDERSTOOD, clock, parse_at};
+use pace_time::{NOT_UNDERSTOOD, format_moment, parse_at};
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
@@ -62,12 +62,12 @@ impl Runnable for EditCmd {
             )?;
             let now = session.now();
             edit_until_applied(
-                &write(&chosen, session.device(), &now)?,
+                &write_entry_text(&chosen, session.device(), &now)?,
                 asker,
                 self.allow_overlap,
                 |text| edit_in_editor(&editor, text, ".toml"),
                 |text, allow_overlap| {
-                    let adjust = read(text, &chosen.entry, &now, asker, notes)?;
+                    let adjust = read_adjustment(text, &chosen.entry, &now, asker, notes)?;
                     session.run(&UseCase::Adjust(Adjust {
                         allow_overlap,
                         ..adjust
@@ -187,7 +187,7 @@ struct Edited {
 }
 
 /// The entry as a commented TOML file.
-fn write(chosen: &Chosen, device: DeviceId, now: &ZonedDateTime) -> PaceResult<String> {
+fn write_entry_text(chosen: &Chosen, device: DeviceId, now: &ZonedDateTime) -> PaceResult<String> {
     let entry = &chosen.entry;
     let how = match entry.origin {
         EntryOrigin::Live => "begun",
@@ -250,8 +250,8 @@ fn write(chosen: &Chosen, device: DeviceId, now: &ZonedDateTime) -> PaceResult<S
 fn breaks(entry: &Entry, now: &ZonedDateTime) -> Vec<String> {
     let span = |start: &ZonedDateTime, end: Option<&ZonedDateTime>| {
         end.map_or_else(
-            || format!("since {}", clock(start, now)),
-            |end| format!("{}–{}", clock(start, now), clock(end, now)),
+            || format!("since {}", format_moment(start, now)),
+            |end| format!("{}–{}", format_moment(start, now), format_moment(end, now)),
         )
     };
     let why =
@@ -270,16 +270,19 @@ fn breaks(entry: &Entry, now: &ZonedDateTime) -> Vec<String> {
             why(pause.reason.as_ref())
         )
     });
-    let catches = entry
-        .catches
-        .iter()
-        .map(|catch| format!("# Caught at {}: {}", clock(&catch.at, now), catch.text));
+    let catches = entry.catches.iter().map(|catch| {
+        format!(
+            "# Caught at {}: {}",
+            format_moment(&catch.at, now),
+            catch.text
+        )
+    });
     holds.chain(pauses).chain(catches).collect()
 }
 
 /// The adjustment the saved `text` asks for; a time that happened twice is
 /// chosen as [`chosen_moment`] says.
-fn read(
+fn read_adjustment(
     text: &str,
     entry: &Entry,
     now: &ZonedDateTime,
@@ -306,7 +309,8 @@ fn read(
         }
     })?;
 
-    let mut edited_moment = |value: &Spanned<String>| moment(text, value, now, asker, notes);
+    let mut edited_moment =
+        |value: &Spanned<String>| parse_edited_moment(text, value, now, asker, notes);
     let start = edited_moment(&edited.start)?;
     let end = match (&edited.end, &entry.end) {
         (Some(end), _) => Some(edited_moment(end)?),
@@ -356,7 +360,7 @@ fn read(
 
 /// A time as pace wrote it, or in the `--at` grammar; a mistake points at
 /// it in `text` and says that nothing was changed.
-fn moment(
+fn parse_edited_moment(
     text: &str,
     value: &Spanned<String>,
     now: &ZonedDateTime,
@@ -479,7 +483,7 @@ mod tests {
             |text, allow_overlap| {
                 let adjust = Adjust {
                     allow_overlap,
-                    ..read(text, &entry(), &at("10:05"), asker, &mut Vec::new())?
+                    ..read_adjustment(text, &entry(), &at("10:05"), asker, &mut Vec::new())?
                 };
                 refuse(&adjust).map(|()| adjust)
             },
@@ -612,7 +616,7 @@ mod tests {
         let text = format!("start = \"{}\"\nend = \"2026-11-26 23:00\"\n", at("09:00"));
         let mut notes = Vec::new();
 
-        let error = read(
+        let error = read_adjustment(
             &text,
             &entry(),
             &at("10:05"),
@@ -640,7 +644,7 @@ mod tests {
 
     #[test]
     fn emptied_file_names_mistake_in_guidance_and_hint() {
-        let error = read(
+        let error = read_adjustment(
             "",
             &entry(),
             &at("10:05"),
@@ -666,7 +670,7 @@ mod tests {
             at("10:00")
         );
 
-        let error = read(
+        let error = read_adjustment(
             &text,
             &entry(),
             &at("10:05"),
@@ -690,7 +694,7 @@ mod tests {
     fn time_in_future_by_offset_asks_after_saying_nothing_changed() {
         let text = "start = \"+15m\"\n";
 
-        let error = read(
+        let error = read_adjustment(
             text,
             &entry(),
             &at("10:05"),
@@ -709,7 +713,7 @@ mod tests {
     fn marked_mistake_hints_at_marked_spot() {
         let text = format!("start = \"{}\"\nend = 10\n", at("09:00"));
 
-        let error = read(
+        let error = read_adjustment(
             &text,
             &entry(),
             &at("10:05"),
@@ -732,7 +736,7 @@ mod tests {
             at("09:00")
         );
 
-        let error = read(
+        let error = read_adjustment(
             &text,
             &entry(),
             &at("10:05"),
@@ -755,7 +759,7 @@ mod tests {
     fn wrong_type_without_start_marks_its_spot() {
         let text = "# Started at 09:00.\nend = 10\n";
 
-        let error = read(
+        let error = read_adjustment(
             text,
             &entry(),
             &at("10:05"),
@@ -776,7 +780,7 @@ mod tests {
     fn deleted_value_marks_its_spot() {
         let text = format!("start = \nend = \"{}\"\n", at("10:00"));
 
-        let error = read(
+        let error = read_adjustment(
             &text,
             &entry(),
             &at("10:05"),
@@ -796,7 +800,7 @@ mod tests {
     fn unclosed_string_marks_its_spot() {
         let text = "# Started at 09:00.\nstart = \"09:00\nend = \"10:00\"\n";
 
-        let error = read(
+        let error = read_adjustment(
             text,
             &entry(),
             &at("10:05"),
@@ -818,7 +822,7 @@ mod tests {
         let value = "2026-11-26T09:00:00+01:00[Europe/Berln]";
         let text = format!("start = \"{value}\"\n");
 
-        let error = read(
+        let error = read_adjustment(
             &text,
             &entry(),
             &at("10:05"),
@@ -858,7 +862,7 @@ mod tests {
         );
         let mut notes = Vec::new();
 
-        let adjust = read(
+        let adjust = read_adjustment(
             &text,
             &entry,
             &now,
@@ -880,7 +884,7 @@ mod tests {
             state: pace_core::State::default(),
             entry: entry(),
         };
-        let written = write(&chosen, entry().device, &at("10:05")).unwrap();
+        let written = write_entry_text(&chosen, entry().device, &at("10:05")).unwrap();
         let line = written
             .lines()
             .find(|line| line.starts_with("# project-key"))
@@ -892,7 +896,7 @@ mod tests {
         );
         let uncommented = written.replace(line, line.trim_start_matches("# "));
         assert!(
-            read(
+            read_adjustment(
                 &uncommented,
                 &entry(),
                 &at("10:05"),
@@ -957,7 +961,7 @@ mod tests {
             state: pace_core::State::default(),
             entry,
         };
-        write(
+        write_entry_text(
             &chosen,
             "0193a8d0-000d-7000-8000-000000000002".parse().unwrap(),
             &at("10:05"),
@@ -1029,7 +1033,7 @@ mod tests {
             };
             let text = written(entry.clone());
 
-            let error = read(
+            let error = read_adjustment(
                 &text,
                 &entry,
                 &at("10:05"),
@@ -1048,7 +1052,7 @@ mod tests {
         let text =
             saved("project = \"0193a8d0-000c-7000-8000-000000000001\"\nproject-key = \"acme\"");
 
-        let error = read(
+        let error = read_adjustment(
             &text,
             &entry(),
             &at("10:05"),
@@ -1069,7 +1073,7 @@ mod tests {
         let id: ProjectId = "0193a8d0-000c-7000-8000-000000000001".parse().unwrap();
         let text = saved(&format!("note = \"Draft\"\nproject = \"{id}\""));
 
-        let adjust = read(
+        let adjust = read_adjustment(
             &text,
             &entry(),
             &at("10:05"),
@@ -1085,7 +1089,7 @@ mod tests {
     fn removed_end_of_ended_entry_is_refused() {
         let text = format!("start = \"{}\"\nnote = \"Draft\"\n", at("09:00"));
 
-        let error = read(
+        let error = read_adjustment(
             &text,
             &entry(),
             &at("10:05"),

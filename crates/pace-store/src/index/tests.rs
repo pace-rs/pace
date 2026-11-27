@@ -6,7 +6,7 @@ use pace_core::{
 };
 use pace_time::TimeRange;
 
-use crate::index::{FileSummary, INDEX_VERSION, Index, select, summarize};
+use crate::index::{FileSummary, INDEX_VERSION, Index, select_event_files, summarize};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -229,7 +229,7 @@ fn files_whose_events_meet_the_range_are_selected() -> TestResult {
         ("a/2026/2026-11.toml", summary_of(&november)),
     ]);
 
-    let selected = select(&all, &range("11-26T00:00", "11-27T00:00")?);
+    let selected = select_event_files(&all, &range("11-26T00:00", "11-27T00:00")?);
 
     assert_eq!(selected, BTreeSet::from(["a/2026/2026-11.toml".to_owned()]));
     Ok(())
@@ -241,7 +241,7 @@ fn the_file_of_an_open_entry_is_selected_whatever_the_range() -> TestResult {
     _ = october.add(1, "10-15T09:00", "10-15T09:00", begun(entry(1)?))?;
     let all = files(vec![("a/2026/2026-10.toml", summary_of(&october))]);
 
-    let selected = select(&all, &range("11-26T00:00", "11-27T00:00")?);
+    let selected = select_event_files(&all, &range("11-26T00:00", "11-27T00:00")?);
 
     assert_eq!(selected, BTreeSet::from(["a/2026/2026-10.toml".to_owned()]));
     Ok(())
@@ -263,7 +263,7 @@ fn an_entry_ended_by_another_device_is_not_open() -> TestResult {
         ("b/2026/2026-W42.toml", summary_of(&desktop)),
     ]);
 
-    let selected = select(&all, &range("11-26T00:00", "11-27T00:00")?);
+    let selected = select_event_files(&all, &range("11-26T00:00", "11-27T00:00")?);
 
     assert_eq!(selected, BTreeSet::new());
     Ok(())
@@ -300,7 +300,7 @@ fn files_of_other_devices_about_the_same_entries_come_along() -> TestResult {
         ("b/2026/2026-W36.toml", summary_of(&unrelated)),
     ]);
 
-    let selected = select(&all, &range("10-15T09:30", "10-15T09:40")?);
+    let selected = select_event_files(&all, &range("10-15T09:30", "10-15T09:40")?);
 
     assert_eq!(
         selected,
@@ -347,7 +347,7 @@ fn files_about_the_entries_of_files_that_came_along_come_along_too() -> TestResu
         ("b/2026/2026-11.toml", summary_of(&month)),
     ]);
 
-    let selected = select(&all, &range("11-27T00:00", "11-28T00:00")?);
+    let selected = select_event_files(&all, &range("11-27T00:00", "11-28T00:00")?);
 
     assert_eq!(selected, all.keys().cloned().collect());
     Ok(())
@@ -388,8 +388,8 @@ fn files_with_events_recorded_since_are_selected_with_their_entries() -> TestRes
     ]);
     let scope = range("11-26T11:00", "11-26T11:00")?;
 
-    let without = select(&all, &scope);
-    let with = select(
+    let without = select_event_files(&all, &scope);
+    let with = select_event_files(
         &all,
         &scope.with_recorded_since(at("11-25T00:00")?.timestamp()),
     );

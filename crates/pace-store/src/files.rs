@@ -27,14 +27,14 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
 use crate::disk::{
-    DEVICE_FILE, FileOp, check_version, create_dir, event_files, io_error, lock, prepare,
-    relative_name, write_atomically,
+    DEVICE_FILE, FileOp, check_version, create_dir, event_files, io_error, lock_file,
+    prepare_temporary_file, relative_name, write_atomically,
 };
 use crate::format::parse_events;
 use crate::machine::clone_detected;
 use crate::{
     EventStore, Split,
-    index::{FileSummary, INDEX_VERSION, Index, select, summarize},
+    index::{FileSummary, INDEX_VERSION, Index, select_event_files, summarize},
     machine::Cursors,
 };
 
@@ -153,7 +153,7 @@ impl FilesStore {
     ) -> PaceResult<Appended> {
         let now = self.clock.now();
         create_dir(&self.machine)?;
-        let _lock = lock(&self.machine.join("lock"))?;
+        let _lock = lock_file(&self.machine.join("lock"))?;
         // Under the lock, so no other process writes between this check and
         // the append. The device directory comes after it: a new directory
         // changes the marker.
@@ -263,7 +263,7 @@ impl FilesStore {
                 Err(error) => return Err(io_error(FileOp::Read, &path, error)),
             };
             let (text, holds) = self.with_batch(&path, before.as_deref(), &events, &forgotten)?;
-            let (temporary, path) = prepare(&path, &text)?;
+            let (temporary, path) = prepare_temporary_file(&path, &text)?;
             if let Some(holds) = holds {
                 held.push(AfterBatch {
                     path: path.clone(),
@@ -399,7 +399,7 @@ impl EventStore for FilesStore {
         let (index, mut found) = self.refreshed_index()?;
         let mut events = Vec::new();
         let mut seen = BTreeSet::new();
-        for name in select(&index.files, scope) {
+        for name in select_event_files(&index.files, scope) {
             // The refreshed index names only the files it found.
             let Some(file) = found.remove(&name) else {
                 continue;

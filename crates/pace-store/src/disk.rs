@@ -71,7 +71,7 @@ pub(crate) fn create_dir(dir: &Path) -> PaceResult<()> {
 }
 
 /// The lock file, locked exclusively until the returned file is dropped.
-pub(crate) fn lock(path: &Path) -> PaceResult<File> {
+pub(crate) fn lock_file(path: &Path) -> PaceResult<File> {
     let file = OpenOptions::new()
         .create(true)
         .truncate(false)
@@ -96,7 +96,7 @@ pub(crate) fn relative_name(events: &Path, path: &Path) -> String {
 
 /// Write `text` to `path` through a temporary file next to it.
 pub(crate) fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
-    let (temporary, path) = prepare(path, text)?;
+    let (temporary, path) = prepare_temporary_file(path, text)?;
     _ = temporary
         .persist(&path)
         .map_err(|error| io_error(FileOp::Write, &path, error.error))?;
@@ -104,7 +104,10 @@ pub(crate) fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
 }
 
 /// `text` in a temporary file next to `path`, ready to be renamed over it.
-pub(crate) fn prepare(path: &Path, text: &str) -> PaceResult<(tempfile::NamedTempFile, PathBuf)> {
+pub(crate) fn prepare_temporary_file(
+    path: &Path,
+    text: &str,
+) -> PaceResult<(tempfile::NamedTempFile, PathBuf)> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     create_dir(dir)?;
     let mut temporary = tempfile::Builder::new()

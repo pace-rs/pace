@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
-use pace_time::{clock, clock_against};
+use pace_time::{format_moment, format_moment_against};
 use uuid::Uuid;
 
 use crate::{
@@ -136,7 +136,7 @@ impl Rules<'_> {
                     "the entry is held since {since}",
                     "`pace resume` goes on with it",
                 )
-                .attach_context("since", self.clock(&open.start)));
+                .attach_context("since", self.format_moment(&open.start)));
             }
         } else {
             self.check_break_start(entry, &at)?;
@@ -162,7 +162,7 @@ impl Rules<'_> {
                     "the entry is paused since {since}",
                     "`pace resume` goes on with it",
                 )
-                .attach_context("since", self.clock(&open.start)));
+                .attach_context("since", self.format_moment(&open.start)));
             }
         } else {
             self.check_break_start(entry, &at)?;
@@ -263,8 +263,9 @@ impl Rules<'_> {
             && entry.is_open()
         {
             return Err(
-                PaceError::new(ErrorKind::InvalidInput, "the entry is still open")
-                    .attach_hint(format!("end it with `pace end --at {}`", self.clock(end))),
+                PaceError::new(ErrorKind::InvalidInput, "the entry is still open").attach_hint(
+                    format!("end it with `pace end --at {}`", self.format_moment(end)),
+                ),
             );
         }
 
@@ -363,7 +364,7 @@ impl Rules<'_> {
                 "the entry ended at {end}",
                 "`pace adjust --end` moves its end",
             )
-            .attach_context("end", self.clock(end)));
+            .attach_context("end", self.format_moment(end)));
         }
         Ok(entry)
     }
@@ -399,12 +400,12 @@ impl Rules<'_> {
             .map(|entry| {
                 let until = entry.end.as_ref().map_or_else(
                     || "now".to_owned(),
-                    |until| self.clock_against(until, start),
+                    |until| self.format_moment_against(until, start),
                 );
                 format!(
                     "{} ({}–{until})",
                     self.state.short_id(entry.id),
-                    self.clock_against(&entry.start, end)
+                    self.format_moment_against(&entry.start, end)
                 )
             })
             .collect();
@@ -413,7 +414,7 @@ impl Rules<'_> {
                 "the new entry would overlap {list}",
                 format!(
                     "begin at {} or later, or allow it with `--allow-overlap`",
-                    self.clock_against(latest_end, start)
+                    self.format_moment_against(latest_end, start)
                 ),
             ),
             Verb::Log => (
@@ -443,18 +444,18 @@ impl Rules<'_> {
             "the entry would {what} at {moment}, in the future",
         )
         .attach_context("what", what)
-        .attach_context("moment", self.clock_against(moment, self.now))
+        .attach_context("moment", self.format_moment_against(moment, self.now))
         .attach_hint(hint))
     }
 
-    /// A moment as the user reads it, against now: [`clock`].
-    fn clock(&self, moment: &ZonedDateTime) -> String {
-        clock(moment, self.now)
+    /// A moment as the user reads it, against now: [`format_moment`].
+    fn format_moment(&self, moment: &ZonedDateTime) -> String {
+        format_moment(moment, self.now)
     }
 
-    /// `moment` told apart from `other`: [`clock_against`].
-    fn clock_against(&self, moment: &ZonedDateTime, other: &ZonedDateTime) -> String {
-        clock_against(moment, other, self.now)
+    /// `moment` told apart from `other`: [`format_moment_against`].
+    fn format_moment_against(&self, moment: &ZonedDateTime, other: &ZonedDateTime) -> String {
+        format_moment_against(moment, other, self.now)
     }
 }
 
