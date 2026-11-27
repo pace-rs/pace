@@ -82,6 +82,33 @@ fn now_json_names_kind_and_file_of_path_mapping() -> TestResult {
 }
 
 #[test]
+fn now_json_leaves_out_path_for_flag_and_variable() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let flag = sandbox
+        .pace()
+        .args(["now", "--json", "--project", "acme"])
+        .output()?;
+    let variable = sandbox
+        .pace()
+        .env("PACE_PROJECT", "acme")
+        .args(["now", "--json"])
+        .output()?;
+
+    for (output, kind) in [(flag, "flag"), (variable, "variable")] {
+        let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+        let project = &json["project"];
+        assert_eq!(project["key"], "acme");
+        assert_eq!(project["kind"], kind);
+        assert!(
+            project.get("path").is_none(),
+            "{kind} names a path: {project}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn pace_without_arguments_shows_now_and_how_to_get_help() -> TestResult {
     let sandbox = Sandbox::new()?;
 
