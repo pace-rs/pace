@@ -2,7 +2,11 @@
 
 use jiff::ZonedDateTime;
 use pace_time::{At, parse_at};
-use proptest::prelude::*;
+use proptest::{
+    prelude::*,
+    strategy::ValueTree as _,
+    test_runner::{RngSeed, TestRunner},
+};
 use rstest::rstest;
 
 use crate::TestResult;
@@ -164,7 +168,34 @@ fn time_that_happened_twice_is_exact_while_the_second_lies_ahead() -> TestResult
     Ok(())
 }
 
+/// The config of the property tests below: a fixed seed, so a case that
+/// fails fails again on the next run and on every machine.
+fn fixed_seed() -> ProptestConfig {
+    ProptestConfig {
+        rng_seed: RngSeed::Fixed(20_261_126),
+        ..ProptestConfig::default()
+    }
+}
+
+#[test]
+fn property_tests_draw_same_cases_on_every_run() -> TestResult {
+    let draw = || -> Result<Vec<u64>, String> {
+        let mut runner = TestRunner::new(fixed_seed());
+        (0..5)
+            .map(|_| {
+                let tree = any::<u64>().new_tree(&mut runner);
+                tree.map(|tree| tree.current())
+                    .map_err(|reason| reason.to_string())
+            })
+            .collect()
+    };
+    assert_eq!(draw()?, draw()?);
+    Ok(())
+}
+
 proptest! {
+    #![proptest_config(fixed_seed())]
+
     #[test]
     fn parsing_never_panics(input in "\\PC*") {
         _ = parse_at(&input, &at(NOW).map_err(|e| TestCaseError::fail(e.to_string()))?);

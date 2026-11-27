@@ -3,7 +3,11 @@
 
 use jiff::Timestamp;
 use pace_core::Hlc;
-use proptest::prelude::*;
+use proptest::{
+    prelude::*,
+    strategy::ValueTree as _,
+    test_runner::{RngSeed, TestRunner},
+};
 
 use crate::TestResult;
 
@@ -34,7 +38,34 @@ fn tick_in_the_same_millisecond_counts_up() -> TestResult {
     Ok(())
 }
 
+/// The config of the property tests below: a fixed seed, so a case that
+/// fails fails again on the next run and on every machine.
+fn fixed_seed() -> ProptestConfig {
+    ProptestConfig {
+        rng_seed: RngSeed::Fixed(20_261_126),
+        ..ProptestConfig::default()
+    }
+}
+
+#[test]
+fn property_tests_draw_same_cases_on_every_run() -> TestResult {
+    let draw = || -> Result<Vec<u64>, String> {
+        let mut runner = TestRunner::new(fixed_seed());
+        (0..5)
+            .map(|_| {
+                let tree = any::<u64>().new_tree(&mut runner);
+                tree.map(|tree| tree.current())
+                    .map_err(|reason| reason.to_string())
+            })
+            .collect()
+    };
+    assert_eq!(draw()?, draw()?);
+    Ok(())
+}
+
 proptest! {
+    #![proptest_config(fixed_seed())]
+
     #[test]
     fn tick_comes_after_the_last(last_wall in RANGE, counter in 0u32..1000, now in RANGE) {
         let last = Hlc::new(timestamp(last_wall)?, counter);
