@@ -2,9 +2,9 @@
 
 A local-first command-line time tracker for work and daily life.
 
-This is the restart of pace, codename **pace-ng**. When it is ready, it is
-published as the next major version of `pace-rs`. The previous code base (last
-release 0.15.2) is archived.
+This is the restart of pace, codename **pace-ng**. Its first release is 0.16.0:
+it continues the numbering of `pace-rs`, whose previous code base (last release
+0.15.2) is archived.
 
 The plan is the internal design proposal *Restarting pace*
 (`src/proposals/restart.md` in the design-docs repository). Phases 1 (the
@@ -107,6 +107,11 @@ the other tasks (`bench`, `cov`, `deny`, `hack`). After cloning, `codegate
 setup` installs the git hooks: pre-commit runs the fast gates, pre-push all of
 them. Every source folder has a README, and the conventions are the project
 guide in `.guides/pace/`.
+
+A tag such as `pace-rs-v0.16.0` releases pace: `.github/workflows/release.yml`
+builds the installers with dist (`dist-workspace.toml`), and git-cliff writes
+`CHANGELOG.md` (`cliff.toml`). The developer guide's page *Release process* has
+the steps.
 
 ## License
 
