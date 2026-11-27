@@ -156,8 +156,9 @@ fn breaks(entry: &Entry) -> Vec<Break<'_>> {
                 .map(|pause| ("pause", &pause.start, pause.end.as_ref())),
         )
         .collect();
-    // By start; at the same start a closed break of no length comes first.
-    breaks.sort_by_key(|(_, start, end)| (*start, end.is_none()));
+    // By start; at the same start closed breaks come first, by their end, so
+    // a closed break of no length comes before a longer one.
+    breaks.sort_by_key(|(_, start, end)| (*start, end.is_none(), *end));
     breaks
 }
 
@@ -254,6 +255,26 @@ fn run_steps(steps: &[Step]) -> Result<(), TestCaseError> {
         }
     }
     Ok(())
+}
+
+#[test]
+fn zero_length_pause_and_longer_hold_from_same_start_are_legal() -> Result<(), TestCaseError> {
+    // Begins at 07:41, pauses from 07:41 to 07:41, holds from 07:41 to
+    // 08:40 and pauses again: legal, though both closed breaks start at 07:41.
+    let steps = [
+        (
+            0,
+            Some(19),
+            Verb::Begin {
+                allow_overlap: false,
+            },
+        ),
+        (14, Some(33), Verb::Pause { reason: false }),
+        (21, Some(54), Verb::Hold { reason: false }),
+        (5, None, Verb::Pause { reason: false }),
+    ]
+    .map(|(wait, back, verb)| Step { wait, back, verb });
+    run_steps(&steps)
 }
 
 /// Tests that cost more than the others: 256 sequences of up to 40 commands,
