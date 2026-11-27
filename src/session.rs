@@ -3,12 +3,13 @@
 
 use std::{ffi::OsStr, path::PathBuf, sync::Arc};
 
+use jiff::tz::TimeZone;
 use pace_core::{Command, Device, DeviceId, Ids, Outcome, Policy};
 use pace_error::PaceResult;
 use pace_store::{EventStore, FilesStore, Resplit, Split, Tracker, device_id, existing_device_id};
 use pace_time::TimeRange;
 
-use crate::clock::{clock_for_run, zone};
+use crate::clock::clock_for_run;
 use crate::{
     application::{Context, print_error},
     clock::RandomIds,
@@ -23,6 +24,15 @@ pub fn device_name(hostname: &OsStr) -> String {
         "device".to_owned()
     } else {
         name.into_owned()
+    }
+}
+
+/// The settings the rules of a tracking command depend on:
+/// `holds.default-source`, with the other fields at their defaults.
+fn tracking_policy(context: &Context) -> Policy {
+    Policy {
+        default_hold_source: context.settings.settings.default_hold_source,
+        ..Policy::default()
     }
 }
 
@@ -42,9 +52,30 @@ impl Session {
     ///
     /// If the clock, the device ID or the store can't be set up.
     pub fn open(context: &Context) -> PaceResult<Self> {
+        Self::open_with_policy(context, tracking_policy(context))
+    }
+
+    /// Open the store of this machine like [`Session::open`], with the
+    /// rules reporting in `reports_time_zone`: the zone that
+    /// `reports.time-zone` names, which marking a bill needs. Only that
+    /// command resolves the setting, so a zone the system can't tell
+    /// stops no other command.
+    ///
+    /// # Errors
+    ///
+    /// If the clock, the device ID or the store can't be set up.
+    pub fn open_reporting_in(context: &Context, reports_time_zone: TimeZone) -> PaceResult<Self> {
+        let policy = Policy {
+            reports_time_zone,
+            ..tracking_policy(context)
+        };
+        Self::open_with_policy(context, policy)
+    }
+
+    fn open_with_policy(context: &Context, policy: Policy) -> PaceResult<Self> {
         let ids: Arc<dyn Ids> = Arc::new(RandomIds);
         let device = device_id(&context.dirs.machine.path, &*ids)?.id;
-        Self::with_device(context, ids, device)
+        Self::with_device(context, ids, device, policy)
     }
 
     /// Open the store of this machine without creating its device ID: on
@@ -63,10 +94,15 @@ impl Session {
             Some(device) => device,
             None => DeviceId::try_from(ids.next_id())?,
         };
-        Self::with_device(context, ids, device)
+        Self::with_device(context, ids, device, tracking_policy(context))
     }
 
-    fn with_device(context: &Context, ids: Arc<dyn Ids>, device: DeviceId) -> PaceResult<Self> {
+    fn with_device(
+        context: &Context,
+        ids: Arc<dyn Ids>,
+        device: DeviceId,
+        policy: Policy,
+    ) -> PaceResult<Self> {
         let clock = clock_for_run(
             &context.settings.settings.time_zone,
             context.test_now.clone(),
@@ -81,10 +117,6 @@ impl Session {
             clock.clone(),
             settings.split,
         );
-        let policy = Policy {
-            default_hold_source: settings.default_hold_source,
-            reports_time_zone: zone(&settings.reports_time_zone)?,
-        };
         Ok(Self {
             tracker: Tracker::new(store, clock, ids, policy, context.catalog.clone(), device),
             device,

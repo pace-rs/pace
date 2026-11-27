@@ -113,13 +113,14 @@ impl BillCmd {
             .map(str::parse)
             .transpose()
             .map_err(usage)?;
-        // Marking writes, so it needs this machine's device ID.
+        let zone = zone(&context.settings.settings.reports_time_zone)?;
+        // Marking writes, so it needs this machine's device ID, and its
+        // rule builds the bill in the reports' zone.
         let session = if invoice.is_some() {
-            Session::open(context)?
+            Session::open_reporting_in(context, zone.clone())?
         } else {
             Session::open_existing(context)?
         };
-        let zone = zone(&context.settings.settings.reports_time_zone)?;
         let now = session.now().with_time_zone(zone.clone());
         let range = self
             .frame()?

@@ -1,10 +1,9 @@
 //! How commands describe what they did: the sentences of the tracking
 //! commands, lists in a sentence and tables.
 
-use jiff::ZonedDateTime;
 use std::collections::BTreeMap;
 
-use jiff::SignedDuration;
+use jiff::{SignedDuration, ZonedDateTime};
 use pace_core::{
     Billing, Catalog, Change, DeterminedBy, Entry, EntryChanges, EntryId, EventKind, HoldSource,
     InvoiceRef, Outcome, PauseKind, ProjectRef, RecordedEvent, RoleId, State, Tag, Totals,

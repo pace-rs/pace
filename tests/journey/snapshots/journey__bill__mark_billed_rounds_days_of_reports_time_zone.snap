@@ -1,0 +1,29 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace log Night fix --project acme-webshop --from 2026-10-06 01:00 --to 2026-10-06 01:10   # at 2026-10-06T12:00[Europe/Berlin]
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-1] "Night fix" from 01:00 to 01:10 (10m).
+Project: acme-webshop (from --project).
+
+----- stderr -----
+
+$ pace log Morning fix --project acme-webshop --from 2026-10-06 10:00 --to 2026-10-06 10:10   # at 2026-10-06T12:01[Europe/Berlin]
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-2] "Morning fix" from 10:00 to 10:10 (10m).
+Project: acme-webshop (from --project).
+
+----- stderr -----
+
+$ pace bill --mark-billed 2026-0043 --from 2026-10-01 --to 2026-10-31   # at 2026-10-06T12:02[Europe/Berlin]
+success: true
+exit_code: 0
+----- stdout -----
+Billed 2 entries on invoice 2026-0043: 30m for 30.00 EUR.
+
+----- stderr -----

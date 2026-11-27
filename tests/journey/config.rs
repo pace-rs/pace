@@ -259,6 +259,22 @@ fn unknown_system_time_zone_stops_pace_before_it_records() -> TestResult {
 }
 
 #[test]
+fn unknown_system_time_zone_leaves_tracking_alone_when_time_zone_is_set() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("time-zone = \"Europe/Berlin\"\n")?;
+
+    let output = sandbox
+        .pace()
+        .env("TZ", "Nowhere/Invalid")
+        .args(["begin", "zone test"])
+        .output()?;
+
+    assert!(output.status.success(), "{output:?}");
+    assert!(sandbox.path("home/events").exists());
+    Ok(())
+}
+
+#[test]
 fn newer_file_version_wins_over_unknown_key_above_it() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write_config("time-zon = \"Europe/Berlin\"\nversion = 2\n")?;

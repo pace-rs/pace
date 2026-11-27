@@ -571,3 +571,60 @@ fn now_json_names_invoice_of_billed_entry() -> TestResult {
     assert!(output.contains(r#""billed": "2026-0042""#), "{output}");
     Ok(())
 }
+
+#[test]
+fn mark_billed_rounds_days_of_reports_time_zone() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "home/clients.toml",
+        "version = 1\n\n[acme]\nname = \"ACME GmbH\"\ncurrency = \"EUR\"\n\
+         rounding = { per = \"day\", step = \"30m\", mode = \"up\" }\n\n\
+         [[acme.rates]]\nhourly = 60\nfrom = 2025-01-01\n",
+    )?;
+    sandbox.write("home/projects/acme-webshop.toml", WEBSHOP)?;
+    sandbox.write_config("[reports]\ntime-zone = \"Europe/Berlin\"\n")?;
+    // 01:00 in Berlin is 23:00 of the day before in UTC: in Berlin both
+    // entries share a day, 20 minutes rounded to 30.
+    let output = sandbox.journey(&[
+        (
+            &october(6, "12:00"),
+            &[
+                "log",
+                "Night fix",
+                "--project",
+                "acme-webshop",
+                "--from",
+                "2026-10-06 01:00",
+                "--to",
+                "2026-10-06 01:10",
+            ],
+        ),
+        (
+            &october(6, "12:01"),
+            &[
+                "log",
+                "Morning fix",
+                "--project",
+                "acme-webshop",
+                "--from",
+                "2026-10-06 10:00",
+                "--to",
+                "2026-10-06 10:10",
+            ],
+        ),
+        (
+            &october(6, "12:02"),
+            &[
+                "bill",
+                "--mark-billed",
+                "2026-0043",
+                "--from",
+                "2026-10-01",
+                "--to",
+                "2026-10-31",
+            ],
+        ),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
