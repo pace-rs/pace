@@ -15,6 +15,23 @@ fn timestamp(millis: i64) -> Result<Timestamp, TestCaseError> {
 const RANGE: std::ops::Range<i64> = 1_000_000_000_000..3_000_000_000_000;
 
 #[test]
+fn hlc_with_later_wall_time_comes_later_whatever_its_counter() -> TestResult {
+    let earlier = Hlc::new("2026-11-26T08:02:11.204Z".parse()?, 7);
+    let later = Hlc::new("2026-11-26T08:02:11.205Z".parse()?, 0);
+
+    assert!(earlier < later);
+    Ok(())
+}
+
+#[test]
+fn hlc_counter_orders_readings_of_same_wall_time() -> TestResult {
+    let wall = "2026-11-26T08:02:11.204Z".parse()?;
+
+    assert!(Hlc::new(wall, 0) < Hlc::new(wall, 1));
+    Ok(())
+}
+
+#[test]
 fn the_first_tick_is_the_wall_time_in_milliseconds() -> TestResult {
     let now: Timestamp = "2026-11-26T08:02:11.204937Z".parse()?;
 

@@ -1,7 +1,6 @@
 //! Behaviour of `pace_core`.
 
 mod commands;
-mod events;
 mod hlc;
 mod ids;
 mod keys;

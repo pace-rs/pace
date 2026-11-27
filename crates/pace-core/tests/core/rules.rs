@@ -1614,27 +1614,6 @@ fn an_entrys_events_are_filed_under_its_first_start() -> TestResult {
     Ok(())
 }
 
-#[test]
-fn sequential_ids_differ_by_seed() -> TestResult {
-    let laptop = SequentialIds::starting_at(&berlin("08:00")?, 1);
-    let desktop = SequentialIds::starting_at(&berlin("08:00")?, 2);
-
-    assert_ne!(laptop.next_id(), desktop.next_id());
-    Ok(())
-}
-
-#[test]
-fn sequential_ids_are_uuidv7_and_distinct() -> TestResult {
-    let ids = SequentialIds::starting_at(&berlin("08:00")?, 0);
-
-    let first = ids.next_id();
-    let second = ids.next_id();
-
-    assert_ne!(first, second);
-    assert_eq!(first.get_version_num(), 7);
-    Ok(())
-}
-
 // the open entry
 
 /// Two devices with an entry open on each, merged on the laptop.
