@@ -307,9 +307,15 @@ impl State {
         let entries: Vec<&Entry> = self.entries().collect();
         let mut overlaps = Vec::new();
         for (index, first) in entries.iter().enumerate() {
-            for second in &entries[index + 1..] {
+            let first_end = first.until(now);
+            // The entries come by start: once one begins at or after the
+            // end of `first`, no later one can overlap it.
+            for second in entries[index + 1..]
+                .iter()
+                .take_while(|second| second.start < *first_end)
+            {
                 let start = (&first.start).max(&second.start);
-                let end = first.until(now).min(second.until(now));
+                let end = first_end.min(second.until(now));
                 if start < end {
                     overlaps.push(Overlap {
                         first,

@@ -1301,6 +1301,38 @@ fn overlaps_name_each_pair_with_time_it_shares() -> TestResult {
 }
 
 #[test]
+fn long_entry_overlaps_entries_that_begin_after_shorter_ones_end() -> TestResult {
+    let mut log = Log::new(1)?;
+    let (e1, e2, e3, e4) = (entry(1)?, entry(2)?, entry(3)?, entry(4)?);
+    _ = log.push(
+        "2026-11-26T08:00[Europe/Berlin]",
+        logged(e1, "2026-11-26T11:00[Europe/Berlin]")?,
+    )?;
+    _ = log.push(
+        "2026-11-26T09:00[Europe/Berlin]",
+        logged(e2, "2026-11-26T09:30[Europe/Berlin]")?,
+    )?;
+    _ = log.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        logged(e3, "2026-11-26T10:30[Europe/Berlin]")?,
+    )?;
+    _ = log.push(
+        "2026-11-26T11:00[Europe/Berlin]",
+        logged(e4, "2026-11-26T11:30[Europe/Berlin]")?,
+    )?;
+    let state = State::from_events(&log.events);
+
+    let pairs: Vec<(EntryId, EntryId)> = state
+        .overlaps(&at(NOW)?)
+        .into_iter()
+        .map(|overlap| (overlap.first.id, overlap.second.id))
+        .collect();
+
+    assert_eq!(pairs, [(e1, e2), (e1, e3)]);
+    Ok(())
+}
+
+#[test]
 fn entries_that_only_touch_do_not_overlap() -> TestResult {
     let mut log = Log::new(1)?;
     _ = log.push(
