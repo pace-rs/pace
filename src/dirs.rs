@@ -7,7 +7,7 @@
 
 use std::{
     ffi::OsString,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use pace_error::{ErrorKind, PaceError, PaceResult};
@@ -91,6 +91,31 @@ fn absolute(path: &Path, cwd: &Path) -> PaceResult<PathBuf> {
             .attach_context("path", path.display().to_string())
             .attach_hint("give an absolute path")
     })
+}
+
+/// The absolute `path` as the file system sees it: its existing part with
+/// symlinks, `.` and `..` resolved, the rest with `.` and `..` resolved by
+/// name, since a part that doesn't exist yet holds no symlink.
+fn normalised(path: &Path) -> PathBuf {
+    let mut existing: Vec<Component<'_>> = path.components().collect();
+    let mut missing = Vec::new();
+    let mut real = loop {
+        if let Ok(real) = existing.iter().collect::<PathBuf>().canonicalize() {
+            break real;
+        }
+        match existing.pop() {
+            Some(component) => missing.push(component),
+            None => break PathBuf::new(),
+        }
+    };
+    for component in missing.into_iter().rev() {
+        match component {
+            Component::ParentDir => _ = real.pop(),
+            Component::CurDir => {}
+            other => real.push(other),
+        }
+    }
+    real
 }
 
 /// The directory of `executable`, if a `pace.global.toml` lies there.
@@ -234,7 +259,7 @@ pub fn resolve_dirs(
         machine: pick(machine, |platform| platform.machine.clone())?,
     };
 
-    if dirs.machine.path.starts_with(&dirs.data.path) {
+    if normalised(&dirs.machine.path).starts_with(normalised(&dirs.data.path)) {
         return Err(PaceError::new(
             ErrorKind::Directories,
             "the machine directory {machine} lies inside the data directory {data}",

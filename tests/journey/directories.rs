@@ -73,6 +73,20 @@ fn machine_directory_inside_the_data_is_refused() -> TestResult {
 }
 
 #[test]
+fn machine_directory_inside_the_data_through_parent_is_refused() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = run(sandbox
+        .pace()
+        .env("PACE_MACHINE_DIR", sandbox.path("work/../home/machine"))
+        .args(["begin", "Write offer"]))?;
+
+    assert!(!sandbox.path("home/machine").exists());
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
 fn plain_errors_have_no_symbols() -> TestResult {
     let sandbox = Sandbox::new()?;
 

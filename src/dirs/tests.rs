@@ -206,6 +206,71 @@ fn the_machine_directory_must_not_be_inside_the_data_directory() {
     }
 }
 
+#[test]
+fn machine_directory_reached_through_parent_lies_inside_data_directory() {
+    let inputs = Inputs {
+        home: Some(located("/sync/pace", Origin::Env("PACE_HOME"))),
+        machine: Some(located(
+            "/sync/work/../pace/machine",
+            Origin::Env("PACE_MACHINE_DIR"),
+        )),
+        ..Inputs::default()
+    };
+
+    let error = resolve_dirs(inputs, || Ok(linux())).err();
+
+    assert_eq!(
+        error.as_ref().map(|error| error.kind()),
+        Some(ErrorKind::Directories)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn machine_directory_reached_through_symlink_lies_inside_data_directory()
+-> Result<(), Box<dyn std::error::Error>> {
+    let dir = scratch_dir()?;
+    let home = dir.path().join("home");
+    std::fs::create_dir(&home)?;
+    std::os::unix::fs::symlink(&home, dir.path().join("link"))?;
+    let inputs = Inputs {
+        home: Some(Located {
+            path: home,
+            origin: Origin::Env("PACE_HOME"),
+        }),
+        machine: Some(Located {
+            path: dir.path().join("link/machine"),
+            origin: Origin::Env("PACE_MACHINE_DIR"),
+        }),
+        ..Inputs::default()
+    };
+
+    let error = resolve_dirs(inputs, || Ok(linux())).err();
+
+    assert_eq!(
+        error.as_ref().map(|error| error.kind()),
+        Some(ErrorKind::Directories)
+    );
+    Ok(())
+}
+
+#[test]
+fn machine_directory_beside_data_directory_is_kept() -> PaceResult<()> {
+    let inputs = Inputs {
+        home: Some(located("/sync/pace", Origin::Env("PACE_HOME"))),
+        machine: Some(located(
+            "/sync/pace/../pace-machine",
+            Origin::Env("PACE_MACHINE_DIR"),
+        )),
+        ..Inputs::default()
+    };
+
+    let dirs = resolve_dirs(inputs, || Ok(linux()))?;
+
+    assert_eq!(dirs.machine.path, path("/sync/pace/../pace-machine"));
+    Ok(())
+}
+
 fn no_env(_: &str) -> Option<OsString> {
     None
 }
