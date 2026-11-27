@@ -26,8 +26,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts};
 
-/// The version of `index.json`; another version is rebuilt.
-pub const INDEX_VERSION: u32 = 1;
+/// The version of `index.json`; another version is rebuilt. Version 2
+/// added `forgotten`.
+pub const INDEX_VERSION: u32 = 2;
 
 /// The index: summaries by file, relative to `PACE_HOME/events`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,14 +48,13 @@ pub struct FileSummary {
     pub envelope: Option<(i64, i64)>,
     /// The earliest and latest `about`, in milliseconds.
     pub abouts: Option<(i64, i64)>,
-    /// Entries begun here without an end here, with their start.
-    pub unended: Vec<(EntryId, i64)>,
+    /// Entries begun here without an end here.
+    pub unended: Vec<EntryId>,
     /// Entries ended here but begun in another file.
     pub ends_elsewhere: Vec<EntryId>,
     /// Tombstones in the file: the forgotten entry and the moment its events
-    /// are filed under, as RFC 9557 text.
-    #[serde(default)]
-    pub forgotten: Vec<(EntryId, String)>,
+    /// are filed under, in milliseconds.
+    pub forgotten: Vec<(EntryId, i64)>,
 }
 
 impl FileSummary {
@@ -83,13 +83,12 @@ pub fn summarize(events: &[RecordedEvent]) -> FileSummary {
         .iter()
         .filter(|recorded| !undone.contains(&recorded.batch));
 
-    let mut begun: BTreeMap<EntryId, i64> = BTreeMap::new();
+    let mut begun: BTreeSet<EntryId> = BTreeSet::new();
     let mut ended: BTreeSet<EntryId> = BTreeSet::new();
     let mut logged: BTreeSet<EntryId> = BTreeSet::new();
     for recorded in live {
-        let millis = recorded.event.at.timestamp().as_millisecond();
         match recorded.event.kind {
-            EventKind::EntryBegun { entry, .. } => _ = begun.insert(entry, millis),
+            EventKind::EntryBegun { entry, .. } => _ = begun.insert(entry),
             EventKind::EntryLogged { entry, .. } => _ = logged.insert(entry),
             EventKind::EntryEnded { entry } => _ = ended.insert(entry),
             EventKind::EntryHeld { .. }
@@ -142,21 +141,17 @@ pub fn summarize(events: &[RecordedEvent]) -> FileSummary {
             .map(hlc_parts),
         envelope: span(&moments),
         abouts: span(&abouts),
-        unended: begun
-            .iter()
-            .filter(|(entry, _)| !ended.contains(entry))
-            .map(|(entry, start)| (*entry, *start))
-            .collect(),
+        unended: begun.difference(&ended).copied().collect(),
         ends_elsewhere: ended
             .iter()
-            .filter(|entry| !begun.contains_key(entry) && !logged.contains(entry))
+            .filter(|entry| !begun.contains(entry) && !logged.contains(entry))
             .copied()
             .collect(),
         forgotten: events
             .iter()
             .filter_map(|recorded| match recorded.event.kind {
                 EventKind::EntryForgotten { entry } => {
-                    Some((entry, recorded.event.about.to_string()))
+                    Some((entry, recorded.event.about.timestamp().as_millisecond()))
                 }
                 _ => None,
             })
@@ -190,7 +185,7 @@ pub fn select(files: &BTreeMap<String, FileSummary>, range: &TimeRange) -> BTree
                 || summary
                     .unended
                     .iter()
-                    .any(|(entry, _)| !ended_elsewhere.contains(entry))
+                    .any(|entry| !ended_elsewhere.contains(entry))
         })
         .collect();
 

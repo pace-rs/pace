@@ -6,7 +6,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use jiff::ZonedDateTime;
 use pace_core::{DeviceId, EntryId, EventKind, RecordedEvent};
 use pace_error::PaceResult;
 
@@ -104,21 +103,18 @@ impl FilesStore {
     /// Remove the events of a forgotten entry from every file of this
     /// device's own log that holds them; the tombstone stays. Other
     /// devices' files are theirs to clean. The index skips the files whose
-    /// events are about other moments.
+    /// events are about other moments than `about`, the moment in
+    /// milliseconds that the entry's events are filed under.
     pub(super) fn forget_in_own_log(
         &self,
         dir: &Path,
         index: &Index,
         entry: EntryId,
-        about: &str,
+        about: i64,
     ) -> PaceResult<()> {
-        let about = about
-            .parse::<ZonedDateTime>()
-            .ok()
-            .map(|about| about.timestamp().as_millisecond());
         for path in event_files(dir)? {
             let summary = index.files.get(&relative_name(&self.events_dir(), &path));
-            let elsewhere = summary.zip(about).is_some_and(|(summary, about)| {
+            let elsewhere = summary.is_some_and(|summary| {
                 summary
                     .abouts
                     .is_none_or(|(min, max)| about < min || max < about)

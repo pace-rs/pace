@@ -83,8 +83,16 @@ const DEVICE_VERSION: u32 = 1;
 
 const INDEX_FILE: &str = "index.json";
 
-/// Events parsed while refreshing the index, by file.
-type Parsed = HashMap<String, Vec<RecordedEvent>>;
+/// An event file found while refreshing the index: its device and path,
+/// and its events if the refresh parsed them.
+struct FoundFile {
+    device: DeviceId,
+    path: PathBuf,
+    events: Option<Vec<RecordedEvent>>,
+}
+
+/// The event files found while refreshing the index, by their name in it.
+type Found = HashMap<String, FoundFile>;
 
 impl FilesStore {
     /// The store of `device`, with its data in `home` (`PACE_HOME`) and its
@@ -215,16 +223,16 @@ impl FilesStore {
         recorded: &[RecordedEvent],
         mut cursors: Cursors,
     ) {
-        let tombstones: Vec<(EntryId, String)> = index
+        let tombstones: Vec<(EntryId, i64)> = index
             .files
             .values()
-            .flat_map(|summary| summary.forgotten.iter().cloned())
+            .flat_map(|summary| summary.forgotten.iter().copied())
             .chain(
                 recorded
                     .iter()
                     .filter_map(|recorded| match recorded.event.kind {
                         EventKind::EntryForgotten { entry } => {
-                            Some((entry, recorded.event.about.to_string()))
+                            Some((entry, recorded.event.about.timestamp().as_millisecond()))
                         }
                         _ => None,
                     }),
@@ -235,7 +243,7 @@ impl FilesStore {
             if cursors.cleaned.contains(&entry) {
                 continue;
             }
-            match self.forget_in_own_log(dir, index, entry, &about) {
+            match self.forget_in_own_log(dir, index, entry, about) {
                 Ok(()) => {
                     cleaned |= cursors.cleaned.insert(entry);
                 }
@@ -299,13 +307,17 @@ impl FilesStore {
     /// The events of the files `range` needs, through the index; an event
     /// in two files (left by an interrupted resplit) counts once.
     fn read_now(&self, range: &TimeRange) -> PaceResult<Vec<RecordedEvent>> {
-        let (index, mut parsed) = self.refreshed_index()?;
+        let (index, mut found) = self.refreshed_index()?;
         let mut events = Vec::new();
         let mut seen = BTreeSet::new();
         for name in select(&index.files, range) {
-            let file_events = match parsed.remove(&name) {
+            // The refreshed index names only the files it found.
+            let Some(file) = found.remove(&name) else {
+                continue;
+            };
+            let file_events = match file.events {
                 Some(file_events) => file_events,
-                None => self.parse_file(&name)?,
+                None => read_events(&file.path, file.device)?,
             };
             events.extend(
                 file_events
@@ -316,28 +328,10 @@ impl FilesStore {
         Ok(events)
     }
 
-    fn parse_file(&self, name: &str) -> PaceResult<Vec<RecordedEvent>> {
-        let path = self.events_dir().join(name);
-        let device = name
-            .split('/')
-            .next()
-            .and_then(|device| device.parse::<DeviceId>().ok())
-            .ok_or_else(|| {
-                PaceError::new(
-                    ErrorKind::Internal,
-                    "the index names {name}, outside a device directory",
-                )
-                .attach_context("name", name)
-                .ask_report()
-            })?;
-        let text =
-            std::fs::read_to_string(&path).map_err(|error| io_error("read", &path, error))?;
-        parse_events(&path, &text, device)
-    }
-
     /// The index, brought up to date with the files: changed and new files
-    /// are parsed and summarized, gone files dropped. Returns what it parsed.
-    fn refreshed_index(&self) -> PaceResult<(Index, Parsed)> {
+    /// are parsed and summarized, gone files dropped. Returns the files it
+    /// found, with the events of those it parsed.
+    fn refreshed_index(&self) -> PaceResult<(Index, Found)> {
         let index_path = self.machine.join(INDEX_FILE);
         let mut index: Index = std::fs::read_to_string(&index_path)
             .ok()
@@ -347,8 +341,7 @@ impl FilesStore {
                 version: INDEX_VERSION,
                 files: BTreeMap::new(),
             });
-        let mut parsed = Parsed::new();
-        let mut seen = BTreeSet::new();
+        let mut found = Found::new();
         let mut changed = false;
 
         for (device, dir) in self.device_dirs()? {
@@ -361,25 +354,32 @@ impl FilesStore {
                     .ok()
                     .and_then(|time| time.duration_since(SystemTime::UNIX_EPOCH).ok())
                     .map(|since| since.as_nanos());
-                _ = seen.insert(name.clone());
-                if index.files.get(&name).is_some_and(|summary| {
+                let unchanged = index.files.get(&name).is_some_and(|summary| {
                     summary.len == metadata.len() && summary.modified == modified
-                }) {
-                    continue;
-                }
-                let text = std::fs::read_to_string(&path)
-                    .map_err(|error| io_error("read", &path, error))?;
-                let events = parse_events(&path, &text, device)?;
-                let mut summary = summarize(&events);
-                summary.len = metadata.len();
-                summary.modified = modified;
-                _ = index.files.insert(name.clone(), summary);
-                _ = parsed.insert(name, events);
-                changed = true;
+                });
+                let events = if unchanged {
+                    None
+                } else {
+                    let events = read_events(&path, device)?;
+                    let mut summary = summarize(&events);
+                    summary.len = metadata.len();
+                    summary.modified = modified;
+                    _ = index.files.insert(name.clone(), summary);
+                    changed = true;
+                    Some(events)
+                };
+                _ = found.insert(
+                    name,
+                    FoundFile {
+                        device,
+                        path,
+                        events,
+                    },
+                );
             }
         }
         let before = index.files.len();
-        index.files.retain(|name, _| seen.contains(name));
+        index.files.retain(|name, _| found.contains_key(name));
         changed |= index.files.len() != before;
 
         // The index is a cache: if it can't be saved, this run works with
@@ -388,7 +388,7 @@ impl FilesStore {
         if changed {
             _ = save_index(&self.machine, &index_path, &index);
         }
-        Ok((index, parsed))
+        Ok((index, found))
     }
 
     /// The directories under `events/`, by device.
@@ -493,6 +493,12 @@ fn write_device_file(path: &Path, file: &DeviceFile) -> PaceResult<()> {
         PaceError::with_source(ErrorKind::Internal, "cannot write device.toml", error).ask_report()
     })?;
     write_atomically(path, &text)
+}
+
+/// The events of the event file `path` of `device`.
+fn read_events(path: &Path, device: DeviceId) -> PaceResult<Vec<RecordedEvent>> {
+    let text = std::fs::read_to_string(path).map_err(|error| io_error("read", path, error))?;
+    parse_events(path, &text, device)
 }
 
 fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {

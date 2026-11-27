@@ -4,7 +4,7 @@ use jiff::ZonedDateTime;
 use pace_core::{BatchId, DeviceId, EntryId, Event, EventId, EventKind, Hlc, RecordedEvent};
 use pace_time::TimeRange;
 
-use crate::index::{FileSummary, select, summarize};
+use crate::index::{FileSummary, INDEX_VERSION, Index, select, summarize};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -74,10 +74,7 @@ fn begun_entry_without_an_end_is_unended() -> TestResult {
 
     let summary = summarize(&events.events);
 
-    assert_eq!(
-        summary.unended,
-        [(entry(1)?, at("11-26T09:00")?.timestamp().as_millisecond())]
-    );
+    assert_eq!(summary.unended, [entry(1)?]);
     assert_eq!(summary.ends_elsewhere, Vec::<EntryId>::new());
     Ok(())
 }
@@ -118,6 +115,37 @@ fn an_end_of_an_entry_begun_elsewhere_is_listed() -> TestResult {
 
     assert_eq!(summarize(&events.events).ends_elsewhere, [entry(1)?]);
     Ok(())
+}
+
+#[test]
+fn tombstone_keeps_the_moment_its_entry_is_filed_under() -> TestResult {
+    let mut events = Events::new();
+    _ = events.add(
+        1,
+        "11-27T08:00",
+        "11-26T09:00",
+        EventKind::EntryForgotten { entry: entry(1)? },
+    )?;
+
+    let summary = summarize(&events.events);
+
+    assert_eq!(
+        summary.forgotten,
+        [(entry(1)?, at("11-26T09:00")?.timestamp().as_millisecond())]
+    );
+    Ok(())
+}
+
+#[test]
+fn an_index_from_before_tombstones_is_not_read() {
+    // Version 1 of the index had no `forgotten`; reading it as empty would
+    // miss the tombstones of its files.
+    let old = r#"{"version":1,"files":{"d/2026/2026-11.toml":{"len":1,
+        "modified":null,"max_hlc":null,"envelope":null,"abouts":null,
+        "unended":[],"ends_elsewhere":[]}}}"#;
+
+    assert!(serde_json::from_str::<Index>(old).is_err());
+    assert_ne!(INDEX_VERSION, 1);
 }
 
 #[test]
