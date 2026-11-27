@@ -140,28 +140,43 @@ impl Entry {
         span(&self.start, self.until(now))
     }
 
-    /// The time spent in holds.
+    /// The time spent in holds, inside the entry.
     #[must_use]
     pub fn hold_time(&self, now: &ZonedDateTime) -> SignedDuration {
-        let until = self.until(now);
         self.holds
             .iter()
-            .map(|hold| span(&hold.start, hold.end.as_ref().unwrap_or(until)))
+            .map(|hold| self.break_time(&hold.start, hold.end.as_ref(), now))
             .sum()
     }
 
-    /// The time spent in pauses.
+    /// The time spent in pauses, inside the entry.
     #[must_use]
     pub fn pause_time(&self, now: &ZonedDateTime) -> SignedDuration {
-        let until = self.until(now);
         self.pauses
             .iter()
-            .map(|pause| span(&pause.start, pause.end.as_ref().unwrap_or(until)))
+            .map(|pause| self.break_time(&pause.start, pause.end.as_ref(), now))
             .sum()
+    }
+
+    /// The part of a break that lies inside the entry; an open break lasts
+    /// until the entry's end or `now`.
+    ///
+    /// The rules keep every break inside its entry, but a merge of two
+    /// devices can move the entry's start or end into a break: an
+    /// adjustment from a device that never saw the hold.
+    fn break_time(
+        &self,
+        start: &ZonedDateTime,
+        end: Option<&ZonedDateTime>,
+        now: &ZonedDateTime,
+    ) -> SignedDuration {
+        let until = self.until(now);
+        let end = end.map_or(until, |end| end.min(until));
+        span(start.max(&self.start), end)
     }
 
     /// Gross time minus holds and pauses; what billing and target vs. actual
-    /// use.
+    /// use. Never negative: breaks merged from two devices can overlap.
     #[must_use]
     pub fn net(&self, now: &ZonedDateTime) -> SignedDuration {
         (self.gross(now) - self.hold_time(now) - self.pause_time(now)).max(SignedDuration::ZERO)
@@ -192,7 +207,8 @@ impl Entry {
     }
 }
 
-/// The time from `start` to `end`, never negative.
+/// The time from `start` to `end`, never negative: events merged from two
+/// devices can close a break before it began.
 fn span(start: &ZonedDateTime, end: &ZonedDateTime) -> SignedDuration {
     start.duration_until(end).max(SignedDuration::ZERO)
 }

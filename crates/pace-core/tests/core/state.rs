@@ -249,6 +249,50 @@ fn ending_held_entry_closes_the_hold_first() -> TestResult {
 }
 
 #[test]
+fn break_outside_its_entry_counts_only_inside_it() -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = log.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        EventKind::EntryHeld {
+            entry: e,
+            source: HoldSource::Inner,
+            reason: None,
+        },
+    )?;
+    _ = log.push(
+        "2026-11-26T10:30[Europe/Berlin]",
+        EventKind::EntryResumed { entry: e },
+    )?;
+    _ = log.push(
+        "2026-11-26T11:00[Europe/Berlin]",
+        EventKind::EntryEnded { entry: e },
+    )?;
+    // An adjustment merged from another device, which never saw the hold,
+    // moved the start and the end into it.
+    _ = log.push(
+        "2026-11-26T11:10[Europe/Berlin]",
+        EventKind::EntryAdjusted {
+            entry: e,
+            changes: EntryChanges {
+                start: Some(at("2026-11-26T10:10[Europe/Berlin]")?),
+                end: Some(at("2026-11-26T10:20[Europe/Berlin]")?),
+                ..EntryChanges::default()
+            },
+        },
+    )?;
+
+    let state = State::from_events(&log.events);
+    let found = state.entry(e).ok_or("entry")?;
+
+    assert_eq!(found.gross(&at(NOW)?), SignedDuration::from_mins(10));
+    assert_eq!(found.hold_time(&at(NOW)?), SignedDuration::from_mins(10));
+    assert_eq!(found.net(&at(NOW)?), SignedDuration::ZERO);
+    Ok(())
+}
+
+#[test]
 fn an_entry_keeps_the_zones_it_was_recorded_in() -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
