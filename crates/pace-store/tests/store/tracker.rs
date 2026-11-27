@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, EntryState, Policy, ReadScope, RecordedEvent, State,
+    Catalog, Clock, Command, DeviceId, EntryState, Policy, ProjectKey, ProjectRecord, ProjectRef,
+    ReadScope, RecordedEvent, State,
     command::{Adjust, Begin, End, Forget, Log, Resume},
     testing::SequentialIds,
     testing::TestClock,
@@ -36,6 +37,7 @@ fn tracker(
         clock.clone(),
         Arc::new(SequentialIds::starting_at(&clock.now(), number)),
         Policy::default(),
+        Catalog::default(),
         device(number)?,
     ))
 }
@@ -198,6 +200,7 @@ fn raced(
         rival_clock.clone(),
         Arc::new(SequentialIds::starting_at(&rival_clock.now(), 2)),
         Policy::default(),
+        Catalog::default(),
         device(1)?,
     );
     Ok(Tracker::new(
@@ -205,6 +208,7 @@ fn raced(
         clock.clone(),
         Arc::new(SequentialIds::starting_at(&clock.now(), 1)),
         Policy::default(),
+        Catalog::default(),
         device(1)?,
     ))
 }
@@ -486,5 +490,45 @@ fn undo_reaches_batch_recorded_long_ago() -> TestResult {
 
     assert_eq!(undone.undone.len(), 1);
     assert!(tracker.state(&everything()?)?.entry(june).is_none());
+    Ok(())
+}
+
+#[test]
+fn state_counts_entry_recorded_with_key_for_project_of_its_record() -> TestResult {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let store = MemoryStore::new(device(1)?, clock.clone());
+    let key: ProjectKey = "acme-webshop".parse()?;
+    _ = tracker(store.clone(), &clock, 1)?.run(&Command::Begin(Begin {
+        project: Some(ProjectRef::Key(key.clone())),
+        ..Begin::default()
+    }))?;
+    let record = ProjectRecord {
+        id: "0193a7c4-0000-7000-8000-000000000001".parse()?,
+        key,
+        name: "Webshop relaunch".to_owned(),
+        client: None,
+        role: None,
+        billable: false,
+        budget: None,
+        starts_on: None,
+        ends_on: None,
+        done_when: None,
+        allow_overlap: false,
+        archived: None,
+    };
+    let catalog = Catalog::new(Vec::new(), Vec::new(), vec![record.clone()])?;
+    let tracker = Tracker::new(
+        store,
+        clock.clone(),
+        Arc::new(SequentialIds::starting_at(&clock.now(), 1)),
+        Policy::default(),
+        catalog,
+        device(1)?,
+    );
+
+    let state = tracker.state(&everything()?)?;
+
+    let projects: Vec<_> = state.entries().map(|entry| entry.project.clone()).collect();
+    assert_eq!(projects, vec![Some(ProjectRef::Id(record.id))]);
     Ok(())
 }

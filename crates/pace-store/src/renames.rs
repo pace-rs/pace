@@ -119,8 +119,8 @@ mod tests {
     use std::sync::Arc;
 
     use pace_core::{
-        Batch, ChangeMarker, Clock, Command, DeviceId, Policy, ReadScope, RecordedEvent, Rules,
-        State, command::Begin, testing::SequentialIds, testing::TestClock,
+        Batch, Catalog, ChangeMarker, Clock, Command, DeviceId, Policy, ReadScope, RecordedEvent,
+        Rules, State, command::Begin, testing::SequentialIds, testing::TestClock,
     };
 
     use super::*;
@@ -156,6 +156,7 @@ mod tests {
                 clock.clone(),
                 Arc::new(SequentialIds::starting_at(&clock.now(), 1)),
                 Policy::default(),
+                Catalog::default(),
                 device,
             );
             _ = tracker.run(&Command::Begin(Begin {
@@ -189,6 +190,7 @@ mod tests {
                 device: self.device,
                 ids: &SequentialIds::starting_at(&now, 2),
                 policy: &Policy::default(),
+                catalog: &Catalog::default(),
             }
             .decide(&Command::Begin(Begin {
                 note: Some("Review".parse()?),

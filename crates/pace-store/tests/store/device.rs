@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, Policy,
+    Catalog, Clock, Command, DeviceId, Policy,
     command::{Begin, End},
     testing::SequentialIds,
     testing::TestClock,
@@ -151,6 +151,7 @@ fn machine(
         clock.clone(),
         Arc::new(SequentialIds::starting_at(&clock.now(), seed)),
         Policy::default(),
+        Catalog::default(),
         device,
     )
 }

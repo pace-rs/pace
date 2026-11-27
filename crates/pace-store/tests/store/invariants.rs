@@ -6,7 +6,7 @@ use std::{collections::BTreeSet, sync::Arc};
 
 use jiff::{SignedDuration, ZonedDateTime};
 use pace_core::{
-    Clock, Command, DeviceId, Entry, EntryId, Policy, State, Tag,
+    Catalog, Clock, Command, DeviceId, Entry, EntryId, Policy, State, Tag,
     command::{Adjust, Begin, End, Forget, Hold, Log, Pause, Resume},
     testing::SequentialIds,
     testing::TestClock,
@@ -239,6 +239,7 @@ fn run_steps(steps: &[Step]) -> Result<(), TestCaseError> {
         clock.clone(),
         Arc::new(SequentialIds::starting_at(&clock.now(), 1)),
         Policy::default(),
+        Catalog::default(),
         device()?,
     );
     let everything = TimeRange::new(None, None).map_err(fail)?;

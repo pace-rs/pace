@@ -9,8 +9,8 @@ use pace_time::{format_moment, format_moment_against};
 use uuid::Uuid;
 
 use crate::{
-    Batch, Change, Command, DeviceId, Entry, EntryChanges, EntryId, EntryVerb, Event, EventKind,
-    HoldSource, Ids, State,
+    Batch, Catalog, Change, Command, DeviceId, Entry, EntryChanges, EntryId, EntryVerb, Event,
+    EventKind, HoldSource, Ids, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
 
@@ -63,6 +63,8 @@ pub struct Rules<'context> {
     pub ids: &'context dyn Ids,
     /// The settings the rules depend on.
     pub policy: &'context Policy,
+    /// The roles, clients and project records.
+    pub catalog: &'context Catalog,
 }
 
 impl Rules<'_> {

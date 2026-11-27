@@ -1,11 +1,14 @@
 //! The step machine of the tracker, driven with values only: no store, no
 //! clock, fixed times and sequential IDs.
 
+use std::sync::LazyLock;
+
 use jiff::ToSpan;
 use jiff::ZonedDateTime;
 use pace_core::{
-    AfterAppend, AfterRead, Appended, Batch, Change, ChangeMarker, Command, Decided, DeviceId,
-    EntryId, EventKind, Hlc, Policy, ReadScope, Reading, RecordedEvent,
+    AfterAppend, AfterRead, Appended, Batch, Catalog, Change, ChangeMarker, Command, Decided,
+    DeviceId, EntryId, EventKind, Hlc, Policy, ProjectRecord, ProjectRef, ReadScope, Reading,
+    RecordedEvent,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
     testing::SequentialIds,
 };
@@ -13,6 +16,9 @@ use pace_error::{ErrorKind, ExitCode, PaceError};
 use pace_time::TimeRange;
 
 use crate::TestResult;
+
+/// The catalog of a fresh `PACE_HOME`: no role, client or project record.
+static CATALOG: LazyLock<Catalog> = LazyLock::new(Catalog::default);
 
 fn berlin(time: &str) -> Result<ZonedDateTime, jiff::Error> {
     format!("2026-11-26T{time}[Europe/Berlin]").parse()
@@ -48,7 +54,7 @@ fn begun_at(
     policy: &Policy,
 ) -> Result<Vec<RecordedEvent>, Box<dyn std::error::Error>> {
     let command = Command::Begin(Begin::default());
-    let reading = Reading::start(&command, at, device()?, ids, policy)?;
+    let reading = Reading::start(&command, at, device()?, ids, policy, &CATALOG)?;
     let Decided { batch, .. } = decided(reading.decide(ChangeMarker::new(1), Vec::new())?)?;
     Ok(recorded(&batch, device()?))
 }
@@ -81,7 +87,7 @@ fn scope_of(
 ) -> Result<ReadScope, Box<dyn std::error::Error>> {
     let ids = SequentialIds::starting_at(now, 1);
     let policy = Policy::default();
-    let reading = Reading::start(command, now.clone(), device()?, &ids, &policy)?;
+    let reading = Reading::start(command, now.clone(), device()?, &ids, &policy, &CATALOG)?;
     Ok(reading.scope().clone())
 }
 
@@ -92,7 +98,7 @@ fn range_of(
 ) -> Result<TimeRange, Box<dyn std::error::Error>> {
     let ids = SequentialIds::starting_at(now, 1);
     let policy = Policy::default();
-    let reading = Reading::start(command, now.clone(), device()?, &ids, &policy)?;
+    let reading = Reading::start(command, now.clone(), device()?, &ids, &policy, &CATALOG)?;
     Ok(reading.scope().range().clone())
 }
 
@@ -210,7 +216,7 @@ fn named_entry_missing_from_read_makes_command_read_everything() -> TestResult {
     let ids = SequentialIds::starting_at(&now, 1);
     let policy = Policy::default();
     let command = Command::Forget(Forget { entry: entry()? });
-    let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
+    let reading = Reading::start(&command, now, device()?, &ids, &policy, &CATALOG)?;
 
     let after = reading.decide(ChangeMarker::new(7), Vec::new())?;
 
@@ -237,7 +243,7 @@ fn named_entry_in_read_is_decided_on_it() -> TestResult {
     let begun = begun_at(berlin("09:00")?, &ids, &policy)?;
     let entry = begun_entry(&begun)?;
     let command = Command::Forget(Forget { entry });
-    let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
+    let reading = Reading::start(&command, now, device()?, &ids, &policy, &CATALOG)?;
 
     let Decided { batch, .. } = decided(reading.decide(ChangeMarker::new(7), begun)?)?;
 
@@ -259,7 +265,7 @@ fn adjust_of_entry_begun_before_read_makes_it_read_everything() -> TestResult {
         note: Change::Set("Longer than a month".parse()?),
         ..Adjust::default()
     });
-    let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
+    let reading = Reading::start(&command, now, device()?, &ids, &policy, &CATALOG)?;
 
     let after = reading.decide(ChangeMarker::new(7), begun)?;
 
@@ -278,7 +284,7 @@ fn undo_of_batch_recorded_before_read_makes_it_read_everything() -> TestResult {
     // Open, so every read has it, but recorded before the read's month: a
     // later batch could lie outside the read.
     let begun = begun_at("2026-10-01T09:00[Europe/Berlin]".parse()?, &ids, &policy)?;
-    let reading = Reading::start(&Command::Undo, now, device()?, &ids, &policy)?;
+    let reading = Reading::start(&Command::Undo, now, device()?, &ids, &policy, &CATALOG)?;
 
     let after = reading.decide(ChangeMarker::new(7), begun)?;
 
@@ -321,7 +327,7 @@ fn refusal_of_rules_is_error_without_batch() -> TestResult {
     let ids = SequentialIds::starting_at(&now, 1);
     let policy = Policy::default();
     let command = Command::End(End::default());
-    let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
+    let reading = Reading::start(&command, now, device()?, &ids, &policy, &CATALOG)?;
 
     let error = reading
         .decide(ChangeMarker::new(7), Vec::new())
@@ -339,7 +345,7 @@ fn decided_begin_gives_batch_with_begun_entry_and_marker_of_read() -> TestResult
     let ids = SequentialIds::starting_at(&now, 1);
     let policy = Policy::default();
     let command = Command::Begin(Begin::default());
-    let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
+    let reading = Reading::start(&command, now, device()?, &ids, &policy, &CATALOG)?;
 
     let Decided { batch, read, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
 
@@ -354,7 +360,7 @@ fn reading_shows_its_command_and_attempt_in_debug() -> TestResult {
     let now = berlin("10:00")?;
     let ids = SequentialIds::starting_at(&now, 1);
     let policy = Policy::default();
-    let reading = Reading::start(&Command::Undo, now, device()?, &ids, &policy)?;
+    let reading = Reading::start(&Command::Undo, now, device()?, &ids, &policy, &CATALOG)?;
 
     let shown = format!("{reading:?}");
 
@@ -375,7 +381,14 @@ fn stale_append_gives_new_read_at_new_time() -> TestResult {
         at: Some(berlin("09:00")?),
         ..Begin::default()
     });
-    let reading = Reading::start(&command, berlin("10:00")?, device()?, &ids, &policy)?;
+    let reading = Reading::start(
+        &command,
+        berlin("10:00")?,
+        device()?,
+        &ids,
+        &policy,
+        &CATALOG,
+    )?;
     let Decided { appending, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
 
     let after = appending.appended(Appended::Stale, berlin("10:05")?)?;
@@ -396,7 +409,7 @@ fn fifth_stale_append_fails_naming_concurrent_writes() -> TestResult {
     let ids = SequentialIds::starting_at(&now, 1);
     let policy = Policy::default();
     let command = Command::Begin(Begin::default());
-    let mut reading = Reading::start(&command, now.clone(), device()?, &ids, &policy)?;
+    let mut reading = Reading::start(&command, now.clone(), device()?, &ids, &policy, &CATALOG)?;
 
     for _ in 1..5 {
         let Decided { appending, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
@@ -424,7 +437,7 @@ fn recorded_append_gives_outcome_of_command() -> TestResult {
     let ids = SequentialIds::starting_at(&now, 1);
     let policy = Policy::default();
     let command = Command::Begin(Begin::default());
-    let reading = Reading::start(&command, now.clone(), device()?, &ids, &policy)?;
+    let reading = Reading::start(&command, now.clone(), device()?, &ids, &policy, &CATALOG)?;
     let Decided {
         batch, appending, ..
     } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
@@ -456,11 +469,18 @@ fn recorded_undo_gives_events_it_undid() -> TestResult {
     let ids = SequentialIds::starting_at(&berlin("09:00")?, 1);
     let policy = Policy::default();
     let earlier = Command::Begin(Begin::default());
-    let reading = Reading::start(&earlier, berlin("09:00")?, device()?, &ids, &policy)?;
+    let reading = Reading::start(
+        &earlier,
+        berlin("09:00")?,
+        device()?,
+        &ids,
+        &policy,
+        &CATALOG,
+    )?;
     let Decided { batch, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
     let begun = recorded(&batch, device()?);
     let undo = Command::Undo;
-    let reading = Reading::start(&undo, berlin("10:00")?, device()?, &ids, &policy)?;
+    let reading = Reading::start(&undo, berlin("10:00")?, device()?, &ids, &policy, &CATALOG)?;
     let Decided {
         batch, appending, ..
     } = decided(reading.decide(ChangeMarker::new(8), begun.clone())?)?;
@@ -479,5 +499,63 @@ fn recorded_undo_gives_events_it_undid() -> TestResult {
     assert_eq!(outcome.undone, begun);
     assert_eq!(outcome.before.open().count(), 1);
     assert_eq!(outcome.state.open().count(), 0);
+    Ok(())
+}
+
+/// The record of the project `acme-webshop`.
+fn webshop_record() -> Result<ProjectRecord, Box<PaceError>> {
+    Ok(ProjectRecord {
+        id: "0193a7c4-0000-7000-8000-000000000001".parse()?,
+        key: "acme-webshop".parse()?,
+        name: "Webshop relaunch".to_owned(),
+        client: None,
+        role: None,
+        billable: false,
+        budget: None,
+        starts_on: None,
+        ends_on: None,
+        done_when: None,
+        allow_overlap: false,
+        archived: None,
+    })
+}
+
+#[test]
+fn entry_recorded_with_key_reads_as_project_of_its_record() -> TestResult {
+    let ids = SequentialIds::starting_at(&berlin("09:00")?, 1);
+    let policy = Policy::default();
+    let begin = Command::Begin(Begin {
+        project: Some(ProjectRef::Key("acme-webshop".parse()?)),
+        ..Begin::default()
+    });
+    let reading = Reading::start(&begin, berlin("09:00")?, device()?, &ids, &policy, &CATALOG)?;
+    let Decided { batch, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
+    let record = webshop_record()?;
+    let catalog = Catalog::new(Vec::new(), Vec::new(), vec![record.clone()])?;
+    let end = Command::End(End::default());
+    let reading = Reading::start(&end, berlin("10:00")?, device()?, &ids, &policy, &catalog)?;
+    let Decided {
+        batch: ended,
+        appending,
+        ..
+    } = decided(reading.decide(ChangeMarker::new(8), recorded(&batch, device()?))?)?;
+
+    let after = appending.appended(
+        Appended::Recorded {
+            events: recorded(&ended, device()?),
+            warnings: Vec::new(),
+        },
+        berlin("10:00")?,
+    )?;
+
+    let AfterAppend::Done(outcome) = after else {
+        return Err(format!("a recorded append gave {after:?}").into());
+    };
+    let projects: Vec<_> = outcome
+        .before
+        .entries()
+        .map(|entry| entry.project.clone())
+        .collect();
+    assert_eq!(projects, vec![Some(ProjectRef::Id(record.id))]);
     Ok(())
 }

@@ -2,9 +2,12 @@
 //! what the append means, without I/O.
 //!
 //! The machine decides, and its caller does the I/O. [`Reading::start`]
-//! takes a command and the time, and names the scope to read. With the
+//! takes a command, the time and the [`Catalog`], and names the scope to
+//! read. With the
 //! store's marker and the events of that scope, [`Reading::decide`] lets the
-//! [`Rules`] decide and gives the batch to append; if the read was too
+//! [`Rules`] decide and gives the batch to append; the state they decide on
+//! counts an entry recorded with a project's key for the project of the
+//! catalog's record with that key; if the read was too
 //! narrow for the rules, it gives a reading of everything instead. A
 //! command about an entry it names reads the last month first, and `undo`
 //! what was recorded in it: the likely targets, and much less to read than
@@ -23,8 +26,8 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
 
 use crate::{
-    Appended, Batch, ChangeMarker, Command, DeviceId, Entry, EntryId, EventKind, Ids, Policy,
-    ReadScope, RecordedEvent, Rules, State,
+    Appended, Batch, Catalog, ChangeMarker, Command, DeviceId, Entry, EntryId, EventKind, Ids,
+    Policy, ReadScope, RecordedEvent, Rules, State,
     command::{Adjust, End, Forget, Resume},
 };
 
@@ -61,6 +64,7 @@ struct CommandRun<'run> {
     device: DeviceId,
     ids: &'run dyn Ids,
     policy: &'run Policy,
+    catalog: &'run Catalog,
     /// The attempt under way, from 1 to [`ATTEMPTS`].
     attempt: usize,
 }
@@ -116,7 +120,8 @@ pub enum AfterAppend<'run> {
 
 impl<'run> Reading<'run> {
     /// The first read of `command` at `now`, on `device`, with new IDs from
-    /// `ids` and the settings in `policy`.
+    /// `ids`, the settings in `policy` and the roles, clients and project
+    /// records in `catalog`.
     ///
     /// # Errors
     ///
@@ -128,6 +133,7 @@ impl<'run> Reading<'run> {
         device: DeviceId,
         ids: &'run dyn Ids,
         policy: &'run Policy,
+        catalog: &'run Catalog,
     ) -> PaceResult<Self> {
         Self::at(
             CommandRun {
@@ -135,6 +141,7 @@ impl<'run> Reading<'run> {
                 device,
                 ids,
                 policy,
+                catalog,
                 attempt: 1,
             },
             now,
@@ -165,7 +172,7 @@ impl<'run> Reading<'run> {
         marker: ChangeMarker,
         events: Vec<RecordedEvent>,
     ) -> PaceResult<AfterRead<'run>> {
-        let before = State::from_events(&events);
+        let before = State::from_events(&events).resolve_projects(self.run.catalog);
         if !self.scope.is_everything()
             && !suffices(self.run.command, &before, &self.scope, self.run.device)
         {
@@ -180,6 +187,7 @@ impl<'run> Reading<'run> {
             device: self.run.device,
             ids: self.run.ids,
             policy: self.run.policy,
+            catalog: self.run.catalog,
         }
         .decide(self.run.command)?;
         Ok(AfterRead::Decided(Box::new(Decided {
@@ -209,7 +217,13 @@ impl<'run> Appending<'run> {
                 warnings,
             } => Ok(AfterAppend::Done(Box::new(Outcome {
                 warnings,
-                ..outcome(&self.events, self.before, recorded, self.now)
+                ..outcome(
+                    &self.events,
+                    self.before,
+                    recorded,
+                    self.now,
+                    self.run.catalog,
+                )
             }))),
             Appended::Stale if self.run.attempt < ATTEMPTS => Reading::at(
                 CommandRun {
@@ -224,12 +238,15 @@ impl<'run> Appending<'run> {
     }
 }
 
-/// What a command did, from the events it read and the ones it appended.
+/// What a command did, from the events it read and the ones it appended;
+/// its state resolves project keys through `catalog`, as the state before
+/// does.
 fn outcome(
     events: &[RecordedEvent],
     before: State,
     recorded: Vec<RecordedEvent>,
     now: ZonedDateTime,
+    catalog: &Catalog,
 ) -> Outcome {
     let undone_batches: Vec<_> = recorded
         .iter()
@@ -243,7 +260,10 @@ fn outcome(
         .filter(|event| undone_batches.contains(&event.batch))
         .cloned()
         .collect();
-    let state = before.clone().followed_by(&recorded, events);
+    let state = before
+        .clone()
+        .followed_by(&recorded, events)
+        .resolve_projects(catalog);
     Outcome {
         recorded,
         warnings: Vec::new(),

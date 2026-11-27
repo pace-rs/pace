@@ -8,7 +8,7 @@ use std::{
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, Policy, ReadScope, command::Begin, testing::SequentialIds,
+    Catalog, Clock, Command, DeviceId, Policy, ReadScope, command::Begin, testing::SequentialIds,
     testing::TestClock,
 };
 use pace_error::PaceError;
@@ -65,6 +65,7 @@ impl Setup {
             clock.clone(),
             Arc::new(SequentialIds::starting_at(&clock.now(), 1)),
             Policy::default(),
+            Catalog::default(),
             self.device,
         ))
     }

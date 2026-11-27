@@ -5,7 +5,7 @@ use std::{path::Path, sync::Arc};
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, Policy, ReadScope,
+    Catalog, Clock, Command, DeviceId, Policy, ReadScope,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause},
     testing::SequentialIds,
     testing::TestClock,
@@ -64,6 +64,7 @@ impl Setup {
             self.clock.clone(),
             Arc::new(SequentialIds::starting_at(&self.clock.now(), 1)),
             Policy::default(),
+            Catalog::default(),
             self.device,
         )
     }
@@ -534,6 +535,7 @@ fn resplitting_leaves_other_devices_alone() -> TestResult {
         setup.clock.clone(),
         Arc::new(SequentialIds::starting_at(&setup.clock.now(), 2)),
         Policy::default(),
+        Catalog::default(),
         other,
     );
     setup.clock.set(at("2026-11-26T09:30[Europe/Berlin]")?);
@@ -760,6 +762,7 @@ fn begin_raced_by_another_process_decides_again_and_switches_from_it() -> TestRe
         rival_clock.clone(),
         Arc::new(SequentialIds::starting_at(&rival_clock.now(), 2)),
         Policy::default(),
+        Catalog::default(),
         setup.device,
     );
     let tracker = Tracker::new(
@@ -775,6 +778,7 @@ fn begin_raced_by_another_process_decides_again_and_switches_from_it() -> TestRe
         setup.clock.clone(),
         Arc::new(SequentialIds::starting_at(&setup.clock.now(), 1)),
         Policy::default(),
+        Catalog::default(),
         setup.device,
     );
 
@@ -827,6 +831,7 @@ mod expensive {
                         clock.clone(),
                         Arc::new(SequentialIds::starting_at(&clock.now(), 100 + writer)),
                         Policy::default(),
+                        Catalog::default(),
                         device,
                     );
                     for round in 0..10 {

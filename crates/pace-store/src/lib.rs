@@ -26,7 +26,9 @@
 //! use std::sync::Arc;
 //!
 //! use jiff::ZonedDateTime;
-//! use pace_core::{Command, FixedClock, Policy, command::Begin, testing::SequentialIds};
+//! use pace_core::{
+//!     Catalog, Command, FixedClock, Policy, command::Begin, testing::SequentialIds,
+//! };
 //! use pace_store::{FilesStore, Split, Tracker, testing::scratch_dir};
 //!
 //! let dir = scratch_dir()?;
@@ -38,7 +40,7 @@
 //! let machine = dir.path().join("machine");
 //! let name = "laptop".to_owned();
 //! let store = FilesStore::new(home, machine, device, name, clock.clone(), Split::Month);
-//! let tracker = Tracker::new(store, clock, ids, Policy::default(), device);
+//! let tracker = Tracker::new(store, clock, ids, Policy::default(), Catalog::default(), device);
 //!
 //! let begin = Begin {
 //!     note: Some("Write offer".parse()?),

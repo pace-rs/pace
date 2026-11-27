@@ -7,7 +7,7 @@ use std::{os::unix::fs::PermissionsExt as _, path::Path, sync::Arc};
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, Policy,
+    Catalog, Clock, Command, DeviceId, Policy,
     command::{Begin, End, Forget, Hold, Log},
     testing::SequentialIds,
     testing::TestClock,
@@ -44,6 +44,7 @@ fn tracker(
         clock.clone(),
         Arc::new(SequentialIds::starting_at(&clock.now(), seed)),
         Policy::default(),
+        Catalog::default(),
         device,
     )
 }

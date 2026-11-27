@@ -5,8 +5,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use jiff::ZonedDateTime;
 
 use crate::{
-    BatchId, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin, EventId, EventKind, Hlc,
-    HoldSource, PauseKind, ProjectRef, RecordedEvent, Tag,
+    BatchId, Catalog, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin, EventId,
+    EventKind, Hlc, HoldSource, PauseKind, ProjectRef, RecordedEvent, Tag,
     entry::{EntryCatch, EntryHold, EntryPause},
     short_id::short_id_among,
 };
@@ -127,6 +127,21 @@ impl State {
             }
         }
         state
+    }
+
+    /// This state with each entry recorded with a project's key moved to
+    /// the project of the record with that key, if `catalog` holds one:
+    /// entries recorded before the project had its record count for it.
+    #[must_use]
+    pub fn resolve_projects(mut self, catalog: &Catalog) -> Self {
+        for entry in self.entries.values_mut() {
+            if let Some(project @ ProjectRef::Key(_)) = &entry.project
+                && let Some(record) = catalog.resolve(project)
+            {
+                entry.project = Some(ProjectRef::Id(record.id));
+            }
+        }
+        self
     }
 
     /// This state, built from the events of `read`, followed by `batch`:

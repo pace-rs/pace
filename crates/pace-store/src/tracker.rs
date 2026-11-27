@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    AfterAppend, AfterRead, Clock, Command, Decided, DeviceId, Ids, Outcome, Policy, ReadScope,
-    Reading, State,
+    AfterAppend, AfterRead, Catalog, Clock, Command, Decided, DeviceId, Ids, Outcome, Policy,
+    ReadScope, Reading, State,
 };
 use pace_error::PaceResult;
 use pace_time::TimeRange;
@@ -21,22 +21,29 @@ use crate::EventStore;
 /// commands about a named entry the last month, and `undo` what was recorded
 /// in it; [`Reading::scope`] says which. If that lacks what the rules need,
 /// the machine asks for everything.
+///
+/// The tracker holds the [`Catalog`] the command runs with: the machine
+/// hands it to the rules, and the state it reads counts an entry recorded
+/// with a project's key for the project of the record with that key.
 #[derive(Debug)]
 pub struct Tracker<S> {
     store: S,
     clock: Arc<dyn Clock>,
     ids: Arc<dyn Ids>,
     policy: Policy,
+    catalog: Catalog,
     device: DeviceId,
 }
 
 impl<S: EventStore> Tracker<S> {
-    /// A tracker for `device`.
-    pub fn new(
+    /// A tracker for `device`, with the roles, clients and project records
+    /// of `catalog`.
+    pub const fn new(
         store: S,
         clock: Arc<dyn Clock>,
         ids: Arc<dyn Ids>,
         policy: Policy,
+        catalog: Catalog,
         device: DeviceId,
     ) -> Self {
         Self {
@@ -44,6 +51,7 @@ impl<S: EventStore> Tracker<S> {
             clock,
             ids,
             policy,
+            catalog,
             device,
         }
     }
@@ -78,6 +86,7 @@ impl<S: EventStore> Tracker<S> {
             self.device,
             &*self.ids,
             &self.policy,
+            &self.catalog,
         )?;
         loop {
             let marker = self.store.marker()?;
@@ -100,14 +109,17 @@ impl<S: EventStore> Tracker<S> {
         }
     }
 
-    /// The state of the entries that overlap `range`, and of the open ones.
+    /// The state of the entries that overlap `range`, and of the open ones;
+    /// an entry recorded with a project's key counts for the project of the
+    /// record with that key.
     ///
     /// # Errors
     ///
     /// If the store fails.
     pub fn state(&self, range: &TimeRange) -> PaceResult<State> {
-        Ok(State::from_events(
-            &self.store.read(&ReadScope::of(range.clone()))?,
-        ))
+        Ok(
+            State::from_events(&self.store.read(&ReadScope::of(range.clone()))?)
+                .resolve_projects(&self.catalog),
+        )
     }
 }

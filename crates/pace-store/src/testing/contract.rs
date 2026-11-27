@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Appended, Change, Clock, Command, DeviceId, EntryState, EventKind, Policy, ReadScope, Rules,
-    State,
+    Appended, Catalog, Change, Clock, Command, DeviceId, EntryState, EventKind, Policy, ReadScope,
+    Rules, State,
     command::{Adjust, Begin, End, Log},
     testing::SequentialIds,
     testing::TestClock,
@@ -150,6 +150,7 @@ where
         clock.clone(),
         Arc::new(SequentialIds::starting_at(&clock.now(), number)),
         Policy::default(),
+        Catalog::default(),
         id,
     );
     Ok(Device { tracker, clock, id })
@@ -489,6 +490,7 @@ where
         device: laptop.id,
         ids: &SequentialIds::starting_at(&now, 9),
         policy: &Policy::default(),
+        catalog: &Catalog::default(),
     }
     .decide(&Command::Begin(Begin::default()))?;
 

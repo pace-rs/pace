@@ -6,9 +6,9 @@ use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Batch, BatchId, Change, Command, DeviceId, EntryId, EntryState, EntryVerb, Event, EventId,
-    EventKind, Hlc, HoldSource, Ids, OVERLAP, PauseKind, Policy, ProjectRef, RecordedEvent, Rules,
-    State,
+    Batch, BatchId, Catalog, Change, Command, DeviceId, EntryId, EntryState, EntryVerb, Event,
+    EventId, EventKind, Hlc, HoldSource, Ids, OVERLAP, PauseKind, Policy, ProjectRef,
+    RecordedEvent, Rules, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
     testing::SequentialIds,
 };
@@ -77,6 +77,7 @@ impl World {
             device: self.device,
             ids: &self.ids,
             policy: &self.policy,
+            catalog: &Catalog::default(),
         }
         .decide(command)?;
         for event in &batch.events {

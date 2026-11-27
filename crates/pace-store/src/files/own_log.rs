@@ -327,7 +327,7 @@ mod tests {
     use std::sync::Arc;
 
     use pace_core::{
-        Clock, Command, Policy, ReadScope, Rules, State,
+        Catalog, Clock, Command, Policy, ReadScope, Rules, State,
         command::{Begin, Forget},
         testing::SequentialIds,
         testing::TestClock,
@@ -378,6 +378,7 @@ mod tests {
                 self.clock.clone(),
                 Arc::new(SequentialIds::starting_at(&self.clock.now(), seed)),
                 Policy::default(),
+                Catalog::default(),
                 device,
             )
         }
@@ -408,6 +409,7 @@ mod tests {
                 device: self.laptop,
                 ids: &SequentialIds::starting_at(&now, 3),
                 policy: &Policy::default(),
+                catalog: &Catalog::default(),
             }
             .decide(command)?;
             let mut texts = Vec::new();
