@@ -1,4 +1,7 @@
-//! The settings that shape tracking, and the project ID of a manifest.
+//! The settings that shape tracking, `config get` and `config set`, and the
+//! project ID of a manifest.
+
+use std::fmt::Write as _;
 
 use crate::support::{Sandbox, run};
 
@@ -172,5 +175,107 @@ fn config_get_of_unknown_key_names_the_closest() -> TestResult {
         ("09:00", &["config", "get", "project-paths"]),
     ])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+/// A global file edited by hand, with comments, a table and a mapping.
+const HAND_WRITTEN_CONFIG: &str = "\
+# My settings
+version = 1
+
+# The office
+time-zone = \"Europe/Berlin\" # Berlin
+week-start = \"Sunday\"
+
+[storage]
+split = \"week\"
+";
+
+#[test]
+fn config_set_writes_one_field_and_keeps_the_comments() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config(HAND_WRITTEN_CONFIG)?;
+
+    let mut transcript = String::new();
+    for args in [
+        ["config", "set", "time-zone", "europe/vienna"],
+        ["config", "set", "holds.default-source", "outer"],
+        ["config", "set", "most-recent-count", "5"],
+    ] {
+        writeln!(transcript, "$ pace {}", args.join(" "))?;
+        transcript.push_str(&run(sandbox.pace().args(args))?);
+        transcript.push('\n');
+    }
+    let file = std::fs::read_to_string(sandbox.path("config/pace.global.toml"))?;
+    write!(transcript, "----- pace.global.toml -----\n{file}")?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
+#[test]
+fn config_set_refuses_bad_value_and_names_what_fits() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config(HAND_WRITTEN_CONFIG)?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["config", "set", "week-start", "mondy"]),
+        ("09:00", &["config", "set", "most-recent-count", "0"]),
+        ("09:00", &["config", "set", "storage.split", "fortnight"]),
+        ("09:00", &["config", "set", "time-zon", "Europe/Vienna"]),
+        ("09:00", &["config", "set", "project-paths", "~/repo"]),
+    ])?;
+
+    let file = std::fs::read_to_string(sandbox.path("config/pace.global.toml"))?;
+    assert_eq!(file, HAND_WRITTEN_CONFIG);
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn config_set_of_value_the_file_holds_has_nothing_to_change() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config(HAND_WRITTEN_CONFIG)?;
+
+    let output = sandbox.journey(&[("09:00", &["config", "set", "week-start", "sunday"])])?;
+
+    let file = std::fs::read_to_string(sandbox.path("config/pace.global.toml"))?;
+    assert_eq!(file, HAND_WRITTEN_CONFIG);
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn config_set_says_when_variable_overrides_the_setting() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = run(sandbox.pace().env("PACE_TIME_ZONE", "Asia/Tokyo").args([
+        "config",
+        "set",
+        "time-zone",
+        "Europe/Vienna",
+    ]))?;
+
+    assert!(output.contains("PACE_TIME_ZONE overrides it"), "{output}");
+    let file = std::fs::read_to_string(sandbox.path("config/pace.global.toml"))?;
+    assert!(file.contains("time-zone = \"Europe/Vienna\""), "{file}");
+    Ok(())
+}
+
+#[test]
+fn config_set_creates_missing_config_file() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    std::fs::remove_file(sandbox.path("config/pace.global.toml"))?;
+
+    _ = run(sandbox
+        .pace()
+        .args(["config", "set", "reports.time-zone", "Europe/Vienna"]))?;
+
+    let file = std::fs::read_to_string(sandbox.path("config/pace.global.toml"))?;
+    assert_eq!(
+        file,
+        "version = 1\n\n[reports]\ntime-zone = \"Europe/Vienna\"\n"
+    );
     Ok(())
 }

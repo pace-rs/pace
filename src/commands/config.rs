@@ -2,11 +2,14 @@
 
 use abscissa_core::{Command, Runnable};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
+use pace_store::field_edit::{FieldEdit, FieldValue, write_field_edits};
 
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
-    config::{Key, PROJECT_PATHS},
+    config::{Key, PROJECT_PATHS, setting_value},
     dirs::Located,
+    origin::Origin,
+    output::usage,
     print::print_lines,
     project::Project,
 };
@@ -18,6 +21,8 @@ pub enum ConfigCmd {
     Show(ShowCmd),
     /// Print the value of one setting.
     Get(GetCmd),
+    /// Write one setting into the global config file.
+    Set(SetCmd),
 }
 
 /// `pace config get`
@@ -51,6 +56,73 @@ impl GetCmd {
             shown
         };
         print_lines([line])
+    }
+}
+
+/// `pace config set`
+#[derive(clap::Args, Command, Debug)]
+pub struct SetCmd {
+    #[arg(
+        value_name = "KEY",
+        help = "The setting, such as `time-zone` or `holds.default-source`"
+    )]
+    key: String,
+
+    #[arg(value_name = "VALUE", help = "The new value, such as `Europe/Vienna`")]
+    value: String,
+}
+
+impl Runnable for SetCmd {
+    fn run(&self) {
+        exit_on_error(PACE_APP.context().and_then(|context| self.execute(context)));
+    }
+}
+
+impl SetCmd {
+    fn execute(&self, context: &Context) -> PaceResult<()> {
+        let path = &context.dirs.config_file.path;
+        let file = path.display().to_string();
+        let key = setting_key(&self.key, &format!("edit [project-paths] in {file}"))?;
+        let value = setting_value(key, &self.value).map_err(usage)?;
+        let shown = plain_value(&value);
+        if context.settings.file_value(key) == Some(&value) {
+            return Err(PaceError::new(
+                ErrorKind::InvalidInput,
+                "nothing to change: {file} sets {key} to {value} already",
+            )
+            .attach_context("file", file)
+            .attach_context("key", key.name())
+            .attach_context("value", shown)
+            .attach_exit_code(ExitCode::NothingToDo));
+        }
+        let parts: Vec<&str> = key.name().split('.').collect();
+        write_field_edits(vec![FieldEdit::set(path, &parts, field_value(value)?)])?;
+        let overridden = match context.settings.entry(key).1 {
+            Origin::Env(variable) => format!("; {variable} overrides it"),
+            _ => String::new(),
+        };
+        print_lines([format!(
+            "Set {} to {shown} in {file}{overridden}.",
+            key.name()
+        )])
+    }
+}
+
+/// A setting's value as the field writer writes it.
+///
+/// # Errors
+///
+/// If the value is neither text nor a whole number, which is a bug.
+fn field_value(value: toml::Value) -> PaceResult<FieldValue> {
+    match value {
+        toml::Value::String(text) => Ok(FieldValue::String(text)),
+        toml::Value::Integer(number) => Ok(FieldValue::Integer(number)),
+        other => Err(PaceError::new(
+            ErrorKind::Internal,
+            "a setting has the value {value}, which is neither text nor a whole number",
+        )
+        .attach_context("value", other.to_string())
+        .ask_report()),
     }
 }
 

@@ -149,6 +149,9 @@ pub struct Loaded {
     pub project_paths: Vec<ProjectPath>,
     /// Problems that don't stop pace, such as an unknown `PACE_*` variable.
     pub warnings: Vec<PaceError>,
+    /// The settings the global file sets, with their values as the file
+    /// gives them, before the environment.
+    file_values: Vec<(Key, toml::Value)>,
 }
 
 impl Loaded {
@@ -171,10 +174,34 @@ impl Loaded {
             .map_or(Origin::Default, |(_, origin)| origin.clone());
         (self.settings.get(key), origin)
     }
+
+    /// The value the global file gives the setting `key`, if it sets it.
+    pub(crate) fn file_value(&self, key: Key) -> Option<&toml::Value> {
+        self.file_values
+            .iter()
+            .find(|(known, _)| *known == key)
+            .map(|(_, value)| value)
+    }
+}
+
+/// `text` as a value of the setting `key`, checked as the global file's
+/// reader checks it, and written as pace writes it: `europe/vienna` is
+/// `Europe/Vienna`, `Sunday` is `sunday`.
+///
+/// # Errors
+///
+/// If `text` doesn't fit the setting: the error's hint names what fits.
+pub(crate) fn setting_value(key: Key, text: &str) -> PaceResult<toml::Value> {
+    let mut settings = Settings::default();
+    settings.set(key, &Value::Text(text.to_owned()))?;
+    Ok(settings.get(key))
 }
 
 /// Load the settings: defaults, then the global file, then the environment.
-/// `home` expands a leading `~` in `[project-paths]`.
+///
+/// `home` expands a leading `~` in `[project-paths]`. Without a
+/// `config_file`, pace reads no file: `config set` creates a file that
+/// isn't there yet, even one that `--config` or `PACE_CONFIG` names.
 ///
 /// # Errors
 ///
@@ -182,7 +209,7 @@ impl Loaded {
 /// valid TOML, has an unknown key or a value that doesn't fit; or if a
 /// variable has a value that doesn't fit.
 pub fn load_settings(
-    config_file: &Located,
+    config_file: Option<&Located>,
     home: Option<&Path>,
     env: impl Fn(&str) -> Option<OsString>,
     variables: impl Iterator<Item = OsString>,
@@ -190,8 +217,9 @@ pub fn load_settings(
     let mut settings = Settings::default();
     let mut origins: Vec<_> = Key::ALL.map(|key| (key, Origin::Default)).to_vec();
     let mut project_paths = Vec::new();
+    let mut from_file = Vec::new();
 
-    if let Some(text) = read_config_file(config_file)? {
+    if let Some((config_file, text)) = read_config_file(config_file)? {
         let file = TomlFile {
             path: &config_file.path,
             text: &text,
@@ -206,6 +234,7 @@ pub fn load_settings(
                 file.point_at(error, span.clone(), "this value")
                     .attach_error_code("pace::config::invalid-value")
             })?;
+            from_file.push((key, settings.get(key)));
             set_origin(
                 &mut origins,
                 key,
@@ -233,6 +262,7 @@ pub fn load_settings(
         origins,
         project_paths,
         warnings: unknown_variables(variables),
+        file_values: from_file,
     })
 }
 
@@ -245,9 +275,14 @@ fn from_variable(error: Box<PaceError>, variable: &str) -> Box<PaceError> {
         .attach_error_code("pace::config::invalid-value")
 }
 
-fn read_config_file(config_file: &Located) -> PaceResult<Option<String>> {
+/// The global file and its text; `None` without a file, or when the file
+/// pace looks for by default isn't there.
+fn read_config_file(config_file: Option<&Located>) -> PaceResult<Option<(&Located, String)>> {
+    let Some(config_file) = config_file else {
+        return Ok(None);
+    };
     match std::fs::read_to_string(&config_file.path) {
-        Ok(text) => Ok(Some(text)),
+        Ok(text) => Ok(Some((config_file, text))),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => match &config_file.origin {
             Origin::Flag(name) | Origin::Env(name) => Err(PaceError::new(
                 ErrorKind::Configuration,
@@ -502,7 +537,7 @@ mod tests {
             origin: Origin::Default,
         };
 
-        let error = load_settings(&config_file, None, |_| None, std::iter::empty()).err();
+        let error = load_settings(Some(&config_file), None, |_| None, std::iter::empty()).err();
 
         assert_eq!(
             error.as_ref().map(ToString::to_string).as_deref(),

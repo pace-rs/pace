@@ -1,0 +1,11 @@
+---
+source: tests/journey/settings.rs
+expression: output
+---
+$ pace config set week-start sunday   # at 09:00
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing to change: [SANDBOX]/config/pace.global.toml sets week-start to sunday already

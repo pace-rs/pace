@@ -130,8 +130,10 @@ impl PaceApp {
         )?;
         let dirs = resolve_dirs(inputs, Platform::current)?;
         let home = directories::BaseDirs::new().map(|base| base.home_dir().to_path_buf());
+        // `config set` creates the file it writes.
+        let creates_config_file = command.writes_config_file() && !dirs.config_file.path.exists();
         let settings = load_settings(
-            &dirs.config_file,
+            (!creates_config_file).then_some(&dirs.config_file),
             home.as_deref(),
             |name: &str| -> Option<OsString> { std::env::var_os(name) },
             std::env::vars_os().map(|(name, _)| name),

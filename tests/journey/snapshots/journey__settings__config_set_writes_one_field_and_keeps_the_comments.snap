@@ -1,0 +1,42 @@
+---
+source: tests/journey/settings.rs
+expression: transcript
+---
+$ pace config set time-zone europe/vienna
+success: true
+exit_code: 0
+----- stdout -----
+Set time-zone to Europe/Vienna in [SANDBOX]/config/pace.global.toml.
+
+----- stderr -----
+
+$ pace config set holds.default-source outer
+success: true
+exit_code: 0
+----- stdout -----
+Set holds.default-source to outer in [SANDBOX]/config/pace.global.toml.
+
+----- stderr -----
+
+$ pace config set most-recent-count 5
+success: true
+exit_code: 0
+----- stdout -----
+Set most-recent-count to 5 in [SANDBOX]/config/pace.global.toml.
+
+----- stderr -----
+
+----- pace.global.toml -----
+# My settings
+version = 1
+
+# The office
+time-zone = "Europe/Vienna" # Berlin
+week-start = "Sunday"
+most-recent-count = 5
+
+[storage]
+split = "week"
+
+[holds]
+default-source = "outer"

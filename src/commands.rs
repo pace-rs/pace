@@ -156,6 +156,12 @@ impl Runnable for EntryPoint {
 impl Configurable<()> for EntryPoint {}
 
 impl EntryPoint {
+    /// Whether the command writes the global config file: `pace config
+    /// set`, which creates it when it is missing.
+    pub(crate) const fn writes_config_file(&self) -> bool {
+        matches!(&self.cmd, Some(PaceCmd::Config(ConfigCmd::Set(_))))
+    }
+
     /// The catalog file in `home` that the command mends, so that it runs
     /// even when a mistake in that file keeps the catalog from reading:
     /// `pace role edit` opens the broken roles file to fix it, `pace client
@@ -231,6 +237,19 @@ mod tests {
             mended(&["pace", "project", "edit", "webshop"]),
             Some(PathBuf::from("home/projects/webshop.toml"))
         );
+    }
+
+    #[test]
+    fn only_config_set_writes_the_config_file() {
+        let writes = |args: &[&str]| {
+            EntryPoint::try_parse_from(args)
+                .unwrap()
+                .writes_config_file()
+        };
+
+        assert!(writes(&["pace", "config", "set", "week-start", "sunday"]));
+        assert!(!writes(&["pace", "config", "get", "week-start"]));
+        assert!(!writes(&["pace", "config", "show"]));
     }
 
     #[test]

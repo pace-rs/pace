@@ -1,0 +1,52 @@
+---
+source: tests/journey/settings.rs
+expression: output
+---
+$ pace config set week-start mondy   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `mondy` is not a day of the week
+  help: did you mean `monday`?
+
+
+$ pace config set most-recent-count 0   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `0` is not a whole number from 1
+  help: write a number like `9`
+
+
+$ pace config set storage.split fortnight   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `fortnight` is not a split
+  help: split by `year`, `month`, `week` or `day`
+
+
+$ pace config set time-zon Europe/Vienna   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace doesn't know the setting `time-zon`
+  help: did you mean `time-zone`?
+
+
+$ pace config set project-paths ~/repo   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `project-paths` is a table of directories, not one setting
+  help: edit [project-paths] in [SANDBOX]/config/pace.global.toml
