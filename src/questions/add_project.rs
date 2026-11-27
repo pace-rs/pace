@@ -63,6 +63,13 @@ pub struct AddProjectFlow {
     roles_in_use: Vec<Offered<RoleKey>>,
     /// Every role's key, archived or not, which `--role` may name.
     role_keys: Vec<RoleKey>,
+    /// What Enter takes for the name, and the note that names where it
+    /// comes from; the key, unless [`AddProjectFlow::with_name_default`]
+    /// says otherwise.
+    name_default: (String, String),
+    /// Whether the client and the role are asked with nothing to pick, as
+    /// `pace project init` adds an item for a new one.
+    asks_without_offers: bool,
     name: Option<String>,
     client: Optional<ClientKey>,
     role: Optional<RoleKey>,
@@ -100,7 +107,6 @@ impl AddProjectFlow {
         Ok(Self {
             record_file: record_file.to_path_buf(),
             id,
-            key,
             flags,
             clients: catalog
                 .clients()
@@ -118,6 +124,8 @@ impl AddProjectFlow {
                 })
                 .collect(),
             role_keys: catalog.roles().map(|role| role.key.clone()).collect(),
+            name_default: (key.to_string(), format!("name `{key}` from the key")),
+            asks_without_offers: false,
             name: None,
             client: Optional::Unasked,
             role: Optional::Unasked,
@@ -126,14 +134,44 @@ impl AddProjectFlow {
             starts_on: Optional::Unasked,
             ends_on: Optional::Unasked,
             done_when: Optional::Unasked,
+            key,
         })
+    }
+
+    /// This flow with `name` as what Enter takes for the name, and
+    /// `note` as what pace says when it takes it without a terminal.
+    #[must_use]
+    pub fn with_name_default(mut self, name: String, note: String) -> Self {
+        self.name_default = (name, note);
+        self
+    }
+
+    /// This flow asking the client and the role even with nothing to
+    /// pick but `none`, for a caller that adds an item of its own.
+    #[must_use]
+    pub const fn asking_without_offers(mut self) -> Self {
+        self.asks_without_offers = true;
+        self
+    }
+
+    /// Offer the client `key` named `name`, made while the flow runs.
+    pub fn offer_client(&mut self, key: ClientKey, name: String) {
+        self.clients.push(Offered { key, name });
+    }
+
+    /// Offer the role `key` named `name`, made while the flow runs.
+    pub fn offer_role(&mut self, key: RoleKey, name: String) {
+        self.role_keys.push(key.clone());
+        self.roles_in_use.push(Offered { key, name });
     }
 
     /// The question of the client; `None` once answered, or if there is
     /// no client to pick and `--client` names none.
     fn client_question(&self) -> Option<Question> {
         let open = self.client == Optional::Unasked
-            && (!self.clients.is_empty() || self.flags.client.is_some());
+            && (self.asks_without_offers
+                || !self.clients.is_empty()
+                || self.flags.client.is_some());
         open.then(|| Question {
             id: "client",
             text: "Which client is it for?".to_owned(),
@@ -151,7 +189,9 @@ impl AddProjectFlow {
     /// role in use to pick and `--role` names none.
     fn role_question(&self) -> Option<Question> {
         let open = self.role == Optional::Unasked
-            && (!self.roles_in_use.is_empty() || self.flags.role.is_some());
+            && (self.asks_without_offers
+                || !self.roles_in_use.is_empty()
+                || self.flags.role.is_some());
         open.then(|| Question {
             id: "role",
             text: "Which role does its time go to?".to_owned(),
@@ -272,11 +312,11 @@ impl Flow for AddProjectFlow {
                 id: "name",
                 text: "What is the project's name?".to_owned(),
                 kind: QuestionKind::Text {
-                    default: Some(self.key.to_string()),
+                    default: Some(self.name_default.0.clone()),
                 },
                 flag: "--name",
                 flag_answer: self.flags.name.clone().map(Answer::Text),
-                default_note: format!("name `{}` from the key", self.key),
+                default_note: self.name_default.1.clone(),
             });
         }
         self.client_question()

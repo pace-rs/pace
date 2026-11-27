@@ -14,6 +14,7 @@
 pub mod add_client;
 pub mod add_project;
 pub mod add_role;
+pub mod init_project;
 
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_store::field_edit::FieldEdit;
