@@ -1,9 +1,12 @@
 //! The use cases as data; see [`Command`].
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, fmt};
 
 use jiff::ZonedDateTime;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Deserializer, Serialize,
+    de::{Error as _, MapAccess, Visitor},
+};
 
 use crate::{Change, EntryId, HoldSource, PauseKind, ProjectRef, Tag, Text};
 
@@ -35,6 +38,9 @@ pub enum Command {
     /// Change an entry.
     Adjust(Adjust),
     /// Revert this device's last command.
+    // A unit variant of an internally tagged enum ignores other fields, so
+    // it reads them with `no_fields`, which refuses them as the structs do.
+    #[serde(deserialize_with = "no_fields")]
     Undo,
     /// Remove an entry for good.
     Forget(Forget),
@@ -218,5 +224,28 @@ mod change {
         deserializer: D,
     ) -> Result<Change<T>, D::Error> {
         Ok(Option::<T>::deserialize(deserializer)?.map_or(Change::Clear, Change::Set))
+    }
+}
+
+/// The fields of a command without fields: none, so an unknown one is an
+/// error, as `deny_unknown_fields` makes it for the other commands.
+fn no_fields<'de, D: Deserializer<'de>>(deserializer: D) -> Result<(), D::Error> {
+    deserializer.deserialize_map(NoFields)
+}
+
+/// Reads a map that must be empty; see [`no_fields`].
+struct NoFields;
+
+impl<'de> Visitor<'de> for NoFields {
+    type Value = ();
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("no fields")
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut fields: A) -> Result<(), A::Error> {
+        fields
+            .next_key::<String>()?
+            .map_or(Ok(()), |field| Err(A::Error::unknown_field(&field, &[])))
     }
 }

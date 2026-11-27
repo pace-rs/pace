@@ -151,6 +151,7 @@ fn forget_names_the_entry() -> TestResult {
 
 #[rstest]
 #[case::unknown_field_of_end(r#"{"command":"end","force":true}"#, "unknown field `force`")]
+#[case::unknown_field_of_undo(r#"{"command":"undo","force":true}"#, "unknown field `force`")]
 #[case::unknown_command(r#"{"command":"stop"}"#, "unknown variant `stop`")]
 #[case::project_without_key_or_id(
     r#"{"command":"begin","project":"acme-webshop"}"#,
