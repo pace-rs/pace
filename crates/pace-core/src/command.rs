@@ -5,7 +5,7 @@ use std::{collections::BTreeSet, fmt};
 use jiff::ZonedDateTime;
 use serde::{
     Deserialize, Deserializer, Serialize,
-    de::{Error as _, MapAccess, Visitor},
+    de::{Error as _, IgnoredAny, MapAccess, SeqAccess, Visitor},
 };
 
 use crate::{Change, EntryId, HoldSource, PauseKind, ProjectRef, Tag, Text};
@@ -228,12 +228,13 @@ mod change {
 }
 
 /// The fields of a command without fields: none, so an unknown one is an
-/// error, as `deny_unknown_fields` makes it for the other commands.
+/// error, as `deny_unknown_fields` makes it for the other commands. serde hands
+/// over the fields as a map, or as a sequence in its sequence form (`["undo"]`).
 fn no_fields<'de, D: Deserializer<'de>>(deserializer: D) -> Result<(), D::Error> {
-    deserializer.deserialize_map(NoFields)
+    deserializer.deserialize_any(NoFields)
 }
 
-/// Reads a map that must be empty; see [`no_fields`].
+/// Reads a map or a sequence that must be empty; see [`no_fields`].
 struct NoFields;
 
 impl<'de> Visitor<'de> for NoFields {
@@ -247,5 +248,11 @@ impl<'de> Visitor<'de> for NoFields {
         fields
             .next_key::<String>()?
             .map_or(Ok(()), |field| Err(A::Error::unknown_field(&field, &[])))
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut elements: A) -> Result<(), A::Error> {
+        elements
+            .next_element::<IgnoredAny>()?
+            .map_or(Ok(()), |_| Err(A::Error::invalid_length(1, &self)))
     }
 }

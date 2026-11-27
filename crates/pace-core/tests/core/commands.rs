@@ -150,8 +150,20 @@ fn forget_names_the_entry() -> TestResult {
 }
 
 #[rstest]
+#[case::end(r#"["end"]"#, Command::End(End::default()))]
+#[case::undo(r#"["undo"]"#, Command::Undo)]
+fn command_without_fields_reads_from_sequence(
+    #[case] json: &str,
+    #[case] command: Command,
+) -> TestResult {
+    assert_eq!(serde_json::from_str::<Command>(json)?, command);
+    Ok(())
+}
+
+#[rstest]
 #[case::unknown_field_of_end(r#"{"command":"end","force":true}"#, "unknown field `force`")]
 #[case::unknown_field_of_undo(r#"{"command":"undo","force":true}"#, "unknown field `force`")]
+#[case::undo_sequence_with_element(r#"["undo",true]"#, "invalid length 1, expected no fields")]
 #[case::unknown_command(r#"{"command":"stop"}"#, "unknown variant `stop`")]
 #[case::project_without_key_or_id(
     r#"{"command":"begin","project":"acme-webshop"}"#,
