@@ -10,6 +10,10 @@
 //! [`Appending::appended`] gives the [`Outcome`] or a new read. The event
 //! store and the blocking driver of the machine live in `pace_store`.
 //!
+//! The [`Catalog`] holds the roles, clients and project records, with their
+//! [`Money`] and [`Rounding`]: values the store reads and the core takes as
+//! an argument.
+//!
 //! Every timestamp is a jiff [`ZonedDateTime`](jiff::ZonedDateTime), so
 //! entries keep the zone they were recorded in. All IDs are UUIDv7.
 //!
@@ -64,8 +68,8 @@ mod text;
 mod tracking;
 
 pub use catalog::{
-    ArchiveReason, Archived, Currency, Money, Role, RoleKind, Rounding, RoundingMode, RoundingPer,
-    Totals,
+    ArchiveReason, Archived, Catalog, Client, Currency, Money, ProjectRecord, Rate, Rates, Role,
+    RoleKind, Rounding, RoundingMode, RoundingPer, Totals,
 };
 pub use command::Command;
 pub use entry::{Entry, EntryCatch, EntryHold, EntryOrigin, EntryPause, EntryState, ProjectRef};

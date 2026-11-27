@@ -57,10 +57,306 @@ macro_rules! keyword_enum {
     };
 }
 
+mod client;
 mod money;
+mod project;
 mod role;
 mod rounding;
 
+use std::{collections::BTreeMap, fmt};
+
+pub use client::{Client, Rate, Rates};
+use jiff::civil::Date;
 pub use money::{Currency, Money, Totals};
+use pace_error::{ErrorKind, PaceError, PaceResult};
+pub use project::ProjectRecord;
 pub use role::{ArchiveReason, Archived, Role, RoleKind};
 pub use rounding::{Rounding, RoundingMode, RoundingPer};
+
+use crate::{ClientKey, ProjectId, ProjectKey, ProjectRef, RoleId, RoleKey};
+
+/// The roles, clients and project records, checked against each other.
+///
+/// The store reads them from their files; the core takes the catalog as a
+/// value wherever a rule, a report or a bill needs it, and reads no file.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Catalog {
+    roles: BTreeMap<RoleKey, Role>,
+    role_keys: BTreeMap<RoleId, RoleKey>,
+    clients: BTreeMap<ClientKey, Client>,
+    projects: BTreeMap<ProjectKey, ProjectRecord>,
+    project_keys: BTreeMap<ProjectId, ProjectKey>,
+}
+
+impl Catalog {
+    /// The catalog of `roles`, `clients` and `projects`.
+    ///
+    /// # Errors
+    ///
+    /// If two roles, clients or projects share a key, or two roles or
+    /// projects an ID; if a project names a client or a role the catalog
+    /// doesn't hold; if a client has rates for a project it doesn't hold, or
+    /// a rate in another currency than its own. An unknown key names the
+    /// closest known one.
+    pub fn new(
+        roles: Vec<Role>,
+        clients: Vec<Client>,
+        projects: Vec<ProjectRecord>,
+    ) -> PaceResult<Self> {
+        let mut catalog = Self::default();
+        for role in roles {
+            catalog.insert_role(role)?;
+        }
+        for client in clients {
+            catalog.insert_client(client)?;
+        }
+        for project in projects {
+            catalog.insert_project(project)?;
+        }
+        catalog.check_projects()?;
+        catalog.check_clients()?;
+        Ok(catalog)
+    }
+
+    fn insert_role(&mut self, role: Role) -> PaceResult<()> {
+        if let Some(other) = self.role_keys.get(&role.id) {
+            return Err(same_id("roles", other.as_str(), role.key.as_str(), role.id));
+        }
+        if self.roles.contains_key(&role.key) {
+            return Err(same_key("roles", role.key.as_str()));
+        }
+        _ = self.role_keys.insert(role.id, role.key.clone());
+        _ = self.roles.insert(role.key.clone(), role);
+        Ok(())
+    }
+
+    fn insert_client(&mut self, client: Client) -> PaceResult<()> {
+        if self.clients.contains_key(&client.key) {
+            return Err(same_key("clients", client.key.as_str()));
+        }
+        _ = self.clients.insert(client.key.clone(), client);
+        Ok(())
+    }
+
+    fn insert_project(&mut self, project: ProjectRecord) -> PaceResult<()> {
+        if let Some(other) = self.project_keys.get(&project.id) {
+            return Err(same_id(
+                "projects",
+                other.as_str(),
+                project.key.as_str(),
+                project.id,
+            ));
+        }
+        if self.projects.contains_key(&project.key) {
+            return Err(same_key("projects", project.key.as_str()));
+        }
+        _ = self.project_keys.insert(project.id, project.key.clone());
+        _ = self.projects.insert(project.key.clone(), project);
+        Ok(())
+    }
+
+    /// Check that each project's client and role exist.
+    fn check_projects(&self) -> PaceResult<()> {
+        for project in self.projects.values() {
+            if let Some(client) = project.client.as_ref()
+                && !self.clients.contains_key(client)
+            {
+                return Err(unknown_reference(
+                    ("project", project.key.as_str()),
+                    "names",
+                    "client",
+                    client.as_str(),
+                    self.clients.keys().map(ClientKey::as_str),
+                ));
+            }
+            if let Some(role) = project.role.as_ref()
+                && !self.roles.contains_key(role)
+            {
+                return Err(unknown_reference(
+                    ("project", project.key.as_str()),
+                    "names",
+                    "role",
+                    role.as_str(),
+                    self.roles.keys().map(RoleKey::as_str),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Check that each client's project rates name a project, and that its
+    /// rates are in its currency.
+    fn check_clients(&self) -> PaceResult<()> {
+        for client in self.clients.values() {
+            if let Some(project) = client
+                .project_rates
+                .keys()
+                .find(|project| !self.projects.contains_key(*project))
+            {
+                return Err(unknown_reference(
+                    ("client", client.key.as_str()),
+                    "has rates for",
+                    "project",
+                    project.as_str(),
+                    self.projects.keys().map(ProjectKey::as_str),
+                ));
+            }
+            if let Some(rate) = client
+                .all_rates()
+                .find(|rate| rate.hourly.currency() != client.currency)
+            {
+                return Err(PaceError::new(
+                    ErrorKind::InvalidInput,
+                    "the client `{client}` bills in {currency}, but its rate from {from} is \
+                     {hourly} {other}",
+                )
+                .attach_context("client", client.key.as_str())
+                .attach_context("currency", client.currency.code())
+                .attach_context("from", rate.from.to_string())
+                .attach_context("hourly", rate.hourly.to_string())
+                .attach_context("other", rate.hourly.currency().code())
+                .attach_hint("give every rate of a client in the client's currency")
+                .attach_error_code("pace::core::rate-currency"));
+            }
+        }
+        Ok(())
+    }
+
+    /// The role with `key`.
+    #[must_use]
+    pub fn role(&self, key: &RoleKey) -> Option<&Role> {
+        self.roles.get(key)
+    }
+
+    /// The role with `id`.
+    #[must_use]
+    pub fn role_by_id(&self, id: RoleId) -> Option<&Role> {
+        self.role_keys.get(&id).and_then(|key| self.role(key))
+    }
+
+    /// The role of `project`: its key resolved to the role.
+    #[must_use]
+    pub fn role_of(&self, project: &ProjectRecord) -> Option<&Role> {
+        project.role.as_ref().and_then(|key| self.role(key))
+    }
+
+    /// The client with `key`.
+    #[must_use]
+    pub fn client(&self, key: &ClientKey) -> Option<&Client> {
+        self.clients.get(key)
+    }
+
+    /// The project with `key`.
+    #[must_use]
+    pub fn project(&self, key: &ProjectKey) -> Option<&ProjectRecord> {
+        self.projects.get(key)
+    }
+
+    /// The project with `id`.
+    #[must_use]
+    pub fn project_by_id(&self, id: ProjectId) -> Option<&ProjectRecord> {
+        self.project_keys.get(&id).and_then(|key| self.project(key))
+    }
+
+    /// The project an entry refers to, by its ID or by its key.
+    #[must_use]
+    pub fn resolve(&self, project: &ProjectRef) -> Option<&ProjectRecord> {
+        match project {
+            ProjectRef::Id(id) => self.project_by_id(*id),
+            ProjectRef::Key(key) => self.project(key),
+        }
+    }
+
+    /// The hourly rate of `project` on `day`: the project's rates first,
+    /// then its client's. `None` without a client, and before the first
+    /// rate (restart.md 3.7).
+    #[must_use]
+    pub fn rate_on(&self, project: &ProjectRecord, day: Date) -> Option<&Rate> {
+        project
+            .client
+            .as_ref()
+            .and_then(|client| self.client(client))
+            .and_then(|client| client.rate_on(&project.key, day))
+    }
+
+    /// The roles, ordered by key.
+    pub fn roles(&self) -> impl Iterator<Item = &Role> {
+        self.roles.values()
+    }
+
+    /// The clients, ordered by key.
+    pub fn clients(&self) -> impl Iterator<Item = &Client> {
+        self.clients.values()
+    }
+
+    /// The project records, ordered by key.
+    pub fn projects(&self) -> impl Iterator<Item = &ProjectRecord> {
+        self.projects.values()
+    }
+}
+
+/// The error for two records of one kind with the same key.
+fn same_key(plural: &str, key: &str) -> Box<PaceError> {
+    PaceError::new(ErrorKind::InvalidInput, "two {plural} have the key `{key}`")
+        .attach_context("plural", plural)
+        .attach_context("key", key)
+        .attach_hint("give each its own key")
+        .attach_error_code("pace::core::same-key")
+}
+
+/// The error for two records of one kind with the same ID.
+fn same_id(plural: &str, first: &str, second: &str, id: impl fmt::Display) -> Box<PaceError> {
+    PaceError::new(
+        ErrorKind::InvalidInput,
+        "the {plural} `{first}` and `{second}` have the same ID {id}",
+    )
+    .attach_context("plural", plural)
+    .attach_context("first", first)
+    .attach_context("second", second)
+    .attach_context("id", id.to_string())
+    .attach_hint("a copied record keeps its ID; give the copy a new one")
+    .attach_error_code("pace::core::same-id")
+}
+
+/// The error for a record, `(owner_noun, owner)`, whose `relation` to a
+/// `noun` names a key the catalog doesn't hold; its hint names the closest
+/// key, else the known ones.
+fn unknown_reference<'keys>(
+    (owner_noun, owner): (&str, &str),
+    relation: &str,
+    noun: &str,
+    key: &str,
+    known: impl Iterator<Item = &'keys str> + Clone,
+) -> Box<PaceError> {
+    let hint = closest_key(key, known.clone()).map_or_else(
+        || {
+            let known: Vec<String> = known.map(|known| format!("`{known}`")).collect();
+            if known.is_empty() {
+                format!("pace knows no {noun} yet")
+            } else {
+                format!("pace knows these {noun}s: {}", known.join(", "))
+            }
+        },
+        |closest| format!("did you mean `{closest}`?"),
+    );
+    PaceError::new(
+        ErrorKind::InvalidInput,
+        "the {owner_noun} `{owner}` {relation} the {noun} `{key}`, which pace doesn't know",
+    )
+    .attach_context("owner_noun", owner_noun)
+    .attach_context("owner", owner)
+    .attach_context("relation", relation)
+    .attach_context("noun", noun)
+    .attach_context("key", key)
+    .attach_hint(hint)
+    .attach_error_code(format!("pace::core::unknown-{noun}"))
+}
+
+/// The known key closest to `input`, if one is close enough to be a typo.
+fn closest_key<'keys>(input: &str, known: impl Iterator<Item = &'keys str>) -> Option<&'keys str> {
+    known
+        .map(|known| (strsim::jaro_winkler(input, known), known))
+        .filter(|(score, _)| *score > 0.8)
+        .max_by(|a, b| a.0.total_cmp(&b.0))
+        .map(|(_, known)| known)
+}
