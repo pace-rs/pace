@@ -45,6 +45,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+mod catalog;
 pub mod command;
 mod entry;
 mod event;
@@ -62,13 +63,14 @@ pub mod testing;
 mod text;
 mod tracking;
 
+pub use catalog::{Currency, Money, Totals};
 pub use command::Command;
 pub use entry::{Entry, EntryCatch, EntryHold, EntryOrigin, EntryPause, EntryState, ProjectRef};
 pub use event::{
     Batch, Change, ChangeMarker, Device, EntryChanges, Event, EventKind, Hlc, RecordedEvent,
 };
-pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId};
-pub use key::{ProjectKey, Tag};
+pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId, RoleId};
+pub use key::{ClientKey, ProjectKey, RoleKey, Tag};
 pub use open::EntryVerb;
 pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier};
 pub use rules::{OVERLAP, Policy, Rules};

@@ -13,10 +13,12 @@ rust-version = { workspace = true }
 description = "pace_core: the domain of pace, its rules, step machine and commands; no I/O"
 
 [dependencies]
+iso_currency = { workspace = true }
 jiff = { workspace = true, features = ["serde"] }
 pace_error = { workspace = true }
 pace_time = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+strsim = { workspace = true }
 uuid = { workspace = true }
 
 [features]

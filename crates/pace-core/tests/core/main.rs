@@ -1,9 +1,11 @@
 //! Behaviour of `pace_core`.
 
+mod catalog;
 mod commands;
 mod hlc;
 mod ids;
 mod keys;
+mod money;
 mod rules;
 mod state;
 mod steps;

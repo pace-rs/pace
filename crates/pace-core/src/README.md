@@ -14,11 +14,12 @@ IDs and the lock the test doubles share.
 
 | File                         | What it holds                                                                                                                          |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [`catalog.rs`](catalog.rs)   | The catalog: the roles, clients and project records that rules, reports and bills take as a value, with their money and rounding.      |
 | [`command.rs`](command.rs)   | The use cases as data; see `Command`.                                                                                                  |
 | [`entry.rs`](entry.rs)       | Entries: a stretch of tracked time with its note, project and tags, its holds, pauses and catches, and what it is doing now.           |
 | [`event.rs`](event.rs)       | The events of the log: what happened to an entry or a batch, as the core decided it.                                                   |
-| [`id.rs`](id.rs)             | The IDs of events, batches, devices and entries, each a UUIDv7.                                                                        |
-| [`key.rs`](key.rs)           | The names people type: project keys such as `acme-webshop`, and tags.                                                                  |
+| [`id.rs`](id.rs)             | The IDs of events, batches, devices, entries, projects and roles, each a UUIDv7.                                                       |
+| [`key.rs`](key.rs)           | The names people type: the keys of projects, roles and clients such as `acme-webshop`, and tags.                                       |
 | [`lib.rs`](lib.rs)           | The domain of pace: its rules, its step machine and its commands.                                                                      |
 | [`open.rs`](open.rs)         | The open entry a command acts on, and how pace names entries in its texts: the short ID, the note and the times.                       |
 | [`port.rs`](port.rs)         | The ports of the core: the clock, the source of IDs and the notifier.                                                                  |
@@ -30,6 +31,7 @@ IDs and the lock the test doubles share.
 | [`testing.rs`](testing.rs)   | For tests of pace and of store backends: a settable clock, deterministic IDs, and the lock that the test doubles share.                |
 | [`text.rs`](text.rs)         | Text that people write: the note of an entry, the reason of a hold or a pause, a caught thought.                                       |
 | [`tracking.rs`](tracking.rs) | Where a hold came from, and what kind of break a pause is.                                                                             |
+| [`catalog/`](catalog/)       | The catalog: the roles, clients and project records that rules, reports and bills take as a value, with their money and rounding.      |
 | [`rules/`](rules/)           | What each command turns into: the events of one batch, or an error that says how to fix it.                                            |
 | [`testing/`](testing/)       | For tests of pace and of store backends: a settable clock, deterministic IDs, and the lock that the test doubles share.                |
 

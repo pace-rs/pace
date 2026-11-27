@@ -1,4 +1,5 @@
-//! The IDs of events, batches, devices and entries, each a UUIDv7.
+//! The IDs of events, batches, devices, entries, projects and roles, each a
+//! UUIDv7.
 
 use std::{fmt, str::FromStr};
 
@@ -100,6 +101,10 @@ uuid_v7_id!(
 uuid_v7_id!(
     /// Identity of a project; its key can change, its ID never does.
     ProjectId
+);
+uuid_v7_id!(
+    /// Identity of a role; its key can change, its ID never does.
+    RoleId
 );
 
 #[cfg(test)]

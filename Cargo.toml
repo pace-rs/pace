@@ -24,6 +24,7 @@ dialoguer = { version = "0.12.0", default-features = false }
 directories = "6.0.0"
 gethostname = "1.1.0"
 insta = { version = "1.49.0", features = ["filters"] }
+iso_currency = { version = "0.7.1", features = ["iterator"] }
 jiff = "1.0.3"
 miette = { version = "7.6.0", default-features = false }
 pace_core = { path = "crates/pace-core" }
