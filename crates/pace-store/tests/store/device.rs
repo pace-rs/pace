@@ -137,3 +137,32 @@ fn deleting_the_index_changes_nothing() -> TestResult {
     assert_eq!(after.open().count(), 1);
     Ok(())
 }
+
+#[test]
+fn clock_reading_out_of_range_in_cursors_stops_writing() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let home = dir.path().join("home");
+    let machine_dir = dir.path().join("machine");
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
+    let tracker = machine(&home, &machine_dir, device, &clock, 1);
+    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    std::fs::write(
+        machine_dir.join("cursors.toml"),
+        "version = 1\n\n[own]\nlast-hlc = [9223372036854775807, 0]\n",
+    )?;
+    clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
+
+    let error = pollster::block_on(tracker.run(&Command::End(End::default())))
+        .err()
+        .ok_or("an unknown clock reading must not turn the clone check off")?;
+
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "{} holds the clock reading 9223372036854775807 ms, outside the range pace knows",
+            machine_dir.join("cursors.toml").display()
+        )
+    );
+    Ok(())
+}

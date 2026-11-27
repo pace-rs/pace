@@ -14,11 +14,17 @@
 //!   the file but begun elsewhere; together they give the open entries,
 //!   since entry IDs are unique across devices
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
 use pace_core::{EntryId, EventKind, Hlc, RecordedEvent};
+use pace_error::PaceResult;
 use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
+
+use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts};
 
 /// The version of `index.json`; another version is rebuilt.
 pub const INDEX_VERSION: u32 = 1;
@@ -36,7 +42,7 @@ pub struct FileSummary {
     pub len: u64,
     pub modified: Option<u128>,
     /// The latest HLC as milliseconds and counter.
-    pub max_hlc: Option<(i64, u32)>,
+    pub max_hlc: Option<HlcParts>,
     /// The earliest and latest moment in the file, in milliseconds.
     pub envelope: Option<(i64, i64)>,
     /// The earliest and latest `about`, in milliseconds.
@@ -52,13 +58,15 @@ pub struct FileSummary {
 }
 
 impl FileSummary {
-    /// The latest HLC in the file.
-    pub fn max_hlc(&self) -> Option<Hlc> {
-        self.max_hlc.and_then(|(millis, counter)| {
-            jiff::Timestamp::from_millisecond(millis)
-                .ok()
-                .map(|wall| Hlc::new(wall, counter))
-        })
+    /// The latest HLC in the file, as the index at `index_path` holds it.
+    ///
+    /// # Errors
+    ///
+    /// If the index holds a reading outside the range of a timestamp.
+    pub fn max_hlc(&self, index_path: &Path) -> PaceResult<Option<Hlc>> {
+        self.max_hlc
+            .map(|parts| hlc_from_parts(parts, index_path))
+            .transpose()
     }
 }
 
@@ -117,7 +125,7 @@ pub fn summarize(events: &[RecordedEvent]) -> FileSummary {
             .iter()
             .map(|recorded| recorded.hlc)
             .max()
-            .map(|hlc| (hlc.wall().as_millisecond(), hlc.counter())),
+            .map(hlc_parts),
         envelope: span(&moments),
         abouts: span(&abouts),
         unended: begun

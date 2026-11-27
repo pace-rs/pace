@@ -13,10 +13,8 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, hash_map::DefaultHasher},
-    fs::{File, OpenOptions},
     future::Future,
     hash::{Hash, Hasher},
-    io::Write as _,
     path::{Path, PathBuf},
     sync::Arc,
     time::SystemTime,
@@ -31,11 +29,15 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
 
+use crate::disk::{
+    DEVICE_FILE, create_dir, event_files, io_error, lock, prepare, relative_name,
+    remove_empty_dirs, write_atomically,
+};
 use crate::format::{file_header, parse_events, serialize_events};
 use crate::machine::clone_detected;
 use crate::{
     Split,
-    index::{INDEX_VERSION, Index, select, summarize},
+    index::{FileSummary, INDEX_VERSION, Index, select, summarize},
     machine::Cursors,
 };
 
@@ -73,7 +75,6 @@ struct DeviceFile {
     split: Split,
 }
 
-const DEVICE_FILE: &str = "device.toml";
 const INDEX_FILE: &str = "index.json";
 
 /// Events parsed while refreshing the index, by file.
@@ -122,13 +123,16 @@ impl FilesStore {
         create_dir(&dir)?;
 
         let (index, _) = self.refreshed_index()?;
+        let index_path = self.machine.join(INDEX_FILE);
         let own_prefix = format!("{}/", self.device);
-        let own_last = index
-            .files
-            .iter()
-            .filter(|(name, _)| name.starts_with(&own_prefix))
-            .filter_map(|(_, summary)| summary.max_hlc())
-            .max();
+        let own_last = max_hlc(
+            index
+                .files
+                .iter()
+                .filter(|(name, _)| name.starts_with(&own_prefix))
+                .map(|(_, summary)| summary),
+            &index_path,
+        )?;
         let mut cursors = Cursors::load(&self.machine)?;
         if let (Some(own_last), Some(remembered)) = (own_last, cursors.last_written)
             && own_last > remembered
@@ -137,11 +141,7 @@ impl FilesStore {
         }
 
         let device_file = self.device_file(&dir, &now)?;
-        let mut last = index
-            .files
-            .values()
-            .filter_map(crate::index::FileSummary::max_hlc)
-            .max();
+        let mut last = max_hlc(index.files.values(), &index_path)?;
         let recorded: Vec<RecordedEvent> = batch
             .events
             .into_iter()
@@ -542,25 +542,6 @@ fn write_device_file(path: &Path, file: &DeviceFile) -> PaceResult<()> {
     write_atomically(path, &text)
 }
 
-/// Remove the empty directories below `dir`, deepest first; `dir` stays.
-fn remove_empty_dirs(dir: &Path) -> PaceResult<()> {
-    for entry in std::fs::read_dir(dir).map_err(|error| io_error("read", dir, error))? {
-        let path = entry.map_err(|error| io_error("read", dir, error))?.path();
-        if !path.is_dir() {
-            continue;
-        }
-        remove_empty_dirs(&path)?;
-        let empty = std::fs::read_dir(&path)
-            .map_err(|error| io_error("read", &path, error))?
-            .next()
-            .is_none();
-        if empty {
-            std::fs::remove_dir(&path).map_err(|error| io_error("remove", &path, error))?;
-        }
-    }
-    Ok(())
-}
-
 fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {
     let text = std::fs::read_to_string(path).map_err(|error| io_error("read", path, error))?;
     toml::from_str(&text).map_err(|error| {
@@ -574,90 +555,16 @@ fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {
     })
 }
 
-/// The event files in a device directory, oldest period first.
-fn event_files(dir: &Path) -> PaceResult<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    let mut pending = vec![dir.to_path_buf()];
-    while let Some(dir) = pending.pop() {
-        for entry in std::fs::read_dir(&dir).map_err(|error| io_error("read", &dir, error))? {
-            let path = entry.map_err(|error| io_error("read", &dir, error))?.path();
-            let name = path
-                .file_name()
-                .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
-            if name.starts_with('.') {
-                continue;
-            }
-            if path.is_dir() {
-                pending.push(path);
-            } else if name != DEVICE_FILE
-                && path
-                    .extension()
-                    .is_some_and(|extension| extension.eq_ignore_ascii_case("toml"))
-            {
-                files.push(path);
-            }
-        }
+/// The latest HLC of `summaries`, from the index at `index_path`.
+fn max_hlc<'index>(
+    summaries: impl Iterator<Item = &'index FileSummary>,
+    index_path: &Path,
+) -> PaceResult<Option<Hlc>> {
+    let mut latest = None;
+    for summary in summaries {
+        latest = latest.max(summary.max_hlc(index_path)?);
     }
-    files.sort();
-    Ok(files)
-}
-
-fn create_dir(dir: &Path) -> PaceResult<()> {
-    std::fs::create_dir_all(dir).map_err(|error| io_error("create", dir, error))
-}
-
-/// The lock file, locked exclusively until the returned file is dropped.
-fn lock(path: &Path) -> PaceResult<File> {
-    let file = OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .write(true)
-        .open(path)
-        .map_err(|error| io_error("open", path, error))?;
-    file.lock().map_err(|error| io_error("lock", path, error))?;
-    Ok(file)
-}
-
-/// The name of an event file in the index: its path below `events/`, with
-/// `/` as separator on every OS.
-fn relative_name(events: &Path, path: &Path) -> String {
-    path.strip_prefix(events)
-        .unwrap_or(path)
-        .components()
-        .map(|component| component.as_os_str().to_string_lossy().into_owned())
-        .collect::<Vec<_>>()
-        .join("/")
-}
-
-/// Write `text` to `path` through a temporary file next to it.
-pub fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
-    let (temporary, path) = prepare(path, text)?;
-    _ = temporary
-        .persist(&path)
-        .map_err(|error| io_error("write", &path, error.error))?;
-    Ok(())
-}
-
-/// `text` in a temporary file next to `path`, ready to be renamed over it.
-fn prepare(path: &Path, text: &str) -> PaceResult<(tempfile::NamedTempFile, PathBuf)> {
-    let dir = path.parent().unwrap_or_else(|| Path::new("."));
-    create_dir(dir)?;
-    let mut temporary = tempfile::Builder::new()
-        .prefix(".pace-")
-        .tempfile_in(dir)
-        .map_err(|error| io_error("create a temporary file in", dir, error))?;
-    temporary
-        .write_all(text.as_bytes())
-        .and_then(|()| temporary.as_file().sync_all())
-        .map_err(|error| io_error("write", temporary.path(), error))?;
-    Ok((temporary, path.to_path_buf()))
-}
-
-fn io_error(verb: &str, path: &Path, error: std::io::Error) -> Box<PaceError> {
-    PaceError::with_source(ErrorKind::InputOutput, "cannot {verb} {path}", error)
-        .attach_context("verb", verb)
-        .attach_context("path", path.display().to_string())
-        .attach_hint("check that the path exists and that pace may write there")
+    Ok(latest)
 }
 
 /// The entry an event is about, if any.

@@ -9,8 +9,10 @@
 //! - `testing` (feature `testing`): a scratch directory for tests that write
 //!   through a backend.
 
+mod disk;
 mod files;
 mod format;
+mod hlc;
 mod index;
 mod machine;
 mod split;

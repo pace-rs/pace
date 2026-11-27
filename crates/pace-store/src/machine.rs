@@ -7,7 +7,9 @@ use pace_core::{DeviceId, EntryId, Hlc, Ids};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
-const DEVICE_FILE: &str = "device.toml";
+use crate::disk::{DEVICE_FILE, io_error, write_atomically};
+use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts};
+
 const CURSORS_FILE: &str = "cursors.toml";
 
 /// This machine's device ID, and whether this run created it.
@@ -77,7 +79,7 @@ struct Own {
     /// The HLC of the last event this machine wrote, as milliseconds and
     /// counter.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    last_hlc: Option<(i64, u32)>,
+    last_hlc: Option<HlcParts>,
     /// Forgotten entries whose events this machine removed from its log.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     cleaned: BTreeSet<EntryId>,
@@ -114,11 +116,10 @@ impl Cursors {
         })?;
         let own = file.own.unwrap_or_default();
         Ok(Self {
-            last_written: own.last_hlc.and_then(|(millis, counter)| {
-                jiff::Timestamp::from_millisecond(millis)
-                    .ok()
-                    .map(|wall| Hlc::new(wall, counter))
-            }),
+            last_written: own
+                .last_hlc
+                .map(|parts| hlc_from_parts(parts, &path))
+                .transpose()?,
             cleaned: own.cleaned,
         })
     }
@@ -130,9 +131,7 @@ impl Cursors {
             &CursorsFile {
                 version: 1,
                 own: Some(Own {
-                    last_hlc: self
-                        .last_written
-                        .map(|hlc| (hlc.wall().as_millisecond(), hlc.counter())),
+                    last_hlc: self.last_written.map(hlc_parts),
                     cleaned: self.cleaned.clone(),
                 }),
             },
@@ -160,12 +159,5 @@ fn write<T: Serialize>(path: &Path, value: &T) -> PaceResult<()> {
             .attach_context("path", path.display().to_string())
             .ask_report()
     })?;
-    crate::files::write_atomically(path, &text)
-}
-
-fn io_error(verb: &str, path: &Path, error: std::io::Error) -> Box<PaceError> {
-    PaceError::with_source(ErrorKind::InputOutput, "cannot {verb} {path}", error)
-        .attach_context("verb", verb)
-        .attach_context("path", path.display().to_string())
-        .attach_hint("check that the machine directory exists and that pace may write there")
+    write_atomically(path, &text)
 }
