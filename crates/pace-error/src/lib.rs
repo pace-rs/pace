@@ -298,22 +298,44 @@ impl PaceError {
 
     /// The guidance with its placeholders filled, and the context entries
     /// that were not used for a placeholder.
+    ///
+    /// It reads the template once, so a value that holds `{key}` stays as
+    /// written. A placeholder without a context entry stays as written too.
     fn filled_guidance(&self) -> (String, Vec<&(String, String)>) {
-        let mut guidance = self.guidance.clone();
+        let mut filled = String::with_capacity(self.guidance.len());
+        let mut used = Vec::new();
+        let mut rest = self.guidance.as_str();
+        while let Some((before, after)) = rest.split_once('{') {
+            filled.push_str(before);
+            let placeholder = after
+                .split_once('}')
+                .and_then(|(key, tail)| Some((self.context_entry(key)?, tail)));
+            if let Some(((index, value), tail)) = placeholder {
+                filled.push_str(value);
+                used.push(index);
+                rest = tail;
+            } else {
+                filled.push('{');
+                rest = after;
+            }
+        }
+        filled.push_str(rest);
         let unused = self
             .context
             .iter()
-            .filter(|(key, value)| {
-                let pattern = format!("{{{key}}}");
-                if guidance.contains(&pattern) {
-                    guidance = guidance.replace(&pattern, value);
-                    false
-                } else {
-                    true
-                }
-            })
+            .enumerate()
+            .filter(|(index, _)| !used.contains(index))
+            .map(|(_, entry)| entry)
             .collect();
-        (guidance, unused)
+        (filled, unused)
+    }
+
+    /// The first context entry with `key`: its position and its value.
+    fn context_entry(&self, key: &str) -> Option<(usize, &str)> {
+        self.context
+            .iter()
+            .enumerate()
+            .find_map(|(index, (k, value))| (k == key).then_some((index, value.as_str())))
     }
 
     /// A one-line form for logs.

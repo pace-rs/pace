@@ -33,6 +33,31 @@ fn guidance_placeholders_are_filled_from_the_context() {
 }
 
 #[test]
+fn placeholder_in_context_value_stays_as_written() {
+    let error = PaceError::new(
+        ErrorKind::Directories,
+        "the machine directory {machine} lies inside {data}",
+    )
+    .attach_context("machine", "/s/home/{data}")
+    .attach_context("data", "/s/home")
+    .attach_context("reason", "{machine} is synced");
+
+    assert_eq!(
+        error.to_string(),
+        "the machine directory /s/home/{data} lies inside /s/home"
+    );
+    assert_eq!(help(&error), "Details:\n- reason: {machine} is synced");
+}
+
+#[test]
+fn placeholder_without_context_stays_as_written() {
+    let error =
+        PaceError::new(ErrorKind::Other, "keep {unknown} and {data").attach_context("data", "/s");
+
+    assert_eq!(error.to_string(), "keep {unknown} and {data");
+}
+
+#[test]
 fn the_hint_is_the_help_of_the_diagnostic() {
     let error = PaceError::new(ErrorKind::Other, "nothing is running")
         .attach_hint("`pace begin` starts an entry");
