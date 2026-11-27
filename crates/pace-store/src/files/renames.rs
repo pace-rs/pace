@@ -143,6 +143,7 @@ mod tests {
                 dir.path().join("home"),
                 dir.path().join("machine"),
                 device,
+                "laptop".to_owned(),
                 clock.clone(),
                 Split::Day,
             );

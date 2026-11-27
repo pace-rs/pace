@@ -51,6 +51,7 @@ impl Setup {
             self.home(),
             self.dir.path().join("machine"),
             self.device,
+            "laptop".to_owned(),
             self.clock.clone(),
             split,
         )
@@ -105,6 +106,7 @@ fn the_files_backend_keeps_the_store_contract() -> TestResult {
                 root.join("home"),
                 root.join("machine").join(device.to_string()),
                 device,
+                "laptop".to_owned(),
                 clock,
                 Split::Month,
             )
@@ -247,7 +249,7 @@ fn the_device_file_names_the_device_and_its_split() -> TestResult {
     assert_eq!(devices.len(), 1);
     assert_eq!(devices[0].id, setup.device);
     assert_eq!(devices[0].created, at("2026-11-26T09:00[Europe/Berlin]")?);
-    assert_ne!(devices[0].name, "");
+    assert_eq!(devices[0].name, "laptop");
     assert!(text.contains("split = \"week\""), "{text}");
     Ok(())
 }
@@ -512,6 +514,7 @@ fn resplitting_leaves_other_devices_alone() -> TestResult {
         setup.home(),
         setup.dir.path().join("other-machine"),
         other,
+        "laptop".to_owned(),
         setup.clock.clone(),
         Split::Month,
     );

@@ -13,7 +13,6 @@ rust-version = { workspace = true }
 description = "pace_store: the event store of pace, its port, driver and backends, devices and state files"
 
 [dependencies]
-gethostname = { workspace = true }
 jiff = { workspace = true, features = ["serde"] }
 pace_core = { workspace = true }
 pace_error = { workspace = true }

@@ -53,7 +53,8 @@ pub struct Inputs {
 impl Inputs {
     /// Collect the given paths: a flag wins over its variable, an empty
     /// variable counts as unset, and relative paths start in the working
-    /// directory.
+    /// directory `cwd`. A `pace.global.toml` beside the `executable` turns
+    /// on portable mode.
     ///
     /// # Errors
     ///
@@ -62,6 +63,8 @@ impl Inputs {
         flag_config: Option<&Path>,
         flag_home: Option<&Path>,
         env: impl Fn(&str) -> Option<OsString>,
+        cwd: &Path,
+        executable: Option<&Path>,
     ) -> PaceResult<Self> {
         let given = |flag: Option<(&Path, &'static str)>, var: &'static str| {
             let (path, origin) = match (flag, env(var).filter(|value| !value.is_empty())) {
@@ -69,28 +72,29 @@ impl Inputs {
                 (None, Some(value)) => (PathBuf::from(value), Origin::Env(var)),
                 (None, None) => return Ok(None),
             };
-            absolute(&path).map(|path| Some(Located { path, origin }))
+            absolute(&path, cwd).map(|path| Some(Located { path, origin }))
         };
 
         Ok(Self {
             config_file: given(flag_config.map(|path| (path, "--config")), "PACE_CONFIG")?,
             home: given(flag_home.map(|path| (path, "--home")), "PACE_HOME")?,
             machine: given(None, "PACE_MACHINE_DIR")?,
-            portable: portable_dir(),
+            portable: executable.and_then(portable_dir),
         })
     }
 }
 
-fn absolute(path: &Path) -> PaceResult<PathBuf> {
-    std::path::absolute(path).map_err(|error| {
+/// `path`, relative to `cwd` if it is relative.
+fn absolute(path: &Path, cwd: &Path) -> PaceResult<PathBuf> {
+    std::path::absolute(cwd.join(path)).map_err(|error| {
         PaceError::with_source(ErrorKind::Directories, "cannot find {path}", error)
             .attach_context("path", path.display().to_string())
             .attach_hint("give an absolute path")
     })
 }
 
-fn portable_dir() -> Option<PathBuf> {
-    let executable = std::env::current_exe().ok()?;
+/// The directory of `executable`, if a `pace.global.toml` lies there.
+fn portable_dir(executable: &Path) -> Option<PathBuf> {
     let dir = executable.parent()?;
     dir.join(GLOBAL_CONFIG_FILE)
         .is_file()

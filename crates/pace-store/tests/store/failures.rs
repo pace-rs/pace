@@ -36,6 +36,7 @@ fn tracker(
             home.to_path_buf(),
             machine.to_path_buf(),
             device,
+            "laptop".to_owned(),
             clock.clone(),
             Split::Day,
         ),

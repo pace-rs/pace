@@ -1,4 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::{
+    ffi::OsString,
+    path::{Path, PathBuf},
+};
+
+use pace_store::testing::scratch_dir;
 
 use pace_error::{ErrorKind, PaceResult};
 
@@ -199,4 +204,44 @@ fn the_machine_directory_must_not_be_inside_the_data_directory() {
             "{machine}"
         );
     }
+}
+
+fn no_env(_: &str) -> Option<OsString> {
+    None
+}
+
+#[test]
+fn relative_path_starts_in_given_working_directory() -> PaceResult<()> {
+    let env = |name: &str| (name == "PACE_HOME").then(|| OsString::from("data"));
+
+    let inputs = Inputs::gather(None, None, env, Path::new("/home/me/work"), None)?;
+
+    assert_eq!(
+        inputs.home,
+        Some(located("/home/me/work/data", Origin::Env("PACE_HOME")))
+    );
+    Ok(())
+}
+
+#[test]
+fn executable_beside_global_config_is_portable() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = scratch_dir()?;
+    std::fs::write(dir.path().join("pace.global.toml"), "")?;
+    let executable = dir.path().join("pace");
+
+    let inputs = Inputs::gather(None, None, no_env, Path::new("/"), Some(&executable))?;
+
+    assert_eq!(inputs.portable, Some(dir.path().to_path_buf()));
+    Ok(())
+}
+
+#[test]
+fn executable_without_global_config_is_not_portable() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = scratch_dir()?;
+    let executable = dir.path().join("pace");
+
+    let inputs = Inputs::gather(None, None, no_env, Path::new("/"), Some(&executable))?;
+
+    assert_eq!(inputs.portable, None);
+    Ok(())
 }

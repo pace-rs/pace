@@ -51,6 +51,7 @@ impl Device {
                 home.clone(),
                 root.path().join(name).join("machine"),
                 id,
+                "laptop".to_owned(),
                 clock.clone(),
                 split,
             ),

@@ -1,7 +1,7 @@
 //! What a tracking command works with: the tracker over the files backend,
 //! with this machine's device ID, the clock and the settings.
 
-use std::{path::PathBuf, sync::Arc};
+use std::{ffi::OsStr, path::PathBuf, sync::Arc};
 
 use pace_core::{Command, DeviceId, Ids, Outcome, Policy};
 use pace_error::PaceResult;
@@ -11,8 +11,20 @@ use pace_time::TimeRange;
 use crate::clock::clock;
 use crate::{
     application::{Context, print_error},
-    clock::{RandomIds, TEST_NOW},
+    clock::RandomIds,
 };
+
+/// The readable name of this device: the `hostname`, or `device` if it
+/// is empty.
+#[must_use]
+pub fn device_name(hostname: &OsStr) -> String {
+    let name = hostname.to_string_lossy();
+    if name.is_empty() {
+        "device".to_owned()
+    } else {
+        name.into_owned()
+    }
+}
 
 /// A tracker for this run.
 pub struct Session {
@@ -56,7 +68,7 @@ impl Session {
     fn with_device(context: &Context, ids: Arc<dyn Ids>, device: DeviceId) -> PaceResult<Self> {
         let clock = clock(
             &context.settings.settings.time_zone,
-            std::env::var_os(TEST_NOW),
+            context.test_now.clone(),
         )?;
         let data = context.dirs.data.path.clone();
         let settings = &context.settings.settings;
@@ -64,6 +76,7 @@ impl Session {
             data.clone(),
             context.dirs.machine.path.clone(),
             device,
+            context.host.clone(),
             clock.clone(),
             settings.split,
         );
@@ -128,5 +141,20 @@ impl Session {
     pub fn first_use_note(&self) -> Option<String> {
         (!self.data_existed && self.data.exists())
             .then(|| format!("pace keeps its data in {}.", self.data.display()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn device_is_named_after_host() {
+        assert_eq!(device_name(OsStr::new("laptop")), "laptop");
+    }
+
+    #[test]
+    fn device_without_hostname_is_named_device() {
+        assert_eq!(device_name(OsStr::new("")), "device");
     }
 }

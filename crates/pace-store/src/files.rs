@@ -49,6 +49,8 @@ pub struct FilesStore {
     home: PathBuf,
     machine: PathBuf,
     device: DeviceId,
+    /// The device's readable name for its `device.toml`.
+    name: String,
     clock: Arc<dyn Clock>,
     split: Split,
 }
@@ -96,8 +98,9 @@ type Found = HashMap<String, FoundFile>;
 
 impl FilesStore {
     /// The store of `device`, with its data in `home` (`PACE_HOME`) and its
-    /// lock in the machine directory `machine`. `split` applies when the
-    /// device writes its first event; afterwards its `device.toml` decides.
+    /// lock in the machine directory `machine`. `name`, the readable name,
+    /// and `split` apply when the device writes its first event; afterwards
+    /// its `device.toml` decides.
     /// The device's files come with its first append. Before it, a read
     /// saves only the index cache `index.json` when the event files
     /// changed, and creates the machine directory for it.
@@ -105,6 +108,7 @@ impl FilesStore {
         home: PathBuf,
         machine: PathBuf,
         device: DeviceId,
+        name: String,
         clock: Arc<dyn Clock>,
         split: Split,
     ) -> Self {
@@ -112,6 +116,7 @@ impl FilesStore {
             home,
             machine,
             device,
+            name,
             clock,
             split,
         }
@@ -286,14 +291,9 @@ impl FilesStore {
         if path.is_file() {
             return read_device_file(&path);
         }
-        let name = gethostname::gethostname().to_string_lossy().into_owned();
         let file = DeviceFile {
             version: DEVICE_VERSION,
-            name: if name.is_empty() {
-                "device".to_owned()
-            } else {
-                name
-            },
+            name: self.name.clone(),
             created: now.clone(),
             split: self.split,
         };

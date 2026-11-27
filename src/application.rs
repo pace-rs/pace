@@ -14,11 +14,13 @@ use abscissa_core::{
 use miette::{MietteHandler, MietteHandlerOpts, ReportHandler};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 
+use crate::clock::TEST_NOW;
 use crate::config::load_settings;
 use crate::dirs::resolve_dirs;
 use crate::editor::editor_variable;
 use crate::project::discover_project;
 use crate::prompt::Terminal;
+use crate::session::device_name;
 use crate::{
     commands::EntryPoint,
     config::Loaded,
@@ -35,7 +37,7 @@ pub struct PaceApp {
     config: CfgCell<()>,
     state: application::State<Self>,
     context: Option<Context>,
-    plain: bool,
+    style: Style,
 }
 
 /// What pace found out before running a command.
@@ -51,6 +53,10 @@ pub struct Context {
     pub terminal: Terminal,
     /// The editor the user set in `VISUAL` or `EDITOR`.
     pub editor: Option<String>,
+    /// `PACE_TEST_NOW`, the moment that fixes the clock for tests.
+    pub test_now: Option<OsString>,
+    /// This device's readable name, from the hostname.
+    pub host: String,
 }
 
 impl PaceApp {
@@ -70,7 +76,6 @@ impl PaceApp {
     }
 
     fn try_init(&mut self, command: &EntryPoint) -> PaceResult<()> {
-        self.plain = command.plain;
         self.register_components(command).map_err(|error| {
             PaceError::with_source(
                 ErrorKind::Internal,
@@ -80,10 +85,21 @@ impl PaceApp {
             .ask_report()
         })?;
 
+        let cwd = std::env::current_dir().map_err(|error| {
+            PaceError::with_source(
+                ErrorKind::Project,
+                "cannot read the working directory",
+                error,
+            )
+            .attach_hint("change into a directory that exists")
+        })?;
+        let executable = std::env::current_exe().ok();
         let inputs = Inputs::gather(
             command.config.as_deref(),
             command.home.as_deref(),
             |name: &str| -> Option<OsString> { std::env::var_os(name) },
+            &cwd,
+            executable.as_deref(),
         )?;
         let dirs = resolve_dirs(inputs, Platform::current)?;
         let home = directories::BaseDirs::new().map(|base| base.home_dir().to_path_buf());
@@ -94,16 +110,8 @@ impl PaceApp {
             std::env::vars_os().map(|(name, _)| name),
         )?;
         for warning in &settings.warnings {
-            eprint!("{}", render(warning, self.plain));
+            eprint!("{}", render(warning, self.style));
         }
-        let cwd = std::env::current_dir().map_err(|error| {
-            PaceError::with_source(
-                ErrorKind::Project,
-                "cannot read the working directory",
-                error,
-            )
-            .attach_hint("change into a directory that exists")
-        })?;
         let project = discover_project(
             command.project.as_deref(),
             std::env::var_os("PACE_PROJECT"),
@@ -116,6 +124,8 @@ impl PaceApp {
             project,
             terminal: Terminal::detect(),
             editor: editor_variable(|name: &str| -> Option<OsString> { std::env::var_os(name) }),
+            test_now: std::env::var_os(TEST_NOW),
+            host: device_name(&gethostname::gethostname()),
         });
 
         self.after_config(()).map_err(|error| {
@@ -156,8 +166,11 @@ impl Application for PaceApp {
     /// Abscissa's `fatal_error` would print an init error without its hint
     /// and always exit with 1, so `init` renders its errors itself.
     fn init(&mut self, command: &Self::Cmd) -> Result<(), FrameworkError> {
+        self.style = Style::new(command.plain, |name: &str| -> Option<OsString> {
+            std::env::var_os(name)
+        });
         if let Err(error) = self.try_init(command) {
-            eprint!("{}", render(&error, command.plain));
+            eprint!("{}", render(&error, self.style));
             process::exit(error.exit_code().into());
         }
         Ok(())
@@ -175,23 +188,37 @@ pub fn exit_on_error(result: PaceResult<()>) {
 
 /// Print an error the way pace prints errors, and go on.
 pub fn print_error(error: &PaceError) {
-    eprint!("{}", render(error, PACE_APP.plain));
+    eprint!("{}", render(error, PACE_APP.style));
 }
 
-/// Render an error with its hint, details and snippet. `--plain` means ASCII
-/// without colour; `NO_COLOR` turns off colour; `NO_GRAPHICS` switches to
-/// miette's narrated output for screen readers. `COLUMNS` sets the width,
-/// as it does for clap's help.
-fn render(error: &PaceError, plain: bool) -> String {
-    let no_color = plain || std::env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty());
-    let mut options = MietteHandlerOpts::new().unicode(!plain);
-    if no_color {
+/// How pace renders errors, read once at the start. `--plain` means ASCII
+/// without colour; `NO_COLOR` turns off colour; `COLUMNS` sets the width,
+/// as it does for clap's help. miette reads `NO_GRAPHICS` itself and
+/// switches to its narrated output for screen readers.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct Style {
+    plain: bool,
+    no_color: bool,
+    width: Option<usize>,
+}
+
+impl Style {
+    fn new(plain: bool, env: impl Fn(&str) -> Option<OsString>) -> Self {
+        Self {
+            plain,
+            no_color: plain || env("NO_COLOR").is_some_and(|value| !value.is_empty()),
+            width: env("COLUMNS").and_then(|columns| columns.to_str()?.parse().ok()),
+        }
+    }
+}
+
+/// Render an error with its hint, details and snippet in `style`.
+fn render(error: &PaceError, style: Style) -> String {
+    let mut options = MietteHandlerOpts::new().unicode(!style.plain);
+    if style.no_color {
         options = options.color(false);
     }
-    if let Some(width) = std::env::var("COLUMNS")
-        .ok()
-        .and_then(|columns| columns.parse().ok())
-    {
+    if let Some(width) = style.width {
         options = options.width(width);
     }
     format!("{:?}\n", Rendered(&options.build(), error))
@@ -202,5 +229,44 @@ struct Rendered<'a>(&'a MietteHandler, &'a PaceError);
 impl fmt::Debug for Rendered<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.debug(self.1, f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn env<'a>(vars: &'a [(&str, &str)]) -> impl Fn(&str) -> Option<OsString> + 'a {
+        move |name| {
+            vars.iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| OsString::from(value))
+        }
+    }
+
+    #[test]
+    fn no_color_and_columns_shape_style() {
+        let style = Style::new(false, env(&[("NO_COLOR", "1"), ("COLUMNS", "80")]));
+
+        assert_eq!(
+            style,
+            Style {
+                plain: false,
+                no_color: true,
+                width: Some(80),
+            }
+        );
+    }
+
+    #[test]
+    fn empty_no_color_and_wrong_columns_change_nothing() {
+        let style = Style::new(false, env(&[("NO_COLOR", ""), ("COLUMNS", "wide")]));
+
+        assert_eq!(style, Style::default());
+    }
+
+    #[test]
+    fn plain_turns_colour_off() {
+        assert!(Style::new(true, env(&[])).no_color);
     }
 }

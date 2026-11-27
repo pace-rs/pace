@@ -770,6 +770,7 @@ dependencies = [
  "clap_complete_nushell",
  "dialoguer",
  "directories",
+ "gethostname",
  "insta",
  "jiff",
  "miette",
@@ -812,7 +813,6 @@ dependencies = [
 name = "pace_store"
 version = "0.0.0"
 dependencies = [
- "gethostname",
  "insta",
  "jiff",
  "miette",
