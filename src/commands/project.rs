@@ -350,17 +350,16 @@ fn known_project<'catalog>(
 ) -> PaceResult<&'catalog ProjectRecord> {
     catalog
         .project(key)
-        .ok_or_else(|| unknown_project(catalog, key))
+        .ok_or_else(|| unknown_project(key, catalog.projects().map(|record| record.key.as_str())))
 }
 
-/// The error for the project `key` that `catalog` has no record of: it
-/// names the closest key.
-fn unknown_project(catalog: &Catalog, key: &ProjectKey) -> Box<PaceError> {
-    let hint = closest_name(
-        key.as_str(),
-        catalog.projects().map(|record| record.key.as_str()),
-    )
-    .map_or_else(
+/// The error for the project `key` that pace has no record of: it names
+/// the closest of `keys`.
+fn unknown_project<'key>(
+    key: &ProjectKey,
+    keys: impl Iterator<Item = &'key str>,
+) -> Box<PaceError> {
+    let hint = closest_name(key.as_str(), keys).map_or_else(
         || "`pace project list` shows the projects".to_owned(),
         |closest| format!("did you mean `{closest}`?"),
     );
@@ -437,24 +436,22 @@ struct OpenedRecord {
 }
 
 /// The record file of the project `key` in `home`, which `catalog` reads.
-/// When a mistake in the record file keeps the catalog from reading,
-/// `catalog` is empty, and the ID is the one the file holds.
+/// When a mistake keeps the catalog from reading, `catalog` is empty: the
+/// ID and the name come from the record as it reads alone, or, with a
+/// mistake in the record file, the ID is the one the file holds.
 ///
 /// # Errors
 ///
-/// If the catalog reads and has no record of `key`: the error names the
-/// closest key. If a mistake in another file keeps the catalog from
-/// reading: that mistake, which points at its line. If the file can't be
-/// read.
+/// If no record of `key` reads: the error names the closest key. If the
+/// file can't be read.
 fn opened_record(home: &Path, catalog: &Catalog, key: ProjectKey) -> PaceResult<OpenedRecord> {
     let path = project_record_path(home, &key);
     let (id, name, mistake) = match catalog.project(&key) {
         Some(record) => (Some(record.id), record.name.clone(), None),
-        None => (
-            None,
-            key.to_string(),
-            Some(record_mistake(home, &path, catalog, &key)?),
-        ),
+        None => match record_alone(home, &path, catalog, &key)? {
+            RecordAlone::Read(record) => (Some(record.id), record.name, None),
+            RecordAlone::Broken(mistake) => (None, key.to_string(), Some(mistake)),
+        },
     };
     let text = std::fs::read_to_string(&path).map_err(|error| {
         PaceError::with_source(ErrorKind::InputOutput, "cannot read {path}", error)
@@ -471,24 +468,50 @@ fn opened_record(home: &Path, catalog: &Catalog, key: ProjectKey) -> PaceResult<
     })
 }
 
-/// The mistake in the record file `path` that keeps the catalog of `home`
-/// from reading, for a project `key` that `catalog` has no record of.
+/// A record file as it reads alone, while a mistake keeps the catalog
+/// from reading.
+#[derive(Debug)]
+enum RecordAlone {
+    /// The file reads; the mistake is in another file.
+    Read(ProjectRecord),
+    /// The mistake of the file itself.
+    Broken(Box<PaceError>),
+}
+
+/// The record file `path` of the project `key`, which `catalog` has no
+/// record of, as it reads alone in `home`.
 ///
 /// # Errors
 ///
-/// If the catalog reads, so that it has no record of `key`: the error
-/// names the closest key of `catalog`. If a mistake in another file keeps
-/// the catalog from reading while the record reads: that mistake.
-fn record_mistake(
+/// If no record of `key` reads: the error names the closest key of the
+/// records that read. If a file can't be read, or every file reads and
+/// [`Catalog::new`] refuses them for a mistake in another file.
+fn record_alone(
     home: &Path,
     path: &Path,
     catalog: &Catalog,
     key: &ProjectKey,
-) -> PaceResult<Box<PaceError>> {
+) -> PaceResult<RecordAlone> {
     match read_catalog_mending(home, path, None) {
-        Err(mistake) if points_at_file(&mistake, path) => Ok(mistake),
-        Err(error) | Ok(MendedCatalog::Alone(_, error)) => Err(error),
-        Ok(MendedCatalog::Whole(_)) => Err(unknown_project(catalog, key)),
+        Err(mistake) if points_at_file(&mistake, path) => Ok(RecordAlone::Broken(mistake)),
+        Err(error) => Err(error),
+        Ok(MendedCatalog::Alone(mut records, _)) => {
+            match records
+                .projects
+                .iter()
+                .position(|record| record.key == *key)
+            {
+                Some(at) => Ok(RecordAlone::Read(records.projects.swap_remove(at))),
+                None => Err(unknown_project(
+                    key,
+                    records.projects.iter().map(|record| record.key.as_str()),
+                )),
+            }
+        }
+        Ok(MendedCatalog::Whole(_)) => Err(unknown_project(
+            key,
+            catalog.projects().map(|record| record.key.as_str()),
+        )),
     }
 }
 
@@ -519,6 +542,7 @@ fn edit_record(
     let command = format!("pace project edit {key}");
     let (edited, read) = edit_until_checked(
         EditedFile {
+            home,
             path: &path,
             command: &command,
         },
@@ -880,15 +904,32 @@ mod tests {
     }
 
     #[test]
-    fn mistake_in_other_record_stops_project_edit() {
+    fn record_opens_with_its_id_and_name_while_other_record_has_mistake() {
         let (home, _) = home_with_webshop();
         let garden = home.path().join("projects/garden.toml");
         write_catalog_file(&garden, "version = 1\nkey = \"garden\"\n").unwrap();
 
-        let error = opened_record(home.path(), &Catalog::default(), "webshop".parse().unwrap())
+        let opened =
+            opened_record(home.path(), &Catalog::default(), "webshop".parse().unwrap()).unwrap();
+
+        assert_eq!(
+            opened.id,
+            Some("0193a7c4-0000-7000-8000-000000000001".parse().unwrap())
+        );
+        assert_eq!(opened.name, "Webshop");
+        assert!(opened.mistake.is_none());
+    }
+
+    #[test]
+    fn unknown_project_beside_mistake_in_other_record_names_closest_key() {
+        let (home, _) = home_with_webshop();
+        let garden = home.path().join("projects/garden.toml");
+        write_catalog_file(&garden, "version = 1\nkey = \"garden\"\n").unwrap();
+
+        let error = opened_record(home.path(), &Catalog::default(), "webshob".parse().unwrap())
             .unwrap_err();
 
-        assert!(points_at_file(&error, &garden), "{error:?}");
+        assert_eq!(error.hint(), Some("did you mean `webshop`?"));
     }
 
     #[test]

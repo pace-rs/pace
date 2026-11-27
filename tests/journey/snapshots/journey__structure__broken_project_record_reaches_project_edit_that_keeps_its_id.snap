@@ -7,16 +7,8 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-pace::project-record::invalid-value
-
-  × `billable` takes `true` or `false`
-   ╭─[[SANDBOX]/home/projects/webshop.toml:5:12]
- 4 │ name = "Webshop"
- 5 │ billable = "yes"
-   ·            ──┬──
-   ·              ╰── a string
-   ╰────
-  help: write `billable = true` or `billable = false`, without quotes
+  × pace has no record of the project `garden`
+  help: `pace project list` shows the projects
 
 
 success: false

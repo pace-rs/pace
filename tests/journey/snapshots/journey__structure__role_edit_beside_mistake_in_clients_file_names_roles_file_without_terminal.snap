@@ -1,0 +1,12 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace role edit   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `pace role edit` has no terminal to open [SANDBOX]/home/roles.toml in an editor
+  help: edit the file by hand, or add a role with `pace role add`

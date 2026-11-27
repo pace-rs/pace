@@ -333,10 +333,10 @@ fn edit_roles(context: &Context) -> PaceResult<()> {
 ///
 /// # Errors
 ///
-/// If a mistake in another file of the catalog keeps it from reading while
-/// the roles file reads, as the roles file can't mend it; without a terminal, the roles file's
-/// mistake or [`no_terminal_to_edit`]; if the user leaves a mistake in the
-/// file, or the file can't be read or written.
+/// If every file reads and [`Catalog::new`] refuses them for a mistake in
+/// another file, as the roles file can't mend it; without a terminal, the
+/// roles file's mistake or [`no_terminal_to_edit`]; if the user leaves a
+/// mistake in the file, or the file can't be read or written.
 fn edit_roles_file(
     home: &Path,
     asker: &dyn Ask,
@@ -357,8 +357,7 @@ fn edit_roles_file(
         }
     };
     let mistake = match read_catalog_mending(home, &roles_file, Some(&text)) {
-        Ok(MendedCatalog::Whole(_)) => None,
-        Ok(MendedCatalog::Alone(_, mistake)) => return Err(mistake),
+        Ok(MendedCatalog::Whole(_) | MendedCatalog::Alone(..)) => None,
         Err(mistake) if points_at_file(&mistake, &roles_file) => Some(mistake),
         Err(error) => return Err(error),
     };
@@ -377,6 +376,7 @@ fn edit_roles_file(
     }
     let (edited, read) = edit_until_checked(
         EditedFile {
+            home,
             path: &roles_file,
             command: "pace role edit",
         },
@@ -647,23 +647,30 @@ mod tests {
     }
 
     #[test]
-    fn edit_stops_at_mistake_in_other_catalog_file_before_editor_opens() {
+    fn edit_saves_roles_file_while_other_catalog_file_has_mistake() {
         let home = pace_store::testing::scratch_dir().unwrap();
         std::fs::write(home.path().join(ROLES_FILE), WORK).unwrap();
         let clients_file = home.path().join("clients.toml");
         std::fs::write(&clients_file, "version = 1\n\n[acme]\nname = 1\n").unwrap();
-        let reported = std::cell::RefCell::new(Vec::new());
+        let renamed = WORK.replace("name = \"Work\"", "name = \"Job\"");
 
-        let error = edit_roles_file(
+        let saved = edit_roles_file(
             home.path(),
             &Scripted::confirming([]),
-            saving(&[]),
-            |error| reported.borrow_mut().push(error.to_string()),
+            saving(&[&renamed]),
+            |_| {},
         )
-        .unwrap_err();
+        .unwrap();
 
-        assert!(points_at_file(&error, &clients_file), "{error:?}");
-        assert_eq!(reported.into_inner(), Vec::<String>::new());
+        assert!(
+            saved
+                .left
+                .is_some_and(|mistake| points_at_file(&mistake, &clients_file))
+        );
+        assert_eq!(
+            std::fs::read_to_string(home.path().join(ROLES_FILE)).unwrap(),
+            renamed
+        );
     }
 
     #[test]

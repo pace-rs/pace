@@ -119,6 +119,8 @@ pub fn edit_in_editor(editor: &str, text: &str, suffix: &str) -> PaceResult<Stri
 /// opens it again.
 #[derive(Debug, Clone, Copy)]
 pub struct EditedFile<'file> {
+    /// The `PACE_HOME` of the catalog the file belongs to.
+    pub home: &'file Path,
     /// The file the text is written to once it is checked.
     pub path: &'file Path,
     /// The command that edits it: `pace role edit`.
@@ -157,9 +159,12 @@ pub fn edit_until_checked<T>(
         }
         let error = match check(&edited) {
             Ok(checked) => return Ok((edited, checked)),
-            Err(error) if error.kind() == ErrorKind::InvalidInput && asker.can_ask() => error,
+            Err(error) if error.kind() == ErrorKind::InvalidInput => mistake_elsewhere(file, error),
             Err(error) => return Err(error),
         };
+        if !asker.can_ask() {
+            return Err(error);
+        }
         report(&error);
         if !asker.confirm(&format!("Open {path} again to fix it?"), true)? {
             return Err(
@@ -170,6 +175,22 @@ pub fn edit_until_checked<T>(
             );
         }
         edited = edit(&edited)?;
+    }
+}
+
+/// `mistake` of the check of `file`: when it points at another catalog
+/// file, a line before it names the command that opens that file, as the
+/// edit doesn't save until either file is fixed.
+fn mistake_elsewhere(file: EditedFile<'_>, mistake: Box<PaceError>) -> Box<PaceError> {
+    let command = mistake
+        .snippet_name()
+        .filter(|name| Path::new(name) != file.path)
+        .and_then(|name| mending_command(file.home, Path::new(name)));
+    match command {
+        Some(command) => mistake.prepend_guidance_line(format!(
+            "pace doesn't save the edit until this mistake is fixed: `{command}` opens it"
+        )),
+        None => mistake,
     }
 }
 
@@ -231,12 +252,15 @@ fn left_mistake(home: &Path, mistake: Box<PaceError>) -> Box<PaceError> {
 mod tests {
     use std::cell::RefCell;
 
+    use pace_error::Snippet;
+
     use super::*;
     use crate::prompt::Scripted;
 
     /// The roles file, as `pace role edit` edits it.
     fn roles() -> EditedFile<'static> {
         EditedFile {
+            home: Path::new("home"),
             path: Path::new("roles.toml"),
             command: "pace role edit",
         }
@@ -326,6 +350,60 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error.to_string(), "the text says oops");
+    }
+
+    #[test]
+    fn mistake_in_other_file_names_command_that_opens_it() {
+        let edit = editor(&["after"]);
+        let record = Path::new("home/projects/webshop.toml");
+
+        let error = edit_until_checked(
+            roles(),
+            "before",
+            &Scripted::without_terminal(),
+            edit,
+            |_| -> PaceResult<()> {
+                Err(
+                    PaceError::new(ErrorKind::InvalidInput, "the client is unknown")
+                        .attach_snippet(Snippet::new(
+                            record.display().to_string(),
+                            "client = \"acmee\"\n",
+                            9..16,
+                            "this client",
+                        )),
+                )
+            },
+            |_| {},
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "pace doesn't save the edit until this mistake is fixed: `pace project edit webshop` opens it\nthe client is unknown"
+        );
+    }
+
+    #[test]
+    fn mistake_in_edited_file_names_no_command() {
+        let edit = editor(&["after"]);
+
+        let error = edit_until_checked(
+            roles(),
+            "before",
+            &Scripted::without_terminal(),
+            edit,
+            |_| -> PaceResult<()> {
+                Err(
+                    PaceError::new(ErrorKind::InvalidInput, "the kind is unknown").attach_snippet(
+                        Snippet::new("roles.toml", "kind = 1\n", 7..8, "this kind"),
+                    ),
+                )
+            },
+            |_| {},
+        )
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "the kind is unknown");
     }
 
     #[test]

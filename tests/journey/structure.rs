@@ -192,7 +192,7 @@ fn broken_roles_file_shows_its_line_to_role_edit_and_now() -> TestResult {
 }
 
 #[test]
-fn mistake_in_clients_file_stops_role_edit_at_its_line() -> TestResult {
+fn role_edit_beside_mistake_in_clients_file_names_roles_file_without_terminal() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write("home/clients.toml", "version = 1\n\n[acme]\nname = 1\n")?;
 
@@ -808,6 +808,41 @@ fn two_broken_records_are_mended_one_after_other() -> TestResult {
     let list = run(sandbox.pace_at("09:01").args(["project", "list"]))?;
 
     let output = format!("{garden}\n{webshop}\n{list}");
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+/// The editor that sets `client = "acme"` in a record.
+const FIX_CLIENT: &str = "sed -i -e 's/^client = \"acmee\"/client = \"acme\"/'";
+
+#[cfg(unix)]
+#[test]
+fn record_naming_unknown_client_is_mended_while_clients_file_is_broken() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "home/clients.toml",
+        &CLIENTS.replace("currency = \"EUR\"", "currency = \"EURO\""),
+    )?;
+    sandbox.write(
+        "home/projects/webshop.toml",
+        &BROKEN_WEBSHOP.replace("billable = \"yes\"", "client = \"acmee\""),
+    )?;
+    let client = || {
+        run(sandbox
+            .pace_at("09:00")
+            .env("VISUAL", FIX_CURRENCY)
+            .args(["client", "edit", "acme"]))
+    };
+
+    let refused = client()?;
+    let project = run(sandbox
+        .pace_at("09:00")
+        .env("VISUAL", FIX_CLIENT)
+        .args(["project", "edit", "webshop"]))?;
+    let saved = client()?;
+    let list = run(sandbox.pace_at("09:01").args(["project", "list"]))?;
+
+    let output = format!("{refused}\n{project}\n{saved}\n{list}");
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

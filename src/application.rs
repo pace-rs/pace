@@ -177,21 +177,23 @@ impl PaceApp {
 }
 
 /// The catalog in `home`. A command that mends the catalog file `mended`,
-/// a path in `home`, gets an empty catalog when a mistake in that file
-/// keeps the catalog from reading, whatever the other files hold; it reads
-/// the file it mends itself.
+/// a path in `home`, gets an empty catalog when a mistake in any file
+/// keeps the catalog from reading, so long as `mended` reads alone or has
+/// the mistake itself: it reads the file it mends itself. So each file
+/// that reads alone can be mended while another file has a mistake.
 ///
 /// # Errors
 ///
-/// If the catalog doesn't read for a mistake in any other file: the error
-/// points at the line.
+/// If a file can't be read, or every file reads and [`Catalog::new`]
+/// refuses the records for a mistake in another file: the error points at
+/// the line.
 fn catalog_for(home: &Path, mended: Option<&Path>) -> PaceResult<Catalog> {
     let Some(mended) = mended else {
         return read_catalog(home);
     };
     match read_catalog_mending(home, mended, None) {
         Ok(MendedCatalog::Whole(catalog)) => Ok(catalog),
-        Ok(MendedCatalog::Alone(_, mistake)) => Err(mistake),
+        Ok(MendedCatalog::Alone(..)) => Ok(Catalog::default()),
         Err(error) if points_at_file(&error, mended) => Ok(Catalog::default()),
         Err(error) => Err(error),
     }
@@ -353,12 +355,12 @@ mod tests {
     }
 
     #[test]
-    fn mistake_in_other_file_stops_command_that_mends_roles_file() {
+    fn mistake_in_other_file_leaves_empty_catalog_to_command_that_mends_roles_file() {
         let home = home_with("clients.toml", "version = 1\n\n[acme]\nname = 1\n");
 
-        let error = catalog_for(home.path(), Some(&home.path().join("roles.toml"))).unwrap_err();
+        let roles = catalog_for(home.path(), Some(&home.path().join("roles.toml")));
 
-        assert!(points_at_file(&error, &home.path().join("clients.toml")));
+        assert_eq!(roles.unwrap(), Catalog::default());
     }
 
     #[test]

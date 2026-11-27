@@ -1,0 +1,80 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::clients::invalid-value
+
+  × `EURO` is not an ISO 4217 currency code
+   ╭─[[SANDBOX]/home/clients.toml:6:12]
+ 5 │ name = "ACME GmbH"
+ 6 │ currency = "EURO"
+   ·            ───┬──
+   ·               ╰── this value
+ 7 │ rounding = { per = "entry", step = "15m", mode = "up" }
+   ╰────
+  help: did you mean `EUR`?
+
+pace::core::unknown-client
+
+  × pace doesn't save the edit until this mistake is fixed: `pace project edit webshop` opens it
+  │ the project `webshop` names the client `acmee`, which pace doesn't know
+   ╭─[[SANDBOX]/home/projects/webshop.toml:5:10]
+ 4 │ name = "Webshop"
+ 5 │ client = "acmee"
+   ·          ───┬───
+   ·             ╰── this client
+   ╰────
+  help: did you mean `acme`?
+
+
+success: true
+exit_code: 0
+----- stdout -----
+Saved the project `webshop` (Webshop) in [SANDBOX]/home/projects/webshop.toml.
+
+----- stderr -----
+pace::clients::invalid-value
+
+  ⚠ the catalog doesn't read until this mistake is fixed: `pace client edit KEY` opens it
+  │ `EURO` is not an ISO 4217 currency code
+   ╭─[[SANDBOX]/home/clients.toml:6:12]
+ 5 │ name = "ACME GmbH"
+ 6 │ currency = "EURO"
+   ·            ───┬──
+   ·               ╰── this value
+ 7 │ rounding = { per = "entry", step = "15m", mode = "up" }
+   ╰────
+  help: did you mean `EUR`?
+
+
+success: true
+exit_code: 0
+----- stdout -----
+Saved the client `acme` (ACME GmbH) in [SANDBOX]/home/clients.toml.
+
+----- stderr -----
+pace::clients::invalid-value
+
+  × `EURO` is not an ISO 4217 currency code
+   ╭─[[SANDBOX]/home/clients.toml:6:12]
+ 5 │ name = "ACME GmbH"
+ 6 │ currency = "EURO"
+   ·            ───┬──
+   ·               ╰── this value
+ 7 │ rounding = { per = "entry", step = "15m", mode = "up" }
+   ╰────
+  help: did you mean `EUR`?
+
+
+success: true
+exit_code: 0
+----- stdout -----
+key      name     client  role  billable  budget
+webshop  Webshop  acme          no
+
+----- stderr -----

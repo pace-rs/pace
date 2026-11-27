@@ -263,24 +263,25 @@ struct ClientTable {
 }
 
 /// The table of the client `key` in the clients file of `home`, which
-/// `catalog` reads. When a mistake in the clients file keeps the catalog
-/// from reading, `catalog` is empty, and the table comes from the file as
-/// it is.
+/// `catalog` reads. When a mistake keeps the catalog from reading,
+/// `catalog` is empty: the name comes from the clients file as it reads
+/// alone, and with a mistake in the clients file, the table comes from the
+/// file as it is.
 ///
 /// # Errors
 ///
-/// If the catalog reads and has no client `key`: the error names the
-/// closest key. If a mistake keeps the catalog from reading and the file
-/// has no table `key`: the mistake, which points at its line. If the file
-/// can't be read.
+/// If no client `key` reads: the error names the closest key. If a
+/// mistake in the clients file keeps the catalog from reading and the
+/// file has no table `key`: the mistake, which points at its line. If the
+/// file can't be read.
 fn client_table(home: &Path, catalog: &Catalog, key: ClientKey) -> PaceResult<ClientTable> {
     let path = home.join(CLIENTS_FILE);
     let (name, mistake) = match catalog.client(&key) {
         Some(client) => (client.name.clone(), None),
-        None => (
-            key.to_string(),
-            Some(clients_file_mistake(home, &path, catalog, &key)?),
-        ),
+        None => match clients_file_alone(home, &path, catalog, &key)? {
+            ClientAlone::Read(client) => (client.name, None),
+            ClientAlone::Broken(mistake) => (key.to_string(), Some(mistake)),
+        },
     };
     let text = std::fs::read_to_string(&path).map_err(|error| {
         PaceError::with_source(ErrorKind::InputOutput, "cannot read {path}", error)
@@ -310,35 +311,53 @@ fn client_table(home: &Path, catalog: &Catalog, key: ClientKey) -> PaceResult<Cl
     Err(table)
 }
 
-/// The mistake in the clients file `path` that keeps the catalog of
-/// `home` from reading, for a client `key` that `catalog` doesn't have.
+/// A client in the clients file as it reads alone, while a mistake keeps
+/// the catalog from reading.
+#[derive(Debug)]
+enum ClientAlone {
+    /// The file reads; the mistake is in another file.
+    Read(Client),
+    /// The mistake of the clients file itself.
+    Broken(Box<PaceError>),
+}
+
+/// The client `key`, which `catalog` doesn't have, as the clients file
+/// `path` of `home` reads alone.
 ///
 /// # Errors
 ///
-/// If the catalog reads, so that it has no client `key`: the error names
-/// the closest key of `catalog`. If a mistake in another file keeps the
-/// catalog from reading while the clients file reads: that mistake.
-fn clients_file_mistake(
+/// If no client `key` reads: the error names the closest key of the
+/// clients that read. If a file can't be read, or every file reads and
+/// [`Catalog::new`] refuses them for a mistake in another file.
+fn clients_file_alone(
     home: &Path,
     path: &Path,
     catalog: &Catalog,
     key: &ClientKey,
-) -> PaceResult<Box<PaceError>> {
+) -> PaceResult<ClientAlone> {
     match read_catalog_mending(home, path, None) {
-        Err(mistake) if points_at_file(&mistake, path) => Ok(mistake),
-        Err(error) | Ok(MendedCatalog::Alone(_, error)) => Err(error),
-        Ok(MendedCatalog::Whole(_)) => Err(unknown_client(catalog, key)),
+        Err(mistake) if points_at_file(&mistake, path) => Ok(ClientAlone::Broken(mistake)),
+        Err(error) => Err(error),
+        Ok(MendedCatalog::Alone(mut records, _)) => {
+            match records.clients.iter().position(|client| client.key == *key) {
+                Some(at) => Ok(ClientAlone::Read(records.clients.swap_remove(at))),
+                None => Err(unknown_client(
+                    key,
+                    records.clients.iter().map(|client| client.key.as_str()),
+                )),
+            }
+        }
+        Ok(MendedCatalog::Whole(_)) => Err(unknown_client(
+            key,
+            catalog.clients().map(|client| client.key.as_str()),
+        )),
     }
 }
 
-/// The error for the client `key` that `catalog` doesn't have: it names
-/// the closest key.
-fn unknown_client(catalog: &Catalog, key: &ClientKey) -> Box<PaceError> {
-    let hint = closest_name(
-        key.as_str(),
-        catalog.clients().map(|client| client.key.as_str()),
-    )
-    .map_or_else(
+/// The error for the client `key` that pace doesn't know: it names the
+/// closest of `keys`.
+fn unknown_client<'key>(key: &ClientKey, keys: impl Iterator<Item = &'key str>) -> Box<PaceError> {
+    let hint = closest_name(key.as_str(), keys).map_or_else(
         || "`pace client list` shows the clients".to_owned(),
         |closest| format!("did you mean `{closest}`?"),
     );
@@ -378,6 +397,7 @@ fn edit_client_table(
     let command = format!("pace client edit {key}");
     let (edited, read) = edit_until_checked(
         EditedFile {
+            home,
             path: &path,
             command: &command,
         },
@@ -524,9 +544,7 @@ mod tests {
 
     #[test]
     fn edit_of_unknown_client_names_closest_key() {
-        let catalog = catalog(vec![client("acme", &[], Rounding::NONE)]);
-
-        let error = unknown_client(&catalog, &"amce".parse().unwrap());
+        let error = unknown_client(&"amce".parse().unwrap(), ["acme", "globex"].into_iter());
 
         assert_eq!(error.to_string(), "pace doesn't know the client `amce`");
         assert_eq!(error.hint(), Some("did you mean `acme`?"));
@@ -670,6 +688,40 @@ mod tests {
         assert_eq!(error.hint(), Some("did you mean `acme`?"));
     }
 
+    /// The scratch home with [`ACME`] as its clients file and a record of
+    /// `webshop` with a mistake.
+    fn home_with_acme_and_broken_record() -> tempfile::TempDir {
+        let (home, _) = home_with_clients(ACME);
+        std::fs::create_dir(home.path().join("projects")).unwrap();
+        std::fs::write(
+            home.path().join("projects/webshop.toml"),
+            "version = 1\nkey = \"webshop\"\n",
+        )
+        .unwrap();
+        home
+    }
+
+    #[test]
+    fn table_opens_with_its_name_while_record_has_mistake() {
+        let home = home_with_acme_and_broken_record();
+
+        let opened =
+            client_table(home.path(), &Catalog::default(), "acme".parse().unwrap()).unwrap();
+
+        assert_eq!(opened.name, "ACME GmbH");
+        assert!(opened.mistake.is_none());
+    }
+
+    #[test]
+    fn unknown_client_beside_mistake_in_record_names_closest_key() {
+        let home = home_with_acme_and_broken_record();
+
+        let error =
+            client_table(home.path(), &Catalog::default(), "amce".parse().unwrap()).unwrap_err();
+
+        assert_eq!(error.hint(), Some("did you mean `acme`?"));
+    }
+
     #[test]
     fn edit_of_broken_clients_file_reports_mistake_first_and_writes_fixed_table() {
         let (home, catalog) = home_with_clients(&broken_acme());
@@ -719,18 +771,6 @@ mod tests {
         let error = client_table(home.path(), &catalog, "acme".parse().unwrap()).unwrap_err();
 
         assert!(points_at_file(&error, &clients_file), "{error:?}");
-    }
-
-    #[test]
-    fn mistake_in_roles_file_stops_client_edit() {
-        let (home, _) = home_with_clients(ACME);
-        let roles_file = home.path().join("roles.toml");
-        std::fs::write(&roles_file, "version = 1\n\n[work]\nkind = \"aera\"\n").unwrap();
-
-        let error =
-            client_table(home.path(), &Catalog::default(), "acme".parse().unwrap()).unwrap_err();
-
-        assert!(points_at_file(&error, &roles_file), "{error:?}");
     }
 
     #[test]
