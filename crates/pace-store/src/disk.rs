@@ -7,7 +7,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
+use serde::Deserialize;
+use toml::Spanned;
 
 /// `device.toml`: in the machine directory the device ID, in a device
 /// directory the device's name and split.
@@ -109,6 +111,50 @@ pub fn prepare(path: &Path, text: &str) -> PaceResult<(tempfile::NamedTempFile, 
         .and_then(|()| temporary.as_file().sync_all())
         .map_err(|error| io_error("write", temporary.path(), error))?;
     Ok((temporary, path.to_path_buf()))
+}
+
+/// The `version` of a store file, read before its other keys.
+#[derive(Deserialize)]
+struct Versioned {
+    version: Spanned<i64>,
+}
+
+/// Check that the store file `path` with the content `text` has the
+/// `version` this pace reads. It runs before the file's other keys are
+/// read, so a file of a newer pace asks for an update instead of naming a
+/// key this pace doesn't know. An older or broken version gets the hint
+/// `repair`.
+///
+/// A file without a readable `version` passes: reading the whole file
+/// then names what is wrong with it.
+pub fn check_version(path: &Path, text: &str, reads: u32, repair: &str) -> PaceResult<()> {
+    let Ok(Versioned { version }) = toml::from_str::<Versioned>(text) else {
+        return Ok(());
+    };
+    let found = *version.get_ref();
+    if found == i64::from(reads) {
+        return Ok(());
+    }
+    let hint = if found > i64::from(reads) {
+        "a newer pace wrote this file; update pace"
+    } else {
+        repair
+    };
+    Err(PaceError::new(
+        ErrorKind::InputOutput,
+        "this pace reads version {reads} of {file}, not {found}",
+    )
+    .attach_context("reads", reads.to_string())
+    .attach_context("file", path.display().to_string())
+    .attach_context("found", found.to_string())
+    .attach_hint(hint)
+    .attach_error_code("pace::store::version")
+    .attach_snippet(Snippet::new(
+        path.display().to_string(),
+        text,
+        version.span(),
+        "this version",
+    )))
 }
 
 pub fn io_error(verb: &str, path: &Path, error: std::io::Error) -> Box<PaceError> {

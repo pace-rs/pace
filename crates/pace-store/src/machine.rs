@@ -7,10 +7,16 @@ use pace_core::{DeviceId, EntryId, Hlc, Ids};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
-use crate::disk::{DEVICE_FILE, io_error, prepare, write_atomically};
+use crate::disk::{DEVICE_FILE, check_version, io_error, prepare, write_atomically};
 use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts, hlc_text};
 
 const CURSORS_FILE: &str = "cursors.toml";
+
+/// The version of the machine's `device.toml` this pace reads and writes.
+const DEVICE_VERSION: u32 = 1;
+
+/// The version of `cursors.toml` this pace reads and writes.
+const CURSORS_VERSION: u32 = 1;
 
 /// This machine's device ID, and whether this run created it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,7 +50,16 @@ pub fn device_id(machine: &Path, ids: &dyn Ids) -> PaceResult<DeviceIdentity> {
     }
     let id = DeviceId::try_from(ids.next_id())?;
     let path = machine.join(DEVICE_FILE);
-    let (temporary, path) = prepare(&path, &toml_text(&path, &DeviceFile { version: 1, id })?)?;
+    let (temporary, path) = prepare(
+        &path,
+        &toml_text(
+            &path,
+            &DeviceFile {
+                version: DEVICE_VERSION,
+                id,
+            },
+        )?,
+    )?;
     match temporary.persist_noclobber(&path) {
         Ok(_) => Ok(DeviceIdentity { id, created: true }),
         Err(error) if error.error.kind() == std::io::ErrorKind::AlreadyExists => {
@@ -69,6 +84,11 @@ pub fn existing_device_id(machine: &Path) -> PaceResult<Option<DeviceId>> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => return Err(io_error("read", &path, error)),
     };
+    let new_id = format!(
+        "remove {} and pace gives this machine a new device ID",
+        path.display()
+    );
+    check_version(&path, &text, DEVICE_VERSION, &new_id)?;
     let file: DeviceFile = toml::from_str(&text).map_err(|error| {
         PaceError::with_source(
             ErrorKind::InputOutput,
@@ -76,10 +96,7 @@ pub fn existing_device_id(machine: &Path) -> PaceResult<Option<DeviceId>> {
             error,
         )
         .attach_context("path", path.display().to_string())
-        .attach_hint(format!(
-            "remove {} and pace gives this machine a new device ID",
-            path.display()
-        ))
+        .attach_hint(new_id)
     })?;
     Ok(Some(file.id))
 }
@@ -124,6 +141,8 @@ impl Cursors {
             }
             Err(error) => return Err(io_error("read", &path, error)),
         };
+        let rewrite = format!("remove {}; pace writes it again", path.display());
+        check_version(&path, &text, CURSORS_VERSION, &rewrite)?;
         let file: CursorsFile = toml::from_str(&text).map_err(|error| {
             PaceError::with_source(
                 ErrorKind::InputOutput,
@@ -131,7 +150,7 @@ impl Cursors {
                 error,
             )
             .attach_context("path", path.display().to_string())
-            .attach_hint(format!("remove {}; pace writes it again", path.display()))
+            .attach_hint(rewrite)
         })?;
         let own = file.own.unwrap_or_default();
         Ok(Self {
@@ -148,7 +167,7 @@ impl Cursors {
         write(
             &machine.join(CURSORS_FILE),
             &CursorsFile {
-                version: 1,
+                version: CURSORS_VERSION,
                 own: Some(Own {
                     last_hlc: self.last_written.map(hlc_parts),
                     cleaned: self.cleaned.clone(),

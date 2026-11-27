@@ -11,6 +11,7 @@ use pace_core::{
 };
 use pace_store::{FilesStore, Split, device_id, testing::scratch_dir};
 use pace_time::TimeRange;
+use rstest::rstest;
 
 use crate::TestResult;
 
@@ -53,6 +54,33 @@ fn broken_device_file_says_how_to_get_new_id() -> TestResult {
             .hint()
             .is_some_and(|hint| hint.contains("device.toml")),
         "{error:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn device_id_of_newer_pace_asks_for_update() -> TestResult {
+    let dir = scratch_dir()?;
+    let machine = dir.path().join("machine");
+    std::fs::create_dir_all(&machine)?;
+    let path = machine.join("device.toml");
+    std::fs::write(
+        &path,
+        "version = 7\nid = \"0193a8d0-000d-7000-8000-000000000001\"\n",
+    )?;
+    let ids = SequentialIds::starting_at(&at("2026-11-26T09:00[Europe/Berlin]")?, 7);
+
+    let error = device_id(&machine, &ids)
+        .err()
+        .ok_or("a newer version must stop pace")?;
+
+    assert_eq!(
+        error.to_string(),
+        format!("this pace reads version 1 of {}, not 7", path.display())
+    );
+    assert_eq!(
+        error.hint(),
+        Some("a newer pace wrote this file; update pace")
     );
     Ok(())
 }
@@ -164,6 +192,37 @@ fn clock_reading_out_of_range_in_cursors_stops_writing() -> TestResult {
             "{} holds the clock reading 9223372036854775807 ms, outside the range pace knows",
             machine_dir.join("cursors.toml").display()
         )
+    );
+    Ok(())
+}
+
+#[rstest]
+#[case::cursors("machine/cursors.toml")]
+#[case::device_file("home/events/0193a8d0-000d-7000-8000-000000000001/device.toml")]
+fn store_file_of_newer_pace_stops_writing(#[case] file: &str) -> TestResult {
+    let dir = scratch_dir()?;
+    let home = dir.path().join("home");
+    let machine_dir = dir.path().join("machine");
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
+    let tracker = machine(&home, &machine_dir, device, &clock, 1);
+    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    let path = dir.path().join(file);
+    let text = std::fs::read_to_string(&path)?;
+    std::fs::write(&path, text.replace("version = 1", "version = 7"))?;
+    clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
+
+    let error = pollster::block_on(tracker.run(&Command::End(End::default())))
+        .err()
+        .ok_or("a newer version must stop pace")?;
+
+    assert_eq!(
+        error.to_string(),
+        format!("this pace reads version 1 of {}, not 7", path.display())
+    );
+    assert_eq!(
+        error.hint(),
+        Some("a newer pace wrote this file; update pace")
     );
     Ok(())
 }

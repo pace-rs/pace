@@ -30,7 +30,8 @@ use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
 
 use crate::disk::{
-    DEVICE_FILE, create_dir, event_files, io_error, lock, prepare, relative_name, write_atomically,
+    DEVICE_FILE, check_version, create_dir, event_files, io_error, lock, prepare, relative_name,
+    write_atomically,
 };
 use crate::format::{file_header, parse_events, serialize_events};
 use crate::machine::clone_detected;
@@ -76,6 +77,9 @@ struct DeviceFile {
     created: ZonedDateTime,
     split: Split,
 }
+
+/// The version of a device's `device.toml` this pace reads and writes.
+const DEVICE_VERSION: u32 = 1;
 
 const INDEX_FILE: &str = "index.json";
 
@@ -279,7 +283,7 @@ impl FilesStore {
         }
         let name = gethostname::gethostname().to_string_lossy().into_owned();
         let file = DeviceFile {
-            version: 1,
+            version: DEVICE_VERSION,
             name: if name.is_empty() {
                 "device".to_owned()
             } else {
@@ -493,6 +497,12 @@ fn write_device_file(path: &Path, file: &DeviceFile) -> PaceResult<()> {
 
 fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {
     let text = std::fs::read_to_string(path).map_err(|error| io_error("read", path, error))?;
+    check_version(
+        path,
+        &text,
+        DEVICE_VERSION,
+        &format!("write `version = {DEVICE_VERSION}`"),
+    )?;
     toml::from_str(&text).map_err(|error| {
         PaceError::with_source(
             ErrorKind::InputOutput,
