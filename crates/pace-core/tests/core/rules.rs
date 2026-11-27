@@ -708,6 +708,8 @@ fn end_at_the_start_is_refused_as_log_and_adjust_refuse_it() -> TestResult {
         "the entry would end at 09:00, the moment it starts"
     );
     assert_eq!(error.hint(), Some("give an end after the start"));
+    // A value the message doesn't name would show up as a detail.
+    assert_eq!(error.context_value("start"), None);
     Ok(())
 }
 

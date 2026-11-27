@@ -1,7 +1,7 @@
 //! What each command turns into: the events of one batch, or an error that
 //! says how to fix it.
 
-use std::collections::BTreeSet;
+use std::{cmp::Ordering, collections::BTreeSet};
 
 use jiff::ZonedDateTime;
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -574,14 +574,20 @@ impl Rules<'_> {
     /// An entry ends after it starts: `end`, `log` and `adjust` refuse an
     /// entry without length alike.
     fn check_length(&self, start: &ZonedDateTime, end: &ZonedDateTime) -> PaceResult<()> {
-        let guidance = match end.cmp(start) {
-            std::cmp::Ordering::Greater => return Ok(()),
-            std::cmp::Ordering::Equal => "the entry would end at {end}, the moment it starts",
-            std::cmp::Ordering::Less => "the entry would end at {end}, before it starts at {start}",
+        let error = match end.cmp(start) {
+            Ordering::Greater => return Ok(()),
+            Ordering::Equal => PaceError::new(
+                ErrorKind::InvalidInput,
+                "the entry would end at {end}, the moment it starts",
+            ),
+            Ordering::Less => PaceError::new(
+                ErrorKind::InvalidInput,
+                "the entry would end at {end}, before it starts at {start}",
+            )
+            .attach_context("start", self.clock(start)),
         };
-        Err(PaceError::new(ErrorKind::InvalidInput, guidance)
+        Err(error
             .attach_context("end", self.clock(end))
-            .attach_context("start", self.clock(start))
             .attach_hint("give an end after the start"))
     }
 
