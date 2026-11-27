@@ -297,6 +297,21 @@ mod tests {
     use super::*;
     use crate::prompt::Scripted;
 
+    #[test]
+    fn adjust_help_names_no_default_for_decided_and_billable() {
+        let help = <AdjustCmd as clap::Args>::augment_args(clap::Command::new("adjust"))
+            .render_help()
+            .to_string();
+
+        for flag in ["--by-me", "--by-others", "--billable", "--not-billable"] {
+            let line = help
+                .lines()
+                .find(|line| line.trim_start().starts_with(flag))
+                .unwrap();
+            assert!(!line.contains("left out"), "{line}");
+        }
+    }
+
     fn project(reason: Reason) -> Project {
         Project {
             id: None,

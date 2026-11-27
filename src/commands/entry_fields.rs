@@ -7,13 +7,15 @@ use pace_error::PaceResult;
 use crate::commands::role::known_role;
 use crate::output::usage;
 
-/// `--by-me` or `--by-others`: clap refuses both.
+/// `--by-me` or `--by-others`: clap refuses both. Their help names no
+/// default, as `adjust` keeps the entry's value where `begin` and `log`
+/// leave it unmarked.
 #[derive(clap::Args, Debug, Default)]
 pub struct DecidedFlags {
     #[arg(
         long,
         conflicts_with = "by_others",
-        help = "You decided how you spend the time; unmarked if left out"
+        help = "You decided how you spend the time"
     )]
     by_me: bool,
 
@@ -33,14 +35,12 @@ impl DecidedFlags {
     }
 }
 
-/// `--billable` or `--not-billable`: clap refuses both.
+/// `--billable` or `--not-billable`: clap refuses both. Their help names
+/// no default, as `adjust` keeps the entry's flag where `begin` and `log`
+/// take the project's.
 #[derive(clap::Args, Debug, Default)]
 pub struct BillableFlags {
-    #[arg(
-        long,
-        conflicts_with = "not_billable",
-        help = "The time is billable; the project's flag if left out"
-    )]
+    #[arg(long, conflicts_with = "not_billable", help = "The time is billable")]
     billable: bool,
 
     #[arg(long, help = "The time is not billable")]
