@@ -29,6 +29,9 @@ use crate::toml_file::{TomlFile, read_hint};
 /// this pace reads.
 const CATALOG_VERSION: i64 = 1;
 
+/// The key that holds a catalog file's version, so no record can have it.
+pub const VERSION_KEY: &str = "version";
+
 /// The roles file in `PACE_HOME`.
 pub const ROLES_FILE: &str = "roles.toml";
 

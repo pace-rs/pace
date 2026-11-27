@@ -8,6 +8,7 @@ use pace_core::Archived;
 use pace_error::{PaceError, PaceResult, closest_name};
 use pace_time::parse_duration;
 
+use crate::catalog::VERSION_KEY;
 use crate::toml_file::{TomlFile, TomlKey, TomlTable, TomlValue};
 
 /// The fields of one table, each a key that its reader knows.
@@ -67,12 +68,12 @@ pub(super) fn records<'file>(
     table: TomlTable<'file>,
 ) -> PaceResult<Vec<(TomlKey<'file>, TomlValue<'file>)>> {
     let mut records = table.entries();
-    records.retain(|(key, _)| key.name() != "version");
+    records.retain(|(key, _)| key.name() != VERSION_KEY);
     let typo = records.iter().find(|(key, value)| {
-        !value.is_table() && closest_name(key.name(), ["version"].into_iter()).is_some()
+        !value.is_table() && closest_name(key.name(), [VERSION_KEY].into_iter()).is_some()
     });
     if let Some((key, _)) = typo {
-        return Err(file.unknown_key(key.name(), key.span(), &["version"]));
+        return Err(file.unknown_key(key.name(), key.span(), &[VERSION_KEY]));
     }
     Ok(records)
 }

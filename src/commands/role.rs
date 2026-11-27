@@ -9,7 +9,6 @@ use pace_store::{
     catalog::{ROLES_FILE, read_catalog_with, write_catalog_file},
     field_edit::{FieldEdit, FieldValue, write_field_edits},
 };
-use pace_time::parse_duration;
 
 use crate::clock::{RandomIds, clock_for_run};
 use crate::editor::{EditedFile, edit_in_editor, edit_until_checked, editor_command};
@@ -100,12 +99,7 @@ impl RoleAddCmd {
                 .transpose()
                 .map_err(usage)?,
             purpose: self.purpose.clone(),
-            weekly_target: self
-                .weekly_target
-                .as_deref()
-                .map(parse_duration)
-                .transpose()
-                .map_err(usage)?,
+            weekly_target: self.weekly_target.clone(),
         };
         let id = RoleId::try_from(RandomIds.next_id())?;
         let roles_file = context.dirs.data.path.join(ROLES_FILE);

@@ -5,8 +5,11 @@ use std::path::{Path, PathBuf};
 
 use jiff::SignedDuration;
 use pace_core::{Catalog, Role, RoleId, RoleKey, RoleKind};
-use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_store::field_edit::{FieldEdit, FieldValue};
+use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
+use pace_store::{
+    catalog::{ROLES_FILE, VERSION_KEY},
+    field_edit::{FieldEdit, FieldValue},
+};
 use pace_time::parse_duration;
 
 use crate::questions::{Answer, Ended, Flow, Question, QuestionKind};
@@ -15,7 +18,8 @@ use crate::questions::{Answer, Ended, Flow, Question, QuestionKind};
 /// as the default.
 const KINDS: [RoleKind; 3] = [RoleKind::Area, RoleKind::AreaProject, RoleKind::Meta];
 
-/// What the flags of `pace role add` gave; what they leave out is result.
+/// What the flags of `pace role add` gave, as typed; what they leave out
+/// is asked. Each value passes its question's check.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RoleFlags {
     /// `--name`
@@ -24,8 +28,8 @@ pub struct RoleFlags {
     pub kind: Option<RoleKind>,
     /// `--purpose`
     pub purpose: Option<String>,
-    /// `--weekly-target`
-    pub weekly_target: Option<SignedDuration>,
+    /// `--weekly-target`, such as `30h`
+    pub weekly_target: Option<String>,
 }
 
 /// The flow of a new role: it asks for what [`RoleFlags`] leave open and
@@ -35,6 +39,7 @@ pub struct AddRoleFlow {
     roles_file: PathBuf,
     id: RoleId,
     key: RoleKey,
+    flags: RoleFlags,
     name: Option<String>,
     kind: Option<RoleKind>,
     purpose: Optional<String>,
@@ -52,11 +57,6 @@ enum Optional<T> {
 }
 
 impl<T> Optional<T> {
-    /// What the flags gave: a value answers the question, none leaves it.
-    fn from_flag(value: Option<T>) -> Self {
-        value.map_or(Self::Unasked, |value| Self::Answered(Some(value)))
-    }
-
     /// The answer; none if still unasked.
     fn into_value(self) -> Option<T> {
         match self {
@@ -72,7 +72,9 @@ impl AddRoleFlow {
     ///
     /// # Errors
     ///
-    /// If `catalog` has a role `key` already, archived or not.
+    /// If `key` is `version`, which the roles file keeps for its format
+    /// (exit code 2), or if `catalog` has a role `key` already, archived or
+    /// not.
     pub fn new(
         catalog: &Catalog,
         roles_file: &Path,
@@ -80,6 +82,16 @@ impl AddRoleFlow {
         id: RoleId,
         flags: RoleFlags,
     ) -> PaceResult<Self> {
+        if key.to_string() == VERSION_KEY {
+            return Err(PaceError::new(
+                ErrorKind::InvalidInput,
+                "a role can't have the key `{key}`, which {file} keeps for its format",
+            )
+            .attach_context("key", VERSION_KEY)
+            .attach_context("file", ROLES_FILE)
+            .attach_hint("give the role another key")
+            .attach_exit_code(ExitCode::Usage));
+        }
         if catalog.role(&key).is_some() {
             return Err(
                 PaceError::new(ErrorKind::InvalidInput, "the role `{key}` exists already")
@@ -91,10 +103,11 @@ impl AddRoleFlow {
             roles_file: roles_file.to_path_buf(),
             id,
             key,
-            name: flags.name,
-            kind: flags.kind,
-            purpose: Optional::from_flag(flags.purpose),
-            weekly_target: Optional::from_flag(flags.weekly_target),
+            flags,
+            name: None,
+            kind: None,
+            purpose: Optional::Unasked,
+            weekly_target: Optional::Unasked,
         })
     }
 }
@@ -111,6 +124,7 @@ impl Flow for AddRoleFlow {
                     default: Some(self.key.to_string()),
                 },
                 flag: "--name",
+                flag_answer: self.flags.name.clone().map(Answer::Text),
                 default_note: format!("name `{}` from the key", self.key),
             });
         }
@@ -123,6 +137,7 @@ impl Flow for AddRoleFlow {
                     default: 0,
                 },
                 flag: "--kind",
+                flag_answer: self.flags.kind.map(kind_answer),
                 default_note: format!("kind `{}`", RoleKind::Area.as_str()),
             });
         }
@@ -134,6 +149,7 @@ impl Flow for AddRoleFlow {
                     default: Some(String::new()),
                 },
                 flag: "--purpose",
+                flag_answer: self.flags.purpose.clone().map(Answer::Text),
                 default_note: "no purpose".to_owned(),
             });
         }
@@ -144,6 +160,7 @@ impl Flow for AddRoleFlow {
                 default: Some(String::new()),
             },
             flag: "--weekly-target",
+            flag_answer: self.flags.weekly_target.clone().map(Answer::Text),
             default_note: "no weekly target".to_owned(),
         })
     }
@@ -201,6 +218,11 @@ impl Flow for AddRoleFlow {
             made: role,
         }
     }
+}
+
+/// The answer that picks `kind` among [`KINDS`].
+fn kind_answer(kind: RoleKind) -> Answer {
+    Answer::Choice(KINDS.iter().position(|known| *known == kind).unwrap_or(0))
 }
 
 /// How the kind question shows `kind`: its word and what it means.
@@ -269,7 +291,7 @@ mod tests {
             name: Some("Work".to_owned()),
             kind: Some(RoleKind::AreaProject),
             purpose: Some("Earn a living".to_owned()),
-            weekly_target: Some(SignedDuration::from_hours(30)),
+            weekly_target: Some("30h".to_owned()),
         };
         let asker = Scripted::without_terminal();
 
@@ -365,6 +387,72 @@ mod tests {
 
         assert_eq!(result.made.name, "Work");
         assert_eq!(asker.told(), ["a role needs a name"]);
+    }
+
+    #[test]
+    fn blank_name_flag_is_usage_error_naming_flag() {
+        let flags = RoleFlags {
+            name: Some("  ".to_owned()),
+            ..RoleFlags::default()
+        };
+
+        let error = ask_flow(flow(flags), &Scripted::without_terminal()).unwrap_err();
+
+        assert_eq!(error.exit_code(), ExitCode::Usage);
+        assert_eq!(
+            error.to_string(),
+            "`--name \"  \"` doesn't fit: a role needs a name"
+        );
+    }
+
+    #[test]
+    fn name_and_purpose_flags_are_trimmed() {
+        let flags = RoleFlags {
+            name: Some("  Home  ".to_owned()),
+            purpose: Some("  ".to_owned()),
+            ..RoleFlags::default()
+        };
+
+        let result = ask_flow(flow(flags), &Scripted::without_terminal()).unwrap();
+
+        assert_eq!(result.made.name, "Home");
+        assert_eq!(result.made.purpose, None);
+        assert_eq!(result.defaults, ["kind `area`", "no weekly target"]);
+    }
+
+    #[test]
+    fn weekly_target_flag_that_is_no_duration_is_usage_error() {
+        let flags = RoleFlags {
+            weekly_target: Some("thirty".to_owned()),
+            ..RoleFlags::default()
+        };
+
+        let error = ask_flow(flow(flags), &Scripted::without_terminal()).unwrap_err();
+
+        assert_eq!(error.exit_code(), ExitCode::Usage);
+        assert_eq!(
+            error.hint(),
+            Some("give `--weekly-target` another value, or leave the flag out")
+        );
+    }
+
+    #[test]
+    fn key_version_is_refused() {
+        let error = AddRoleFlow::new(
+            &Catalog::default(),
+            Path::new("roles.toml"),
+            "version".parse().unwrap(),
+            ID.parse().unwrap(),
+            RoleFlags::default(),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.exit_code(), ExitCode::Usage);
+        assert_eq!(
+            error.to_string(),
+            "a role can't have the key `version`, which roles.toml keeps for its format"
+        );
+        assert_eq!(error.hint(), Some("give the role another key"));
     }
 
     #[test]

@@ -95,6 +95,19 @@ fn role_add_refuses_weekly_target_that_is_no_duration() -> TestResult {
 }
 
 #[test]
+fn role_add_refuses_blank_name_flag_and_key_version() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["role", "add", "work", "--name", "  "]),
+        ("09:01", &["role", "add", "version"]),
+        ("09:02", &["role", "list"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
 fn role_list_shows_roles_in_use_and_archived_ones_on_request() -> TestResult {
     let sandbox = Sandbox::new()?;
 

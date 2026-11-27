@@ -2,7 +2,10 @@
 //! without I/O, and [`ask_flow`] drives it through the asker.
 //!
 //! A command that adds something builds its flow with the values its flags
-//! gave, so the flow asks only for the rest. Each question has a default
+//! gave, so the flow asks only for the rest. A flag's value passes the
+//! same check as a typed answer: [`ask_flow`] hands it to
+//! [`Flow::take_answer`], and a value that doesn't fit is a usage error
+//! that names the flag. Each question has a default
 //! that Enter takes. Without a terminal, [`ask_flow`] takes each default and
 //! notes it, such as "name `work` from the key"; a question without a
 //! default fails with a usage error that names its flag. The flow ends with
@@ -63,6 +66,9 @@ pub struct Question {
     pub kind: QuestionKind,
     /// The flag that answers it instead: `--name`.
     pub flag: &'static str,
+    /// The answer the flag gave, if it was given: [`ask_flow`] takes it
+    /// instead of asking.
+    pub flag_answer: Option<Answer>,
     /// What pace says when it takes the default without a terminal:
     /// "name `work` from the key".
     pub default_note: String,
@@ -104,7 +110,7 @@ pub trait Flow {
     /// # Errors
     ///
     /// If the answer doesn't fit: the message says why, and the question
-    /// is result again.
+    /// is asked again.
     fn take_answer(&mut self, answer: Answer) -> Result<(), String>;
 
     /// The edits and what the flow made; call it once
@@ -126,18 +132,23 @@ pub struct Asked<T> {
 
 /// Drive `flow` through `asker` until every question has its answer.
 ///
-/// On a terminal, each question is result; an answer that doesn't fit is
-/// told and result again. Without one, each question takes its default, and
-/// [`Asked::defaults`] names it.
+/// A question its flag answered asks nothing: the flag's value goes to
+/// [`Flow::take_answer`] as if typed. On a terminal, each other question is
+/// asked; an answer that doesn't fit is told and asked again. Without one,
+/// each question takes its default, and [`Asked::defaults`] names it.
 ///
 /// # Errors
 ///
+/// If the flow refuses a flag's value: a usage error that names the flag.
 /// Without a terminal, a question with no default is a usage error that
 /// names its flag. On a terminal, if the user gives no answer.
 pub fn ask_flow<F: Flow>(mut flow: F, asker: &dyn Ask) -> PaceResult<Asked<F::Made>> {
     let mut defaults = Vec::new();
     while let Some(question) = flow.next_question() {
-        if asker.can_ask() {
+        if let Some(answer) = question.flag_answer.clone() {
+            flow.take_answer(answer)
+                .map_err(|message| flag_refused(&question, &message))?;
+        } else if asker.can_ask() {
             ask_until_it_fits(&mut flow, &question, asker)?;
         } else {
             let answer = question
@@ -188,6 +199,37 @@ fn no_terminal_for(question: &Question) -> Box<PaceError> {
     .attach_exit_code(ExitCode::Usage)
 }
 
+/// The error for a flag's value that the flow refused, such as a blank
+/// `--name`.
+fn flag_refused(question: &Question, message: &str) -> Box<PaceError> {
+    PaceError::new(
+        ErrorKind::InvalidInput,
+        "`{flag} {value}` doesn't fit: {message}",
+    )
+    .attach_context("flag", question.flag)
+    .attach_context("value", flag_value(question))
+    .attach_context("message", message)
+    .attach_hint(format!(
+        "give `{}` another value, or leave the flag out",
+        question.flag
+    ))
+    .attach_exit_code(ExitCode::Usage)
+}
+
+/// The flag's value as the command line had it: text in quotes, so a
+/// blank one shows; a choice by its item.
+fn flag_value(question: &Question) -> String {
+    match (&question.flag_answer, &question.kind) {
+        (Some(Answer::Text(text)), _) => format!("\"{text}\""),
+        (Some(Answer::Choice(index)), QuestionKind::Choice { items, .. }) => items
+            .get(*index)
+            .map_or_else(|| index.to_string(), Clone::clone),
+        (Some(Answer::Choice(index)), _) => index.to_string(),
+        (Some(Answer::YesNo(yes)), _) => if *yes { "yes" } else { "no" }.to_owned(),
+        (None, _) => String::new(),
+    }
+}
+
 /// The error for a default that its own flow refused: a bug.
 fn default_refused(question: &Question, message: &str) -> Box<PaceError> {
     PaceError::new(
@@ -210,6 +252,7 @@ mod tests {
     /// three letters, and a colour with the default `blue`.
     #[derive(Debug, Default)]
     struct Paint {
+        code_flag: Option<String>,
         code: Option<String>,
         colour: Option<String>,
         colour_default: Option<String>,
@@ -225,6 +268,7 @@ mod tests {
                     text: "Which code?".to_owned(),
                     kind: QuestionKind::Text { default: None },
                     flag: "--code",
+                    flag_answer: self.code_flag.clone().map(Answer::Text),
                     default_note: String::new(),
                 });
             }
@@ -239,6 +283,7 @@ mod tests {
                     ),
                 },
                 flag: "--colour",
+                flag_answer: None,
                 default_note: "colour `blue`".to_owned(),
             })
         }
@@ -320,7 +365,7 @@ mod tests {
     #[test]
     fn flag_skips_its_question() {
         let flow = Paint {
-            code: Some("abc".to_owned()),
+            code_flag: Some("abc".to_owned()),
             ..Paint::default()
         };
         let asker = Scripted::typing(["red"]);
@@ -329,6 +374,28 @@ mod tests {
 
         assert_eq!(result.made, ("abc".to_owned(), "red".to_owned()));
         assert_eq!(asker.questions(), ["Which colour?"]);
+    }
+
+    #[test]
+    fn flag_that_does_not_fit_is_usage_error_naming_flag() {
+        let flow = Paint {
+            code_flag: Some("abcd".to_owned()),
+            ..Paint::default()
+        };
+        let asker = Scripted::typing(["abc", "red"]);
+
+        let error = ask_flow(flow, &asker).unwrap_err();
+
+        assert_eq!(error.exit_code(), ExitCode::Usage);
+        assert_eq!(
+            error.to_string(),
+            "`--code \"abcd\"` doesn't fit: `abcd` is no code of three letters"
+        );
+        assert_eq!(
+            error.hint(),
+            Some("give `--code` another value, or leave the flag out")
+        );
+        assert_eq!(asker.questions(), Vec::<String>::new());
     }
 
     #[test]
@@ -381,6 +448,7 @@ mod tests {
                 default: 1,
             },
             flag: "--kind",
+            flag_answer: None,
             default_note: "kind `meta`".to_owned(),
         };
         let yes_no = Question {

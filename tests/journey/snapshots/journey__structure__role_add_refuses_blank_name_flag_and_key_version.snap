@@ -1,0 +1,31 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace role add work --name      # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `--name "  "` doesn't fit: a role needs a name
+  help: give `--name` another value, or leave the flag out
+
+
+$ pace role add version   # at 09:01
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × a role can't have the key `version`, which roles.toml keeps for its format
+  help: give the role another key
+
+
+$ pace role list   # at 09:02
+success: true
+exit_code: 0
+----- stdout -----
+There are no roles yet; `pace role add <key>` adds one.
+
+----- stderr -----
