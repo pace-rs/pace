@@ -9,6 +9,8 @@ use pace_core::{
     EventKind, Hlc, HoldSource, PauseKind, ProjectRef, RecordedEvent, State,
 };
 
+use rstest::rstest;
+
 use crate::TestResult;
 
 /// The log of one device, with a new batch per event unless told otherwise.
@@ -217,6 +219,76 @@ fn second_hold_while_held_only_updates_the_reason() -> TestResult {
     Ok(())
 }
 
+/// An entry begun at 09:00 with a break of `kind` at 10:00 for "Slack", and
+/// a second one at 10:05 with `reason`.
+fn two_breaks(
+    kind: fn(EntryId, Option<String>) -> EventKind,
+    reason: Option<&str>,
+) -> Result<State, Box<dyn std::error::Error>> {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = log.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        kind(e, Some("Slack".to_owned())),
+    )?;
+    _ = log.push(
+        "2026-11-26T10:05[Europe/Berlin]",
+        kind(e, reason.map(ToOwned::to_owned)),
+    )?;
+    Ok(State::from_events(&log.events))
+}
+
+const fn held(entry: EntryId, reason: Option<String>) -> EventKind {
+    EventKind::EntryHeld {
+        entry,
+        source: HoldSource::Outer,
+        reason,
+    }
+}
+
+const fn paused(entry: EntryId, reason: Option<String>) -> EventKind {
+    EventKind::EntryPaused {
+        entry,
+        kind: PauseKind::Break,
+        reason,
+    }
+}
+
+#[test]
+fn second_hold_without_reason_keeps_reason_of_first() -> TestResult {
+    let state = two_breaks(held, None)?;
+    let found = state.entry(entry(1)?).ok_or("entry")?;
+
+    assert_eq!(found.holds.len(), 1);
+    assert_eq!(found.holds[0].reason.as_deref(), Some("Slack"));
+    Ok(())
+}
+
+#[test]
+fn second_pause_while_paused_only_updates_reason() -> TestResult {
+    let state = two_breaks(paused, Some("lunch"))?;
+    let found = state.entry(entry(1)?).ok_or("entry")?;
+
+    assert_eq!(found.pauses.len(), 1);
+    assert_eq!(found.pauses[0].reason.as_deref(), Some("lunch"));
+    assert_eq!(
+        found.pauses[0].start,
+        at("2026-11-26T10:00[Europe/Berlin]")?
+    );
+    Ok(())
+}
+
+#[test]
+fn second_pause_without_reason_keeps_reason_of_first() -> TestResult {
+    let state = two_breaks(paused, None)?;
+    let found = state.entry(entry(1)?).ok_or("entry")?;
+
+    assert_eq!(found.pauses.len(), 1);
+    assert_eq!(found.pauses[0].reason.as_deref(), Some("Slack"));
+    Ok(())
+}
+
 #[test]
 fn ending_held_entry_closes_the_hold_first() -> TestResult {
     let mut log = Log::new(1)?;
@@ -404,6 +476,31 @@ fn adjustments_change_only_the_fields_they_name() -> TestResult {
 }
 
 #[test]
+fn adjustment_sets_project() -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = log.push(
+        "2026-11-26T09:10[Europe/Berlin]",
+        EventKind::EntryAdjusted {
+            entry: e,
+            changes: EntryChanges {
+                project: Change::Set(ProjectRef::Key("acme-webshop".parse()?)),
+                ..EntryChanges::default()
+            },
+        },
+    )?;
+
+    let state = State::from_events(&log.events);
+
+    assert_eq!(
+        state.entry(e).ok_or("entry")?.project,
+        Some(ProjectRef::Key("acme-webshop".parse()?))
+    );
+    Ok(())
+}
+
+#[test]
 fn per_field_the_later_change_wins_across_devices() -> TestResult {
     let mut laptop = Log::new(1)?;
     let mut desktop = Log::new(2)?;
@@ -546,6 +643,39 @@ fn events_about_an_unknown_entry_change_nothing() -> TestResult {
     _ = log.push(
         "2026-11-26T10:00[Europe/Berlin]",
         EventKind::EntryEnded { entry: entry(9)? },
+    )?;
+
+    assert_eq!(State::from_events(&log.events).entries().count(), 0);
+    Ok(())
+}
+
+#[rstest]
+#[case::held(held(entry(1)?, None))]
+#[case::paused(paused(entry(1)?, None))]
+#[case::resumed(EventKind::EntryResumed { entry: entry(1)? })]
+fn break_about_ended_entry_changes_nothing(#[case] kind: EventKind) -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = log.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        EventKind::EntryEnded { entry: e },
+    )?;
+    let ended = State::from_events(&log.events);
+    _ = log.push("2026-11-26T10:30[Europe/Berlin]", kind)?;
+
+    let state = State::from_events(&log.events);
+
+    assert_eq!(state.entry(e), ended.entry(e));
+    Ok(())
+}
+
+#[test]
+fn adjustment_of_unknown_entry_changes_nothing() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        note_set(entry(9)?, "Call"),
     )?;
 
     assert_eq!(State::from_events(&log.events).entries().count(), 0);
@@ -831,6 +961,28 @@ fn undo_on_top_replays_no_later_event_of_its_own_batch() -> TestResult {
 
     assert_eq!(followed, rebuilt);
     assert_eq!(followed.entry(first).ok_or("first")?.catches.len(), 1);
+    Ok(())
+}
+
+#[test]
+fn undo_on_top_of_unknown_batch_changes_nothing() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = day(&mut log)?;
+    let read = log.events.clone();
+    _ = log.push(
+        "2026-11-26T11:00[Europe/Berlin]",
+        EventKind::BatchUndone {
+            batch: id(0xb, 9999).parse()?,
+        },
+    )?;
+
+    let (followed, rebuilt) = followed_and_rebuilt(&read, &log.events[read.len()..]);
+
+    assert_eq!(followed, rebuilt);
+    assert_eq!(
+        followed.entries().collect::<Vec<_>>(),
+        State::from_events(&read).entries().collect::<Vec<_>>()
+    );
     Ok(())
 }
 
