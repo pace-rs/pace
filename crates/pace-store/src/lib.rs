@@ -3,7 +3,8 @@
 //! - [`FilesStore`]: the `files` backend, TOML event files in `PACE_HOME`,
 //!   one directory per device, one file per period ([`Split`]), read
 //!   through a machine-local index.
-//! - [`device_id`]: this machine's device ID, kept in the machine directory.
+//! - [`device_id`]: this machine's device ID, kept in the machine directory;
+//!   [`existing_device_id`] reads it without creating one.
 //! - [`toml_file`]: span-aware reading of pace's TOML files, so errors name
 //!   the file and the line.
 //! - `testing` (feature `testing`): a scratch directory for tests that write
@@ -21,5 +22,5 @@ pub mod testing;
 pub mod toml_file;
 
 pub use files::{FilesStore, Resplit};
-pub use machine::{DeviceIdentity, device_id};
+pub use machine::{DeviceIdentity, device_id, existing_device_id};
 pub use split::Split;

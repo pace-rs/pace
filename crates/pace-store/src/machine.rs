@@ -7,7 +7,7 @@ use pace_core::{DeviceId, EntryId, Hlc, Ids};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
-use crate::disk::{DEVICE_FILE, io_error, write_atomically};
+use crate::disk::{DEVICE_FILE, io_error, prepare, write_atomically};
 use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts};
 
 const CURSORS_FILE: &str = "cursors.toml";
@@ -32,37 +32,56 @@ struct DeviceFile {
 /// a random UUIDv7, not the hostname (it changes and repeats) and not the OS
 /// machine ID (cloned machines share it).
 ///
+/// Two first runs at once agree on one ID: the file is created without
+/// replacing one that appeared meanwhile, and then that one holds.
+///
 /// # Errors
 ///
 /// If the machine directory or its `device.toml` can't be read or written.
 pub fn device_id(machine: &Path, ids: &dyn Ids) -> PaceResult<DeviceIdentity> {
-    let path = machine.join(DEVICE_FILE);
-    match std::fs::read_to_string(&path) {
-        Ok(text) => {
-            let file: DeviceFile = toml::from_str(&text).map_err(|error| {
-                PaceError::with_source(
-                    ErrorKind::InputOutput,
-                    "{path} holds no valid device ID",
-                    error,
-                )
-                .attach_context("path", path.display().to_string())
-                .attach_hint(format!(
-                    "remove {} and pace gives this machine a new device ID",
-                    path.display()
-                ))
-            })?;
-            Ok(DeviceIdentity {
-                id: file.id,
-                created: false,
-            })
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            let id = DeviceId::try_from(ids.next_id())?;
-            write(&path, &DeviceFile { version: 1, id })?;
-            Ok(DeviceIdentity { id, created: true })
-        }
-        Err(error) => Err(io_error("read", &path, error)),
+    if let Some(id) = existing_device_id(machine)? {
+        return Ok(DeviceIdentity { id, created: false });
     }
+    let id = DeviceId::try_from(ids.next_id())?;
+    let path = machine.join(DEVICE_FILE);
+    let (temporary, path) = prepare(&path, &toml_text(&path, &DeviceFile { version: 1, id })?)?;
+    match temporary.persist_noclobber(&path) {
+        Ok(_) => Ok(DeviceIdentity { id, created: true }),
+        Err(error) if error.error.kind() == std::io::ErrorKind::AlreadyExists => {
+            let id = existing_device_id(machine)?
+                .ok_or_else(|| io_error("read", &path, std::io::ErrorKind::NotFound.into()))?;
+            Ok(DeviceIdentity { id, created: false })
+        }
+        Err(error) => Err(io_error("write", &path, error.error)),
+    }
+}
+
+/// The device ID in the machine directory `machine`, if the machine has one
+/// yet. Writes nothing.
+///
+/// # Errors
+///
+/// If its `device.toml` can't be read or holds no valid ID.
+pub fn existing_device_id(machine: &Path) -> PaceResult<Option<DeviceId>> {
+    let path = machine.join(DEVICE_FILE);
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(io_error("read", &path, error)),
+    };
+    let file: DeviceFile = toml::from_str(&text).map_err(|error| {
+        PaceError::with_source(
+            ErrorKind::InputOutput,
+            "{path} holds no valid device ID",
+            error,
+        )
+        .attach_context("path", path.display().to_string())
+        .attach_hint(format!(
+            "remove {} and pace gives this machine a new device ID",
+            path.display()
+        ))
+    })?;
+    Ok(Some(file.id))
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -162,10 +181,13 @@ fn hlc_text(hlc: Hlc) -> String {
 }
 
 fn write<T: Serialize>(path: &Path, value: &T) -> PaceResult<()> {
-    let text = toml::to_string(value).map_err(|error| {
+    write_atomically(path, &toml_text(path, value)?)
+}
+
+fn toml_text<T: Serialize>(path: &Path, value: &T) -> PaceResult<String> {
+    toml::to_string(value).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write {path}", error)
             .attach_context("path", path.display().to_string())
             .ask_report()
-    })?;
-    write_atomically(path, &text)
+    })
 }

@@ -36,6 +36,42 @@ fn the_first_run_creates_the_device_id_and_later_runs_keep_it() -> TestResult {
 }
 
 #[test]
+fn first_runs_at_once_agree_on_one_device_id() -> TestResult {
+    for round in 0..20u16 {
+        let dir = tempfile::tempdir()?;
+        let machine = dir.path().join("machine");
+        let start = at("2026-11-26T09:00[Europe/Berlin]")?;
+        let barrier = std::sync::Barrier::new(4);
+        let identities = std::thread::scope(|scope| {
+            let runs: Vec<_> = (0..4u16)
+                .map(|run| {
+                    let (machine, start, barrier) = (&machine, &start, &barrier);
+                    scope.spawn(move || {
+                        let ids = SequentialIds::starting_at(start, 10 * round + run + 1);
+                        _ = barrier.wait();
+                        device_id(machine, &ids)
+                    })
+                })
+                .collect();
+            runs.into_iter()
+                .map(|run| run.join().map_err(|_| "a first run panicked"))
+                .collect::<Result<Vec<_>, _>>()
+        })?;
+        let identities = identities.into_iter().collect::<Result<Vec<_>, _>>()?;
+
+        let ids: std::collections::BTreeSet<DeviceId> =
+            identities.iter().map(|identity| identity.id).collect();
+        assert_eq!(ids.len(), 1, "round {round}: {identities:?}");
+        let created = identities
+            .iter()
+            .filter(|identity| identity.created)
+            .count();
+        assert_eq!(created, 1, "round {round}: {identities:?}");
+    }
+    Ok(())
+}
+
+#[test]
 fn broken_device_file_says_how_to_get_new_id() -> TestResult {
     let dir = scratch_dir()?;
     let machine = dir.path().join("machine");
