@@ -224,7 +224,7 @@ fn render(error: &PaceError, style: Style) -> String {
     format!("{:?}\n", Rendered(&options.build(), error))
 }
 
-struct Rendered<'borrowed>(&'borrowed MietteHandler, &'borrowed PaceError);
+struct Rendered<'error>(&'error MietteHandler, &'error PaceError);
 
 impl fmt::Debug for Rendered<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -236,9 +236,7 @@ impl fmt::Debug for Rendered<'_> {
 mod tests {
     use super::*;
 
-    fn env<'borrowed>(
-        vars: &'borrowed [(&str, &str)],
-    ) -> impl Fn(&str) -> Option<OsString> + 'borrowed {
+    fn env<'vars>(vars: &'vars [(&str, &str)]) -> impl Fn(&str) -> Option<OsString> + 'vars {
         move |name| {
             vars.iter()
                 .find(|(key, _)| *key == name)
