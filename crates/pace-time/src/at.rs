@@ -1,6 +1,8 @@
 //! The `--at` grammar: `09:30`, `yesterday 17:00`, `2026-11-26 09:00`,
 //! `-15m`.
 
+use std::fmt;
+
 use jiff::{
     SignedDuration, ZonedDateTime,
     civil::{Date, DateTime, Time},
@@ -122,22 +124,41 @@ fn date_and_time(text: &str) -> Option<DateTime> {
 
 /// The local `datetime` in the zone of `now`, if it lies in the past.
 fn in_the_past(datetime: DateTime, now: &ZonedDateTime) -> PaceResult<At> {
-    let ambiguous = now.time_zone().to_ambiguous_zoned_datetime(datetime);
-    let candidates = match ambiguous.offset() {
-        AmbiguousOffset::Fold { .. } => vec![
-            ambiguous.clone().earlier().map_err(out_of_range)?,
-            ambiguous.later().map_err(out_of_range)?,
-        ],
-        AmbiguousOffset::Unambiguous { .. } | AmbiguousOffset::Gap { .. } => {
-            vec![ambiguous.compatible().map_err(out_of_range)?]
+    let (first, second) = moments(datetime, now).map_err(|error| {
+        // jiff stops a day before the end of its civil dates, and such a
+        // time lies in the future.
+        if datetime > now.datetime() {
+            in_the_future(datetime, now)
+        } else {
+            out_of_range(error)
         }
-    };
+    })?;
 
-    let mut past = candidates.iter().filter(|moment| *moment <= now).cloned();
-    match (past.next(), past.next()) {
-        (Some(earlier), Some(later)) => Ok(At::Ambiguous { earlier, later }),
-        (Some(moment), None) => Ok(At::Exact(moment)),
-        (None, _) => Err(in_the_future(&candidates[0], now)),
+    let passed = |moment: &ZonedDateTime| moment <= now;
+    match second {
+        Some(later) if passed(&later) => Ok(At::Ambiguous {
+            earlier: first,
+            later,
+        }),
+        _ if passed(&first) => Ok(At::Exact(first)),
+        _ => Err(in_the_future(&first, now)),
+    }
+}
+
+/// The moments at which the clock in the zone of `now` showed `datetime`:
+/// the first, and the second if the clocks were set back over it.
+fn moments(
+    datetime: DateTime,
+    now: &ZonedDateTime,
+) -> Result<(ZonedDateTime, Option<ZonedDateTime>), jiff::Error> {
+    let ambiguous = now.time_zone().to_ambiguous_zoned_datetime(datetime);
+    match ambiguous.offset() {
+        AmbiguousOffset::Fold { .. } => {
+            Ok((ambiguous.clone().earlier()?, Some(ambiguous.later()?)))
+        }
+        AmbiguousOffset::Unambiguous { .. } | AmbiguousOffset::Gap { .. } => {
+            Ok((ambiguous.compatible()?, None))
+        }
     }
 }
 
@@ -157,13 +178,16 @@ fn back_from_now(input: &str, duration: SignedDuration, now: &ZonedDateTime) -> 
     Ok(At::Exact(moment))
 }
 
-fn in_the_future(moment: &ZonedDateTime, now: &ZonedDateTime) -> Box<PaceError> {
-    PaceError::new(ErrorKind::InvalidInput, "{moment} lies in the future")
-        .attach_context("moment", moment.to_string())
-        .attach_hint(format!(
-            "pace records what happened; give a time before now, {}",
-            now.strftime("%Y-%m-%d %H:%M")
-        ))
+fn in_the_future(moment: impl fmt::Display, now: &ZonedDateTime) -> Box<PaceError> {
+    PaceError::new(
+        ErrorKind::InvalidInput,
+        "the time {moment} lies in the future",
+    )
+    .attach_context("moment", moment.to_string())
+    .attach_hint(format!(
+        "pace records what happened; give a time before now, {}",
+        now.strftime("%Y-%m-%d %H:%M")
+    ))
 }
 
 fn no_time(input: &str) -> Box<PaceError> {

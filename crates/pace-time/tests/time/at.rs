@@ -103,12 +103,38 @@ fn time_in_the_future_is_rejected() -> TestResult {
 
     assert_eq!(
         message,
-        "2079-01-02T10:00:00+01:00[Europe/Berlin] lies in the future"
+        "the time 2079-01-02T10:00:00+01:00[Europe/Berlin] lies in the future"
     );
     assert_eq!(
         hint,
         "pace records what happened; give a time before now, 2026-11-26 14:30"
     );
+    Ok(())
+}
+
+// jiff calculates with moments up to 9999-12-30 22:00 UTC.
+#[test]
+fn time_beyond_last_moment_jiff_knows_lies_in_the_future() -> TestResult {
+    let (message, hint) = rejected("9999-12-31 23:59", NOW)?;
+
+    assert_eq!(message, "the time 9999-12-31T23:59:00 lies in the future");
+    assert_eq!(
+        hint,
+        "pace records what happened; give a time before now, 2026-11-26 14:30"
+    );
+    Ok(())
+}
+
+// jiff calculates with moments from -9999-01-02 01:59:59 UTC on.
+#[test]
+fn time_before_first_moment_jiff_knows_asks_for_date_closer_to_today() -> TestResult {
+    let (message, hint) = rejected("-009999-01-01 00:00", NOW)?;
+
+    assert_eq!(
+        message,
+        "the date lies outside the range pace can calculate with"
+    );
+    assert_eq!(hint, "give a date closer to today");
     Ok(())
 }
 

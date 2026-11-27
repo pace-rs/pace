@@ -33,5 +33,5 @@ fn out_of_range(error: jiff::Error) -> Box<PaceError> {
         "the date lies outside the range pace can calculate with",
         error,
     )
-    .attach_hint("use a date between the years -9999 and 9999")
+    .attach_hint("give a date closer to today")
 }
