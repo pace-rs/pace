@@ -11,6 +11,7 @@ pub mod now;
 pub mod project;
 pub mod project_init;
 pub mod reflect;
+pub mod report_filter;
 pub mod role;
 pub mod setup;
 pub mod store;
