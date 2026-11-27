@@ -48,6 +48,8 @@ enum Standing {
 struct BatchRecord {
     id: BatchId,
     device: DeviceId,
+    /// When its first event was recorded.
+    recorded: Hlc,
     standing: Standing,
     /// Undo and forget can't be undone.
     undoable: bool,
@@ -64,6 +66,8 @@ struct BatchRecord {
 pub struct UndoTarget {
     /// The batch.
     pub batch: BatchId,
+    /// When its first event was recorded.
+    pub recorded: Hlc,
     /// The moments its events are filed under.
     pub abouts: Vec<ZonedDateTime>,
 }
@@ -216,6 +220,7 @@ impl State {
             self.batches.push(BatchRecord {
                 id: recorded.batch,
                 device: recorded.device,
+                recorded: recorded.hlc,
                 standing,
                 undoable,
                 entries: entry.into_iter().collect(),
@@ -240,6 +245,7 @@ impl State {
             })
             .map(|batch| UndoTarget {
                 batch: batch.id,
+                recorded: batch.recorded,
                 abouts: batch.abouts.clone(),
             })
     }

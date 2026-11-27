@@ -2,9 +2,13 @@
 //! what the append means, without I/O.
 //!
 //! The machine decides, and its caller does the I/O. [`Reading::start`]
-//! takes a command and the time, and names the range to read. With the
-//! store's marker and the events of that range, [`Reading::decide`] lets the
-//! [`Rules`] decide and gives the batch to append. With what the store did,
+//! takes a command and the time, and names the scope to read. With the
+//! store's marker and the events of that scope, [`Reading::decide`] lets the
+//! [`Rules`] decide and gives the batch to append; if the read was too
+//! narrow for the rules, it gives a reading of everything instead. A
+//! command about an entry it names reads the last month first, and `undo`
+//! what was recorded in it: the likely targets, and much less to read than
+//! all of the history. With what the store did,
 //! [`Appending::appended`] gives the [`Outcome`] or, after a stale read, a
 //! new [`Reading`] at the new time; after five stale reads, it fails.
 //!
@@ -16,19 +20,23 @@
 
 use std::fmt;
 
-use jiff::ZonedDateTime;
+use jiff::{ToSpan, ZonedDateTime};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
 
 use crate::{
-    Appended, Batch, ChangeMarker, Command, DeviceId, EventKind, Ids, Policy, ReadScope,
-    RecordedEvent, Rules, State,
-    command::{End, Resume},
+    Appended, Batch, ChangeMarker, Command, DeviceId, Entry, EntryId, EventKind, Ids, Policy,
+    ReadScope, RecordedEvent, Rules, State,
+    command::{Adjust, End, Forget, Resume},
 };
 
 /// How often a command reads and decides before it gives up on commands
 /// that write at the same time.
 const ATTEMPTS: usize = 5;
+
+/// How far back, in days, a command about an entry it names, or `undo`,
+/// reads before it reads everything.
+const LOOK_BACK_DAYS: i64 = 31;
 
 /// What a command did.
 #[derive(Debug)]
@@ -70,7 +78,7 @@ impl fmt::Debug for CommandRun<'_> {
     }
 }
 
-/// A command that waits for the events of its [`range`](Self::range).
+/// A command that waits for the events of its [`scope`](Self::scope).
 #[derive(Debug)]
 pub struct Reading<'a> {
     run: CommandRun<'a>,
@@ -97,6 +105,16 @@ pub struct Appending<'a> {
     now: ZonedDateTime,
     events: Vec<RecordedEvent>,
     before: State,
+}
+
+/// What comes after a read.
+#[derive(Debug)]
+pub enum AfterRead<'a> {
+    /// The rules decided on the read; boxed, since it holds the state.
+    Decided(Box<Decided<'a>>),
+    /// The read was too narrow for the rules: read everything, and decide
+    /// on that.
+    ReadEverything(Box<Reading<'a>>),
 }
 
 /// What comes after an append.
@@ -137,7 +155,7 @@ impl<'a> Reading<'a> {
     }
 
     fn at(run: CommandRun<'a>, now: ZonedDateTime) -> PaceResult<Self> {
-        let scope = scope(run.command, &now)?.into();
+        let scope = scope(run.command, &now)?;
         Ok(Self { run, now, scope })
     }
 
@@ -148,8 +166,9 @@ impl<'a> Reading<'a> {
         &self.scope
     }
 
-    /// Decide the command on the `events` of the [`range`](Self::range),
-    /// read after the store gave `marker`.
+    /// Decide the command on the `events` of the [`scope`](Self::scope),
+    /// read after the store gave `marker`; or, if they lack what the rules
+    /// need, read everything.
     ///
     /// # Errors
     ///
@@ -158,8 +177,16 @@ impl<'a> Reading<'a> {
         self,
         marker: ChangeMarker,
         events: Vec<RecordedEvent>,
-    ) -> PaceResult<Decided<'a>> {
+    ) -> PaceResult<AfterRead<'a>> {
         let before = State::from_events(&events);
+        if !self.scope.is_everything()
+            && !suffices(self.run.command, &before, &self.scope, self.run.device)
+        {
+            return Ok(AfterRead::ReadEverything(Box::new(Self {
+                scope: ReadScope::everything(),
+                ..self
+            })));
+        }
         let batch = Rules {
             state: &before,
             now: &self.now,
@@ -168,7 +195,7 @@ impl<'a> Reading<'a> {
             policy: self.run.policy,
         }
         .decide(self.run.command)?;
-        Ok(Decided {
+        Ok(AfterRead::Decided(Box::new(Decided {
             batch,
             read: marker,
             appending: Appending {
@@ -177,7 +204,7 @@ impl<'a> Reading<'a> {
                 events,
                 before,
             },
-        })
+        })))
     }
 }
 
@@ -251,30 +278,102 @@ fn concurrent_writes() -> Box<PaceError> {
     .attach_error_code("pace::core::concurrent-write")
 }
 
-/// The time a command's rules need to see.
-fn scope(command: &Command, now: &ZonedDateTime) -> PaceResult<TimeRange> {
-    match command {
+/// What a command's rules need to see, or the part of it that holds their
+/// likely target; [`suffices`] says whether it was enough.
+fn scope(command: &Command, now: &ZonedDateTime) -> PaceResult<ReadScope> {
+    let now_to_now = || TimeRange::new(Some(now.clone()), Some(now.clone()));
+    let look_back = now.checked_sub(LOOK_BACK_DAYS.days()).ok();
+    Ok(match command {
         Command::Begin(begin) => {
             let start = begin.at.as_ref().unwrap_or(now).min(now).clone();
-            TimeRange::new(Some(start), Some(now.clone()))
+            TimeRange::new(Some(start), Some(now.clone()))?.into()
         }
-        // A command about an entry it names, or about the last batch, reads
-        // everything: the entry may have ended long ago, and the rules say so.
+        // The entry may have ended long ago, or adjust may move it there.
         Command::Resume(Resume { entry: Some(_), .. })
         | Command::End(End { entry: Some(_), .. })
-        | Command::Adjust(_)
-        | Command::Undo
-        | Command::Forget(_) => TimeRange::new(None, None),
+        | Command::Forget(_) => TimeRange::new(look_back, None)?.into(),
+        Command::Adjust(adjust) => {
+            let start = look_back.map(|back| {
+                [&adjust.start, &adjust.end]
+                    .into_iter()
+                    .flatten()
+                    .fold(back, |earliest, moment| earliest.min(moment.clone()))
+            });
+            TimeRange::new(start, None)?.into()
+        }
+        // The last batch may be about any time, so the read takes what was
+        // recorded lately.
+        Command::Undo => match look_back {
+            Some(back) => ReadScope::of(now_to_now()?).with_recorded_since(back.timestamp()),
+            None => ReadScope::everything(),
+        },
         Command::Hold(_)
         | Command::Pause(_)
         | Command::Resume(_)
         | Command::Catch(_)
-        | Command::End(_) => TimeRange::new(Some(now.clone()), Some(now.clone())),
+        | Command::End(_) => now_to_now()?.into(),
         // The rules refuse a log that ends before it starts, with a better
         // message than the range would.
         Command::Log(log) => TimeRange::new(
             Some((&log.start).min(&log.end).clone()),
             Some((&log.start).max(&log.end).clone()),
-        ),
+        )?
+        .into(),
+    })
+}
+
+/// Whether the `state` read for `scope` holds all that the rules of
+/// `command` look at, so they decide as on everything.
+///
+/// A read has every event of the entries that overlap its range and of
+/// those recorded since its moment. So a named entry must overlap the range,
+/// an adjust's checks for overlaps must lie inside it, and the batch `undo`
+/// takes back must be recorded since the moment: then every later batch is in
+/// the read too.
+fn suffices(command: &Command, state: &State, scope: &ReadScope, device: DeviceId) -> bool {
+    let from = scope.range().start();
+    let meets =
+        |entry: &Entry| from.is_none_or(|from| entry.end.as_ref().is_none_or(|end| end > from));
+    let named = |id: EntryId| state.entry(id).is_some_and(meets);
+    match command {
+        Command::Resume(Resume {
+            entry: Some(id), ..
+        })
+        | Command::End(End {
+            entry: Some(id), ..
+        })
+        | Command::Forget(Forget { entry: id }) => named(*id),
+        Command::Adjust(adjust) => match (adjust.entry, adjusted_entry(state, adjust)) {
+            (_, Some(entry)) => {
+                let checked_from = adjust.start.as_ref().unwrap_or(&entry.start);
+                meets(entry) && from.is_none_or(|from| checked_from >= from)
+            }
+            (Some(_), None) => false,
+            // No open entry, or several: every read has all open entries.
+            (None, None) => true,
+        },
+        Command::Undo => state.last_undoable(device).is_some_and(|target| {
+            scope
+                .recorded_since()
+                .is_none_or(|since| target.recorded.wall() >= since)
+        }),
+        Command::Begin(_)
+        | Command::Hold(_)
+        | Command::Pause(_)
+        | Command::Resume(_)
+        | Command::Catch(_)
+        | Command::End(_)
+        | Command::Log(_) => true,
     }
+}
+
+/// The entry `adjust` names, or the only open one.
+fn adjusted_entry<'s>(state: &'s State, adjust: &Adjust) -> Option<&'s Entry> {
+    adjust.entry.map_or_else(
+        || {
+            let mut open = state.open();
+            open.next().filter(|_| open.next().is_none())
+        },
+        |id| state.entry(id),
+    )
 }

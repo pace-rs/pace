@@ -389,3 +389,97 @@ fn resume_naming_an_ended_entry_says_when_it_ended() -> TestResult {
     assert_eq!(error.exit_code(), ExitCode::NothingToDo);
     Ok(())
 }
+
+/// A tracker, its clock, and the entry it tracked.
+type Tracked = (Tracker<MemoryStore>, Arc<TestClock>, pace_core::EntryId);
+
+/// A tracker at 26 November, with an entry of 15 June recorded then.
+fn tracker_after_an_entry_in_june() -> Result<Tracked, Box<dyn std::error::Error>> {
+    let clock = Arc::new(TestClock::new(at("2026-06-15T12:00[Europe/Berlin]")?));
+    let store = MemoryStore::new(device(1)?, clock.clone());
+    let tracker = tracker(store, &clock, 1)?;
+    let logged = tracker.run(&Command::Log(Log::new(
+        at("2026-06-15T09:00[Europe/Berlin]")?,
+        at("2026-06-15T10:00[Europe/Berlin]")?,
+    )))?;
+    let entry = logged.state.entries().next().ok_or("entry")?.id;
+    clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
+    Ok((tracker, clock, entry))
+}
+
+#[test]
+fn adjust_and_forget_find_entry_of_long_ago() -> TestResult {
+    let (tracker, _, entry) = tracker_after_an_entry_in_june()?;
+
+    let adjusted = tracker.run(&Command::Adjust(Adjust {
+        entry: Some(entry),
+        end: Some(at("2026-06-15T10:30[Europe/Berlin]")?),
+        ..Adjust::default()
+    }))?;
+    let forgotten = tracker.run(&Command::Forget(Forget { entry }))?;
+
+    let end = adjusted
+        .state
+        .entry(entry)
+        .and_then(|entry| entry.end.clone());
+    assert_eq!(end, Some(at("2026-06-15T10:30[Europe/Berlin]")?));
+    assert_eq!(forgotten.state.entries().count(), 0);
+    Ok(())
+}
+
+#[test]
+fn adjust_into_another_entry_of_long_ago_is_refused() -> TestResult {
+    let (tracker, _, entry) = tracker_after_an_entry_in_june()?;
+    _ = tracker.run(&Command::Log(Log::new(
+        at("2026-11-26T08:00[Europe/Berlin]")?,
+        at("2026-11-26T08:30[Europe/Berlin]")?,
+    )))?;
+    let recent = tracker
+        .state(&everything()?)?
+        .entries()
+        .find(|found| found.id != entry)
+        .ok_or("the recent entry")?
+        .id;
+
+    let error = tracker
+        .run(&Command::Adjust(Adjust {
+            entry: Some(recent),
+            start: Some(at("2026-06-15T09:30[Europe/Berlin]")?),
+            ..Adjust::default()
+        }))
+        .err()
+        .ok_or("the adjust into June passed")?;
+
+    assert!(error.to_string().contains("overlap"), "{error}");
+    Ok(())
+}
+
+#[test]
+fn undo_takes_back_log_of_long_ago_recorded_last() -> TestResult {
+    let (tracker, clock, june) = tracker_after_an_entry_in_june()?;
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
+    clock.set(at("2026-11-26T09:30[Europe/Berlin]")?);
+    let logged = tracker.run(&Command::Log(Log::new(
+        at("2026-05-04T09:00[Europe/Berlin]")?,
+        at("2026-05-04T10:00[Europe/Berlin]")?,
+    )))?;
+
+    let undone = tracker.run(&Command::Undo)?;
+
+    assert_eq!(undone.undone, logged.recorded);
+    let state = tracker.state(&everything()?)?;
+    assert_eq!(state.open().count(), 1);
+    assert!(state.entry(june).is_some());
+    Ok(())
+}
+
+#[test]
+fn undo_reaches_batch_recorded_long_ago() -> TestResult {
+    let (tracker, _, june) = tracker_after_an_entry_in_june()?;
+
+    let undone = tracker.run(&Command::Undo)?;
+
+    assert_eq!(undone.undone.len(), 1);
+    assert!(tracker.state(&everything()?)?.entry(june).is_none());
+    Ok(())
+}

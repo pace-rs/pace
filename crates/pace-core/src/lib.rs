@@ -5,8 +5,8 @@
 //! core needs from the outside world comes in as values, or through the
 //! [`Clock`] and [`Ids`] traits; the [`Notifier`] says where notices go.
 //!
-//! A command runs as a step machine without I/O: [`Reading`] names the range
-//! to read, [`Reading::decide`] lets the [`Rules`] decide, and
+//! A command runs as a step machine without I/O: [`Reading`] names the
+//! [`ReadScope`] to read, [`Reading::decide`] lets the [`Rules`] decide, and
 //! [`Appending::appended`] gives the [`Outcome`] or a new read. The event
 //! store and the blocking driver of the machine live in `pace_store`.
 //!
@@ -40,6 +40,6 @@ pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier, SequentialIds
 pub use rules::{Policy, Rules};
 pub use scope::ReadScope;
 pub use state::{State, UndoTarget};
-pub use steps::{AfterAppend, Appending, Decided, Outcome, Reading};
+pub use steps::{AfterAppend, AfterRead, Appending, Decided, Outcome, Reading};
 pub use text::Text;
 pub use tracking::{HoldSource, PauseKind};

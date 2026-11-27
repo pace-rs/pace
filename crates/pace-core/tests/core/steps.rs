@@ -1,10 +1,11 @@
 //! The step machine of the tracker, driven with values only: no store, no
 //! clock, fixed times and sequential IDs.
 
+use jiff::ToSpan;
 use jiff::ZonedDateTime;
 use pace_core::{
-    AfterAppend, Appended, Batch, ChangeMarker, Command, Decided, DeviceId, EntryId, EventKind,
-    Hlc, Policy, Reading, RecordedEvent, SequentialIds,
+    AfterAppend, AfterRead, Appended, Batch, Change, ChangeMarker, Command, Decided, DeviceId,
+    EntryId, EventKind, Hlc, Policy, ReadScope, Reading, RecordedEvent, SequentialIds,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError};
@@ -37,6 +38,50 @@ fn recorded(batch: &Batch, device: DeviceId) -> Vec<RecordedEvent> {
             event: event.clone(),
         })
         .collect()
+}
+
+/// The events of `begin` at `at`, recorded then on [`device`].
+fn begun_at(
+    at: ZonedDateTime,
+    ids: &SequentialIds,
+    policy: &Policy,
+) -> Result<Vec<RecordedEvent>, Box<dyn std::error::Error>> {
+    let command = Command::Begin(Begin::default());
+    let reading = Reading::start(&command, at, device()?, ids, policy)?;
+    let Decided { batch, .. } = decided(reading.decide(ChangeMarker::new(1), Vec::new())?)?;
+    Ok(recorded(&batch, device()?))
+}
+
+/// The entry that `events` begin.
+fn begun_entry(events: &[RecordedEvent]) -> Result<EntryId, Box<dyn std::error::Error>> {
+    events
+        .iter()
+        .find_map(|recorded| match recorded.event.kind {
+            EventKind::EntryBegun { entry, .. } => Some(entry),
+            _ => None,
+        })
+        .ok_or_else(|| "the events begin no entry".into())
+}
+
+/// The decision of a read that was wide enough.
+fn decided(after: AfterRead<'_>) -> Result<Decided<'_>, Box<dyn std::error::Error>> {
+    match after {
+        AfterRead::Decided(decided) => Ok(*decided),
+        AfterRead::ReadEverything(again) => {
+            Err(format!("the read was too narrow: {:?}", again.scope()).into())
+        }
+    }
+}
+
+/// The scope the machine reads for `command` at `now`.
+fn scope_of(
+    command: &Command,
+    now: &ZonedDateTime,
+) -> Result<ReadScope, Box<dyn std::error::Error>> {
+    let ids = SequentialIds::starting_at(now, 1);
+    let policy = Policy::default();
+    let reading = Reading::start(command, now.clone(), device()?, &ids, &policy)?;
+    Ok(reading.scope().clone())
 }
 
 /// The range the machine reads for `command` at `now`.
@@ -90,7 +135,7 @@ fn tracking_commands_without_entry_read_now_to_now() -> TestResult {
 }
 
 #[test]
-fn commands_about_named_entry_or_last_batch_read_everything() -> TestResult {
+fn commands_about_named_entry_read_from_month_ago() -> TestResult {
     let now = berlin("10:00")?;
     let commands = [
         Command::End(End {
@@ -102,15 +147,134 @@ fn commands_about_named_entry_or_last_batch_read_everything() -> TestResult {
             ..Resume::default()
         }),
         Command::Adjust(Adjust::default()),
-        Command::Undo,
         Command::Forget(Forget { entry: entry()? }),
     ];
 
     for command in &commands {
         let range = range_of(command, &now)?;
 
-        assert_eq!(range, TimeRange::new(None, None)?, "{command:?}");
+        assert_eq!(
+            range,
+            TimeRange::new(Some(now.checked_sub(31.days())?), None)?,
+            "{command:?}"
+        );
     }
+    Ok(())
+}
+
+#[test]
+fn adjust_to_earlier_time_reads_from_it() -> TestResult {
+    let command = Command::Adjust(Adjust {
+        start: Some("2026-09-01T09:00[Europe/Berlin]".parse()?),
+        end: Some("2026-09-01T08:00[Europe/Berlin]".parse()?),
+        ..Adjust::default()
+    });
+
+    let range = range_of(&command, &berlin("10:00")?)?;
+
+    assert_eq!(
+        range,
+        TimeRange::new(Some("2026-09-01T08:00[Europe/Berlin]".parse()?), None)?
+    );
+    Ok(())
+}
+
+#[test]
+fn undo_reads_open_entries_and_what_was_recorded_in_last_month() -> TestResult {
+    let now = berlin("10:00")?;
+
+    let scope = scope_of(&Command::Undo, &now)?;
+
+    assert_eq!(
+        scope,
+        ReadScope::of(TimeRange::new(Some(now.clone()), Some(now.clone()))?)
+            .with_recorded_since(now.checked_sub(31.days())?.timestamp())
+    );
+    Ok(())
+}
+
+#[test]
+fn named_entry_missing_from_read_makes_command_read_everything() -> TestResult {
+    let now = berlin("10:00")?;
+    let ids = SequentialIds::starting_at(&now, 1);
+    let policy = Policy::default();
+    let command = Command::Forget(Forget { entry: entry()? });
+    let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
+
+    let after = reading.decide(ChangeMarker::new(7), Vec::new())?;
+
+    let AfterRead::ReadEverything(again) = after else {
+        return Err("a forget of an entry the read lacks was decided".into());
+    };
+    assert_eq!(again.scope(), &ReadScope::everything());
+    let error = again
+        .decide(ChangeMarker::new(7), Vec::new())
+        .err()
+        .ok_or("a forget of an unknown entry was decided")?;
+    assert!(
+        error.to_string().starts_with("pace knows no entry"),
+        "{error}"
+    );
+    Ok(())
+}
+
+#[test]
+fn named_entry_in_read_is_decided_on_it() -> TestResult {
+    let now = berlin("10:00")?;
+    let ids = SequentialIds::starting_at(&now, 1);
+    let policy = Policy::default();
+    let begun = begun_at(berlin("09:00")?, &ids, &policy)?;
+    let entry = begun_entry(&begun)?;
+    let command = Command::Forget(Forget { entry });
+    let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
+
+    let Decided { batch, .. } = decided(reading.decide(ChangeMarker::new(7), begun)?)?;
+
+    assert!(matches!(
+        batch.events[0].kind,
+        EventKind::EntryForgotten { entry: forgotten } if forgotten == entry
+    ));
+    Ok(())
+}
+
+#[test]
+fn adjust_of_entry_begun_before_read_makes_it_read_everything() -> TestResult {
+    let now = berlin("10:00")?;
+    let ids = SequentialIds::starting_at(&now, 1);
+    let policy = Policy::default();
+    // Open, so every read has it, but begun before the read's month.
+    let begun = begun_at("2026-10-01T09:00[Europe/Berlin]".parse()?, &ids, &policy)?;
+    let command = Command::Adjust(Adjust {
+        note: Change::Set("Longer than a month".parse()?),
+        ..Adjust::default()
+    });
+    let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
+
+    let after = reading.decide(ChangeMarker::new(7), begun)?;
+
+    assert!(
+        matches!(&after, AfterRead::ReadEverything(again) if again.scope().is_everything()),
+        "{after:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn undo_of_batch_recorded_before_read_makes_it_read_everything() -> TestResult {
+    let now = berlin("10:00")?;
+    let ids = SequentialIds::starting_at(&now, 1);
+    let policy = Policy::default();
+    // Open, so every read has it, but recorded before the read's month: a
+    // later batch could lie outside the read.
+    let begun = begun_at("2026-10-01T09:00[Europe/Berlin]".parse()?, &ids, &policy)?;
+    let reading = Reading::start(&Command::Undo, now, device()?, &ids, &policy)?;
+
+    let after = reading.decide(ChangeMarker::new(7), begun)?;
+
+    assert!(
+        matches!(&after, AfterRead::ReadEverything(again) if again.scope().is_everything()),
+        "{after:?}"
+    );
     Ok(())
 }
 
@@ -166,7 +330,7 @@ fn decided_begin_gives_batch_with_begun_entry_and_marker_of_read() -> TestResult
     let command = Command::Begin(Begin::default());
     let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
 
-    let Decided { batch, read, .. } = reading.decide(ChangeMarker::new(7), Vec::new())?;
+    let Decided { batch, read, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
 
     assert_eq!(read, ChangeMarker::new(7));
     assert_eq!(batch.events.len(), 1);
@@ -183,7 +347,7 @@ fn stale_append_gives_new_read_at_new_time() -> TestResult {
         ..Begin::default()
     });
     let reading = Reading::start(&command, berlin("10:00")?, device()?, &ids, &policy)?;
-    let Decided { appending, .. } = reading.decide(ChangeMarker::new(7), Vec::new())?;
+    let Decided { appending, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
 
     let after = appending.appended(Appended::Stale, berlin("10:05")?)?;
 
@@ -206,7 +370,7 @@ fn fifth_stale_append_fails_naming_concurrent_writes() -> TestResult {
     let mut reading = Reading::start(&command, now.clone(), device()?, &ids, &policy)?;
 
     for _ in 1..5 {
-        let Decided { appending, .. } = reading.decide(ChangeMarker::new(7), Vec::new())?;
+        let Decided { appending, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
         match appending.appended(Appended::Stale, now.clone())? {
             AfterAppend::ReadAgain(again) => reading = *again,
             done @ AfterAppend::Done(_) => {
@@ -214,7 +378,7 @@ fn fifth_stale_append_fails_naming_concurrent_writes() -> TestResult {
             }
         }
     }
-    let Decided { appending, .. } = reading.decide(ChangeMarker::new(7), Vec::new())?;
+    let Decided { appending, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
     let error = appending
         .appended(Appended::Stale, now)
         .err()
@@ -234,7 +398,7 @@ fn recorded_append_gives_outcome_of_command() -> TestResult {
     let reading = Reading::start(&command, now.clone(), device()?, &ids, &policy)?;
     let Decided {
         batch, appending, ..
-    } = reading.decide(ChangeMarker::new(7), Vec::new())?;
+    } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
     let events = recorded(&batch, device()?);
     let warning = PaceError::new(ErrorKind::InputOutput, "the cleaning failed");
 
@@ -264,13 +428,13 @@ fn recorded_undo_gives_events_it_undid() -> TestResult {
     let policy = Policy::default();
     let earlier = Command::Begin(Begin::default());
     let reading = Reading::start(&earlier, berlin("09:00")?, device()?, &ids, &policy)?;
-    let Decided { batch, .. } = reading.decide(ChangeMarker::new(7), Vec::new())?;
+    let Decided { batch, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
     let begun = recorded(&batch, device()?);
     let undo = Command::Undo;
     let reading = Reading::start(&undo, berlin("10:00")?, device()?, &ids, &policy)?;
     let Decided {
         batch, appending, ..
-    } = reading.decide(ChangeMarker::new(8), begun.clone())?;
+    } = decided(reading.decide(ChangeMarker::new(8), begun.clone())?)?;
 
     let after = appending.appended(
         Appended::Recorded {

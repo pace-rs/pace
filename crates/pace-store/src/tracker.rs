@@ -5,7 +5,8 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    AfterAppend, Clock, Command, Decided, DeviceId, Ids, Outcome, Policy, ReadScope, Reading, State,
+    AfterAppend, AfterRead, Clock, Command, Decided, DeviceId, Ids, Outcome, Policy, ReadScope,
+    Reading, State,
 };
 use pace_error::PaceResult;
 use pace_time::TimeRange;
@@ -16,8 +17,10 @@ use crate::EventStore;
 /// step machine that starts with [`Reading`], and holds no rule.
 ///
 /// Each command reads only what its rules need: tracking commands the open
-/// entries and the time from their `--at` to now, `log` its own time, and
-/// `adjust`, `forget` and `undo` everything; [`Reading::range`] says which.
+/// entries and the time from their `--at` to now, `log` its own time,
+/// commands about a named entry the last month, and `undo` what was recorded
+/// in it; [`Reading::scope`] says which. If that lacks what the rules need,
+/// the machine asks for everything.
 pub struct Tracker<S> {
     store: S,
     clock: Arc<dyn Clock>,
@@ -82,7 +85,13 @@ impl<S: EventStore> Tracker<S> {
                 batch,
                 read,
                 appending,
-            } = reading.decide(marker, events)?;
+            } = match reading.decide(marker, events)? {
+                AfterRead::Decided(decided) => *decided,
+                AfterRead::ReadEverything(wider) => {
+                    reading = *wider;
+                    continue;
+                }
+            };
             match appending.appended(self.store.append(batch, read)?, self.clock.now())? {
                 AfterAppend::Done(outcome) => return Ok(*outcome),
                 AfterAppend::ReadAgain(again) => reading = *again,
