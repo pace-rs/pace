@@ -1,7 +1,8 @@
 //! The bill of `bill` as rows of the schema, for `--format json`, `csv`
-//! and its templates: the client and the period, the lines of each
-//! project with their entries, the project's totals, the bill's totals,
-//! the share of hold time, and the running entries it leaves out.
+//! and its templates: the client and the period, the invoice once
+//! written, the lines of each project with their entries, the project's
+//! totals, the bill's totals, the share of hold time, and the running
+//! entries it leaves out.
 
 use pace_core::{Bill, BillLine, Catalog, Client, ProjectBill, State};
 use pace_time::TimeRange;
@@ -30,7 +31,8 @@ pub struct BillRows<'bill> {
 
 /// The rows of the bill, in the order of its table.
 ///
-/// First `bill` `client`; per project its `line` rows, each followed by
+/// First `bill` `client`, then `bill` `invoice` with the reference of a
+/// written invoice; per project its `line` rows, each followed by
 /// its `entry` rows, then its `project` row; `bill` `total` per currency;
 /// `interruptions` `hold_share`; and `left_out` `running` per running
 /// entry.
@@ -55,6 +57,11 @@ pub fn bill_rows(rows: &BillRows<'_>) -> Vec<Row> {
         client_row = client_row.time(Column::End, end);
     }
     let mut all = vec![client_row];
+    all.extend(
+        bill.invoice
+            .iter()
+            .map(|invoice| Row::of("bill", "invoice").text(Column::Key, invoice.to_string())),
+    );
     for project in &bill.projects {
         all.extend(project_rows(project, rows));
     }

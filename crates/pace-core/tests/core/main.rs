@@ -6,6 +6,7 @@ mod catalog;
 mod commands;
 mod hlc;
 mod ids;
+mod invoice;
 mod keys;
 mod marking;
 mod money;

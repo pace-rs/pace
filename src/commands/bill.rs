@@ -1,12 +1,13 @@
 //! `pace bill`: the bill of a client over a period, as a table, JSON, CSV
 //! or Markdown from a template; with `--mark-billed`, the bill frozen on an
-//! invoice.
+//! invoice; with `--invoice`, a written invoice shown again.
 
 use abscissa_core::{Command, Runnable};
 use jiff::civil::Date;
+use jiff::tz::TimeZone;
 use pace_core::{
-    Bill, BillInput, Catalog, Client, ClientKey, Command as UseCase, InvoiceRef, State,
-    command::MarkBilled,
+    Bill, BillInput, Catalog, Client, ClientKey, Command as UseCase, InvoiceInput, InvoiceRef,
+    State, command::MarkBilled, invoice_client,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{TimeFrame, TimeRange};
@@ -82,6 +83,15 @@ pub struct BillCmd {
                 and freeze its amounts; `pace undo` takes it back"
     )]
     mark_billed: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "INVOICE",
+        conflicts_with_all = ["mark_billed", "period", "month", "from", "to"],
+        help = "Show the written invoice with this reference again, from its frozen amounts; \
+                --client tells two clients' invoices of one reference apart"
+    )]
+    invoice: Option<String>,
 }
 
 /// How `pace bill` shows the bill.
@@ -105,6 +115,9 @@ impl Runnable for BillCmd {
 
 impl BillCmd {
     fn execute(&self, context: &Context) -> PaceResult<()> {
+        if let Some(invoice) = self.invoice.as_deref() {
+            return self.show_invoice(context, &invoice.parse().map_err(usage)?);
+        }
         let catalog = &context.catalog;
         let client = bill_client(catalog, self.client.as_deref())?;
         let invoice: Option<InvoiceRef> = self
@@ -142,25 +155,89 @@ impl BillCmd {
         if let Some(invoice) = invoice {
             return mark_billed(&session, catalog, client, &range, invoice);
         }
-        let rows = || {
-            bill_rows(&BillRows {
+        self.show(
+            context,
+            &Shown {
                 bill: &bill,
                 client,
                 range: &range,
                 period,
-                catalog,
+                zone: &zone,
                 state: &state,
+            },
+        )
+    }
+
+    /// The written invoice `invoice`, from the amounts its
+    /// `billing.marked` events froze, in the format of `--format`. The
+    /// reference finds its client; `--client` names one of several.
+    fn show_invoice(&self, context: &Context, invoice: &InvoiceRef) -> PaceResult<()> {
+        let catalog = &context.catalog;
+        let session = Session::open_existing(context)?;
+        let zone = zone(&context.settings.settings.reports_time_zone)?;
+        let now = session.now().with_time_zone(zone.clone());
+        let state = session.state(&TimeRange::everything())?;
+        let key: Option<ClientKey> = self
+            .client
+            .as_deref()
+            .map(str::parse)
+            .transpose()
+            .map_err(usage)?;
+        let client = invoice_client(&state, catalog, invoice, key.as_ref()).map_err(usage)?;
+        let bill = Bill::of_invoice(&InvoiceInput {
+            state: &state,
+            catalog,
+            client,
+            invoice,
+            zone: &zone,
+            now: &now,
+        })?;
+        let range = invoice_days(&bill)
+            .resolve(&now, context.settings.settings.week_start)
+            .map_err(usage)?;
+        self.show(
+            context,
+            &Shown {
+                bill: &bill,
+                client,
+                range: &range,
+                period: BillPeriod::of(&range, &zone),
+                zone: &zone,
+                state: &state,
+            },
+        )
+    }
+
+    /// Print `shown` in the format of `--format`.
+    fn show(&self, context: &Context, shown: &Shown<'_>) -> PaceResult<()> {
+        let Shown {
+            bill,
+            client,
+            range,
+            period,
+            zone,
+            state,
+        } = *shown;
+        let catalog = &context.catalog;
+        let rows = || {
+            bill_rows(&BillRows {
+                bill,
+                client,
+                range,
+                period,
+                catalog,
+                state,
             })
         };
         match self.format {
             BillFormat::Table => print_lines(bill_table(
                 &BillTable {
-                    bill: &bill,
+                    bill,
                     client,
                     period,
                     zone: zone.iana_name().unwrap_or("the system's time zone"),
                     catalog,
-                    state: &state,
+                    state,
                 },
                 Canvas::detect(context.plain),
             )),
@@ -189,6 +266,35 @@ impl BillCmd {
             (None, None, None, None) => Ok(TimeFrame::LastMonth),
             (None, None, from, to) => Ok(TimeFrame::Between { from, to }),
         }
+    }
+}
+
+/// A bill to show, with what names its parts.
+#[derive(Debug, Clone, Copy)]
+struct Shown<'shown> {
+    bill: &'shown Bill,
+    client: &'shown Client,
+    range: &'shown TimeRange,
+    period: BillPeriod,
+    zone: &'shown TimeZone,
+    state: &'shown State,
+}
+
+/// The days of an invoice: from the first start day of its lines to the
+/// last one; all time for an invoice without a line.
+fn invoice_days(bill: &Bill) -> TimeFrame {
+    let dates = || {
+        bill.projects
+            .iter()
+            .flat_map(|project| &project.lines)
+            .map(|line| line.date)
+    };
+    match (dates().min(), dates().max()) {
+        (Some(from), Some(to)) => TimeFrame::Between {
+            from: Some(from),
+            to: Some(to),
+        },
+        _ => TimeFrame::All,
     }
 }
 

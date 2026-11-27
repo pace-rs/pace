@@ -4,8 +4,9 @@
 {%- set parts = rows | group_by(attribute="part") -%}
 {%- set bill = parts.bill | default(value=[]) | group_by(attribute="group") -%}
 {%- set client = bill.client | default(value=[]) | first -%}
+{%- set invoice = bill.invoice | default(value=[]) | first -%}
 {%- set lines = bill.line | default(value=[]) | group_by(attribute="key") -%}
-# Bill for {{ client.name | default(value="a client") }}
+# {% if invoice %}Invoice {{ invoice.key }}{% else %}Bill{% endif %} for {{ client.name | default(value="a client") }}
 
 {{ client.period | default(value="") }}
 {% for project in bill.project | default(value=[]) %}

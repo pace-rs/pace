@@ -196,7 +196,7 @@ fn rates(list: &[(&str, &str)]) -> Fallible<Rates> {
 /// acme bills in EUR: 100 an hour from 1 January 2026, 120 from
 /// 15 November; its project acme-app has 150 from 1 November. beta bills
 /// 80 an hour.
-fn clients(rounding: Rounding) -> Fallible<Vec<Client>> {
+pub(crate) fn clients(rounding: Rounding) -> Fallible<Vec<Client>> {
     Ok(vec![
         Client {
             key: "acme".parse()?,

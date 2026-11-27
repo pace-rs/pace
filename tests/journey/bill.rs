@@ -734,3 +734,70 @@ fn undo_of_begin_of_billed_entry_is_refused() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+// bill --invoice
+
+/// The clients file of `ACME` with the webshop's rate raised from 120 to
+/// 150 EUR an hour from 2026-09-01: a written invoice keeps its amounts.
+fn raise_webshop_rate(sandbox: &Sandbox) -> TestResult {
+    sandbox.write(
+        "home/clients.toml",
+        &ACME.replace("hourly = 120", "hourly = 150"),
+    )?;
+    Ok(())
+}
+
+#[test]
+fn invoice_shows_frozen_amounts_after_rate_changed() -> TestResult {
+    let sandbox = october_sandbox()?;
+    _ = run(sandbox
+        .pace_at("15:00")
+        .args(["bill", "--mark-billed", "2026-0042"]))?;
+    raise_webshop_rate(&sandbox)?;
+
+    let output = sandbox.journey(&[
+        ("15:05", &["bill", "--invoice", "2026-0042"]),
+        (
+            "15:06",
+            &["bill", "--invoice", "2026-0042", "--format", "markdown"],
+        ),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn invoice_shows_as_json_and_csv() -> TestResult {
+    let sandbox = october_sandbox()?;
+    _ = run(sandbox
+        .pace_at("15:00")
+        .args(["bill", "--mark-billed", "2026-0042"]))?;
+
+    let output = sandbox.journey(&[
+        (
+            "15:05",
+            &["bill", "--invoice", "2026-0042", "--format", "json"],
+        ),
+        (
+            "15:06",
+            &["bill", "--invoice", "2026-0042", "--format", "csv"],
+        ),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn unknown_invoice_is_usage_error_naming_closest() -> TestResult {
+    let sandbox = october_sandbox()?;
+    _ = run(sandbox
+        .pace_at("15:00")
+        .args(["bill", "--mark-billed", "2026-0042"]))?;
+
+    let output = sandbox.journey(&[
+        ("15:05", &["bill", "--invoice", "2026-0024"]),
+        ("15:06", &["bill", "--invoice", "2026-0042", "last-month"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

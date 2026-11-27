@@ -1,7 +1,7 @@
-//! The bill of `bill` as a table for the terminal: per project its lines
-//! with date, note, hours, rate and amount, and its total; then the
-//! bill's totals, the share of hold time and the running entries it
-//! leaves out.
+//! The bill of `bill` as a table for the terminal, headed by its invoice
+//! once it is written: per project its lines with date, note, hours, rate
+//! and amount, and its total; then the bill's totals, the share of hold
+//! time and the running entries it leaves out.
 
 use pace_core::{Bill, BillLine, Catalog, Client, Money, ProjectBill, State};
 use pace_time::format_duration;
@@ -42,8 +42,12 @@ pub fn bill_table(table: &BillTable<'_>, canvas: Canvas) -> Vec<String> {
         zone,
         ..
     } = *table;
+    let title = bill
+        .invoice
+        .as_ref()
+        .map_or_else(|| "Bill".to_owned(), |invoice| format!("Invoice {invoice}"));
     let mut lines = canvas.wrap(
-        &format!("Bill for {}: {}, {zone}", client.name, period.label()),
+        &format!("{title} for {}: {}, {zone}", client.name, period.label()),
         "",
     );
     for project in &bill.projects {

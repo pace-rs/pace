@@ -80,7 +80,7 @@ mod tracking;
 
 pub use bill::{
     BILL_BEFORE_FIRST_RATE, BILL_OVERLAP, Bill, BillEntry, BillInput, BillLine, HoldTimeShare,
-    ProjectBill,
+    InvoiceInput, ProjectBill, UNKNOWN_INVOICE, invoice_client,
 };
 pub use billing::{Billing, Charge, InvoiceRef, Price, billable_charges};
 pub use catalog::{

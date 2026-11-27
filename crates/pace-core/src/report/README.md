@@ -26,6 +26,6 @@ and the warnings, and re-exports these values.
 <!-- uses -->
 
 - Uses: no other module.
-- Used by: [`billing`](../billing.rs).
+- Used by: [`bill`](../bill/), [`billing`](../billing.rs).
 
 <!-- /uses -->

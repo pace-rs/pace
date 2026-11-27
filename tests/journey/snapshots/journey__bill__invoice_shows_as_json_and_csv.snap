@@ -1,0 +1,190 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --invoice 2026-0042 --format json   # at 15:05
+success: true
+exit_code: 0
+----- stdout -----
+{
+  "version": 1,
+  "kind": "bill",
+  "rows": [
+    {
+      "part": "bill",
+      "group": "client",
+      "key": "acme",
+      "name": "ACME GmbH",
+      "start": "2026-10-05T00:00:00+02:00[Europe/Berlin]",
+      "end": "2026-10-21T00:00:00+02:00[Europe/Berlin]",
+      "period": "2026-10-05 to 2026-10-20"
+    },
+    {
+      "part": "bill",
+      "group": "invoice",
+      "key": "2026-0042"
+    },
+    {
+      "part": "bill",
+      "group": "line",
+      "key": "acme-blog",
+      "id": "[ID-1]",
+      "name": "Company blog",
+      "client": "acme",
+      "date": "2026-10-20",
+      "count": 1,
+      "net_seconds": 4800,
+      "net": "1h 20m",
+      "billed_seconds": 5400,
+      "billed": "1h 30m",
+      "rate": "95.00",
+      "amount": "142.50",
+      "currency": "EUR",
+      "note": "Write the launch post"
+    },
+    {
+      "part": "bill",
+      "group": "entry",
+      "key": "acme-blog",
+      "id": "[ID-2]",
+      "short": "[ID-2]",
+      "client": "acme",
+      "date": "2026-10-20",
+      "net_seconds": 4800,
+      "net": "1h 20m",
+      "note": "Write the launch post"
+    },
+    {
+      "part": "bill",
+      "group": "project",
+      "key": "acme-blog",
+      "id": "[ID-1]",
+      "name": "Company blog",
+      "client": "acme",
+      "count": 1,
+      "net_seconds": 4800,
+      "net": "1h 20m",
+      "billed_seconds": 5400,
+      "billed": "1h 30m",
+      "amount": "142.50",
+      "currency": "EUR"
+    },
+    {
+      "part": "bill",
+      "group": "line",
+      "key": "acme-webshop",
+      "id": "[ID-3]",
+      "name": "Webshop relaunch",
+      "client": "acme",
+      "date": "2026-10-05",
+      "count": 1,
+      "net_seconds": 7800,
+      "net": "2h 10m",
+      "billed_seconds": 8100,
+      "billed": "2h 15m",
+      "rate": "120.00",
+      "amount": "270.00",
+      "currency": "EUR",
+      "note": "Plan the relaunch"
+    },
+    {
+      "part": "bill",
+      "group": "entry",
+      "key": "acme-webshop",
+      "id": "[ID-4]",
+      "short": "[ID-4]",
+      "client": "acme",
+      "date": "2026-10-05",
+      "net_seconds": 7800,
+      "net": "2h 10m",
+      "note": "Plan the relaunch"
+    },
+    {
+      "part": "bill",
+      "group": "line",
+      "key": "acme-webshop",
+      "id": "[ID-3]",
+      "name": "Webshop relaunch",
+      "client": "acme",
+      "date": "2026-10-07",
+      "count": 1,
+      "net_seconds": 9000,
+      "net": "2h 30m",
+      "billed_seconds": 9000,
+      "billed": "2h 30m",
+      "rate": "120.00",
+      "amount": "300.00",
+      "currency": "EUR",
+      "note": "Fix the checkout"
+    },
+    {
+      "part": "bill",
+      "group": "entry",
+      "key": "acme-webshop",
+      "id": "[ID-5]",
+      "short": "[ID-5]",
+      "client": "acme",
+      "date": "2026-10-07",
+      "net_seconds": 9000,
+      "net": "2h 30m",
+      "note": "Fix the checkout"
+    },
+    {
+      "part": "bill",
+      "group": "project",
+      "key": "acme-webshop",
+      "id": "[ID-3]",
+      "name": "Webshop relaunch",
+      "client": "acme",
+      "count": 2,
+      "net_seconds": 16800,
+      "net": "4h 40m",
+      "billed_seconds": 17100,
+      "billed": "4h 45m",
+      "amount": "570.00",
+      "currency": "EUR"
+    },
+    {
+      "part": "bill",
+      "group": "total",
+      "client": "acme",
+      "net_seconds": 21600,
+      "net": "6h",
+      "billed_seconds": 22500,
+      "billed": "6h 15m",
+      "amount": "712.50",
+      "currency": "EUR"
+    },
+    {
+      "part": "interruptions",
+      "group": "hold_share",
+      "percent": 8,
+      "gross_seconds": 23400,
+      "gross": "6h 30m",
+      "held_seconds": 1800,
+      "held": "30m"
+    }
+  ]
+}
+
+----- stderr -----
+
+$ pace bill --invoice 2026-0042 --format csv   # at 15:06
+success: true
+exit_code: 0
+----- stdout -----
+part,group,key,id,short,name,client,date,start,end,period,count,net_seconds,net,percent,billed_seconds,billed,gross_seconds,gross,held_seconds,held,rate,amount,currency,note
+bill,client,acme,,,ACME GmbH,,,2026-10-05T00:00:00+02:00[Europe/Berlin],2026-10-21T00:00:00+02:00[Europe/Berlin],2026-10-05 to 2026-10-20,,,,,,,,,,,,,,
+bill,invoice,2026-0042,,,,,,,,,,,,,,,,,,,,,,
+bill,line,acme-blog,[ID-1],,Company blog,acme,2026-10-20,,,,1,4800,1h 20m,,5400,1h 30m,,,,,95.00,142.50,EUR,Write the launch post
+bill,entry,acme-blog,[ID-2],[ID-2],,acme,2026-10-20,,,,,4800,1h 20m,,,,,,,,,,,Write the launch post
+bill,project,acme-blog,[ID-1],,Company blog,acme,,,,,1,4800,1h 20m,,5400,1h 30m,,,,,,142.50,EUR,
+bill,line,acme-webshop,[ID-3],,Webshop relaunch,acme,2026-10-05,,,,1,7800,2h 10m,,8100,2h 15m,,,,,120.00,270.00,EUR,Plan the relaunch
+bill,entry,acme-webshop,[ID-4],[ID-4],,acme,2026-10-05,,,,,7800,2h 10m,,,,,,,,,,,Plan the relaunch
+bill,line,acme-webshop,[ID-3],,Webshop relaunch,acme,2026-10-07,,,,1,9000,2h 30m,,9000,2h 30m,,,,,120.00,300.00,EUR,Fix the checkout
+bill,entry,acme-webshop,[ID-5],[ID-5],,acme,2026-10-07,,,,,9000,2h 30m,,,,,,,,,,,Fix the checkout
+bill,project,acme-webshop,[ID-3],,Webshop relaunch,acme,,,,,2,16800,4h 40m,,17100,4h 45m,,,,,,570.00,EUR,
+bill,total,,,,,acme,,,,,,21600,6h,,22500,6h 15m,,,,,,712.50,EUR,
+interruptions,hold_share,,,,,,,,,,,,,8,,,23400,6h 30m,1800,30m,,,,
+
+----- stderr -----

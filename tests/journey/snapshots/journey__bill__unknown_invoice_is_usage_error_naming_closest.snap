@@ -1,0 +1,27 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --invoice 2026-0024   # at 15:05
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+pace::core::unknown-invoice
+
+  × pace doesn't know the invoice `2026-0024`
+  help: did you mean `2026-0042`?
+
+
+$ pace bill --invoice 2026-0042 last-month   # at 15:06
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+error: the argument '--invoice <INVOICE>' cannot be used with '[PERIOD]'
+
+Usage: pace bill --invoice <INVOICE> [PERIOD]
+
+For more information, try '--help'.

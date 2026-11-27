@@ -6,6 +6,10 @@
 //! to [`Bill::build`] with the [`Catalog`], the client, the period, the
 //! report's zone and now. The amounts come from [`billable_charges`], as
 //! the revenue of `reflect` does, so a bill and a report agree.
+//!
+//! A written invoice comes back from the amounts its `billing.marked`
+//! events froze: [`invoice_client`] finds the client of a reference, and
+//! [`Bill::of_invoice`] builds its bill (`bill/invoice.rs`).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -18,6 +22,10 @@ use crate::{
     Billing, Catalog, Charge, Client, ClientKey, Entry, EntryId, InvoiceRef, Money, ProjectRef,
     State, Totals, billable_charges,
 };
+
+mod invoice;
+
+pub use invoice::{InvoiceInput, UNKNOWN_INVOICE, invoice_client};
 
 /// The error code of a bill refused for entries that overlap.
 pub const BILL_OVERLAP: &str = "pace::core::bill-overlap";
@@ -100,12 +108,16 @@ pub struct HoldTimeShare {
     pub percent: u32,
 }
 
-/// The bill of a client over a period: plain data that a table, a
-/// template or JSON shows.
+/// The bill of a client over a period, or a written invoice shown again
+/// ([`Bill::of_invoice`]): plain data that a table, a template or JSON
+/// shows.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Bill {
     /// The client.
     pub client: ClientKey,
+    /// The invoice the bill was written on; `None` for a bill that is not
+    /// marked yet.
+    pub invoice: Option<InvoiceRef>,
     /// Per project, by the key of its record.
     pub projects: Vec<ProjectBill>,
     /// The net time of all lines.
@@ -119,6 +131,17 @@ pub struct Bill {
     /// The running entries the bill leaves out: end them first to bill
     /// them. By start.
     pub running: Vec<EntryId>,
+}
+
+/// What [`Bill::of_lines`] puts together.
+struct BillParts<'parts> {
+    client: &'parts Client,
+    catalog: &'parts Catalog,
+    /// Each line with its project.
+    lines: Vec<(ProjectRef, BillLine)>,
+    hold_share: HoldTimeShare,
+    running: Vec<EntryId>,
+    invoice: Option<InvoiceRef>,
 }
 
 impl Bill {
@@ -159,15 +182,29 @@ impl Bill {
 
         let notes: BTreeMap<EntryId, &Entry> =
             ended.iter().map(|entry| (entry.id, *entry)).collect();
+        let lines = charges
+            .iter()
+            .filter_map(|charge| Some((charge.project.clone()?, bill_line(charge, &notes, now)?)))
+            .collect();
+        Self::of_lines(BillParts {
+            client,
+            catalog,
+            lines,
+            hold_share: HoldTimeShare::of(&ended, now),
+            running: running.iter().map(|entry| entry.id).collect(),
+            invoice: None,
+        })
+    }
+
+    /// The bill of `parts`: its lines per project, by the key of the
+    /// project's record, with the totals of each project and of the bill.
+    fn of_lines(parts: BillParts<'_>) -> PaceResult<Self> {
+        let BillParts {
+            client, catalog, ..
+        } = parts;
         let mut projects: BTreeMap<String, ProjectBill> = BTreeMap::new();
         let mut totals = Totals::default();
-        for charge in charges {
-            let Some(line) = bill_line(&charge, &notes, now) else {
-                continue;
-            };
-            let Some(project) = charge.project else {
-                continue;
-            };
+        for (project, line) in parts.lines {
             totals.add(line.amount)?;
             let key = catalog
                 .resolve(&project)
@@ -184,12 +221,13 @@ impl Bill {
         let projects: Vec<ProjectBill> = projects.into_values().collect();
         Ok(Self {
             client: client.key.clone(),
+            invoice: parts.invoice,
             net: projects.iter().map(|project| project.net).sum(),
             billed: projects.iter().map(|project| project.billed).sum(),
             projects,
             totals: totals.iter().collect(),
-            hold_share: HoldTimeShare::of(&ended, now),
-            running: running.iter().map(|entry| entry.id).collect(),
+            hold_share: parts.hold_share,
+            running: parts.running,
         })
     }
 
