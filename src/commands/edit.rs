@@ -257,10 +257,10 @@ fn read(
         }
     })?;
 
-    let mut moment = |value: &Spanned<String>| moment(text, value, now, asker, notes);
-    let start = moment(&edited.start)?;
+    let mut edited_moment = |value: &Spanned<String>| moment(text, value, now, asker, notes);
+    let start = edited_moment(&edited.start)?;
     let end = match (&edited.end, &entry.end) {
-        (Some(end), _) => Some(moment(end)?),
+        (Some(end), _) => Some(edited_moment(end)?),
         (None, Some(_)) => {
             return Err(PaceError::new(
                 ErrorKind::InvalidInput,
