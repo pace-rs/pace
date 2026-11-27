@@ -150,16 +150,32 @@ fn forget_names_the_entry() -> TestResult {
 }
 
 #[rstest]
-#[case::unknown_field(r#"{"command":"end","force":true}"#)]
-#[case::unknown_command(r#"{"command":"stop"}"#)]
-#[case::invalid_key(r#"{"command":"begin","project":"Acme Webshop"}"#)]
-#[case::catch_without_text(r#"{"command":"catch"}"#)]
-#[case::catch_with_empty_text(r#"{"command":"catch","text":""}"#)]
-#[case::hold_with_blank_reason(r#"{"command":"hold","reason":"  "}"#)]
-#[case::pause_with_empty_reason(r#"{"command":"pause","reason":""}"#)]
-#[case::begin_with_empty_note(r#"{"command":"begin","note":""}"#)]
-#[case::log_with_blank_note(r#"{"command":"log","start":"2026-11-25T14:00:00+01:00[Europe/Berlin]","end":"2026-11-25T15:00:00+01:00[Europe/Berlin]","note":" "}"#)]
-#[case::adjust_with_empty_note(r#"{"command":"adjust","note":""}"#)]
-fn malformed_commands_are_rejected(#[case] json: &str) {
-    assert!(serde_json::from_str::<Command>(json).is_err());
+#[case::unknown_field_of_end(r#"{"command":"end","force":true}"#, "unknown field `force`")]
+#[case::unknown_command(r#"{"command":"stop"}"#, "unknown variant `stop`")]
+#[case::project_without_key_or_id(
+    r#"{"command":"begin","project":"acme-webshop"}"#,
+    "expected `id` or `key`"
+)]
+#[case::invalid_key(
+    r#"{"command":"begin","project":{"key":"Acme Webshop"}}"#,
+    "`Acme Webshop` is not a project key"
+)]
+#[case::catch_without_text(r#"{"command":"catch"}"#, "missing field `text`")]
+#[case::catch_with_empty_text(r#"{"command":"catch","text":""}"#, r#"the text "" has no words"#)]
+#[case::hold_with_blank_reason(
+    r#"{"command":"hold","reason":"  "}"#,
+    r#"the text "  " has no words"#
+)]
+#[case::pause_with_empty_reason(
+    r#"{"command":"pause","reason":""}"#,
+    r#"the text "" has no words"#
+)]
+#[case::begin_with_empty_note(r#"{"command":"begin","note":""}"#, r#"the text "" has no words"#)]
+#[case::log_with_blank_note(r#"{"command":"log","start":"2026-11-25T14:00:00+01:00[Europe/Berlin]","end":"2026-11-25T15:00:00+01:00[Europe/Berlin]","note":" "}"#, r#"the text " " has no words"#)]
+#[case::adjust_with_empty_note(r#"{"command":"adjust","note":""}"#, r#"the text "" has no words"#)]
+fn malformed_commands_are_rejected_with_reason(#[case] json: &str, #[case] reason: &str) {
+    let error = serde_json::from_str::<Command>(json).err();
+
+    let message = error.map_or_else(String::new, |error| error.to_string());
+    assert!(message.contains(reason), "{message}");
 }
