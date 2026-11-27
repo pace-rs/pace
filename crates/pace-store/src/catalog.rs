@@ -206,13 +206,85 @@ fn read_files(sources: &[(Kind, Source)]) -> ReadFiles {
                 clients::read_clients(&file, &mut mentions).map(|clients| records.clients = clients)
             }
             Kind::Project => projects::read_project(&file, &mut mentions)
-                .map(|project| records.projects.push(project)),
+                .map(|project| records.projects.push(project))
+                .map_err(only),
         };
-        if let Err(mistake) = read {
-            files.mistakes.push((index, mistake));
+        if let Err(mistakes) = read {
+            files
+                .mistakes
+                .extend(mistakes.into_iter().map(|mistake| (index, mistake)));
         }
     }
     files
+}
+
+/// The mistakes of a catalog file, in their order.
+type Mistakes = Vec<Box<PaceError>>;
+
+/// The one mistake that stops a file's reader.
+fn only(mistake: Box<PaceError>) -> Mistakes {
+    vec![mistake]
+}
+
+/// The records that `read` gives if each reads; else every mistake, in
+/// their order, so one record's mistake doesn't hide the next one's.
+fn every<T>(read: impl Iterator<Item = PaceResult<T>>) -> Result<Vec<T>, Mistakes> {
+    let mut records = Vec::new();
+    let mut mistakes = Vec::new();
+    for record in read {
+        match record {
+            Ok(record) => records.push(record),
+            Err(mistake) => mistakes.push(mistake),
+        }
+    }
+    if mistakes.is_empty() {
+        Ok(records)
+    } else {
+        Err(mistakes)
+    }
+}
+
+/// The files the catalog of `home` comes from.
+///
+/// They are the roles file and the clients file, whether they exist or
+/// not, then the project records by name. `pace doctor` reads them and
+/// hands their texts to [`check_catalog_files`].
+///
+/// # Errors
+///
+/// If `projects/` can't be read.
+pub fn catalog_file_paths(home: &Path) -> PaceResult<Vec<PathBuf>> {
+    let mut paths = vec![home.join(ROLES_FILE), home.join(CLIENTS_FILE)];
+    paths.extend(project_files(&home.join(PROJECTS_DIR))?);
+    Ok(paths)
+}
+
+/// Every mistake of the catalog `files` of `home`, with its file and line.
+///
+/// Each of `files` is a path from [`catalog_file_paths`] with its text.
+/// The mistakes are each record that a file's reader refuses, where
+/// [`read_catalog`] stops at the first. If every file reads, the one
+/// mistake that [`Catalog::new`] finds when it checks the records against
+/// each other, if any.
+#[must_use]
+pub fn check_catalog_files(home: &Path, files: Vec<(PathBuf, String)>) -> Vec<Box<PaceError>> {
+    let sources: Vec<(Kind, Source)> = files
+        .into_iter()
+        .map(|(path, text)| (Kind::of(home, &path), Source { path, text }))
+        .collect();
+    let read = read_files(&sources);
+    if read.mistakes.is_empty() {
+        read.records
+            .check(&read.mentions, &sources)
+            .err()
+            .into_iter()
+            .collect()
+    } else {
+        read.mistakes
+            .into_iter()
+            .map(|(_, mistake)| mistake)
+            .collect()
+    }
 }
 
 impl CatalogRecords {
@@ -234,6 +306,18 @@ enum Kind {
 }
 
 impl Kind {
+    /// The kind of the catalog file `path` of `home`: the roles file, the
+    /// clients file, or else a project record.
+    fn of(home: &Path, path: &Path) -> Self {
+        if path == home.join(ROLES_FILE) {
+            Self::Roles
+        } else if path == home.join(CLIENTS_FILE) {
+            Self::Clients
+        } else {
+            Self::Project
+        }
+    }
+
     /// The file `source` as a [`TomlFile`] of this kind.
     fn file(self, source: &Source) -> TomlFile<'_> {
         let (what, code) = match self {

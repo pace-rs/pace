@@ -9,8 +9,9 @@ use pace_error::PaceResult;
 
 use crate::{
     catalog::{
-        Field, SourceMentions,
+        Field, Mistakes, SourceMentions, every,
         fields::{Fields, Owner, duration, invalid_value, parsed, records, required, text},
+        only,
     },
     toml_file::{TomlFile, TomlKey, TomlValue},
 };
@@ -32,18 +33,21 @@ const HOURLY: &str = "an amount such as 95.50";
 /// # Errors
 ///
 /// If it is no valid TOML, has another `version`, a typo of `version`
-/// (see [`records`]), or a client that [`read_client`] refuses.
+/// (see [`records`]), or a client that [`read_client`] refuses: every
+/// client that it refuses, in their order.
 pub(super) fn read_clients(
     file: &TomlFile<'_>,
     mentions: &mut SourceMentions<'_>,
-) -> PaceResult<Vec<Client>> {
-    let document = file.parse()?;
+) -> Result<Vec<Client>, Mistakes> {
+    let document = file.parse().map_err(only)?;
     let table = document.table();
-    file.check_version(table)?;
-    records(file, table)?
-        .into_iter()
-        .map(|(key, value)| read_client(file, key, value, mentions))
-        .collect()
+    file.check_version(table).map_err(only)?;
+    every(
+        records(file, table)
+            .map_err(only)?
+            .into_iter()
+            .map(|(key, value)| read_client(file, key, value, mentions)),
+    )
 }
 
 /// The client under the table `key`.
