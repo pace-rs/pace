@@ -35,8 +35,9 @@ Ended ad5e "Write offer" at 12:00 after 2h 40m (3h in all, held 20m).
   between computers without conflicts; `pace store split` changes how the files
   are split.
 - `pace config show --origin` shows where pace keeps its files, the project and
-  the settings, each with where it comes from; `pace completions` prints shell
-  completions.
+  the settings, each with where it comes from; `pace config get` prints one
+  setting, and `pace config set` changes one in place; `pace completions` prints
+  shell completions.
 
 ## Crates
 
