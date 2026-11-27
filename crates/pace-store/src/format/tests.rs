@@ -1,6 +1,8 @@
 //! Every event kind reads back as written, and each invalid event file is
 //! refused with its reason.
 
+use pace_core::{Change, EntryChanges, Event, EventKind, Hlc, ProjectRef};
+
 use super::*;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
