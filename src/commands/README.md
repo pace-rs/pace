@@ -5,9 +5,11 @@ declares the entry point and the subcommands. A tracking command opens a
 `Session`, resolves the project, the entry and the times, and hands a
 `pace_core::Command` to the tracker. A command that adds something, such as
 `role add`, `client add`, `project add` or `project init`, drives a flow of
-`questions` and writes its field edits. `role edit`, `client edit` and `project
-edit` open a file, or one client's table, in the editor until the catalog reads
-it; `project edit` also refuses a changed key or ID.
+`questions` and writes its field edits. `setup` drives the step machine of
+`setup.rs` through the asker, and writes the edits once the user accepts the
+summary. `role edit`, `client edit` and `project edit` open a file, or one
+client's table, in the editor until the catalog reads it; `project edit` also
+refuses a changed key or ID.
 
 ## Files
 
@@ -25,6 +27,7 @@ it; `project edit` also refuses a changed key or ID.
 | [`project.rs`](project.rs)           | `pace project`: make the working directory a project, and add, list, archive and edit the project records in `projects/<key>.toml`. |
 | [`project_init.rs`](project_init.rs) | `pace project init`: make the working directory a project, with the record and the manifest that links the directory to it.         |
 | [`role.rs`](role.rs)                 | `pace role`: add, list, archive and edit the roles in `roles.toml`.                                                                 |
+| [`setup.rs`](setup.rs)               | `pace setup`: the guided tour of the settings, the roles, the clients and this directory's project, which writes only what changed. |
 | [`store.rs`](store.rs)               | `pace store`: how pace keeps its data.                                                                                              |
 | [`tracking.rs`](tracking.rs)         | The tracking commands: `begin`, `hold`, `pause`, `resume`, `catch`, `end`.                                                          |
 
@@ -39,7 +42,7 @@ it; `project edit` also refuses a changed key or ID.
   [`origin`](../origin.rs), [`output`](../output.rs), [`print`](../print.rs),
   [`project`](../project.rs), [`prompt`](../prompt.rs),
   [`questions`](../questions/), [`select`](../select.rs),
-  [`session`](../session.rs).
+  [`session`](../session.rs), [`setup`](../setup/).
 - Used by: [`application`](../application.rs), [`editor`](../editor.rs).
 
 <!-- /uses -->

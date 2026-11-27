@@ -10,6 +10,7 @@ mod project;
 mod project_init;
 mod project_records;
 mod settings;
+mod setup;
 mod store;
 mod structure;
 mod support;

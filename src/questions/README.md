@@ -22,6 +22,6 @@ rest, and ends with the field edits of the file it writes.
 <!-- uses -->
 
 - Uses: [`project`](../project.rs), [`prompt`](../prompt.rs).
-- Used by: [`commands`](../commands/).
+- Used by: [`commands`](../commands/), [`setup`](../setup/).
 
 <!-- /uses -->

@@ -10,6 +10,7 @@ pub mod now;
 pub mod project;
 pub mod project_init;
 pub mod role;
+pub mod setup;
 pub mod store;
 pub mod tracking;
 
@@ -28,6 +29,7 @@ use self::{
     now::{NowCmd, NowFormat},
     project::ProjectCmd,
     role::RoleCmd,
+    setup::SetupCmd,
     store::StoreCmd,
     tracking::{BeginCmd, CatchCmd, EndCmd, HoldCmd, PauseCmd, ResumeCmd},
 };
@@ -128,6 +130,9 @@ pub enum PaceCmd {
     #[command(subcommand)]
     Project(ProjectCmd),
 
+    /// Walk through the settings, roles, clients and this directory's project
+    Setup(SetupCmd),
+
     /// Look at pace's configuration.
     #[command(subcommand)]
     Config(ConfigCmd),
@@ -156,10 +161,13 @@ impl Runnable for EntryPoint {
 impl Configurable<()> for EntryPoint {}
 
 impl EntryPoint {
-    /// Whether the command writes the global config file: `pace config
-    /// set`, which creates it when it is missing.
+    /// Whether the command writes the global config file, which it
+    /// creates when it is missing: `pace config set` and `pace setup`.
     pub(crate) const fn writes_config_file(&self) -> bool {
-        matches!(&self.cmd, Some(PaceCmd::Config(ConfigCmd::Set(_))))
+        matches!(
+            &self.cmd,
+            Some(PaceCmd::Config(ConfigCmd::Set(_)) | PaceCmd::Setup(_))
+        )
     }
 
     /// The catalog file in `home` that the command mends, so that it runs
@@ -240,7 +248,7 @@ mod tests {
     }
 
     #[test]
-    fn only_config_set_writes_the_config_file() {
+    fn only_config_set_and_setup_write_the_config_file() {
         let writes = |args: &[&str]| {
             EntryPoint::try_parse_from(args)
                 .unwrap()
@@ -248,6 +256,7 @@ mod tests {
         };
 
         assert!(writes(&["pace", "config", "set", "week-start", "sunday"]));
+        assert!(writes(&["pace", "setup"]));
         assert!(!writes(&["pace", "config", "get", "week-start"]));
         assert!(!writes(&["pace", "config", "show"]));
     }

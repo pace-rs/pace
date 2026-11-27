@@ -33,3 +33,4 @@ pub mod prompt;
 pub mod questions;
 pub mod select;
 pub mod session;
+pub mod setup;

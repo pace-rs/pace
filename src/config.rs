@@ -182,6 +182,14 @@ impl Loaded {
             .find(|(known, _)| *known == key)
             .map(|(_, value)| value)
     }
+
+    /// The value the global file gives the setting `key`, else pace's
+    /// default, before the environment: what `pace setup` keeps on Enter.
+    pub(crate) fn file_or_default(&self, key: Key) -> toml::Value {
+        self.file_value(key)
+            .cloned()
+            .unwrap_or_else(|| Settings::default().get(key))
+    }
 }
 
 /// `text` as a value of the setting `key`, checked as the global file's
@@ -525,6 +533,31 @@ mod tests {
             warnings[0].hint(),
             Some("did you mean PACE_TIME_ZONE? pace ignores PACE_TIMEZONE")
         );
+    }
+
+    #[test]
+    fn file_or_default_takes_file_before_default_and_ignores_environment() -> TestResult {
+        let dir = pace_store::testing::scratch_dir()?;
+        let path = dir.path().join("pace.global.toml");
+        std::fs::write(&path, "week-start = \"sunday\"\n")?;
+        let config_file = Located {
+            path,
+            origin: Origin::Default,
+        };
+        let env = |name: &str| (name == "PACE_WEEK_START").then(|| "friday".into());
+
+        let loaded = load_settings(Some(&config_file), None, env, std::iter::empty())?;
+
+        assert_eq!(loaded.settings.week_start, Weekday::Friday);
+        assert_eq!(
+            loaded.file_or_default(Key::WeekStart),
+            toml::Value::String("sunday".to_owned())
+        );
+        assert_eq!(
+            loaded.file_or_default(Key::TimeZone),
+            toml::Value::String("system".to_owned())
+        );
+        Ok(())
     }
 
     #[test]

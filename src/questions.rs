@@ -205,8 +205,17 @@ pub fn ask_flow<F: Flow>(mut flow: F, asker: &dyn Ask) -> PaceResult<Asked<F::Ma
     })
 }
 
-/// Ask `question` until `flow` takes the answer.
-fn ask_until_it_fits(flow: &mut impl Flow, question: &Question, asker: &dyn Ask) -> PaceResult<()> {
+/// Ask `question` through `asker` until `flow` takes the answer; tell
+/// why an answer doesn't fit before asking again.
+///
+/// # Errors
+///
+/// If the user gives no answer.
+pub fn ask_until_it_fits(
+    flow: &mut impl Flow,
+    question: &Question,
+    asker: &dyn Ask,
+) -> PaceResult<()> {
     loop {
         let answer = match &question.kind {
             QuestionKind::Text { default } => asker

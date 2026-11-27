@@ -1,0 +1,11 @@
+---
+source: tests/journey/setup.rs
+expression: output
+---
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace setup asks its questions on a terminal, and there is none
+  help: set each part with `pace config set`, `pace role add`, `pace client add` and `pace project init`
