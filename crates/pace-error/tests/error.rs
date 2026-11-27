@@ -200,7 +200,7 @@ fn snippet_points_at_the_offending_line() -> TestResult {
 }
 
 #[test]
-fn docs_url_is_the_url_of_the_diagnostic() {
+fn docs_url_is_url_of_diagnostic() {
     let error = PaceError::new(ErrorKind::Time, "pace doesn't know the time zone")
         .attach_docs_url("https://pace.cli.rs/docs/time-zones.html");
 

@@ -431,7 +431,7 @@ fn range_that_ends_before_it_starts_is_rejected() -> TestResult {
 }
 
 // jiff calculates with moments up to 9999-12-30 22:00 UTC, so the midnight
-// after 9999-12-30 lies beyond it.
+// after 9999-12-30 in Europe/Berlin lies beyond it.
 #[test]
 fn frame_until_last_day_jiff_knows_asks_for_date_closer_to_today() -> TestResult {
     let frame = TimeFrame::Between {
