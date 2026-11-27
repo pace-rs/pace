@@ -17,7 +17,7 @@ use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_store::toml_file::{TomlFile, in_file_order};
 use toml::{Spanned, de::DeValue};
 
-use crate::{config::ProjectPath, origin::Origin};
+use crate::config::ProjectPath;
 
 /// The two names of a project manifest: visible and hidden.
 pub const MANIFEST_FILES: [&str; 2] = ["pace.toml", ".pace.toml"];
@@ -60,8 +60,10 @@ pub enum Reason {
     Mapping {
         /// The directory as written.
         written: String,
-        /// The file the mapping is written in, and its line.
-        written_in: Origin,
+        /// The file the mapping is written in.
+        file: PathBuf,
+        /// The line it is written on, counted from 1.
+        line: usize,
     },
 }
 
@@ -73,16 +75,13 @@ impl fmt::Display for Reason {
             Self::Manifest(path) => write!(f, "from {}, the nearest manifest", path.display()),
             Self::Mapping {
                 written,
-                written_in: Origin::File { path, line },
+                file,
+                line,
             } => write!(
                 f,
                 "from `{written}` in [project-paths] of {}:{line}",
-                path.display()
+                file.display()
             ),
-            Self::Mapping {
-                written,
-                written_in,
-            } => write!(f, "from `{written}` in [project-paths], {written_in}"),
         }
     }
 }
@@ -137,7 +136,8 @@ pub fn discover_project(
         name: None,
         reason: Reason::Mapping {
             written: mapping.written.clone(),
-            written_in: mapping.origin.clone(),
+            file: mapping.file.clone(),
+            line: mapping.line,
         },
     }))
 }

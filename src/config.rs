@@ -327,8 +327,21 @@ pub struct ProjectPath {
     pub dir: PathBuf,
     /// The project.
     pub key: ProjectKey,
-    /// The line it was written on.
-    pub origin: Origin,
+    /// The file it was written in.
+    pub file: PathBuf,
+    /// The line it was written on, counted from 1.
+    pub line: usize,
+}
+
+impl ProjectPath {
+    /// Where the mapping was written, as an origin.
+    #[must_use]
+    pub fn origin(&self) -> Origin {
+        Origin::File {
+            path: self.file.clone(),
+            line: self.line,
+        }
+    }
 }
 
 /// The settings, where each value comes from, and warnings to show.
@@ -580,10 +593,8 @@ fn project_path(
         written: written.to_owned(),
         dir: expanded,
         key,
-        origin: Origin::File {
-            path: file.path.to_path_buf(),
-            line: file.line_of(dir.span().start),
-        },
+        file: file.path.to_path_buf(),
+        line: file.line_of(dir.span().start),
     })
 }
 

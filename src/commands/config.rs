@@ -89,7 +89,7 @@ impl ShowCmd {
                         toml_key(&mapping.written),
                         toml::Value::String(mapping.key.to_string())
                     ),
-                    mapping.origin.to_string(),
+                    mapping.origin().to_string(),
                 )
             })));
         }
