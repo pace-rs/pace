@@ -195,41 +195,113 @@ fn parse_key(key: &str, given_by: &str) -> PaceResult<ProjectKey> {
 
 fn nearest_manifest(cwd: &Path) -> PaceResult<Option<PathBuf>> {
     for dir in cwd.ancestors() {
-        let found: Vec<PathBuf> = MANIFEST_FILES
-            .iter()
-            .map(|name| dir.join(name))
-            .filter(|path| path.is_file())
-            .collect();
-        match found.as_slice() {
-            [] => {}
-            [manifest] => return Ok(Some(manifest.clone())),
-            _ => {
-                return Err(PaceError::new(
-                    ErrorKind::Project,
-                    "the directory {dir} has both a pace.toml and a .pace.toml",
-                )
-                .attach_context("dir", dir.display().to_string())
-                .attach_hint("keep one of them: pace reads either name, but not both")
-                .attach_error_code("pace::project::two-manifests"));
-            }
+        if let Some(manifest) = manifest_file_in(dir)? {
+            return Ok(Some(manifest));
         }
     }
     Ok(None)
 }
 
+/// The manifest file in `dir` itself; `None` if it has none.
+///
+/// # Errors
+///
+/// If `dir` has both manifest names.
+fn manifest_file_in(dir: &Path) -> PaceResult<Option<PathBuf>> {
+    let found: Vec<PathBuf> = MANIFEST_FILES
+        .iter()
+        .map(|name| dir.join(name))
+        .filter(|path| path.is_file())
+        .collect();
+    match found.as_slice() {
+        [] => Ok(None),
+        [manifest] => Ok(Some(manifest.clone())),
+        _ => Err(PaceError::new(
+            ErrorKind::Project,
+            "the directory {dir} has both a pace.toml and a .pace.toml",
+        )
+        .attach_context("dir", dir.display().to_string())
+        .attach_hint("keep one of them: pace reads either name, but not both")
+        .attach_error_code("pace::project::two-manifests")),
+    }
+}
+
 fn read_manifest(path: &Path, records: Records<'_>) -> PaceResult<Project> {
-    let text = std::fs::read_to_string(path).map_err(|error| {
+    let text = read_manifest_text(path)?;
+    parse_manifest(path, &text, records)
+}
+
+/// The text of the manifest at `path`.
+fn read_manifest_text(path: &Path) -> PaceResult<String> {
+    std::fs::read_to_string(path).map_err(|error| {
         let hint = read_hint(&error);
         PaceError::with_source(ErrorKind::Project, "cannot read the manifest {path}", error)
             .attach_context("path", path.display().to_string())
             .attach_hint(hint)
-    })?;
-    parse_manifest(path, &text, records)
+    })
+}
+
+/// A manifest's fields as written: the link of its directory to a
+/// project.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Manifest {
+    /// The manifest's file.
+    pub path: PathBuf,
+    /// The project's ID, if the manifest gives one.
+    pub id: Option<ProjectId>,
+    /// The project's key.
+    pub key: ProjectKey,
+    /// The project's name, which a manifest of phase 2 still holds.
+    pub name: Option<String>,
+    /// The tags that join each entry begun or logged in its directory.
+    pub default_tags: BTreeSet<Tag>,
+}
+
+/// The manifest in `dir` itself, not above it, checked against `records`;
+/// `None` if `dir` has none.
+///
+/// # Errors
+///
+/// As [`discover_project`] for a manifest: if `dir` has both manifest
+/// names, or the manifest cannot be read, has an unknown key or a value
+/// that doesn't fit, or gives another ID than the record of its key.
+pub fn manifest_in(dir: &Path, records: Records<'_>) -> PaceResult<Option<Manifest>> {
+    let Some(path) = manifest_file_in(dir)? else {
+        return Ok(None);
+    };
+    let text = read_manifest_text(&path)?;
+    parse_manifest_fields(&path, &text, records).map(Some)
 }
 
 /// The manifest `text` of the file at `path`, as the project it links its
 /// directory to, resolved through `records`.
 fn parse_manifest(path: &Path, text: &str, records: Records<'_>) -> PaceResult<Project> {
+    let manifest = parse_manifest_fields(path, text, records)?;
+    let warnings = manifest
+        .name
+        .is_some()
+        .then(|| {
+            format!(
+                "The manifest {} still holds the project's name; `pace project init` moves it \
+                 into the project's record.",
+                path.display()
+            )
+        })
+        .into_iter()
+        .collect();
+    let project = Project {
+        id: manifest.id,
+        name: manifest.name,
+        default_tags: manifest.default_tags,
+        warnings,
+        ..Project::keyed(manifest.key, Reason::Manifest(manifest.path))
+    };
+    Ok(project.linked(records.catalog))
+}
+
+/// The manifest `text` of the file at `path` as written, its ID checked
+/// against the record of its key in `records`.
+fn parse_manifest_fields(path: &Path, text: &str, records: Records<'_>) -> PaceResult<Manifest> {
     let file = TomlFile {
         path,
         text,
@@ -278,25 +350,13 @@ fn parse_manifest(path: &Path, text: &str, records: Records<'_>) -> PaceResult<P
     if let Some((id, span)) = &id {
         check_record_id(&file, &key, *id, span.clone(), records)?;
     }
-    let warnings = name
-        .is_some()
-        .then(|| {
-            format!(
-                "The manifest {} still holds the project's name; `pace project init` moves it \
-                 into the project's record.",
-                path.display()
-            )
-        })
-        .into_iter()
-        .collect();
-    let project = Project {
+    Ok(Manifest {
+        path: path.to_path_buf(),
         id: id.map(|(id, _)| id),
+        key,
         name,
         default_tags,
-        warnings,
-        ..Project::keyed(key, Reason::Manifest(path.to_path_buf()))
-    };
-    Ok(project.linked(records.catalog))
+    })
 }
 
 /// The manifest's `key`.
@@ -540,6 +600,46 @@ mod tests {
              0193a7c4-0000-7000-8000-000000000001"
         );
         assert!(error.is_code("pace::project::id-mismatch"), "{error:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn manifest_in_directory_gives_fields_as_written() -> TestResult {
+        let dir = pace_store::testing::scratch_dir()?;
+        let path = dir.path().join(".pace.toml");
+        std::fs::write(
+            &path,
+            "[project]\nkey = \"acme-webshop\"\nname = \"Shop\"\n",
+        )?;
+        let catalog = with_record();
+        let records = Records {
+            catalog: &catalog,
+            home: Path::new("/home"),
+        };
+
+        let manifest = manifest_in(dir.path(), records)?.ok_or("no manifest")?;
+
+        assert_eq!(manifest.path, path);
+        assert_eq!(manifest.id, None);
+        assert_eq!(manifest.key, "acme-webshop".parse()?);
+        assert_eq!(manifest.name.as_deref(), Some("Shop"));
+        Ok(())
+    }
+
+    #[test]
+    fn manifest_in_directory_looks_only_into_that_directory() -> TestResult {
+        let dir = pace_store::testing::scratch_dir()?;
+        std::fs::write(
+            dir.path().join("pace.toml"),
+            "[project]\nkey = \"garden\"\n",
+        )?;
+        std::fs::create_dir(dir.path().join("beds"))?;
+        let records = Records {
+            catalog: &Catalog::default(),
+            home: Path::new("/home"),
+        };
+
+        assert_eq!(manifest_in(&dir.path().join("beds"), records)?, None);
         Ok(())
     }
 
