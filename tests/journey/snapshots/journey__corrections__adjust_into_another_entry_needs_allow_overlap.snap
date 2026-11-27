@@ -27,7 +27,7 @@ exit_code: 1
 
 ----- stderr -----
   × the entry would overlap [ID-1] (09:00–10:00)
-  help: move it, or allow it with `pace adjust --allow-overlap`
+  help: move it, or allow it with `--allow-overlap`
 
 
 $ pace adjust --start 09:30 --allow-overlap   # at 10:30

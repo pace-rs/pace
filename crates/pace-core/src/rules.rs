@@ -415,9 +415,11 @@ impl Rules<'_> {
                 "the new entry would overlap {list}",
                 "move it, or allow it with `pace log --allow-overlap`".to_owned(),
             ),
+            // `pace edit` runs an adjustment too and has the same flag, so
+            // the hint names the flag alone.
             Verb::Adjust => (
                 "the entry would overlap {list}",
-                "move it, or allow it with `pace adjust --allow-overlap`".to_owned(),
+                "move it, or allow it with `--allow-overlap`".to_owned(),
             ),
         };
         Err(PaceError::new(ErrorKind::InvalidInput, guidance)

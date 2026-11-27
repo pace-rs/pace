@@ -1299,7 +1299,7 @@ fn adjust_into_another_entry_is_an_overlap() -> TestResult {
     assert!(error.to_string().ends_with(" (09:00–10:00)"), "{error}");
     assert_eq!(
         error.hint(),
-        Some("move it, or allow it with `pace adjust --allow-overlap`")
+        Some("move it, or allow it with `--allow-overlap`")
     );
     Ok(())
 }
