@@ -66,13 +66,18 @@ fn as_text(
             open.len()
         ));
     }
-    for (first, second, start, end) in overlaps(state, now) {
+    // two open entries overlap until now: the notice above names them
+    let shown = state
+        .overlaps(now)
+        .into_iter()
+        .filter(|overlap| !(overlap.first.is_open() && overlap.second.is_open()));
+    for overlap in shown {
         lines.push(format!(
             "Overlap: {} and {} both cover {}–{}; change one with `pace adjust <id>`.",
-            state.short_id(first.id),
-            state.short_id(second.id),
-            clock(&start, now),
-            clock(&end, now)
+            state.short_id(overlap.first.id),
+            state.short_id(overlap.second.id),
+            clock(&overlap.start, now),
+            clock(&overlap.end, now)
         ));
     }
     if let Some(project) = &context.project {
@@ -90,19 +95,15 @@ fn headline(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
         |moment: &ZonedDateTime| format!("{} ({})", clock(moment, now), relative_time(moment, now));
     match entry.state() {
         EntryState::Held => {
-            let hold = entry.holds.iter().find(|hold| hold.end.is_none());
+            let hold = entry.open_hold();
             let why = hold
                 .and_then(|hold| hold.reason.as_deref())
                 .map_or_else(String::new, |reason| format!(": {reason}"));
-            let start = hold.map_or(&entry.start, |hold| &hold.start);
+            let start = entry.open_break_start().unwrap_or(&entry.start);
             format!("Held: {name}, since {}{why}.", since(start))
         }
         EntryState::Paused => {
-            let start = entry
-                .pauses
-                .iter()
-                .find(|pause| pause.end.is_none())
-                .map_or(&entry.start, |pause| &pause.start);
+            let start = entry.open_break_start().unwrap_or(&entry.start);
             format!("Paused: {name}, since {}.", since(start))
         }
         EntryState::Running | EntryState::Ended => {
@@ -134,34 +135,6 @@ fn details(entry: &Entry, session: &Session, now: &ZonedDateTime) -> Vec<String>
         details.push("on another device".to_owned());
     }
     details
-}
-
-/// Pairs of entries that overlap, unless both are open (that is the
-/// "entries are open" notice), with the time they share.
-fn overlaps<'s>(
-    state: &'s State,
-    now: &ZonedDateTime,
-) -> Vec<(&'s Entry, &'s Entry, ZonedDateTime, ZonedDateTime)> {
-    let entries: Vec<&Entry> = state.entries().collect();
-    let mut pairs = Vec::new();
-    for (index, first) in entries.iter().enumerate() {
-        for second in &entries[index + 1..] {
-            if first.is_open() && second.is_open() {
-                continue;
-            }
-            let start = (&first.start).max(&second.start).clone();
-            let end = first
-                .end
-                .as_ref()
-                .unwrap_or(now)
-                .min(second.end.as_ref().unwrap_or(now))
-                .clone();
-            if start < end {
-                pairs.push((*first, *second, start, end));
-            }
-        }
-    }
-    pairs
 }
 
 #[derive(Serialize)]
@@ -207,20 +180,7 @@ fn as_json(
     let open = state
         .open()
         .map(|entry| {
-            let since = match entry.state() {
-                EntryState::Held => entry
-                    .holds
-                    .iter()
-                    .find(|hold| hold.end.is_none())
-                    .map(|hold| &hold.start),
-                EntryState::Paused => entry
-                    .pauses
-                    .iter()
-                    .find(|pause| pause.end.is_none())
-                    .map(|pause| &pause.start),
-                EntryState::Running | EntryState::Ended => None,
-            }
-            .unwrap_or(&entry.start);
+            let since = entry.open_break_start().unwrap_or(&entry.start);
             OpenJson {
                 id: entry.id.to_string(),
                 short: state.short_id(entry.id),

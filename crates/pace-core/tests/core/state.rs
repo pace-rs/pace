@@ -833,3 +833,109 @@ fn undo_on_top_replays_no_later_event_of_its_own_batch() -> TestResult {
     assert_eq!(followed.entry(first).ok_or("first")?.catches.len(), 1);
     Ok(())
 }
+
+#[test]
+fn open_break_is_open_hold_or_open_pause() -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = log.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        EventKind::EntryHeld {
+            entry: e,
+            source: HoldSource::Outer,
+            reason: Some("phone call".to_owned()),
+        },
+    )?;
+    let held = State::from_events(&log.events);
+    let found = held.entry(e).ok_or("entry")?;
+    assert_eq!(
+        found.open_hold().map(|hold| hold.reason.as_deref()),
+        Some(Some("phone call"))
+    );
+    assert_eq!(found.open_pause(), None);
+    assert_eq!(
+        found.open_break_start(),
+        Some(&at("2026-11-26T10:00[Europe/Berlin]")?)
+    );
+
+    _ = log.push(
+        "2026-11-26T10:10[Europe/Berlin]",
+        EventKind::EntryPaused {
+            entry: e,
+            kind: PauseKind::Break,
+            reason: None,
+        },
+    )?;
+    let paused = State::from_events(&log.events);
+    let found = paused.entry(e).ok_or("entry")?;
+    assert_eq!(found.open_hold(), None);
+    assert_eq!(
+        found.open_pause().map(|pause| pause.kind),
+        Some(PauseKind::Break)
+    );
+    assert_eq!(
+        found.open_break_start(),
+        Some(&at("2026-11-26T10:10[Europe/Berlin]")?)
+    );
+
+    _ = log.push(
+        "2026-11-26T10:20[Europe/Berlin]",
+        EventKind::EntryResumed { entry: e },
+    )?;
+    let resumed = State::from_events(&log.events);
+    assert_eq!(resumed.entry(e).ok_or("entry")?.open_break_start(), None);
+    Ok(())
+}
+
+fn logged(entry: EntryId, end: &str) -> Result<EventKind, Box<dyn std::error::Error>> {
+    Ok(EventKind::EntryLogged {
+        entry,
+        end: at(end)?,
+        project: None,
+        note: None,
+        tags: BTreeSet::new(),
+    })
+}
+
+#[test]
+fn overlaps_name_each_pair_with_time_it_shares() -> TestResult {
+    let mut log = Log::new(1)?;
+    let (e1, e2, e3, e4) = (entry(1)?, entry(2)?, entry(3)?, entry(4)?);
+    _ = log.push(
+        "2026-11-26T08:00[Europe/Berlin]",
+        logged(e1, "2026-11-26T09:00[Europe/Berlin]")?,
+    )?;
+    _ = log.push(
+        "2026-11-26T08:30[Europe/Berlin]",
+        logged(e2, "2026-11-26T10:00[Europe/Berlin]")?,
+    )?;
+    _ = log.push("2026-11-26T09:30[Europe/Berlin]", begun(e3))?;
+    _ = log.push("2026-11-26T11:00[Europe/Berlin]", begun(e4))?;
+    let state = State::from_events(&log.events);
+
+    let overlaps: Vec<(EntryId, EntryId, String, String)> = state
+        .overlaps(&at(NOW)?)
+        .into_iter()
+        .map(|overlap| {
+            (
+                overlap.first.id,
+                overlap.second.id,
+                overlap.start.strftime("%H:%M").to_string(),
+                overlap.end.strftime("%H:%M").to_string(),
+            )
+        })
+        .collect();
+
+    let shared =
+        |first, second, start: &str, end: &str| (first, second, start.to_owned(), end.to_owned());
+    assert_eq!(
+        overlaps,
+        [
+            shared(e1, e2, "08:30", "09:00"),
+            shared(e2, e3, "09:30", "10:00"),
+            shared(e3, e4, "11:00", "12:00"),
+        ]
+    );
+    Ok(())
+}

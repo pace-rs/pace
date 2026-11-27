@@ -60,6 +60,20 @@ struct BatchRecord {
     abouts: Vec<ZonedDateTime>,
 }
 
+/// Two entries whose time overlaps, and the time they share.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Overlap<'s> {
+    /// The entry that starts first; of two with one start, the one with
+    /// the lower ID.
+    pub first: &'s Entry,
+    /// The other entry.
+    pub second: &'s Entry,
+    /// When the shared time begins.
+    pub start: ZonedDateTime,
+    /// When the shared time ends.
+    pub end: ZonedDateTime,
+}
+
 /// What `undo` reverts: a batch and the moments its events are filed under,
 /// so the undo is filed with each of them.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -262,9 +276,32 @@ impl State {
         let (start, end, now) = (start.clone(), end.clone(), now.clone());
         let except = except.to_vec();
         self.entries().filter(move |entry| {
-            let entry_end = entry.end.as_ref().unwrap_or(&now);
-            !except.contains(&entry.id) && entry.start < end && start < *entry_end
+            !except.contains(&entry.id) && entry.start < end && start < *entry.until(&now)
         })
+    }
+
+    /// Every pair of entries whose time overlaps, with the time they
+    /// share; an open entry lasts until `now`. The pairs come by the start
+    /// of their first entry, then of their second.
+    #[must_use]
+    pub fn overlaps(&self, now: &ZonedDateTime) -> Vec<Overlap<'_>> {
+        let entries: Vec<&Entry> = self.entries().collect();
+        let mut overlaps = Vec::new();
+        for (index, first) in entries.iter().enumerate() {
+            for second in &entries[index + 1..] {
+                let start = (&first.start).max(&second.start);
+                let end = first.until(now).min(second.until(now));
+                if start < end {
+                    overlaps.push(Overlap {
+                        first,
+                        second,
+                        start: start.clone(),
+                        end: end.clone(),
+                    });
+                }
+            }
+        }
+        overlaps
     }
 
     fn apply(&mut self, recorded: &RecordedEvent) {
@@ -415,7 +452,7 @@ fn new_entry(
 /// A hold while held only updates the reason; a hold while paused turns the
 /// pause into a hold from `at`.
 fn hold(entry: &mut Entry, at: &ZonedDateTime, source: HoldSource, reason: Option<&String>) {
-    if let Some(open) = entry.open_hold() {
+    if let Some(open) = entry.open_hold_mut() {
         if let Some(reason) = reason {
             open.reason = Some(reason.clone());
         }
@@ -433,7 +470,7 @@ fn hold(entry: &mut Entry, at: &ZonedDateTime, source: HoldSource, reason: Optio
 /// A pause while paused only updates the reason; a pause while held turns the
 /// hold into a pause from `at`.
 fn pause(entry: &mut Entry, at: &ZonedDateTime, kind: PauseKind, reason: Option<&String>) {
-    if let Some(open) = entry.open_pause() {
+    if let Some(open) = entry.open_pause_mut() {
         if let Some(reason) = reason {
             open.reason = Some(reason.clone());
         }

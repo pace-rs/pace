@@ -16,8 +16,6 @@ use crate::{
 
 mod checks;
 
-use checks::open_break_start;
-
 const NOW_HINT: &str = "pace records what happened; `pace begin` starts an entry now";
 
 const ENTRY_BEGAN: &str = "the entry began at {earlier}, after {at}";
@@ -131,7 +129,7 @@ impl Rules<'_> {
         let entry = self.open_entry(None)?;
         let at = hold.at.clone().unwrap_or_else(|| self.now.clone());
         self.refuse_future("be held", &at, "leave out `--at` to hold it now")?;
-        if let Some(open) = entry.holds.iter().find(|hold| hold.end.is_none()) {
+        if let Some(open) = entry.open_hold() {
             if hold.reason.is_none() {
                 return Err(nothing_to_do(
                     "the entry is held since {since}",
@@ -157,7 +155,7 @@ impl Rules<'_> {
         let entry = self.open_entry(None)?;
         let at = pause.at.clone().unwrap_or_else(|| self.now.clone());
         self.refuse_future("be paused", &at, "leave out `--at` to pause it now")?;
-        if let Some(open) = entry.pauses.iter().find(|pause| pause.end.is_none()) {
+        if let Some(open) = entry.open_pause() {
             if pause.reason.is_none() {
                 return Err(nothing_to_do(
                     "the entry is paused since {since}",
@@ -183,7 +181,7 @@ impl Rules<'_> {
         let entry = self.open_entry(resume.entry)?;
         let at = resume.at.clone().unwrap_or_else(|| self.now.clone());
         self.refuse_future("resume", &at, "leave out `--at` to resume it now")?;
-        let Some(open_since) = open_break_start(entry) else {
+        let Some(open_since) = entry.open_break_start() else {
             return Err(nothing_to_do(
                 "the entry is running, not held or paused",
                 "`pace hold` interrupts it, `pace pause` takes a break",

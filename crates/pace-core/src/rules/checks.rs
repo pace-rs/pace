@@ -18,7 +18,7 @@ impl Rules<'_> {
         if *at < entry.start {
             return Err(self.after(ENTRY_BEGAN, &entry.start, at));
         }
-        if let Some(open_since) = open_break_start(entry)
+        if let Some(open_since) = entry.open_break_start()
             && at < open_since
         {
             return Err(self.after(BREAK_BEGAN, open_since, at));
@@ -66,7 +66,7 @@ impl Rules<'_> {
         running: &Entry,
         start: &ZonedDateTime,
     ) -> PaceResult<()> {
-        if let Some(open_since) = open_break_start(running)
+        if let Some(open_since) = running.open_break_start()
             && start < open_since
         {
             return Err(self.after(BREAK_BEGAN, open_since, start));
@@ -93,7 +93,7 @@ impl Rules<'_> {
         entry: &Entry,
         at: &ZonedDateTime,
     ) -> PaceResult<()> {
-        if let Some(open_since) = open_break_start(entry)
+        if let Some(open_since) = entry.open_break_start()
             && at < open_since
         {
             return Err(self.after(BREAK_BEGAN, open_since, at));
@@ -212,20 +212,4 @@ fn last_break_end(entry: &Entry) -> Option<&ZonedDateTime> {
         .filter_map(|hold| hold.end.as_ref())
         .chain(entry.pauses.iter().filter_map(|pause| pause.end.as_ref()))
         .max()
-}
-
-/// The start of the entry's open hold or pause, if any.
-pub(super) fn open_break_start(entry: &Entry) -> Option<&ZonedDateTime> {
-    entry
-        .holds
-        .iter()
-        .find(|hold| hold.end.is_none())
-        .map(|hold| &hold.start)
-        .or_else(|| {
-            entry
-                .pauses
-                .iter()
-                .find(|pause| pause.end.is_none())
-                .map(|pause| &pause.start)
-        })
 }

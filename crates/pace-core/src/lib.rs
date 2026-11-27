@@ -39,7 +39,7 @@ pub use key::{ProjectKey, Tag};
 pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier, SequentialIds};
 pub use rules::{Policy, Rules};
 pub use scope::ReadScope;
-pub use state::{State, UndoTarget};
+pub use state::{Overlap, State, UndoTarget};
 pub use steps::{AfterAppend, AfterRead, Appending, Decided, Outcome, Reading};
 pub use text::Text;
 pub use tracking::{HoldSource, PauseKind};

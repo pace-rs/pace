@@ -114,9 +114,9 @@ impl Entry {
     pub fn state(&self) -> EntryState {
         if self.end.is_some() {
             EntryState::Ended
-        } else if self.holds.iter().any(|hold| hold.end.is_none()) {
+        } else if self.open_hold().is_some() {
             EntryState::Held
-        } else if self.pauses.iter().any(|pause| pause.end.is_none()) {
+        } else if self.open_pause().is_some() {
             EntryState::Paused
         } else {
             EntryState::Running
@@ -130,7 +130,7 @@ impl Entry {
     }
 
     /// The end, or `now` for an open entry.
-    fn until<'a>(&'a self, now: &'a ZonedDateTime) -> &'a ZonedDateTime {
+    pub(crate) fn until<'a>(&'a self, now: &'a ZonedDateTime) -> &'a ZonedDateTime {
         self.end.as_ref().unwrap_or(now)
     }
 
@@ -188,20 +188,41 @@ impl Entry {
         self.holds.len()
     }
 
-    pub(crate) fn open_hold(&mut self) -> Option<&mut Hold> {
+    /// The hold without an end, while the entry is held.
+    #[must_use]
+    pub fn open_hold(&self) -> Option<&Hold> {
+        self.holds.iter().find(|hold| hold.end.is_none())
+    }
+
+    /// The pause without an end, while the entry is paused.
+    #[must_use]
+    pub fn open_pause(&self) -> Option<&Pause> {
+        self.pauses.iter().find(|pause| pause.end.is_none())
+    }
+
+    /// When the open hold or pause began, while the entry is held or
+    /// paused.
+    #[must_use]
+    pub fn open_break_start(&self) -> Option<&ZonedDateTime> {
+        self.open_hold()
+            .map(|hold| &hold.start)
+            .or_else(|| self.open_pause().map(|pause| &pause.start))
+    }
+
+    pub(crate) fn open_hold_mut(&mut self) -> Option<&mut Hold> {
         self.holds.iter_mut().find(|hold| hold.end.is_none())
     }
 
-    pub(crate) fn open_pause(&mut self) -> Option<&mut Pause> {
+    pub(crate) fn open_pause_mut(&mut self) -> Option<&mut Pause> {
         self.pauses.iter_mut().find(|pause| pause.end.is_none())
     }
 
     /// Close an open hold or pause at `at`.
     pub(crate) fn close_breaks(&mut self, at: &ZonedDateTime) {
-        if let Some(hold) = self.open_hold() {
+        if let Some(hold) = self.open_hold_mut() {
             hold.end = Some(at.clone());
         }
-        if let Some(pause) = self.open_pause() {
+        if let Some(pause) = self.open_pause_mut() {
             pause.end = Some(at.clone());
         }
     }
