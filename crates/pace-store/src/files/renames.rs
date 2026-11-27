@@ -114,8 +114,8 @@ mod tests {
     use std::sync::Arc;
 
     use pace_core::{
-        Batch, ChangeMarker, Clock, Command, DeviceId, Policy, RecordedEvent, Rules, SequentialIds,
-        State, Tracker, command::Begin, testing::TestClock,
+        Batch, ChangeMarker, Clock, Command, DeviceId, EventStore, Policy, RecordedEvent, Rules,
+        SequentialIds, State, Tracker, command::Begin, testing::TestClock,
     };
     use pace_time::TimeRange;
 
@@ -153,10 +153,10 @@ mod tests {
                 Policy::default(),
                 device,
             );
-            _ = pollster::block_on(tracker.run(&Command::Begin(Begin {
+            _ = tracker.run(&Command::Begin(Begin {
                 note: Some("Write offer".to_owned()),
                 ..Begin::default()
-            })))?;
+            }))?;
             clock.set("2026-11-27T09:00[Europe/Berlin]".parse()?);
             Ok(Self {
                 dir,
@@ -171,12 +171,12 @@ mod tests {
         }
 
         fn log(&self) -> PaceResult<Vec<RecordedEvent>> {
-            self.store().read_now(&TimeRange::new(None, None)?)
+            self.store().read(&TimeRange::new(None, None)?)
         }
 
         /// The batch of `begin Review`, and the marker it was decided on.
         fn begin_review(&self) -> PaceResult<(Batch, ChangeMarker)> {
-            let marker = self.store().marker_now()?;
+            let marker = self.store().marker()?;
             let now = self.clock.now();
             let batch = Rules {
                 state: &State::from_events(&self.log()?),

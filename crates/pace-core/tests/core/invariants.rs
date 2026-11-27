@@ -236,15 +236,15 @@ fn run_steps(steps: &[Step]) -> Result<(), TestCaseError> {
         device()?,
     );
     let everything = TimeRange::new(None, None).map_err(fail)?;
-    let mut state = pollster::block_on(tracker.state(&everything)).map_err(fail)?;
+    let mut state = tracker.state(&everything).map_err(fail)?;
     for (number, step) in steps.iter().enumerate() {
         now = now
             .checked_add(SignedDuration::from_mins(step.wait))
             .map_err(fail)?;
         clock.set(now.clone());
         let command = command(step, &now, &state)?;
-        _ = pollster::block_on(tracker.run(&command));
-        state = pollster::block_on(tracker.state(&everything)).map_err(fail)?;
+        _ = tracker.run(&command);
+        state = tracker.state(&everything).map_err(fail)?;
         for entry in state.entries() {
             if let Some(why) = illegal(entry) {
                 return Err(TestCaseError::fail(format!(

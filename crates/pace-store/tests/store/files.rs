@@ -95,7 +95,7 @@ fn everything() -> Result<TimeRange, Box<dyn std::error::Error>> {
 
 #[test]
 fn the_files_backend_keeps_the_store_contract() -> TestResult {
-    pollster::block_on(run_store_contract(|| {
+    run_store_contract(|| {
         let dir = scratch_dir().expect("a temporary directory for the store");
         move |device: DeviceId, clock: Arc<TestClock>| {
             let root = dir.path();
@@ -107,7 +107,7 @@ fn the_files_backend_keeps_the_store_contract() -> TestResult {
                 Split::Month,
             )
         }
-    }))?;
+    })?;
     Ok(())
 }
 
@@ -129,7 +129,9 @@ fn events_go_into_the_file_of_their_period(
 ) -> TestResult {
     let setup = Setup::new(now)?;
 
-    _ = pollster::block_on(setup.tracker(split).run(&Command::Begin(Begin::default())))?;
+    _ = setup
+        .tracker(split)
+        .run(&Command::Begin(Begin::default()))?;
 
     let mut expected = vec!["device.toml".to_owned(), file.to_owned()];
     expected.sort();
@@ -141,10 +143,10 @@ fn events_go_into_the_file_of_their_period(
 fn an_entrys_events_stay_in_the_file_of_its_first_start() -> TestResult {
     let setup = Setup::new("2026-10-31T23:00[Europe/Berlin]")?;
     let tracker = setup.tracker(Split::Month);
-    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
 
     setup.clock.set(at("2026-11-01T00:30[Europe/Berlin]")?);
-    _ = pollster::block_on(tracker.run(&Command::End(End::default())))?;
+    _ = tracker.run(&Command::End(End::default()))?;
 
     assert_eq!(setup.files()?, ["2026/2026-10.toml", "device.toml"]);
     Ok(())
@@ -156,7 +158,7 @@ fn the_event_file_reads_like_the_plan() -> TestResult {
     let tracker = setup.tracker(Split::Month);
     let run = |now: &str, command: Command| -> TestResult {
         setup.clock.set(at(now)?);
-        _ = pollster::block_on(tracker.run(&command))?;
+        _ = tracker.run(&command)?;
         Ok(())
     };
     run(
@@ -219,12 +221,12 @@ fn the_event_file_reads_like_the_plan() -> TestResult {
 fn what_was_written_reads_back_the_same() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
     let tracker = setup.tracker(Split::Month);
-    let written = pollster::block_on(tracker.run(&Command::Begin(Begin {
+    let written = tracker.run(&Command::Begin(Begin {
         note: Some("a \"quoted\" note\nwith two lines".to_owned()),
         ..Begin::default()
-    })))?;
+    }))?;
 
-    let read = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
+    let read = setup.store(Split::Month).read(&everything()?)?;
 
     assert_eq!(read, written.recorded);
     Ok(())
@@ -233,13 +235,11 @@ fn what_was_written_reads_back_the_same() -> TestResult {
 #[test]
 fn the_device_file_names_the_device_and_its_split() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
-    _ = pollster::block_on(
-        setup
-            .tracker(Split::Week)
-            .run(&Command::Begin(Begin::default())),
-    )?;
+    _ = setup
+        .tracker(Split::Week)
+        .run(&Command::Begin(Begin::default()))?;
 
-    let devices = pollster::block_on(setup.store(Split::Week).devices())?;
+    let devices = setup.store(Split::Week).devices()?;
     let text = std::fs::read_to_string(setup.device_dir().join("device.toml"))?;
 
     assert_eq!(devices.len(), 1);
@@ -253,11 +253,9 @@ fn the_device_file_names_the_device_and_its_split() -> TestResult {
 #[test]
 fn an_unknown_key_in_an_event_file_names_the_file_and_line() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
-    _ = pollster::block_on(
-        setup
-            .tracker(Split::Month)
-            .run(&Command::Begin(Begin::default())),
-    )?;
+    _ = setup
+        .tracker(Split::Month)
+        .run(&Command::Begin(Begin::default()))?;
     let file = setup.device_dir().join("2026/2026-11.toml");
     let text = std::fs::read_to_string(&file)?;
     std::fs::write(
@@ -268,7 +266,9 @@ fn an_unknown_key_in_an_event_file_names_the_file_and_line() -> TestResult {
         ),
     )?;
 
-    let error = pollster::block_on(setup.store(Split::Month).read(&everything()?))
+    let error = setup
+        .store(Split::Month)
+        .read(&everything()?)
         .err()
         .ok_or("the broken file must fail")?;
 
@@ -287,11 +287,9 @@ fn an_unknown_key_in_an_event_file_names_the_file_and_line() -> TestResult {
 #[test]
 fn an_event_missing_field_is_named() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
-    _ = pollster::block_on(
-        setup
-            .tracker(Split::Month)
-            .run(&Command::Begin(Begin::default())),
-    )?;
+    _ = setup
+        .tracker(Split::Month)
+        .run(&Command::Begin(Begin::default()))?;
     let file = setup.device_dir().join("2026/2026-11.toml");
     let text = std::fs::read_to_string(&file)?;
     let without_entry: String = text
@@ -300,7 +298,9 @@ fn an_event_missing_field_is_named() -> TestResult {
         .collect();
     std::fs::write(&file, without_entry)?;
 
-    let error = pollster::block_on(setup.store(Split::Month).read(&everything()?))
+    let error = setup
+        .store(Split::Month)
+        .read(&everything()?)
         .err()
         .ok_or("the broken file must fail")?;
 
@@ -328,16 +328,16 @@ fn broken_event_file_keeps_its_cause_and_asks_to_repair_it(
     #[case] cause: &str,
 ) -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
-    _ = pollster::block_on(
-        setup
-            .tracker(Split::Month)
-            .run(&Command::Begin(Begin::default())),
-    )?;
+    _ = setup
+        .tracker(Split::Month)
+        .run(&Command::Begin(Begin::default()))?;
     let file = setup.device_dir().join("2026/2026-11.toml");
     let text = std::fs::read_to_string(&file)?;
     std::fs::write(&file, cut(&text, empty)?)?;
 
-    let error = pollster::block_on(setup.store(Split::Month).read(&everything()?))
+    let error = setup
+        .store(Split::Month)
+        .read(&everything()?)
         .err()
         .ok_or("the broken file must fail")?;
 
@@ -360,12 +360,12 @@ fn blamed_line(error: &pace_error::PaceError, text: &str) -> Option<usize> {
 fn an_invalid_event_is_blamed_on_its_own_line() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
     let tracker = setup.tracker(Split::Month);
-    _ = pollster::block_on(tracker.run(&Command::Begin(Begin {
+    _ = tracker.run(&Command::Begin(Begin {
         note: Some("agenda\n[[event]]\nminutes".to_owned()),
         ..Begin::default()
-    })))?;
+    }))?;
     setup.clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
-    _ = pollster::block_on(tracker.run(&Command::End(End::default())))?;
+    _ = tracker.run(&Command::End(End::default()))?;
     let file = setup.device_dir().join("2026/2026-11.toml");
     let text = std::fs::read_to_string(&file)?;
     // The second event's header gets a comment, and the event loses its
@@ -380,7 +380,9 @@ fn an_invalid_event_is_blamed_on_its_own_line() -> TestResult {
     let broken = format!("{first}{second}");
     std::fs::write(&file, &broken)?;
 
-    let error = pollster::block_on(setup.store(Split::Month).read(&everything()?))
+    let error = setup
+        .store(Split::Month)
+        .read(&everything()?)
         .err()
         .ok_or("the broken event must fail")?;
 
@@ -399,11 +401,9 @@ fn an_invalid_event_is_blamed_on_its_own_line() -> TestResult {
 #[test]
 fn an_event_type_from_newer_pace_asks_for_an_update() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
-    _ = pollster::block_on(
-        setup
-            .tracker(Split::Month)
-            .run(&Command::Begin(Begin::default())),
-    )?;
+    _ = setup
+        .tracker(Split::Month)
+        .run(&Command::Begin(Begin::default()))?;
     let file = setup.device_dir().join("2026/2026-11.toml");
     let text = std::fs::read_to_string(&file)?;
     std::fs::write(
@@ -411,7 +411,9 @@ fn an_event_type_from_newer_pace_asks_for_an_update() -> TestResult {
         text.replace("\"entry.begun\"", "\"entry.teleported\""),
     )?;
 
-    let error = pollster::block_on(setup.store(Split::Month).read(&everything()?))
+    let error = setup
+        .store(Split::Month)
+        .read(&everything()?)
         .err()
         .ok_or("the unknown type must fail")?;
 
@@ -430,11 +432,11 @@ fn an_event_type_from_newer_pace_asks_for_an_update() -> TestResult {
 fn two_months(setup: &Setup) -> TestResult {
     let tracker = setup.tracker(Split::Month);
     setup.clock.set(at("2026-10-30T09:00[Europe/Berlin]")?);
-    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
     setup.clock.set(at("2026-10-30T10:00[Europe/Berlin]")?);
-    _ = pollster::block_on(tracker.run(&Command::End(End::default())))?;
+    _ = tracker.run(&Command::End(End::default()))?;
     setup.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
-    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
     Ok(())
 }
 
@@ -442,7 +444,7 @@ fn two_months(setup: &Setup) -> TestResult {
 fn resplitting_rewrites_this_devices_files_and_keeps_the_events() -> TestResult {
     let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
     two_months(&setup)?;
-    let before = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
+    let before = setup.store(Split::Month).read(&everything()?)?;
 
     let resplit = setup.store(Split::Month).resplit(Split::Day)?;
 
@@ -459,7 +461,7 @@ fn resplitting_rewrites_this_devices_files_and_keeps_the_events() -> TestResult 
             "device.toml"
         ]
     );
-    let after = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
+    let after = setup.store(Split::Month).read(&everything()?)?;
     assert_eq!(after, before);
     let device_file = std::fs::read_to_string(setup.device_dir().join("device.toml"))?;
     assert!(device_file.contains("split = \"day\""), "{device_file}");
@@ -473,11 +475,9 @@ fn after_resplitting_new_events_go_into_the_new_files() -> TestResult {
     _ = setup.store(Split::Month).resplit(Split::Year)?;
 
     setup.clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
-    _ = pollster::block_on(
-        setup
-            .tracker(Split::Month)
-            .run(&Command::End(End::default())),
-    )?;
+    _ = setup
+        .tracker(Split::Month)
+        .run(&Command::End(End::default()))?;
 
     assert_eq!(setup.files()?, ["2026.toml", "device.toml"]);
     Ok(())
@@ -522,10 +522,10 @@ fn resplitting_leaves_other_devices_alone() -> TestResult {
     );
     setup.clock.set(at("2026-11-26T09:30[Europe/Berlin]")?);
     let other_dir = setup.home().join("events").join(other.to_string());
-    _ = pollster::block_on(other_tracker.run(&Command::Log(Log::new(
+    _ = other_tracker.run(&Command::Log(Log::new(
         at("2026-11-25T09:00[Europe/Berlin]")?,
         at("2026-11-25T10:00[Europe/Berlin]")?,
-    ))))?;
+    )))?;
 
     _ = setup.store(Split::Month).resplit(Split::Week)?;
 
@@ -546,11 +546,9 @@ fn device_without_events_takes_the_new_split_for_its_first() -> TestResult {
         (resplit.from, resplit.to, resplit.events),
         (Split::Month, Split::Week, 0)
     );
-    _ = pollster::block_on(
-        setup
-            .tracker(Split::Month)
-            .run(&Command::Begin(Begin::default())),
-    )?;
+    _ = setup
+        .tracker(Split::Month)
+        .run(&Command::Begin(Begin::default()))?;
     assert_eq!(setup.files()?, ["2026/2026-W48.toml", "device.toml"]);
     Ok(())
 }
@@ -566,7 +564,7 @@ fn an_event_in_two_files_is_read_once() -> TestResult {
         setup.device_dir().join("2026/2026-W44.toml"),
     )?;
 
-    let events = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
+    let events = setup.store(Split::Month).read(&everything()?)?;
 
     assert_eq!(events.len(), 3);
     Ok(())
@@ -634,14 +632,14 @@ fn forgotten_entry_leaves_every_own_file_that_holds_it() -> TestResult {
     let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
     interrupted_split_to_weeks(&setup)?;
     let tracker = setup.tracker(Split::Month);
-    let state = pollster::block_on(tracker.state(&everything()?))?;
+    let state = tracker.state(&everything()?)?;
     let october = state
         .entries()
         .find(|entry| state.open().all(|open| open.id != entry.id))
         .map(|entry| entry.id)
         .ok_or("the October entry")?;
 
-    _ = pollster::block_on(tracker.run(&Command::Forget(Forget { entry: october })))?;
+    _ = tracker.run(&Command::Forget(Forget { entry: october }))?;
 
     assert_eq!(
         setup.files()?,
@@ -657,10 +655,10 @@ fn forgotten_entry_leaves_every_own_file_that_holds_it() -> TestResult {
 #[test]
 fn begin_raced_by_another_process_decides_again_and_switches_from_it() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
-    _ = pollster::block_on(setup.tracker(Split::Month).run(&Command::Log(Log::new(
+    _ = setup.tracker(Split::Month).run(&Command::Log(Log::new(
         at("2026-11-26T07:00[Europe/Berlin]")?,
         at("2026-11-26T08:00[Europe/Berlin]")?,
-    ))))?;
+    )))?;
     // The rival read a minute earlier.
     let rival_clock = Arc::new(TestClock::new(at("2026-11-26T08:59[Europe/Berlin]")?));
     let rival = Tracker::new(
@@ -686,12 +684,12 @@ fn begin_raced_by_another_process_decides_again_and_switches_from_it() -> TestRe
         setup.device,
     );
 
-    _ = pollster::block_on(tracker.run(&Command::Begin(Begin {
+    _ = tracker.run(&Command::Begin(Begin {
         note: Some("A".to_owned()),
         ..Begin::default()
-    })))?;
+    }))?;
 
-    let state = pollster::block_on(setup.tracker(Split::Month).state(&everything()?))?;
+    let state = setup.tracker(Split::Month).state(&everything()?)?;
     let open: Vec<_> = state.open().map(|entry| entry.note.clone()).collect();
     assert_eq!(open, vec![Some("A".to_owned())]);
     assert_eq!(state.entries().count(), 3);
@@ -709,11 +707,12 @@ mod expensive {
     fn appends_from_two_processes_both_land() -> TestResult {
         let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
         let tracker = setup.tracker(Split::Month);
-        _ = pollster::block_on(tracker.run(&Command::Log(Log::new(
+        _ = tracker.run(&Command::Log(Log::new(
             at("2026-11-26T07:00[Europe/Berlin]")?,
             at("2026-11-26T08:00[Europe/Berlin]")?,
-        ))))?;
-        let entry = pollster::block_on(tracker.state(&everything()?))?
+        )))?;
+        let entry = tracker
+            .state(&everything()?)?
             .entries()
             .next()
             .map(|entry| entry.id)
@@ -740,7 +739,8 @@ mod expensive {
                         });
                         // A command that the others outran is run again, as
                         // its error asks.
-                        while pollster::block_on(tracker.run(&adjust))
+                        while tracker
+                            .run(&adjust)
                             .is_err_and(|error| error.is_code("pace::core::concurrent-write"))
                         {
                         }
@@ -749,7 +749,7 @@ mod expensive {
             }
         });
 
-        let read = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
+        let read = setup.store(Split::Month).read(&everything()?)?;
         assert_eq!(read.len(), 1 + 4 * 10);
         let leftovers: Vec<_> = setup
             .files()?

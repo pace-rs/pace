@@ -25,7 +25,6 @@ testing = []
 
 [dev-dependencies]
 pace_core = { path = ".", features = ["testing"] }
-pollster = { workspace = true }
 proptest = { workspace = true }
 rstest = { workspace = true }
 serde_json = { workspace = true }

@@ -7,11 +7,10 @@
 use std::{ffi::OsString, fmt, process};
 
 use abscissa_core::{
-    Application, FrameworkError, FrameworkErrorKind, Shutdown, StandardPaths,
+    Application, FrameworkError, Shutdown, StandardPaths,
     application::{self, AppCell},
     config::{CfgCell, Reader},
 };
-use abscissa_tokio::TokioComponent;
 use miette::{MietteHandler, MietteHandlerOpts, ReportHandler};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 
@@ -136,14 +135,7 @@ impl Application for PaceApp {
     }
 
     fn register_components(&mut self, command: &Self::Cmd) -> Result<(), FrameworkError> {
-        let mut components = self.framework_components(command)?;
-        // One runtime for the whole program; a current-thread one is enough
-        // for a command line that runs one command.
-        let runtime = abscissa_tokio::tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|error| FrameworkErrorKind::ComponentError.context(error))?;
-        components.push(Box::new(TokioComponent::from(runtime)));
+        let components = self.framework_components(command)?;
         self.state.components_mut().register(components)
     }
 

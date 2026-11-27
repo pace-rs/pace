@@ -17,7 +17,6 @@ rust-version = "1.100"
 
 [workspace.dependencies]
 abscissa_core = { version = "0.9.0", default-features = false }
-abscissa_tokio = "0.9.0"
 clap = "4.6.10"
 clap_complete = "4.6.12"
 clap_complete_nushell = "4.6.3"
@@ -31,7 +30,6 @@ pace_core = { path = "crates/pace-core" }
 pace_error = { path = "crates/pace-error" }
 pace_store = { path = "crates/pace-store" }
 pace_time = { path = "crates/pace-time" }
-pollster = "1.0.3"
 proptest = "1.12.0"
 rstest = "0.29.0"
 serde = "1.0.229"
@@ -67,7 +65,6 @@ harness = false
 
 [dependencies]
 abscissa_core = { workspace = true, features = ["application"] }
-abscissa_tokio = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 clap_complete = { workspace = true }
 clap_complete_nushell = { workspace = true }

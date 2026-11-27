@@ -13,7 +13,6 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, hash_map::DefaultHasher},
-    future::Future,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
     sync::Arc,
@@ -127,10 +126,6 @@ impl FilesStore {
         self.events_dir().join(device.to_string())
     }
 
-    fn append_now(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
-        self.append_with(batch, read, persist)
-    }
-
     /// [`EventStore::append`], with `rename` as the step that renames a
     /// temporary file over its event file; a test makes it fail.
     fn append_with(
@@ -145,7 +140,7 @@ impl FilesStore {
         // Under the lock, so no other process writes between this check and
         // the append. The device directory comes after it: a new directory
         // changes the marker.
-        if self.marker_now()? != read {
+        if self.marker()? != read {
             return Ok(Appended::Stale);
         }
         let dir = self.device_dir(self.device);
@@ -307,30 +302,6 @@ impl FilesStore {
         Ok(file)
     }
 
-    /// The events of the files `range` needs, through the index; an event
-    /// in two files (left by an interrupted resplit) counts once.
-    fn read_now(&self, range: &TimeRange) -> PaceResult<Vec<RecordedEvent>> {
-        let (index, mut found) = self.refreshed_index()?;
-        let mut events = Vec::new();
-        let mut seen = BTreeSet::new();
-        for name in select(&index.files, range) {
-            // The refreshed index names only the files it found.
-            let Some(file) = found.remove(&name) else {
-                continue;
-            };
-            let file_events = match file.events {
-                Some(file_events) => file_events,
-                None => read_events(&file.path, file.device)?,
-            };
-            events.extend(
-                file_events
-                    .into_iter()
-                    .filter(|recorded| seen.insert((recorded.device, recorded.event.id))),
-            );
-        }
-        Ok(events)
-    }
-
     /// The index, brought up to date with the files: changed and new files
     /// are parsed and summarized, gone files dropped. Returns the files it
     /// found, with the events of those it parsed.
@@ -423,8 +394,38 @@ impl FilesStore {
         dirs.sort();
         Ok(dirs)
     }
+}
 
-    fn devices_now(&self) -> PaceResult<Vec<Device>> {
+impl EventStore for FilesStore {
+    fn append(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
+        self.append_with(batch, read, persist)
+    }
+
+    /// The events of the files `range` needs, through the index; an event
+    /// in two files (left by an interrupted resplit) counts once.
+    fn read(&self, range: &TimeRange) -> PaceResult<Vec<RecordedEvent>> {
+        let (index, mut found) = self.refreshed_index()?;
+        let mut events = Vec::new();
+        let mut seen = BTreeSet::new();
+        for name in select(&index.files, range) {
+            // The refreshed index names only the files it found.
+            let Some(file) = found.remove(&name) else {
+                continue;
+            };
+            let file_events = match file.events {
+                Some(file_events) => file_events,
+                None => read_events(&file.path, file.device)?,
+            };
+            events.extend(
+                file_events
+                    .into_iter()
+                    .filter(|recorded| seen.insert((recorded.device, recorded.event.id))),
+            );
+        }
+        Ok(events)
+    }
+
+    fn devices(&self) -> PaceResult<Vec<Device>> {
         self.device_dirs()?
             .into_iter()
             .filter(|(_, dir)| dir.join(DEVICE_FILE).is_file())
@@ -439,7 +440,7 @@ impl FilesStore {
             .collect()
     }
 
-    fn marker_now(&self) -> PaceResult<ChangeMarker> {
+    fn marker(&self) -> PaceResult<ChangeMarker> {
         let mut hasher = DefaultHasher::new();
         for (device, dir) in self.device_dirs()? {
             device.hash(&mut hasher);
@@ -456,32 +457,6 @@ impl FilesStore {
             }
         }
         Ok(ChangeMarker::new(hasher.finish()))
-    }
-}
-
-// The files backend works synchronously, so its futures are ready at once.
-impl EventStore for FilesStore {
-    fn append(
-        &self,
-        batch: Batch,
-        read: ChangeMarker,
-    ) -> impl Future<Output = PaceResult<Appended>> + Send {
-        std::future::ready(self.append_now(batch, read))
-    }
-
-    fn read(
-        &self,
-        range: &TimeRange,
-    ) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send {
-        std::future::ready(self.read_now(range))
-    }
-
-    fn devices(&self) -> impl Future<Output = PaceResult<Vec<Device>>> + Send {
-        std::future::ready(self.devices_now())
-    }
-
-    fn marker(&self) -> impl Future<Output = PaceResult<ChangeMarker>> + Send {
-        std::future::ready(self.marker_now())
     }
 }
 

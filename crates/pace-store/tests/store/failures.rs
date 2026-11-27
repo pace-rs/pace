@@ -74,13 +74,13 @@ fn failed_cursor_save_records_nothing_and_next_command_works() -> TestResult {
     let (home, machine) = (dir.path().join("home"), dir.path().join("machine"));
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
     let laptop = tracker(&home, &machine, device(1)?, &clock, 1);
-    _ = pollster::block_on(laptop.run(&Command::Begin(Begin::default())))?;
+    _ = laptop.run(&Command::Begin(Begin::default()))?;
     // A read brings the index up to date, as the command's output does.
-    _ = pollster::block_on(laptop.state(&TimeRange::new(None, None)?))?;
+    _ = laptop.state(&TimeRange::new(None, None)?)?;
     read_only(&machine)?;
     clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
 
-    let held = pollster::block_on(laptop.run(&Command::Hold(Hold::default())));
+    let held = laptop.run(&Command::Hold(Hold::default()));
     writable(&machine)?;
 
     let error = held.err().ok_or("the cursors can't be saved")?;
@@ -97,8 +97,8 @@ fn failed_cursor_save_records_nothing_and_next_command_works() -> TestResult {
         "a failed append records nothing"
     );
     clock.set(at("2026-11-26T11:00[Europe/Berlin]")?);
-    _ = pollster::block_on(laptop.run(&Command::End(End::default())))?;
-    let state = pollster::block_on(laptop.state(&TimeRange::new(None, None)?))?;
+    _ = laptop.run(&Command::End(End::default()))?;
+    let state = laptop.state(&TimeRange::new(None, None)?)?;
     assert_eq!(state.open().count(), 0);
     Ok(())
 }
@@ -115,21 +115,22 @@ fn failed_cleaning_keeps_the_append_and_is_retried() -> TestResult {
         at("2026-10-30T10:00[Europe/Berlin]")?,
     );
     secret.note = Some("secret".to_owned());
-    _ = pollster::block_on(laptop.run(&Command::Log(secret)))?;
-    let entry = pollster::block_on(laptop.state(&TimeRange::new(None, None)?))?
+    _ = laptop.run(&Command::Log(secret))?;
+    let entry = laptop
+        .state(&TimeRange::new(None, None)?)?
         .entries()
         .next()
         .map(|entry| entry.id)
         .ok_or("the logged entry")?;
     clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
-    _ = pollster::block_on(desktop.run(&Command::Forget(Forget { entry })))?;
+    _ = desktop.run(&Command::Forget(Forget { entry }))?;
     let october = home
         .join("events")
         .join(device(1)?.to_string())
         .join("2026/10");
     read_only(&october)?;
 
-    let begun = pollster::block_on(laptop.run(&Command::Begin(Begin::default())));
+    let begun = laptop.run(&Command::Begin(Begin::default()));
     writable(&october)?;
 
     let begun = begun?;
@@ -145,7 +146,7 @@ fn failed_cleaning_keeps_the_append_and_is_retried() -> TestResult {
     );
     assert!(text_below(&october)?.contains("secret"));
     clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
-    let ended = pollster::block_on(laptop.run(&Command::End(End::default())))?;
+    let ended = laptop.run(&Command::End(End::default()))?;
     assert!(
         !text_below(&home.join("events").join(device(1)?.to_string()))?.contains("secret"),
         "the next append cleans the file"
@@ -162,10 +163,10 @@ fn read_works_when_index_cannot_be_written() -> TestResult {
     let laptop = tracker(&home, &machine, device(1)?, &clock, 1);
     // The append changes the event file after the index was refreshed, so
     // the next read refreshes it again.
-    _ = pollster::block_on(laptop.run(&Command::Begin(Begin::default())))?;
+    _ = laptop.run(&Command::Begin(Begin::default()))?;
     read_only(&machine)?;
 
-    let state = pollster::block_on(laptop.state(&TimeRange::new(None, None)?));
+    let state = laptop.state(&TimeRange::new(None, None)?);
     writable(&machine)?;
 
     assert_eq!(state?.open().count(), 1);

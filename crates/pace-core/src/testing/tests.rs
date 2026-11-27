@@ -40,7 +40,8 @@ fn memory_store_refuses_poisoned_storage() -> TestResult {
     );
     poison(&store.storage);
 
-    let error = pollster::block_on(store.read(&TimeRange::new(None, None)?))
+    let error = store
+        .read(&TimeRange::new(None, None)?)
         .err()
         .ok_or("the store read poisoned storage")?;
 

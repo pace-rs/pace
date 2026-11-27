@@ -3,7 +3,6 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    future::Future,
     sync::{
         Arc, Mutex, MutexGuard,
         atomic::{AtomicUsize, Ordering},
@@ -136,8 +135,8 @@ impl MemoryStore {
     }
 }
 
-impl MemoryStore {
-    fn append_now(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
+impl EventStore for MemoryStore {
+    fn append(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
         let now = self.clock.now();
         let mut storage = self.storage()?;
         if ChangeMarker::new(storage.appends) != read {
@@ -174,40 +173,20 @@ impl MemoryStore {
             warnings: Vec::new(),
         })
     }
-}
 
-// Everything happens in memory at once, so the futures are ready right away.
-impl EventStore for MemoryStore {
-    fn append(
-        &self,
-        batch: Batch,
-        read: ChangeMarker,
-    ) -> impl Future<Output = PaceResult<Appended>> + Send {
-        std::future::ready(self.append_now(batch, read))
+    fn read(&self, range: &pace_time::TimeRange) -> PaceResult<Vec<RecordedEvent>> {
+        self.storage()
+            .map(|storage| events_meeting(&storage.events, range))
     }
 
-    fn read(
-        &self,
-        range: &pace_time::TimeRange,
-    ) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send {
-        std::future::ready(
-            self.storage()
-                .map(|storage| events_meeting(&storage.events, range)),
-        )
+    fn devices(&self) -> PaceResult<Vec<Device>> {
+        self.storage()
+            .map(|storage| storage.devices.values().cloned().collect())
     }
 
-    fn devices(&self) -> impl Future<Output = PaceResult<Vec<Device>>> + Send {
-        std::future::ready(
-            self.storage()
-                .map(|storage| storage.devices.values().cloned().collect()),
-        )
-    }
-
-    fn marker(&self) -> impl Future<Output = PaceResult<ChangeMarker>> + Send {
-        std::future::ready(
-            self.storage()
-                .map(|storage| ChangeMarker::new(storage.appends)),
-        )
+    fn marker(&self) -> PaceResult<ChangeMarker> {
+        self.storage()
+            .map(|storage| ChangeMarker::new(storage.appends))
     }
 }
 
@@ -285,7 +264,7 @@ impl<S, R> Raced<S, R> {
 }
 
 impl<S: EventStore, R: EventStore> EventStore for Raced<S, R> {
-    async fn append(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
+    fn append(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
         let raced = self
             .races
             .try_update(Ordering::SeqCst, Ordering::SeqCst, |left| {
@@ -293,23 +272,20 @@ impl<S: EventStore, R: EventStore> EventStore for Raced<S, R> {
             })
             .is_ok();
         if raced {
-            _ = self.rival.run(&self.command).await?;
+            _ = self.rival.run(&self.command)?;
         }
-        self.store.append(batch, read).await
+        self.store.append(batch, read)
     }
 
-    fn read(
-        &self,
-        range: &pace_time::TimeRange,
-    ) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send {
+    fn read(&self, range: &pace_time::TimeRange) -> PaceResult<Vec<RecordedEvent>> {
         self.store.read(range)
     }
 
-    fn devices(&self) -> impl Future<Output = PaceResult<Vec<Device>>> + Send {
+    fn devices(&self) -> PaceResult<Vec<Device>> {
         self.store.devices()
     }
 
-    fn marker(&self) -> impl Future<Output = PaceResult<ChangeMarker>> + Send {
+    fn marker(&self) -> PaceResult<ChangeMarker> {
         self.store.marker()
     }
 }

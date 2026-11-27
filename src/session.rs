@@ -3,16 +3,14 @@
 
 use std::{path::PathBuf, sync::Arc};
 
-use abscissa_core::Application;
-use abscissa_tokio::TokioComponent;
 use pace_core::{Command, DeviceId, Ids, Outcome, Policy, Tracker};
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::PaceResult;
 use pace_store::{FilesStore, Resplit, Split, device_id, existing_device_id};
 use pace_time::TimeRange;
 
 use crate::clock::clock;
 use crate::{
-    application::{Context, PACE_APP, print_error},
+    application::{Context, print_error},
     clock::{RandomIds, TEST_NOW},
 };
 
@@ -100,7 +98,7 @@ impl Session {
     ///
     /// If the command doesn't fit the state, or the store fails.
     pub fn run(&self, command: &Command) -> PaceResult<Outcome> {
-        let outcome = block_on(self.tracker.run(command))??;
+        let outcome = self.tracker.run(command)?;
         for warning in &outcome.warnings {
             print_error(warning);
         }
@@ -113,7 +111,7 @@ impl Session {
     ///
     /// If the store fails.
     pub fn state(&self, range: &TimeRange) -> PaceResult<pace_core::State> {
-        block_on(self.tracker.state(range))?
+        self.tracker.state(range)
     }
 
     /// Rewrite this device's event files split by `split`.
@@ -131,22 +129,4 @@ impl Session {
         (!self.data_existed && self.data.exists())
             .then(|| format!("pace keeps its data in {}.", self.data.display()))
     }
-}
-
-/// Run a future on the application's one runtime, borrowed from its
-/// component, so a command can run several futures.
-fn block_on<F: Future>(future: F) -> PaceResult<F::Output> {
-    let components = PACE_APP.state().components();
-    let runtime = components
-        .get_downcast_ref::<TokioComponent>()
-        .ok_or_else(|| {
-            PaceError::new(ErrorKind::Internal, "the runtime component is missing").ask_report()
-        })?
-        .runtime()
-        .map_err(|error| {
-            PaceError::with_source(ErrorKind::Internal, "the runtime is gone", error).ask_report()
-        })?;
-    let output = runtime.block_on(future);
-    drop(components);
-    Ok(output)
 }

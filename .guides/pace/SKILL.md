@@ -19,7 +19,7 @@ developer guide (`dev-docs/src/architecture/`, `dev-docs/src/development/`).
 | -- | ---------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------- |
 | 01 | [errors](01-errors.md)                   | `PaceError`, guidance, context, hints, exit codes                  | An error path or a message                          |
 | 02 | [CLI and output](02-cli-and-output.md)   | Verbs, flags, one sentence of output, no waiting without terminal  | A command, a flag, what a command prints            |
-| 03 | [architecture](03-architecture.md)       | The core without I/O, ports, one runtime, jiff, events, settings   | A new module, port or backend; time; a setting      |
+| 03 | [architecture](03-architecture.md)       | The core without I/O, blocking ports, jiff, events, settings       | A new module, port or backend; time; a setting      |
 | 04 | [tests](04-tests.md)                     | Tests first, journey tests, snapshots, ID placeholders, test names | Writing or changing a test                          |
 | 05 | [lints and gates](05-lints-and-gates.md) | Workspace lints, codegate's gates, the checks before a commit      | Before a commit; a lint, a long file or function    |
 | 06 | [docs](06-docs.md)                       | The three books, their style, proposals, commit messages           | User docs, dev-docs, a proposal, a README, a commit |

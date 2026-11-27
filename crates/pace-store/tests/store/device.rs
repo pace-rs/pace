@@ -130,12 +130,13 @@ fn device_id_used_by_two_machines_stops_writing() -> TestResult {
     let laptop = machine(&home, &dir.path().join("laptop"), device, &clock, 1);
     let copy = machine(&home, &dir.path().join("copy"), device, &clock, 2);
 
-    _ = pollster::block_on(laptop.run(&Command::Begin(Begin::default())))?;
+    _ = laptop.run(&Command::Begin(Begin::default()))?;
     clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
-    _ = pollster::block_on(copy.run(&Command::End(End::default())))?;
+    _ = copy.run(&Command::End(End::default()))?;
     clock.set(at("2026-11-26T11:00[Europe/Berlin]")?);
 
-    let error = pollster::block_on(laptop.run(&Command::Begin(Begin::default())))
+    let error = laptop
+        .run(&Command::Begin(Begin::default()))
         .err()
         .ok_or("the laptop must notice the copy")?;
 
@@ -154,7 +155,7 @@ fn device_id_used_by_two_machines_stops_writing() -> TestResult {
             .as_str()
         )
     );
-    let state = pollster::block_on(laptop.state(&TimeRange::new(None, None)?))?;
+    let state = laptop.state(&TimeRange::new(None, None)?)?;
     assert_eq!(state.entries().count(), 1, "nothing more was written");
     Ok(())
 }
@@ -167,16 +168,16 @@ fn deleting_the_index_changes_nothing() -> TestResult {
     let clock = Arc::new(TestClock::new(at("2026-10-15T09:00[Europe/Berlin]")?));
     let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
     let tracker = machine(&home, &machine_dir, device, &clock, 1);
-    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
     clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
     let today = TimeRange::new(
         Some(at("2026-11-26T00:00[Europe/Berlin]")?),
         Some(at("2026-11-27T00:00[Europe/Berlin]")?),
     )?;
-    let before = pollster::block_on(tracker.state(&today))?;
+    let before = tracker.state(&today)?;
 
     std::fs::remove_file(machine_dir.join("index.json"))?;
-    let after = pollster::block_on(tracker.state(&today))?;
+    let after = tracker.state(&today)?;
 
     assert_eq!(before, after);
     assert_eq!(after.open().count(), 1);
@@ -191,14 +192,15 @@ fn clock_reading_out_of_range_in_cursors_stops_writing() -> TestResult {
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
     let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
     let tracker = machine(&home, &machine_dir, device, &clock, 1);
-    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
     std::fs::write(
         machine_dir.join("cursors.toml"),
         "version = 1\n\n[own]\nlast-hlc = [9223372036854775807, 0]\n",
     )?;
     clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
 
-    let error = pollster::block_on(tracker.run(&Command::End(End::default())))
+    let error = tracker
+        .run(&Command::End(End::default()))
         .err()
         .ok_or("an unknown clock reading must not turn the clone check off")?;
 
@@ -222,13 +224,14 @@ fn store_file_of_newer_pace_stops_writing(#[case] file: &str) -> TestResult {
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
     let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
     let tracker = machine(&home, &machine_dir, device, &clock, 1);
-    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
     let path = dir.path().join(file);
     let text = std::fs::read_to_string(&path)?;
     std::fs::write(&path, text.replace("version = 1", "version = 7"))?;
     clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
 
-    let error = pollster::block_on(tracker.run(&Command::End(End::default())))
+    let error = tracker
+        .run(&Command::End(End::default()))
         .err()
         .ok_or("a newer version must stop pace")?;
 
@@ -266,7 +269,7 @@ fn store_errors_start_with_fixed_phrase(
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
     let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
     let tracker = machine(&home, &machine_dir, device, &clock, 1);
-    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    _ = tracker.run(&Command::Begin(Begin::default()))?;
     let path = dir.path().join(file);
     if let Some(stray) = file.strip_suffix('/') {
         std::fs::create_dir_all(dir.path().join(stray))?;
@@ -275,7 +278,8 @@ fn store_errors_start_with_fixed_phrase(
     }
     clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
 
-    let error = pollster::block_on(tracker.run(&Command::End(End::default())))
+    let error = tracker
+        .run(&Command::End(End::default()))
         .err()
         .ok_or("a broken store file must stop pace")?;
 

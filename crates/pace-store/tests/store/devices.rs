@@ -70,14 +70,12 @@ impl Device {
 
     fn run(&self, time: &str, command: &Command) -> TestResult {
         self.clock.set(berlin(time)?);
-        _ = pollster::block_on(self.tracker.run(command))?;
+        _ = self.tracker.run(command)?;
         Ok(())
     }
 
     fn state(&self) -> Result<State, Box<dyn std::error::Error>> {
-        Ok(pollster::block_on(
-            self.tracker.state(&TimeRange::new(None, None)?),
-        )?)
+        Ok(self.tracker.state(&TimeRange::new(None, None)?)?)
     }
 
     fn own_dir(&self) -> PathBuf {
@@ -231,7 +229,7 @@ fn entries_begun_apart_are_both_running_until_one_ends() -> TestResult {
 
     assert_eq!(laptop.state()?.open().count(), 2);
     laptop.clock.set(berlin("10:00")?);
-    let refused = pollster::block_on(laptop.tracker.run(&Command::Begin(Begin::default())));
+    let refused = laptop.tracker.run(&Command::Begin(Begin::default()));
     assert!(
         refused.is_err(),
         "begin must ask to end one of the two first"

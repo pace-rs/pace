@@ -33,7 +33,6 @@ insta = { workspace = true }
 miette = { workspace = true }
 pace_core = { workspace = true, features = ["testing"] }
 pace_store = { path = ".", features = ["testing"] }
-pollster = { workspace = true }
 rstest = { workspace = true }
 
 [lints]

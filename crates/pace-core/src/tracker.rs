@@ -88,11 +88,11 @@ impl<S: EventStore> Tracker<S> {
     ///
     /// If the store fails, the command doesn't fit the state, or other
     /// commands wrote in between five times; then nothing is appended.
-    pub async fn run(&self, command: &Command) -> PaceResult<Outcome> {
+    pub fn run(&self, command: &Command) -> PaceResult<Outcome> {
         for _ in 0..ATTEMPTS {
             let now = self.clock.now();
-            let marker = self.store.marker().await?;
-            let events = self.store.read(&scope(command, &now)?).await?;
+            let marker = self.store.marker()?;
+            let events = self.store.read(&scope(command, &now)?)?;
             let state = State::from_events(&events);
             let batch = Rules {
                 state: &state,
@@ -105,7 +105,7 @@ impl<S: EventStore> Tracker<S> {
             if let Appended::Recorded {
                 events: recorded,
                 warnings,
-            } = self.store.append(batch, marker).await?
+            } = self.store.append(batch, marker)?
             {
                 return Ok(Outcome {
                     warnings,
@@ -121,8 +121,8 @@ impl<S: EventStore> Tracker<S> {
     /// # Errors
     ///
     /// If the store fails.
-    pub async fn state(&self, range: &TimeRange) -> PaceResult<State> {
-        Ok(State::from_events(&self.store.read(range).await?))
+    pub fn state(&self, range: &TimeRange) -> PaceResult<State> {
+        Ok(State::from_events(&self.store.read(range)?))
     }
 }
 

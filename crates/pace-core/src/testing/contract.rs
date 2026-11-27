@@ -21,7 +21,7 @@ use crate::{
 /// # Errors
 ///
 /// The first broken promise, naming the check.
-pub async fn run_store_contract<O, S>(new_storage: impl Fn() -> O) -> PaceResult<()>
+pub fn run_store_contract<O, S>(new_storage: impl Fn() -> O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
@@ -30,39 +30,36 @@ where
     // which reads, so a broken read would fail them under the wrong name.
     within(
         COME_BACK,
-        appended_events_come_back_with_their_device_and_batch(&new_storage()).await,
+        appended_events_come_back_with_their_device_and_batch(&new_storage()),
     )?;
     within(
         OPEN_ENTRIES,
-        open_entries_are_read_whatever_the_range(&new_storage()).await,
+        open_entries_are_read_whatever_the_range(&new_storage()),
     )?;
     within(
         OVERLAPPING_ENTRIES,
-        entries_overlapping_the_range_are_read_wherever_they_are_filed(&new_storage()).await,
+        entries_overlapping_the_range_are_read_wherever_they_are_filed(&new_storage()),
     )?;
     within(
         UNDO_WITH_BATCH,
-        an_undo_is_read_with_its_batch(&new_storage()).await,
+        an_undo_is_read_with_its_batch(&new_storage()),
     )?;
     within(
         HLC_NEVER_GOES_BACK,
-        the_hlc_never_goes_back_when_the_clock_does(&new_storage()).await,
+        the_hlc_never_goes_back_when_the_clock_does(&new_storage()),
     )?;
     within(
         HLC_AFTER_OTHER_DEVICES,
-        the_hlc_comes_after_what_other_devices_wrote(&new_storage()).await,
+        the_hlc_comes_after_what_other_devices_wrote(&new_storage()),
     )?;
-    within(
-        DEVICES,
-        devices_are_the_ones_that_wrote(&new_storage()).await,
-    )?;
+    within(DEVICES, devices_are_the_ones_that_wrote(&new_storage()))?;
     within(
         MARKER_CHANGES,
-        the_marker_changes_with_the_data(&new_storage()).await,
+        the_marker_changes_with_the_data(&new_storage()),
     )?;
     within(
         STALE_APPEND,
-        append_after_stale_read_is_refused(&new_storage()).await,
+        append_after_stale_read_is_refused(&new_storage()),
     )?;
     Ok(())
 }
@@ -150,25 +147,20 @@ fn range(start: &str, end: &str) -> PaceResult<TimeRange> {
     TimeRange::new(Some(at(start)?), Some(at(end)?))
 }
 
-async fn appended_events_come_back_with_their_device_and_batch<O, S>(
-    open_store: &O,
-) -> PaceResult<()>
+fn appended_events_come_back_with_their_device_and_batch<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
 {
     let check = COME_BACK;
     let laptop = open(open_store, 1, "2026-11-26T09:00[Europe/Berlin]")?;
-    let outcome = laptop
-        .tracker
-        .run(&Command::Begin(Begin::default()))
-        .await?;
+    let outcome = laptop.tracker.run(&Command::Begin(Begin::default()))?;
     let appended = outcome
         .recorded
         .first()
         .ok_or_else(|| broken(check, "append returned nothing"))?;
 
-    let read = laptop.tracker.state(&TimeRange::new(None, None)?).await?;
+    let read = laptop.tracker.state(&TimeRange::new(None, None)?)?;
     let found = State::from_events(std::slice::from_ref(appended));
     ensure(appended.device == laptop.id, check, "wrong device")?;
     ensure(
@@ -188,26 +180,20 @@ where
     )
 }
 
-async fn open_entries_are_read_whatever_the_range<O, S>(open_store: &O) -> PaceResult<()>
+fn open_entries_are_read_whatever_the_range<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
 {
     let check = OPEN_ENTRIES;
     let laptop = open(open_store, 1, "2026-10-15T09:00[Europe/Berlin]")?;
-    _ = laptop
-        .tracker
-        .run(&Command::Begin(Begin::default()))
-        .await?;
+    _ = laptop.tracker.run(&Command::Begin(Begin::default()))?;
     laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
 
-    let state = laptop
-        .tracker
-        .state(&range(
-            "2026-11-26T00:00[Europe/Berlin]",
-            "2026-11-27T00:00[Europe/Berlin]",
-        )?)
-        .await?;
+    let state = laptop.tracker.state(&range(
+        "2026-11-26T00:00[Europe/Berlin]",
+        "2026-11-27T00:00[Europe/Berlin]",
+    )?)?;
     ensure(
         state.open().count() == 1,
         check,
@@ -215,7 +201,7 @@ where
     )
 }
 
-async fn entries_overlapping_the_range_are_read_wherever_they_are_filed<O, S>(
+fn entries_overlapping_the_range_are_read_wherever_they_are_filed<O, S>(
     open_store: &O,
 ) -> PaceResult<()>
 where
@@ -224,21 +210,15 @@ where
 {
     let check = OVERLAPPING_ENTRIES;
     let laptop = open(open_store, 1, "2026-11-02T09:00[Europe/Berlin]")?;
-    _ = laptop
-        .tracker
-        .run(&Command::Log(Log::new(
-            at("2026-10-31T22:00[Europe/Berlin]")?,
-            at("2026-11-01T02:00[Europe/Berlin]")?,
-        )))
-        .await?;
+    _ = laptop.tracker.run(&Command::Log(Log::new(
+        at("2026-10-31T22:00[Europe/Berlin]")?,
+        at("2026-11-01T02:00[Europe/Berlin]")?,
+    )))?;
 
-    let state = laptop
-        .tracker
-        .state(&range(
-            "2026-11-01T00:00[Europe/Berlin]",
-            "2026-11-01T01:00[Europe/Berlin]",
-        )?)
-        .await?;
+    let state = laptop.tracker.state(&range(
+        "2026-11-01T00:00[Europe/Berlin]",
+        "2026-11-01T01:00[Europe/Berlin]",
+    )?)?;
     ensure(
         state.entries().count() == 1,
         check,
@@ -246,29 +226,23 @@ where
     )
 }
 
-async fn an_undo_is_read_with_its_batch<O, S>(open_store: &O) -> PaceResult<()>
+fn an_undo_is_read_with_its_batch<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
 {
     let check = UNDO_WITH_BATCH;
     let laptop = open(open_store, 1, "2026-10-15T09:00[Europe/Berlin]")?;
-    _ = laptop
-        .tracker
-        .run(&Command::Begin(Begin::default()))
-        .await?;
+    _ = laptop.tracker.run(&Command::Begin(Begin::default()))?;
     laptop.clock.set(at("2026-10-15T10:00[Europe/Berlin]")?);
-    _ = laptop.tracker.run(&Command::End(End::default())).await?;
+    _ = laptop.tracker.run(&Command::End(End::default()))?;
     laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
-    _ = laptop.tracker.run(&Command::Undo).await?;
+    _ = laptop.tracker.run(&Command::Undo)?;
 
-    let state = laptop
-        .tracker
-        .state(&range(
-            "2026-10-15T00:00[Europe/Berlin]",
-            "2026-10-16T00:00[Europe/Berlin]",
-        )?)
-        .await?;
+    let state = laptop.tracker.state(&range(
+        "2026-10-15T00:00[Europe/Berlin]",
+        "2026-10-16T00:00[Europe/Berlin]",
+    )?)?;
     let entry = state
         .entries()
         .next()
@@ -280,27 +254,21 @@ where
     )
 }
 
-async fn the_hlc_never_goes_back_when_the_clock_does<O, S>(open_store: &O) -> PaceResult<()>
+fn the_hlc_never_goes_back_when_the_clock_does<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
 {
     let check = HLC_NEVER_GOES_BACK;
     let laptop = open(open_store, 1, "2026-11-26T10:00[Europe/Berlin]")?;
-    let first = laptop
-        .tracker
-        .run(&Command::Begin(Begin::default()))
-        .await?;
+    let first = laptop.tracker.run(&Command::Begin(Begin::default()))?;
     laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
     // The log lies before the jumped-back clock, and so before the begin's
     // HLC; the store must still order it after the begin.
-    let second = laptop
-        .tracker
-        .run(&Command::Log(Log::new(
-            at("2026-11-26T08:00[Europe/Berlin]")?,
-            at("2026-11-26T08:30[Europe/Berlin]")?,
-        )))
-        .await?;
+    let second = laptop.tracker.run(&Command::Log(Log::new(
+        at("2026-11-26T08:00[Europe/Berlin]")?,
+        at("2026-11-26T08:30[Europe/Berlin]")?,
+    )))?;
     let (Some(first), Some(second)) = (first.recorded.first(), second.recorded.first()) else {
         return Err(broken(check, "append returned nothing"));
     };
@@ -311,7 +279,7 @@ where
     )
 }
 
-async fn the_hlc_comes_after_what_other_devices_wrote<O, S>(open_store: &O) -> PaceResult<()>
+fn the_hlc_comes_after_what_other_devices_wrote<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
@@ -319,20 +287,14 @@ where
     let check = HLC_AFTER_OTHER_DEVICES;
     let laptop = open(open_store, 1, "2026-11-26T10:00[Europe/Berlin]")?;
     let desktop = open(open_store, 2, "2026-11-26T09:00[Europe/Berlin]")?;
-    let began = laptop
-        .tracker
-        .run(&Command::Begin(Begin {
-            at: Some(at("2026-11-26T08:00[Europe/Berlin]")?),
-            ..Begin::default()
-        }))
-        .await?;
-    let ended = desktop
-        .tracker
-        .run(&Command::End(End {
-            at: Some(at("2026-11-26T08:30[Europe/Berlin]")?),
-            ..End::default()
-        }))
-        .await?;
+    let began = laptop.tracker.run(&Command::Begin(Begin {
+        at: Some(at("2026-11-26T08:00[Europe/Berlin]")?),
+        ..Begin::default()
+    }))?;
+    let ended = desktop.tracker.run(&Command::End(End {
+        at: Some(at("2026-11-26T08:30[Europe/Berlin]")?),
+        ..End::default()
+    }))?;
     let (Some(began), Some(ended)) = (began.recorded.first(), ended.recorded.first()) else {
         return Err(broken(check, "append returned nothing"));
     };
@@ -343,7 +305,7 @@ where
     )
 }
 
-async fn devices_are_the_ones_that_wrote<O, S>(open_store: &O) -> PaceResult<()>
+fn devices_are_the_ones_that_wrote<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
@@ -351,26 +313,18 @@ where
     let check = DEVICES;
     let laptop = open(open_store, 1, "2026-11-26T09:00[Europe/Berlin]")?;
     let desktop = open(open_store, 2, "2026-11-26T10:00[Europe/Berlin]")?;
-    _ = laptop
-        .tracker
-        .run(&Command::Begin(Begin::default()))
-        .await?;
-    _ = desktop.tracker.run(&Command::End(End::default())).await?;
+    _ = laptop.tracker.run(&Command::Begin(Begin::default()))?;
+    _ = desktop.tracker.run(&Command::End(End::default()))?;
 
     let store = open_store(laptop.id, laptop.clock.clone());
-    let mut ids: Vec<DeviceId> = store
-        .devices()
-        .await?
-        .iter()
-        .map(|device| device.id)
-        .collect();
+    let mut ids: Vec<DeviceId> = store.devices()?.iter().map(|device| device.id).collect();
     ids.sort();
     let mut expected = vec![laptop.id, desktop.id];
     expected.sort();
     ensure(ids == expected, check, format!("{ids:?}"))
 }
 
-async fn the_marker_changes_with_the_data<O, S>(open_store: &O) -> PaceResult<()>
+fn the_marker_changes_with_the_data<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
@@ -378,24 +332,21 @@ where
     let check = MARKER_CHANGES;
     let laptop = open(open_store, 1, "2026-11-26T09:00[Europe/Berlin]")?;
     let store = open_store(laptop.id, laptop.clock.clone());
-    let before = store.marker().await?;
+    let before = store.marker()?;
     ensure(
-        store.marker().await? == before,
+        store.marker()? == before,
         check,
         "it changed without a change",
     )?;
-    _ = laptop
-        .tracker
-        .run(&Command::Begin(Begin::default()))
-        .await?;
+    _ = laptop.tracker.run(&Command::Begin(Begin::default()))?;
     ensure(
-        store.marker().await? != before,
+        store.marker()? != before,
         check,
         "it stayed after an append",
     )
 }
 
-async fn append_after_stale_read_is_refused<O, S>(open_store: &O) -> PaceResult<()>
+fn append_after_stale_read_is_refused<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
@@ -403,11 +354,8 @@ where
     let check = STALE_APPEND;
     let laptop = open(open_store, 1, "2026-11-26T09:00[Europe/Berlin]")?;
     let store = open_store(laptop.id, laptop.clock.clone());
-    let read = store.marker().await?;
-    _ = laptop
-        .tracker
-        .run(&Command::Begin(Begin::default()))
-        .await?;
+    let read = store.marker()?;
+    _ = laptop.tracker.run(&Command::Begin(Begin::default()))?;
     // The batch as decided on the stale read: nothing was open.
     let now = laptop.clock.now();
     let batch = Rules {
@@ -419,13 +367,13 @@ where
     }
     .decide(&Command::Begin(Begin::default()))?;
 
-    let appended = store.append(batch, read).await?;
+    let appended = store.append(batch, read)?;
     ensure(
         matches!(appended, Appended::Stale),
         check,
         "it appended a batch decided before another append",
     )?;
-    let state = laptop.tracker.state(&TimeRange::new(None, None)?).await?;
+    let state = laptop.tracker.state(&TimeRange::new(None, None)?)?;
     ensure(
         state.entries().count() == 1,
         check,

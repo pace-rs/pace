@@ -11,10 +11,11 @@
 4. What happens in time is an event in one append-only TOML log per device in
    `PACE_HOME`; structure (roles, clients, projects, goals, task definitions)
    stays plain TOML state files.
-5. A synchronous backend implements the async ports with
-   `std::future::ready(...)`.
-6. Futures run on the one current-thread Tokio runtime (`block_on` in
-   `src/session.rs`); tests use `pollster`.
+5. The ports block: `EventStore`'s methods return their `PaceResult` directly,
+   and a backend does its I/O before it returns.
+6. pace starts no async runtime. The SQL backends bring an async store trait and
+   a driver behind a feature; then Abscissa starts one runtime for the whole
+   program.
 7. The machine directory holds what is never synced (device ID, index, cursors,
    lock); `PACE_HOME` holds what syncs.
 8. A setting comes from layers (global file, manifest, environment, flag) with
