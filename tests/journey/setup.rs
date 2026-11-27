@@ -14,3 +14,12 @@ fn setup_without_terminal_exits_2_and_names_four_commands() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn first_use_note_names_pace_setup() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[("09:00", &["begin", "Write offer"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

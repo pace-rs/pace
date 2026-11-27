@@ -8,7 +8,7 @@ exit_code: 0
 ----- stdout -----
 Logged [ID-1] "Standup" from 08:45 to 09:00 (15m).
 Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
-pace keeps its data in [SANDBOX]/home.
+pace keeps its data in [SANDBOX]/home. If you like, `pace setup` walks you through the settings, roles and clients.
 
 ----- stderr -----
 

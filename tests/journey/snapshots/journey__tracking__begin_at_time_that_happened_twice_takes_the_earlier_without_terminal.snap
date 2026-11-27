@@ -8,6 +8,6 @@ exit_code: 0
 ----- stdout -----
 Began [ID-1] at 02:30.
 02:30 happened twice, because the clocks were set back; pace took the first one, 02:30 (+02:00), not 02:30 (+01:00).
-pace keeps its data in [SANDBOX]/home.
+pace keeps its data in [SANDBOX]/home. If you like, `pace setup` walks you through the settings, roles and clients.
 
 ----- stderr -----

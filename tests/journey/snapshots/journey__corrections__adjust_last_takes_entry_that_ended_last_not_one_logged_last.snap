@@ -7,7 +7,7 @@ success: true
 exit_code: 0
 ----- stdout -----
 Logged [ID-1] "Afternoon" from 14:00 to 15:00 (1h).
-pace keeps its data in [SANDBOX]/home.
+pace keeps its data in [SANDBOX]/home. If you like, `pace setup` walks you through the settings, roles and clients.
 
 ----- stderr -----
 

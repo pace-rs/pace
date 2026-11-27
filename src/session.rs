@@ -137,11 +137,17 @@ impl Session {
         self.tracker.store().resplit(split)
     }
 
-    /// A note for the first run that created the data directory.
+    /// A note for the first run that created the data directory: where
+    /// the data is, and `pace setup`, offered, never required.
     #[must_use]
     pub fn first_use_note(&self) -> Option<String> {
-        (!self.data_existed && self.data.exists())
-            .then(|| format!("pace keeps its data in {}.", self.data.display()))
+        (!self.data_existed && self.data.exists()).then(|| {
+            format!(
+                "pace keeps its data in {}. If you like, `pace setup` walks you through \
+                 the settings, roles and clients.",
+                self.data.display()
+            )
+        })
     }
 }
 

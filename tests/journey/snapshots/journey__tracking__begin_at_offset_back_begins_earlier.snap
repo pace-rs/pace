@@ -7,6 +7,6 @@ success: true
 exit_code: 0
 ----- stdout -----
 Began [ID-1] at 09:15.
-pace keeps its data in [SANDBOX]/home.
+pace keeps its data in [SANDBOX]/home. If you like, `pace setup` walks you through the settings, roles and clients.
 
 ----- stderr -----

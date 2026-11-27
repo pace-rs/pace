@@ -9,6 +9,6 @@ exit_code: 0
 Began [ID-1] "Write offer" at 09:00.
 Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
 The manifest [SANDBOX]/work/.pace.toml still holds the project's name; `pace project init` moves it into the project's record.
-pace keeps its data in [SANDBOX]/home.
+pace keeps its data in [SANDBOX]/home. If you like, `pace setup` walks you through the settings, roles and clients.
 
 ----- stderr -----
