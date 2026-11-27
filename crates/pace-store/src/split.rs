@@ -22,13 +22,6 @@ pub enum Split {
     Day,
 }
 
-const NAMES: [(&str, Split); 4] = [
-    ("year", Split::Year),
-    ("month", Split::Month),
-    ("week", Split::Week),
-    ("day", Split::Day),
-];
-
 impl Split {
     /// The file, relative to the device's directory, for events filed under
     /// `about`, by its date in the zone it was recorded in.
@@ -51,11 +44,12 @@ impl Split {
 
 impl fmt::Display for Split {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = NAMES
-            .iter()
-            .find(|(_, split)| split == self)
-            .map_or("month", |(name, _)| name);
-        f.write_str(name)
+        f.write_str(match self {
+            Self::Year => "year",
+            Self::Month => "month",
+            Self::Week => "week",
+            Self::Day => "day",
+        })
     }
 }
 
@@ -63,14 +57,29 @@ impl FromStr for Split {
     type Err = Box<PaceError>;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        NAMES
-            .iter()
-            .find(|(name, _)| *name == text)
-            .map(|(_, split)| *split)
-            .ok_or_else(|| {
+        match text {
+            "year" => Ok(Self::Year),
+            "month" => Ok(Self::Month),
+            "week" => Ok(Self::Week),
+            "day" => Ok(Self::Day),
+            _ => Err(
                 PaceError::new(ErrorKind::InvalidInput, "`{split}` is not a split")
                     .attach_context("split", text)
-                    .attach_hint("split by `year`, `month`, `week` or `day`")
-            })
+                    .attach_hint("split by `year`, `month`, `week` or `day`"),
+            ),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_split_reads_back_its_name() -> Result<(), Box<PaceError>> {
+        for split in [Split::Year, Split::Month, Split::Week, Split::Day] {
+            assert_eq!(split.to_string().parse::<Split>()?, split);
+        }
+        Ok(())
     }
 }

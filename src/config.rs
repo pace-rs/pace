@@ -27,13 +27,17 @@ use pace_store::toml_file::{TomlFile, closest, in_file_order};
 
 use crate::{dirs::Located, origin::Origin};
 
-/// A setting pace knows, and the variable that sets it. A key in a table
-/// is written `table.key`.
-struct Key {
-    name: &'static str,
-    variable: &'static str,
-    expects: &'static str,
-    kind: Kind,
+/// A setting pace knows. A key in a table is written `table.key`.
+///
+/// Only [`Key::ALL`] builds a key, so a key left out of it is dead code,
+/// which the workspace refuses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Key {
+    TimeZone,
+    WeekStart,
+    MostRecentCount,
+    HoldsDefaultSource,
+    StorageSplit,
 }
 
 /// What a setting's value is in TOML.
@@ -43,38 +47,58 @@ enum Kind {
     Number,
 }
 
-const KEYS: [Key; 5] = [
-    Key {
-        name: "time-zone",
-        variable: "PACE_TIME_ZONE",
-        expects: "a time zone name like `Europe/Berlin`, or `system`",
-        kind: Kind::Text,
-    },
-    Key {
-        name: "week-start",
-        variable: "PACE_WEEK_START",
-        expects: "a day name like `monday`",
-        kind: Kind::Text,
-    },
-    Key {
-        name: "most-recent-count",
-        variable: "PACE_MOST_RECENT_COUNT",
-        expects: "a whole number from 1, like `9`",
-        kind: Kind::Number,
-    },
-    Key {
-        name: "holds.default-source",
-        variable: "PACE_HOLDS__DEFAULT_SOURCE",
-        expects: "`inner`, `outer` or `unknown`",
-        kind: Kind::Text,
-    },
-    Key {
-        name: "storage.split",
-        variable: "PACE_STORAGE__SPLIT",
-        expects: "`year`, `month`, `week` or `day`",
-        kind: Kind::Text,
-    },
-];
+impl Key {
+    /// Every setting, in the order pace documents them.
+    const ALL: [Self; 5] = [
+        Self::TimeZone,
+        Self::WeekStart,
+        Self::MostRecentCount,
+        Self::HoldsDefaultSource,
+        Self::StorageSplit,
+    ];
+
+    /// The key as written in the file.
+    const fn name(self) -> &'static str {
+        match self {
+            Self::TimeZone => "time-zone",
+            Self::WeekStart => "week-start",
+            Self::MostRecentCount => "most-recent-count",
+            Self::HoldsDefaultSource => "holds.default-source",
+            Self::StorageSplit => "storage.split",
+        }
+    }
+
+    /// The environment variable that sets it.
+    const fn variable(self) -> &'static str {
+        match self {
+            Self::TimeZone => "PACE_TIME_ZONE",
+            Self::WeekStart => "PACE_WEEK_START",
+            Self::MostRecentCount => "PACE_MOST_RECENT_COUNT",
+            Self::HoldsDefaultSource => "PACE_HOLDS__DEFAULT_SOURCE",
+            Self::StorageSplit => "PACE_STORAGE__SPLIT",
+        }
+    }
+
+    /// The values that fit, for an error about the TOML type.
+    const fn expects(self) -> &'static str {
+        match self {
+            Self::TimeZone => "a time zone name like `Europe/Berlin`, or `system`",
+            Self::WeekStart => "a day name like `monday`",
+            Self::MostRecentCount => "a whole number from 1, like `9`",
+            Self::HoldsDefaultSource => "`inner`, `outer` or `unknown`",
+            Self::StorageSplit => "`year`, `month`, `week` or `day`",
+        }
+    }
+
+    const fn kind(self) -> Kind {
+        match self {
+            Self::MostRecentCount => Kind::Number,
+            Self::TimeZone | Self::WeekStart | Self::HoldsDefaultSource | Self::StorageSplit => {
+                Kind::Text
+            }
+        }
+    }
+}
 
 /// The table that maps directories to projects.
 const PROJECT_PATHS: &str = "project-paths";
@@ -166,42 +190,28 @@ fn invalid(guidance: &'static str, value: &str, hint: impl Into<String>) -> Box<
 }
 
 impl Settings {
-    fn set(&mut self, key: &str, value: &Value) -> PaceResult<()> {
-        if key == "most-recent-count" {
-            self.most_recent_count = parse_count(value)?;
-            return Ok(());
-        }
-        let value = value.text();
-        let value = value.as_ref();
+    fn set(&mut self, key: Key, value: &Value) -> PaceResult<()> {
         match key {
-            "time-zone" => self.time_zone = parse_time_zone(value)?,
-            "week-start" => self.week_start = parse_weekday(value)?,
-            "holds.default-source" => self.default_hold_source = parse_hold_source(value)?,
-            "storage.split" => self.split = value.parse()?,
-            _ => {
-                return Err(PaceError::new(
-                    ErrorKind::Internal,
-                    "the setting `{key}` has no parser",
-                )
-                .attach_context("key", key)
-                .ask_report());
-            }
+            Key::TimeZone => self.time_zone = parse_time_zone(&value.text())?,
+            Key::WeekStart => self.week_start = parse_weekday(&value.text())?,
+            Key::MostRecentCount => self.most_recent_count = parse_count(value)?,
+            Key::HoldsDefaultSource => self.default_hold_source = parse_hold_source(&value.text())?,
+            Key::StorageSplit => self.split = value.text().parse()?,
         }
         Ok(())
     }
 
-    fn get(&self, key: &str) -> toml::Value {
+    fn get(&self, key: Key) -> toml::Value {
         let text = match key {
-            "time-zone" => self.time_zone.to_string(),
-            "week-start" => weekday_name(self.week_start).to_owned(),
-            "most-recent-count" => {
+            Key::TimeZone => self.time_zone.to_string(),
+            Key::WeekStart => weekday_name(self.week_start).to_owned(),
+            Key::MostRecentCount => {
                 return toml::Value::Integer(
                     i64::try_from(self.most_recent_count).unwrap_or(i64::MAX),
                 );
             }
-            "holds.default-source" => hold_source_name(self.default_hold_source).to_owned(),
-            "storage.split" => self.split.to_string(),
-            _ => String::new(),
+            Key::HoldsDefaultSource => hold_source_name(self.default_hold_source).to_owned(),
+            Key::StorageSplit => self.split.to_string(),
         };
         toml::Value::String(text)
     }
@@ -222,31 +232,25 @@ fn parse_count(value: &Value) -> PaceResult<usize> {
     })
 }
 
-const HOLD_SOURCES: [(&str, HoldSource); 3] = [
-    ("inner", HoldSource::Inner),
-    ("outer", HoldSource::Outer),
-    ("unknown", HoldSource::Unknown),
-];
-
 fn parse_hold_source(value: &str) -> PaceResult<HoldSource> {
-    HOLD_SOURCES
-        .iter()
-        .find(|(name, _)| *name == value)
-        .map(|(_, source)| *source)
-        .ok_or_else(|| {
-            invalid(
-                "`{value}` is not a source of holds",
-                value,
-                "use `inner` (you broke off), `outer` (someone interrupted) or `unknown`",
-            )
-        })
+    match value {
+        "inner" => Ok(HoldSource::Inner),
+        "outer" => Ok(HoldSource::Outer),
+        "unknown" => Ok(HoldSource::Unknown),
+        _ => Err(invalid(
+            "`{value}` is not a source of holds",
+            value,
+            "use `inner` (you broke off), `outer` (someone interrupted) or `unknown`",
+        )),
+    }
 }
 
-fn hold_source_name(source: HoldSource) -> &'static str {
-    HOLD_SOURCES
-        .iter()
-        .find(|(_, known)| *known == source)
-        .map_or("unknown", |(name, _)| name)
+const fn hold_source_name(source: HoldSource) -> &'static str {
+    match source {
+        HoldSource::Inner => "inner",
+        HoldSource::Outer => "outer",
+        HoldSource::Unknown => "unknown",
+    }
 }
 
 fn parse_time_zone(value: &str) -> PaceResult<TimeZoneSetting> {
@@ -278,24 +282,23 @@ fn parse_time_zone(value: &str) -> PaceResult<TimeZoneSetting> {
     ))
 }
 
-const WEEKDAYS: [(&str, Weekday); 7] = [
-    ("monday", Weekday::Monday),
-    ("tuesday", Weekday::Tuesday),
-    ("wednesday", Weekday::Wednesday),
-    ("thursday", Weekday::Thursday),
-    ("friday", Weekday::Friday),
-    ("saturday", Weekday::Saturday),
-    ("sunday", Weekday::Sunday),
+const WEEKDAYS: [Weekday; 7] = [
+    Weekday::Monday,
+    Weekday::Tuesday,
+    Weekday::Wednesday,
+    Weekday::Thursday,
+    Weekday::Friday,
+    Weekday::Saturday,
+    Weekday::Sunday,
 ];
 
 fn parse_weekday(value: &str) -> PaceResult<Weekday> {
     let lowercase = value.to_lowercase();
     WEEKDAYS
-        .iter()
-        .find(|(name, _)| *name == lowercase)
-        .map(|(_, day)| *day)
+        .into_iter()
+        .find(|day| weekday_name(*day) == lowercase)
         .ok_or_else(|| {
-            let hint = closest(&lowercase, WEEKDAYS.iter().map(|(name, _)| *name)).map_or_else(
+            let hint = closest(&lowercase, WEEKDAYS.into_iter().map(weekday_name)).map_or_else(
                 || "use a day name like `monday`".to_owned(),
                 |name| format!("did you mean `{name}`?"),
             );
@@ -303,11 +306,16 @@ fn parse_weekday(value: &str) -> PaceResult<Weekday> {
         })
 }
 
-fn weekday_name(day: Weekday) -> &'static str {
-    WEEKDAYS
-        .iter()
-        .find(|(_, weekday)| *weekday == day)
-        .map_or("monday", |(name, _)| name)
+const fn weekday_name(day: Weekday) -> &'static str {
+    match day {
+        Weekday::Monday => "monday",
+        Weekday::Tuesday => "tuesday",
+        Weekday::Wednesday => "wednesday",
+        Weekday::Thursday => "thursday",
+        Weekday::Friday => "friday",
+        Weekday::Saturday => "saturday",
+        Weekday::Sunday => "sunday",
+    }
 }
 
 /// A directory mapped to a project in `[project-paths]`.
@@ -328,7 +336,7 @@ pub struct ProjectPath {
 pub struct Loaded {
     /// The effective settings.
     pub settings: Settings,
-    origins: Vec<(&'static str, Origin)>,
+    origins: Vec<(Key, Origin)>,
     /// `[project-paths]`, in file order.
     pub project_paths: Vec<ProjectPath>,
     /// Problems that don't stop pace, such as an unknown `PACE_*` variable.
@@ -342,7 +350,7 @@ impl Loaded {
     pub fn entries(&self) -> Vec<(&'static str, toml::Value, &Origin)> {
         self.origins
             .iter()
-            .map(|(key, origin)| (*key, self.settings.get(key), origin))
+            .map(|(key, origin)| (key.name(), self.settings.get(*key), origin))
             .collect()
     }
 }
@@ -362,7 +370,7 @@ pub fn load_settings(
     variables: impl Iterator<Item = OsString>,
 ) -> PaceResult<Loaded> {
     let mut settings = Settings::default();
-    let mut origins: Vec<_> = KEYS.iter().map(|key| (key.name, Origin::Default)).collect();
+    let mut origins: Vec<_> = Key::ALL.map(|key| (key, Origin::Default)).to_vec();
     let mut project_paths = Vec::new();
 
     if let Some(text) = read_config_file(config_file)? {
@@ -375,14 +383,14 @@ pub fn load_settings(
             kind: ErrorKind::Configuration,
             version: FILE_VERSION,
         };
-        for (name, value, span) in file_values(&file, home, &mut project_paths)? {
-            settings.set(name, &value).map_err(|error| {
+        for (key, value, span) in file_values(&file, home, &mut project_paths)? {
+            settings.set(key, &value).map_err(|error| {
                 file.point_at(error, span.clone(), "this value")
                     .attach_error_code("pace::config::invalid-value")
             })?;
             set_origin(
                 &mut origins,
-                name,
+                key,
                 Origin::File {
                     path: config_file.path.clone(),
                     line: file.line_of(span.start),
@@ -391,15 +399,15 @@ pub fn load_settings(
         }
     }
 
-    for key in &KEYS {
-        let Some(value) = env(key.variable).filter(|value| !value.is_empty()) else {
+    for key in Key::ALL {
+        let Some(value) = env(key.variable()).filter(|value| !value.is_empty()) else {
             continue;
         };
         let value = Value::Text(value.to_string_lossy().into_owned());
         settings
-            .set(key.name, &value)
-            .map_err(|error| from_variable(error, key.variable))?;
-        set_origin(&mut origins, key.name, Origin::Env(key.variable));
+            .set(key, &value)
+            .map_err(|error| from_variable(error, key.variable()))?;
+        set_origin(&mut origins, key, Origin::Env(key.variable()));
     }
 
     Ok(Loaded {
@@ -444,8 +452,8 @@ fn read_config_file(config_file: &Located) -> PaceResult<Option<String>> {
     }
 }
 
-fn set_origin(origins: &mut [(&'static str, Origin)], name: &str, origin: Origin) {
-    if let Some(entry) = origins.iter_mut().find(|(key, _)| *key == name) {
+fn set_origin(origins: &mut [(Key, Origin)], key: Key, origin: Origin) {
+    if let Some(entry) = origins.iter_mut().find(|(known, _)| *known == key) {
         entry.1 = origin;
     }
 }
@@ -456,14 +464,12 @@ fn file_values(
     file: &TomlFile<'_>,
     home: Option<&Path>,
     project_paths: &mut Vec<ProjectPath>,
-) -> PaceResult<Vec<(&'static str, Value, Range<usize>)>> {
+) -> PaceResult<Vec<(Key, Value, Range<usize>)>> {
     let table = file.parse()?;
     let mut known: Vec<&str> = Vec::new();
-    for key in &KEYS {
-        let top = key
-            .name
-            .split_once('.')
-            .map_or(key.name, |(table, _)| table);
+    for key in Key::ALL {
+        let name = key.name();
+        let top = name.split_once('.').map_or(name, |(table, _)| table);
         if !known.contains(&top) {
             known.push(top);
         }
@@ -479,29 +485,21 @@ fn file_values(
             for (dir, project) in in_file_order(file.table(name, value)?) {
                 project_paths.push(project_path(file, home, dir, project)?);
             }
-        } else if let Some(setting) = KEYS.iter().find(|setting| setting.name == name) {
-            values.push((
-                setting.name,
-                scalar(file, name, setting, value)?,
-                value.span(),
-            ));
+        } else if let Some(setting) = Key::ALL.into_iter().find(|setting| setting.name() == name) {
+            values.push((setting, scalar(file, name, setting, value)?, value.span()));
         } else if let Some(in_table) = table_keys(name) {
             for (key, value) in in_file_order(file.table(name, value)?) {
                 let inner = key.get_ref().as_ref();
-                let Some(setting) = KEYS.iter().find(|setting| {
+                let Some(setting) = Key::ALL.into_iter().find(|setting| {
                     setting
-                        .name
+                        .name()
                         .strip_prefix(name)
                         .and_then(|rest| rest.strip_prefix('.'))
                         == Some(inner)
                 }) else {
                     return Err(file.unknown_key(inner, key.span(), &in_table));
                 };
-                values.push((
-                    setting.name,
-                    scalar(file, inner, setting, value)?,
-                    value.span(),
-                ));
+                values.push((setting, scalar(file, inner, setting, value)?, value.span()));
             }
         } else {
             return Err(file.unknown_key(name, key.span(), &known));
@@ -512,9 +510,9 @@ fn file_values(
 
 /// The keys of the settings table `table`, if pace knows the table.
 fn table_keys(table: &str) -> Option<Vec<&'static str>> {
-    let keys: Vec<&str> = KEYS
-        .iter()
-        .filter_map(|key| key.name.strip_prefix(table)?.strip_prefix('.'))
+    let keys: Vec<&str> = Key::ALL
+        .into_iter()
+        .filter_map(|key| key.name().strip_prefix(table)?.strip_prefix('.'))
         .collect();
     (!keys.is_empty()).then_some(keys)
 }
@@ -524,12 +522,12 @@ fn table_keys(table: &str) -> Option<Vec<&'static str>> {
 fn scalar(
     file: &TomlFile<'_>,
     name: &str,
-    setting: &Key,
+    setting: Key,
     value: &Spanned<DeValue<'_>>,
 ) -> PaceResult<Value> {
-    Ok(match setting.kind {
-        Kind::Text => Value::Text(file.string(name, value, setting.expects)?.to_owned()),
-        Kind::Number => Value::Number(file.integer(name, value, setting.expects)?),
+    Ok(match setting.kind() {
+        Kind::Text => Value::Text(file.string(name, value, setting.expects())?.to_owned()),
+        Kind::Number => Value::Number(file.integer(name, value, setting.expects())?),
     })
 }
 
@@ -589,9 +587,9 @@ fn project_path(
 }
 
 fn unknown_variables(variables: impl Iterator<Item = OsString>) -> Vec<PaceError> {
-    let known: Vec<&str> = KEYS
-        .iter()
-        .map(|key| key.variable)
+    let known: Vec<&str> = Key::ALL
+        .into_iter()
+        .map(Key::variable)
         .chain(OTHER_VARIABLES)
         .collect();
     let mut unknown: Vec<String> = variables
@@ -632,6 +630,30 @@ mod tests {
             TimeZoneSetting::Named(TimeZone::get("America/New_York")?)
         );
         assert_eq!(setting.to_string(), "America/New_York");
+        Ok(())
+    }
+
+    #[test]
+    fn every_setting_reads_back_what_it_shows() -> TestResult {
+        let settings = Settings {
+            time_zone: parse_time_zone("Asia/Tokyo")?,
+            week_start: Weekday::Sunday,
+            most_recent_count: 3,
+            default_hold_source: HoldSource::Outer,
+            split: Split::Week,
+        };
+        let mut read_back = Settings::default();
+
+        for key in Key::ALL {
+            let shown = match settings.get(key) {
+                toml::Value::Integer(number) => Value::Number(number),
+                toml::Value::String(text) => Value::Text(text),
+                other => return Err(format!("{} shows {other}", key.name()).into()),
+            };
+            read_back.set(key, &shown)?;
+        }
+
+        assert_eq!(read_back, settings);
         Ok(())
     }
 
