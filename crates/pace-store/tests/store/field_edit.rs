@@ -180,6 +180,24 @@ fn unchanged_file_is_not_written() -> TestResult {
 }
 
 #[test]
+fn remove_below_missing_table_or_value_changes_nothing() -> TestResult {
+    let dir = scratch_dir()?;
+    let clients = dir.path().join("clients.toml");
+    let roles = dir.path().join("roles.toml");
+    std::fs::write(&clients, CLIENTS)?;
+
+    write_field_edits(vec![
+        FieldEdit::remove(&clients, &["initech", "contact", "phone"]),
+        FieldEdit::remove(&clients, &["acme", "name", "first"]),
+        FieldEdit::remove(&roles, &["developer", "rates", "hourly"]),
+    ])?;
+
+    assert_eq!(read(&clients)?, CLIENTS);
+    assert!(!roles.exists(), "a remove of nothing writes no file");
+    Ok(())
+}
+
+#[test]
 fn value_on_path_of_table_is_refused() -> TestResult {
     let dir = scratch_dir()?;
     let clients = dir.path().join("clients.toml");

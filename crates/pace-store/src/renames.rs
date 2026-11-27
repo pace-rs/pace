@@ -38,11 +38,13 @@ struct Renamed {
 
 /// Rename each of `files` over its file with `rename`, all or none.
 ///
-/// If a file can't be put back, the error names it, with `kept_hint` as
-/// the way to take back its part. A guard holds the files renamed so far. If a rename fails, the guard is
+/// A guard holds the files renamed so far. If a rename fails, the guard is
 /// dismissed and [`restore`] puts them back, so a restore that fails ends
 /// up in the error. On a panic, the guard puts them back and reports to no
 /// one. Once every rename holds, the guard is dismissed.
+///
+/// If a file can't be put back, the error names it, with `kept_hint` as
+/// the way to take back its part.
 pub(crate) fn rename_all(
     files: Vec<Prepared>,
     mut rename: impl FnMut(NamedTempFile, &Path) -> io::Result<()>,

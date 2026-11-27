@@ -138,7 +138,7 @@ pub(crate) fn parse_events(
 ) -> PaceResult<Vec<RecordedEvent>> {
     let file: File = match toml::from_str(text) {
         Ok(file) => file,
-        Err(error) => return Err(explain(path, text, error)),
+        Err(error) => return Err(explain(path, text, &error)),
     };
     if file.version != FILE_VERSION {
         return Err(newer_or_broken(path, text, "version", file.version));
@@ -182,7 +182,7 @@ const REPAIR: &str = "repair the file, or restore it from a backup";
 
 /// A precise error for a file that serde rejected: the broken TOML, the
 /// unknown key, or the value at fault. The TOML error is its cause.
-fn explain(path: &Path, text: &str, error: toml::de::Error) -> Box<PaceError> {
+fn explain(path: &Path, text: &str, error: &toml::de::Error) -> Box<PaceError> {
     let file = event_file(path, text);
     let Ok(document) = file.parse() else {
         return broken(&file, error, "the event file {file} is not valid TOML")
@@ -206,10 +206,10 @@ fn explain(path: &Path, text: &str, error: toml::de::Error) -> Box<PaceError> {
 }
 
 /// The error `guidance` about the event file `file`, caused by `error`.
-fn broken(file: &TomlFile<'_>, error: toml::de::Error, guidance: &'static str) -> Box<PaceError> {
+fn broken(file: &TomlFile<'_>, error: &toml::de::Error, guidance: &'static str) -> Box<PaceError> {
     let span = error.span().unwrap_or(0..0);
     let label = error.message().trim().to_owned();
-    let error = PaceError::with_source(file.kind, guidance, TomlCause(error))
+    let error = PaceError::with_source(file.kind, guidance, TomlCause(label.clone()))
         .attach_context("file", file.path.display().to_string())
         .attach_hint(REPAIR);
     file.point_at(error, span, &label)

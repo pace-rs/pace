@@ -36,15 +36,42 @@ pub struct TomlFile<'file> {
 /// The TOML error behind a file that is no valid TOML. It shows only its
 /// message: its own rendering repeats the snippet the error already shows.
 #[derive(Debug)]
-pub(crate) struct TomlCause(pub(crate) toml::de::Error);
+pub(crate) struct TomlCause(pub(crate) String);
 
 impl Display for TomlCause {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.0.message().trim())
+        f.write_str(&self.0)
     }
 }
 
 impl std::error::Error for TomlCause {}
+
+/// The error for `path` with the content `text`, which is no valid TOML:
+/// the TOML parser's `message` about `span`. Its code is `{code}::syntax`.
+pub(crate) fn not_valid_toml(
+    kind: ErrorKind,
+    code: &str,
+    path: &Path,
+    text: &str,
+    span: Range<usize>,
+    message: &str,
+) -> Box<PaceError> {
+    let message = message.trim();
+    PaceError::with_source(
+        kind,
+        "the file {file} is not valid TOML",
+        TomlCause(message.to_owned()),
+    )
+    .attach_context("file", path.display().to_string())
+    .attach_hint("fix the TOML at the marked spot")
+    .attach_error_code(format!("{code}::syntax"))
+    .attach_snippet(Snippet::new(
+        path.display().to_string(),
+        text,
+        span,
+        message,
+    ))
+}
 
 /// A TOML file as [`TomlFile::parse`] read it: its top table, with the
 /// spans of its keys and values.
@@ -143,17 +170,14 @@ impl<'file> TomlFile<'file> {
         DeTable::parse(self.text)
             .map(TomlDocument)
             .map_err(|error| {
-                let span = error.span().unwrap_or(0..0);
-                let label = error.message().trim().to_owned();
-                PaceError::with_source(
+                not_valid_toml(
                     self.kind,
-                    "the file {file} is not valid TOML",
-                    TomlCause(error),
+                    self.code,
+                    self.path,
+                    self.text,
+                    error.span().unwrap_or(0..0),
+                    error.message(),
                 )
-                .attach_context("file", self.path.display().to_string())
-                .attach_hint("fix the TOML at the marked spot")
-                .attach_error_code(format!("{}::syntax", self.code))
-                .attach_snippet(self.snippet(span, &label))
             })
     }
 

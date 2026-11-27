@@ -11,7 +11,6 @@
 //! The writer knows nothing of what the files mean: the callers do.
 
 use std::{
-    fmt::{self, Display},
     io,
     ops::Range,
     path::{Path, PathBuf},
@@ -21,12 +20,13 @@ use jiff::civil::Date;
 use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
 use tempfile::NamedTempFile;
 use toml_edit::{
-    ArrayOfTables, DocumentMut, InlineTable, Item, RawString, Table, TableLike, Value,
+    Array, ArrayOfTables, DocumentMut, InlineTable, Item, RawString, Table, TableLike, Value,
 };
 
 use crate::{
     disk::{FileOp, io_error, prepare_temporary_file},
     renames::{Prepared, persist, rename_all},
+    toml_file::not_valid_toml,
 };
 
 /// The text a file that pace starts holds before its first edit.
@@ -177,9 +177,16 @@ fn read_if_exists(path: &Path) -> PaceResult<Option<String>> {
 
 /// `text` of `path` with `edits` applied.
 fn edited_text(path: &Path, text: &str, edits: &[FieldEdit]) -> PaceResult<String> {
-    let mut document = text
-        .parse::<DocumentMut>()
-        .map_err(|error| not_toml(path, text, &error))?;
+    let mut document = text.parse::<DocumentMut>().map_err(|error| {
+        not_valid_toml(
+            ErrorKind::InputOutput,
+            "pace::store",
+            path,
+            text,
+            error.span().unwrap_or(0..0),
+            error.message(),
+        )
+    })?;
     for edit in edits {
         apply(&mut document, edit).map_err(|refused| refused.into_error(path, text))?;
     }
@@ -240,40 +247,74 @@ fn apply(document: &mut DocumentMut, edit: &FieldEdit) -> Result<(), Refused> {
             .ask_report(),
         ));
     };
-    let mut position = next_table_position(document.as_table());
-    let parent = parent_table(document.as_item_mut(), parents, &mut position)?;
-    let inline = parent.is_inline_table();
-    let no_table = || Refused::NoTable {
-        key: parents.to_vec(),
-    };
-    let table = parent.as_table_like_mut().ok_or_else(no_table)?;
     match &edit.change {
-        FieldChange::Set(value) => set_value(table, last, toml_value(value)?, inline),
-        FieldChange::Remove => _ = table.remove(last),
+        FieldChange::Remove => remove_key(document.as_item_mut(), parents, last),
+        FieldChange::Set(value) => {
+            let value = toml_value(value)?;
+            let parent = parent_table(document, parents)?;
+            set_value(parent.table, last, value, parent.inline);
+        }
         FieldChange::AppendTable(fields) => {
             let mut appended = Table::new();
             for (key, value) in fields {
                 _ = appended.insert(key, Item::Value(toml_value(value)?));
             }
-            append_table(table, last, appended, position).map_err(|()| {
-                Refused::NoArrayOfTables {
-                    key: edit.key.clone(),
-                }
+            let parent = parent_table(document, parents)?;
+            append_table(parent, last, appended).map_err(|()| Refused::NoArrayOfTables {
+                key: edit.key.clone(),
             })?;
         }
     }
     Ok(())
 }
 
-/// The item at `path` below `item`, a table unless the file holds a value
-/// there; the tables missing on the way are made, as implicit tables at
-/// `position` and after, or as inline tables inside an inline table.
-fn parent_table<'item>(
-    item: &'item mut Item,
-    path: &[String],
-    position: &mut isize,
-) -> Result<&'item mut Item, Refused> {
+/// Remove `key` of the table at `path` below `item`. A path that the file
+/// doesn't hold as tables changes nothing.
+fn remove_key(item: &mut Item, path: &[String], key: &str) {
     let mut item = item;
+    for part in path {
+        let Some(next) = item
+            .as_table_like_mut()
+            .and_then(|table| table.get_mut(part))
+        else {
+            return;
+        };
+        item = next;
+    }
+    let inline = item.is_inline_table();
+    let Some(table) = item.as_table_like_mut() else {
+        return;
+    };
+    let was_last = table.iter().last().is_some_and(|(last, _)| last == key);
+    if let Some(Item::Value(removed)) = table.remove(key)
+        && inline
+        && was_last
+        && let Some(space) = trailing_space(&removed)
+        && let Some((_, Item::Value(last))) = table.iter_mut().last()
+    {
+        last.decor_mut().set_suffix(space);
+    }
+}
+
+/// The table that a [`FieldChange::Set`] or [`FieldChange::AppendTable`]
+/// writes into.
+struct Parent<'document> {
+    table: &'document mut dyn TableLike,
+    /// Whether it is an inline table.
+    inline: bool,
+    /// The position for a new table: after every table of the file.
+    position: isize,
+}
+
+/// The table at `path` in `document`; the tables missing on the way are
+/// made, as implicit tables at the end of the file, or as inline tables
+/// inside an inline table.
+fn parent_table<'document>(
+    document: &'document mut DocumentMut,
+    path: &[String],
+) -> Result<Parent<'document>, Refused> {
+    let mut position = next_table_position(document.as_table());
+    let mut item = document.as_item_mut();
     for (depth, part) in path.iter().enumerate() {
         let inline = item.is_inline_table();
         let no_table = || Refused::NoTable {
@@ -281,11 +322,19 @@ fn parent_table<'item>(
         };
         let table = item.as_table_like_mut().ok_or_else(no_table)?;
         if table.get(part).is_none_or(Item::is_none) {
-            insert_new(table, part, new_table(inline, position), inline);
+            insert_new(table, part, new_table(inline, &mut position), inline);
         }
         item = table.get_mut(part).ok_or_else(no_table)?;
     }
-    Ok(item)
+    let inline = item.is_inline_table();
+    let table = item
+        .as_table_like_mut()
+        .ok_or_else(|| Refused::NoTable { key: path.to_vec() })?;
+    Ok(Parent {
+        table,
+        inline,
+        position,
+    })
 }
 
 /// Insert `item` at `key`, a key that `table` doesn't hold yet, as its last
@@ -294,18 +343,24 @@ fn parent_table<'item>(
 fn insert_new(table: &mut dyn TableLike, key: &str, mut item: Item, inline: bool) {
     if inline
         && let Some((_, Item::Value(last))) = table.iter_mut().last()
-        && let Some(space) = last
-            .decor()
-            .suffix()
-            .and_then(RawString::as_str)
-            .filter(|suffix| suffix.trim().is_empty())
-            .map(str::to_owned)
+        && let Some(space) = trailing_space(last)
         && let Item::Value(value) = &mut item
     {
         last.decor_mut().set_suffix("");
         value.decor_mut().set_suffix(space);
     }
     _ = table.insert(key, item);
+}
+
+/// The space after `value`: in an inline table, the space before its
+/// closing brace when `value` is its last.
+fn trailing_space(value: &Value) -> Option<String> {
+    value
+        .decor()
+        .suffix()
+        .and_then(RawString::as_str)
+        .filter(|suffix| !suffix.is_empty() && suffix.trim().is_empty())
+        .map(str::to_owned)
 }
 
 /// A new, empty table: inline inside an inline table, else implicit at
@@ -353,24 +408,33 @@ fn set_value(table: &mut dyn TableLike, key: &str, mut value: Value, inline: boo
     }
 }
 
-/// Append `appended` to the array of tables `key` of `table`; a new array
-/// goes at `position`. `Err` if `key` holds something else.
-fn append_table(
-    table: &mut dyn TableLike,
-    key: &str,
-    mut appended: Table,
-    position: isize,
-) -> Result<(), ()> {
+/// Append `appended` to the array of tables `key` of `parent`. A new array
+/// is an array of tables at the parent's position, or an array of inline
+/// tables inside an inline table; an array of inline tables that exists
+/// takes it inline. `Err` if `key` holds something else.
+fn append_table(parent: Parent<'_>, key: &str, mut appended: Table) -> Result<(), ()> {
+    let table = parent.table;
     if table.get(key).is_none_or(Item::is_none) {
-        appended.set_position(Some(position));
-        let mut array = ArrayOfTables::new();
-        array.push(appended);
-        _ = table.insert(key, Item::ArrayOfTables(array));
+        let array = if parent.inline {
+            let mut array = Array::new();
+            array.push(appended.into_inline_table());
+            Item::Value(Value::Array(array))
+        } else {
+            appended.set_position(Some(parent.position));
+            let mut array = ArrayOfTables::new();
+            array.push(appended);
+            Item::ArrayOfTables(array)
+        };
+        insert_new(table, key, array, parent.inline);
         return Ok(());
     }
     match table.get_mut(key) {
         Some(Item::ArrayOfTables(array)) => {
             array.push(appended);
+            Ok(())
+        }
+        Some(Item::Value(Value::Array(array))) if array.iter().all(Value::is_inline_table) => {
+            array.push(appended.into_inline_table());
             Ok(())
         }
         _ => Err(()),
@@ -421,38 +485,6 @@ fn span_of(text: &str, key: &[String]) -> Option<Range<usize>> {
         item = item.as_table_like()?.get(part)?;
     }
     item.span()
-}
-
-/// The TOML error behind a file that is no valid TOML. It shows only its
-/// message: its own rendering repeats the snippet the error already shows.
-#[derive(Debug)]
-struct TomlEditCause(String);
-
-impl Display for TomlEditCause {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl std::error::Error for TomlEditCause {}
-
-/// The error for `path` with the content `text`, which is no valid TOML.
-fn not_toml(path: &Path, text: &str, error: &toml_edit::TomlError) -> Box<PaceError> {
-    let message = error.message().trim().to_owned();
-    PaceError::with_source(
-        ErrorKind::InputOutput,
-        "the file {file} is not valid TOML",
-        TomlEditCause(message.clone()),
-    )
-    .attach_context("file", path.display().to_string())
-    .attach_hint("fix the TOML at the marked spot")
-    .attach_error_code("pace::store::syntax")
-    .attach_snippet(Snippet::new(
-        path.display().to_string(),
-        text,
-        error.span().unwrap_or(0..0),
-        &message,
-    ))
 }
 
 #[cfg(test)]
@@ -519,6 +551,67 @@ mod tests {
         assert_eq!(
             edited,
             "version = 1\n[acme]\ncontact = { name = \"Ann\", phone = { office = \"555\" } }\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn remove_below_missing_table_in_inline_table_changes_nothing() -> TestResult {
+        let text = "version = 1\n[acme]\ncontact = { name = \"Bill\" }\n";
+        let edits = [FieldEdit::remove(
+            "clients.toml",
+            &["acme", "contact", "phone", "office"],
+        )];
+
+        let edited = edited_text(Path::new("clients.toml"), text, &edits)?;
+
+        assert_eq!(edited, text);
+        Ok(())
+    }
+
+    #[test]
+    fn remove_of_last_key_in_inline_table_keeps_space_before_brace() -> TestResult {
+        let text = "version = 1\nc = { a = 1, b = 2 }\n";
+        let edits = [FieldEdit::remove("roles.toml", &["c", "b"])];
+
+        let edited = edited_text(Path::new("roles.toml"), text, &edits)?;
+
+        assert_eq!(edited, "version = 1\nc = { a = 1 }\n");
+        Ok(())
+    }
+
+    #[test]
+    fn append_into_inline_table_writes_inline_array() -> TestResult {
+        let text = "version = 1\nacme = { name = \"a\" }\n";
+        let rate = || vec![("hourly".to_owned(), FieldValue::Integer(1))];
+        let edits = [
+            FieldEdit::append_table("clients.toml", &["acme", "rates"], rate()),
+            FieldEdit::append_table("clients.toml", &["acme", "rates"], rate()),
+        ];
+
+        let edited = edited_text(Path::new("clients.toml"), text, &edits)?;
+
+        assert_eq!(
+            edited,
+            "version = 1\nacme = { name = \"a\", rates = [{ hourly = 1 }, { hourly = 1 }] }\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn append_to_inline_array_of_tables_adds_inline_table() -> TestResult {
+        let text = "version = 1\n[acme]\nrates = [{ hourly = 1 }]\n";
+        let edits = [FieldEdit::append_table(
+            "clients.toml",
+            &["acme", "rates"],
+            vec![("hourly".to_owned(), FieldValue::Integer(2))],
+        )];
+
+        let edited = edited_text(Path::new("clients.toml"), text, &edits)?;
+
+        assert_eq!(
+            edited,
+            "version = 1\n[acme]\nrates = [{ hourly = 1 }, { hourly = 2 }]\n"
         );
         Ok(())
     }

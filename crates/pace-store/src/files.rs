@@ -43,11 +43,11 @@ mod own_log;
 mod parsed;
 
 use own_log::{Tombstone, batch_tombstones, index_tombstones};
+use parsed::{Events, Parsed};
 
 /// How to take back the part of a batch that an event file keeps when a
 /// rename fails and pace can't put the file back.
 const KEPT_EVENTS_HINT: &str = "run `pace undo` to take back the part that pace recorded";
-use parsed::{Events, Parsed};
 
 /// The files backend for one device.
 #[derive(Debug)]
