@@ -48,13 +48,13 @@ impl Rules<'_> {
                 ErrorKind::InvalidInput,
                 "the running entry began at {began}, after the new entry's start at {start}",
             )
-            .attach_context("start", self.clock(start)),
+            .attach_context("start", self.clock_against(start, &running.start)),
         };
+        let began = self.clock_against(&running.start, start);
         Err(error
-            .attach_context("began", self.clock(&running.start))
+            .attach_context("began", began.clone())
             .attach_hint(format!(
-                "begin after {}, or move the running entry with `pace adjust --start`",
-                self.clock(&running.start)
+                "begin after {began}, or move the running entry with `pace adjust --start`"
             )))
     }
 
@@ -74,16 +74,14 @@ impl Rules<'_> {
         if let Some(last) = last_break_end(running)
             && start < last
         {
+            let until = self.clock_against(last, start);
             return Err(PaceError::new(
                 ErrorKind::InvalidInput,
                 "the running entry has a break until {at}, after the new entry's start at {start}",
             )
-            .attach_context("at", self.clock(last))
-            .attach_context("start", self.clock(start))
-            .attach_hint(format!(
-                "begin at {} or later with `--at`",
-                self.clock(last)
-            )));
+            .attach_context("at", until.clone())
+            .attach_context("start", self.clock_against(start, last))
+            .attach_hint(format!("begin at {until} or later with `--at`")));
         }
         Ok(())
     }
@@ -147,8 +145,8 @@ impl Rules<'_> {
                     ErrorKind::InvalidInput,
                     "the entry has a break at {at}, before the new start at {start}",
                 )
-                .attach_context("at", self.clock(break_start))
-                .attach_context("start", self.clock(start))
+                .attach_context("at", self.clock_against(break_start, start))
+                .attach_context("start", self.clock_against(start, break_start))
                 .attach_hint("pick a start before its first break"));
             }
             if let (Some(end), Some(break_end)) = (end, break_end)
@@ -158,8 +156,8 @@ impl Rules<'_> {
                     ErrorKind::InvalidInput,
                     "the entry has a break until {at}, after the new end at {end}",
                 )
-                .attach_context("at", self.clock(break_end))
-                .attach_context("end", self.clock(end))
+                .attach_context("at", self.clock_against(break_end, end))
+                .attach_context("end", self.clock_against(end, break_end))
                 .attach_hint("pick an end after its last break"));
             }
         }
@@ -174,10 +172,11 @@ impl Rules<'_> {
         earlier: &ZonedDateTime,
         at: &ZonedDateTime,
     ) -> Box<PaceError> {
+        let shown = self.clock_against(earlier, at);
         PaceError::new(ErrorKind::InvalidInput, guidance)
-            .attach_context("earlier", self.clock(earlier))
-            .attach_context("at", self.clock(at))
-            .attach_hint(format!("give a time after {}", self.clock(earlier)))
+            .attach_context("earlier", shown.clone())
+            .attach_context("at", self.clock_against(at, earlier))
+            .attach_hint(format!("give a time after {shown}"))
     }
 
     /// An entry ends after it starts: `end`, `log` and `adjust` refuse an
@@ -197,10 +196,10 @@ impl Rules<'_> {
                 ErrorKind::InvalidInput,
                 "the entry would end at {end}, before it starts at {start}",
             )
-            .attach_context("start", self.clock(start)),
+            .attach_context("start", self.clock_against(start, end)),
         };
         Err(error
-            .attach_context("end", self.clock(end))
+            .attach_context("end", self.clock_against(end, start))
             .attach_hint("give an end after the start"))
     }
 }

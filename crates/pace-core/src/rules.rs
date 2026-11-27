@@ -421,14 +421,14 @@ impl Rules<'_> {
         let list: Vec<String> = overlapping
             .iter()
             .map(|entry| {
-                let end = entry
-                    .end
-                    .as_ref()
-                    .map_or_else(|| "now".to_owned(), |end| self.clock(end));
+                let until = entry.end.as_ref().map_or_else(
+                    || "now".to_owned(),
+                    |until| self.clock_against(until, start),
+                );
                 format!(
-                    "{} ({}–{end})",
+                    "{} ({}–{until})",
                     self.short(entry.id),
-                    self.clock(&entry.start)
+                    self.clock_against(&entry.start, end)
                 )
             })
             .collect();
@@ -437,7 +437,7 @@ impl Rules<'_> {
                 "the new entry would overlap {list}",
                 format!(
                     "begin at {} or later, or allow it with `--allow-overlap`",
-                    self.clock(latest_end)
+                    self.clock_against(latest_end, start)
                 ),
             ),
             Verb::Log => (
@@ -464,18 +464,34 @@ impl Rules<'_> {
             "the entry would {what} at {moment}, in the future",
         )
         .attach_context("what", what)
-        .attach_context("moment", self.clock(moment))
+        .attach_context("moment", self.clock_against(moment, self.now))
         .attach_hint(hint))
     }
 
     /// A moment as the user reads it: `HH:MM` on the day of now, else with
     /// the date; in the zone of now.
     fn clock(&self, moment: &ZonedDateTime) -> String {
+        self.clock_as(moment, "%H:%M")
+    }
+
+    /// `moment` as [`Rules::clock`] shows it, but `HH:MM:SS` when `other`
+    /// is another moment of the same minute: a message that names both
+    /// tells them apart, and its hint names a time the user can give.
+    fn clock_against(&self, moment: &ZonedDateTime, other: &ZonedDateTime) -> String {
+        let shown = self.clock(moment);
+        if moment.timestamp() != other.timestamp() && shown == self.clock(other) {
+            self.clock_as(moment, "%H:%M:%S")
+        } else {
+            shown
+        }
+    }
+
+    fn clock_as(&self, moment: &ZonedDateTime, time: &str) -> String {
         let local = moment.with_time_zone(self.now.time_zone().clone());
         if local.date() == self.now.date() {
-            local.strftime("%H:%M").to_string()
+            local.strftime(time).to_string()
         } else {
-            local.strftime("%Y-%m-%d %H:%M").to_string()
+            local.strftime(&format!("%Y-%m-%d {time}")).to_string()
         }
     }
 

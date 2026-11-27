@@ -1139,6 +1139,216 @@ fn begin_in_the_future_is_refused() -> TestResult {
     Ok(())
 }
 
+// moments within one minute
+
+#[test]
+fn begin_within_running_entrys_first_minute_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("10:00:30", &begin("Write offer"))?;
+
+    let error = failure(world.run("10:05", &begin_at("Call", "10:00")?))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the running entry began at 10:00:30, after the new entry's start at 10:00:00"
+    );
+    assert_eq!(
+        error.hint(),
+        Some("begin after 10:00:30, or move the running entry with `pace adjust --start`")
+    );
+    Ok(())
+}
+
+#[test]
+fn moments_in_different_minutes_show_without_seconds() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("10:00:30", &begin("Write offer"))?;
+
+    let error = failure(world.run("10:05", &begin_at("Call", "09:59:50")?))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the running entry began at 10:00, after the new entry's start at 09:59"
+    );
+    Ok(())
+}
+
+#[test]
+fn begin_within_last_minute_of_closed_break_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Pause(Pause::default()))?;
+    _ = world.run("10:30:20", &Command::Resume(Resume::default()))?;
+
+    let error = failure(world.run("10:40", &begin_at("Call ACME", "10:30")?))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the running entry has a break until 10:30:20, after the new entry's start at 10:30:00"
+    );
+    assert_eq!(error.hint(), Some("begin at 10:30:20 or later with `--at`"));
+    Ok(())
+}
+
+#[test]
+fn hold_within_entrys_first_minute_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00:30", &begin("Write offer"))?;
+
+    let error = failure(world.run(
+        "10:00",
+        &Command::Hold(Hold {
+            at: Some(berlin("09:00")?),
+            ..Hold::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry began at 09:00:30, after 09:00:00"
+    );
+    assert_eq!(error.hint(), Some("give a time after 09:00:30"));
+    Ok(())
+}
+
+#[test]
+fn hold_within_last_minute_of_closed_break_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Pause(Pause::default()))?;
+    _ = world.run("10:30:20", &Command::Resume(Resume::default()))?;
+
+    let error = failure(world.run(
+        "10:40",
+        &Command::Hold(Hold {
+            at: Some(berlin("10:30")?),
+            ..Hold::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the last break ended at 10:30:20, after 10:30:00"
+    );
+    Ok(())
+}
+
+#[test]
+fn end_within_first_minute_of_open_break_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00:20", &Command::Hold(Hold::default()))?;
+
+    let error = failure(world.run(
+        "10:30",
+        &Command::End(End {
+            at: Some(berlin("10:00")?),
+            ..End::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the break began at 10:00:20, after 10:00:00"
+    );
+    Ok(())
+}
+
+#[test]
+fn log_ending_within_its_first_minute_before_start_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+
+    let error = failure(world.run(
+        "18:00",
+        &Command::Log(Log::new(berlin("15:30:40")?, berlin("15:30:10")?)),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would end at 15:30:10, before it starts at 15:30:40"
+    );
+    Ok(())
+}
+
+#[test]
+fn adjust_of_start_past_break_within_its_minute_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00:20", &Command::Hold(Hold::default()))?;
+    _ = world.run("10:30", &Command::Resume(Resume::default()))?;
+    _ = world.run("11:00", &Command::End(End::default()))?;
+    let entry = world.only_entry(EntryState::Ended)?;
+
+    let error = failure(world.run(
+        "11:30",
+        &Command::Adjust(Adjust {
+            entry: Some(entry),
+            start: Some(berlin("10:00:40")?),
+            ..Adjust::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry has a break at 10:00:20, before the new start at 10:00:40"
+    );
+    Ok(())
+}
+
+#[test]
+fn adjust_of_end_before_break_end_within_its_minute_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Hold(Hold::default()))?;
+    _ = world.run("10:30:20", &Command::Resume(Resume::default()))?;
+    _ = world.run("11:00", &Command::End(End::default()))?;
+    let entry = world.only_entry(EntryState::Ended)?;
+
+    let error = failure(world.run(
+        "11:30",
+        &Command::Adjust(Adjust {
+            entry: Some(entry),
+            end: Some(berlin("10:30")?),
+            ..Adjust::default()
+        }),
+    ))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry has a break until 10:30:20, after the new end at 10:30:00"
+    );
+    Ok(())
+}
+
+#[test]
+fn begin_within_last_minute_of_ended_entry_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00:30", &Command::End(End::default()))?;
+
+    let error = failure(world.run("10:30", &begin_at("Call", "10:00")?))?;
+
+    assert!(error.to_string().ends_with("(09:00–10:00:30)"), "{error}");
+    assert_eq!(
+        error.hint(),
+        Some("begin at 10:00:30 or later, or allow it with `--allow-overlap`")
+    );
+    Ok(())
+}
+
+#[test]
+fn begin_later_within_current_minute_shows_seconds() -> TestResult {
+    let mut world = World::new()?;
+
+    let error = failure(world.run("10:00:10", &begin_at("Write offer", "10:00:30")?))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the entry would start at 10:00:30, in the future"
+    );
+    Ok(())
+}
+
 // undo
 
 #[test]
