@@ -1,6 +1,7 @@
 //! Correcting the record: `adjust`, `log`, `undo`, `forget`.
 
 use abscissa_core::{Command, Runnable};
+use jiff::ZonedDateTime;
 use pace_core::{
     Change, Command as UseCase, ProjectRef, Text,
     command::{Adjust, Forget, Log},
@@ -141,23 +142,10 @@ impl Runnable for LogCmd {
         exit_on_error(track(|session, context, notes| {
             let now = session.now();
             let start = moment(&self.from, &now, &context.terminal, notes)?;
-            let end = match (&self.to, &self.duration) {
-                (Some(to), _) => moment(to, &now, &context.terminal, notes)?,
-                (None, Some(duration)) => {
-                    let duration = parse_duration(duration)
-                        .map_err(|error| error.attach_exit_code(ExitCode::Usage))?;
-                    start.checked_add(duration).map_err(|error| {
-                        PaceError::with_source(ErrorKind::Time, "the end lies too far out", error)
-                            .attach_exit_code(ExitCode::Usage)
-                    })?
-                }
-                (None, None) => {
-                    return Err(
-                        PaceError::new(ErrorKind::InvalidInput, "`pace log` needs an end")
-                            .attach_hint("give `--to TIME` or `--duration DURATION`")
-                            .attach_exit_code(ExitCode::Usage),
-                    );
-                }
+            // clap gives `--duration` or `--to`; like `--at`, a missing time is now
+            let end = match self.duration.as_deref() {
+                Some(duration) => end_after(&start, duration)?,
+                None => at(self.to.as_deref(), &now, &context.terminal, notes)?.unwrap_or(now),
             };
             let project = context.project.as_ref().map(|project| {
                 notes.push(format!("Project: {} ({}).", project.key, project.reason));
@@ -172,6 +160,21 @@ impl Runnable for LogCmd {
             }))
         }));
     }
+}
+
+/// The end `--duration` gives from `start`.
+fn end_after(start: &ZonedDateTime, duration: &str) -> PaceResult<ZonedDateTime> {
+    let span = parse_duration(duration).map_err(|error| error.attach_exit_code(ExitCode::Usage))?;
+    start.checked_add(span).map_err(|_| {
+        PaceError::new(
+            ErrorKind::Time,
+            "`--duration {duration}` from {start} ends after the year 9999",
+        )
+        .attach_context("duration", duration)
+        .attach_context("start", start.strftime("%Y-%m-%d %H:%M").to_string())
+        .attach_hint("give a shorter `--duration`, or the end with `--to TIME`")
+        .attach_exit_code(ExitCode::Usage)
+    })
 }
 
 /// `pace undo`
@@ -237,6 +240,7 @@ fn confirm_forget(asker: &dyn Ask, label: &str) -> PaceResult<()> {
     }
     Err(
         PaceError::new(ErrorKind::InvalidInput, "nothing was forgotten")
+            .attach_hint("`pace forget` asks again; `--for-good` forgets without asking")
             .attach_exit_code(ExitCode::NothingToDo),
     )
 }
@@ -279,6 +283,33 @@ mod tests {
     }
 
     #[test]
+    fn end_too_far_out_names_duration_and_hint() {
+        let start: ZonedDateTime = "2026-11-26T09:00[Europe/Berlin]".parse().unwrap();
+
+        let error = end_after(&start, "99999999h").unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "`--duration 99999999h` from 2026-11-26 09:00 ends after the year 9999"
+        );
+        assert_eq!(
+            error.hint(),
+            Some("give a shorter `--duration`, or the end with `--to TIME`")
+        );
+        assert!(std::error::Error::source(&*error).is_none());
+        assert_eq!(error.exit_code(), ExitCode::Usage);
+    }
+
+    #[test]
+    fn duration_from_start_gives_end() {
+        let start: ZonedDateTime = "2026-11-26T09:00[Europe/Berlin]".parse().unwrap();
+
+        let end = end_after(&start, "1h30m").unwrap();
+
+        assert_eq!(end.to_string(), "2026-11-26T10:30:00+01:00[Europe/Berlin]");
+    }
+
+    #[test]
     fn forget_declined_forgets_nothing() {
         let asker = Scripted::confirming([false]);
 
@@ -286,6 +317,10 @@ mod tests {
 
         assert_eq!(error.to_string(), "nothing was forgotten");
         assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+        assert_eq!(
+            error.hint(),
+            Some("`pace forget` asks again; `--for-good` forgets without asking")
+        );
         assert_eq!(
             asker.questions(),
             ["Forget \"Write offer\" (09:00–10:00) for good? `pace undo` can't bring it back."]
