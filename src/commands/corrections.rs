@@ -10,7 +10,7 @@ use pace_time::parse_duration;
 
 use crate::commands::tracking::{at, moment, tags, text, track};
 use crate::output::entry_label;
-use crate::prompt::{confirm, interactive};
+use crate::prompt::Ask;
 use crate::select::{chosen_entry, target_entry};
 use crate::{
     application::exit_on_error,
@@ -74,9 +74,9 @@ impl Runnable for AdjustCmd {
                 Some(note) => Change::Set(note.to_owned()),
             };
             Ok(UseCase::Adjust(Adjust {
-                entry: target_entry(session, self.entry.as_deref(), self.last)?,
-                start: at(self.start.as_deref(), &now, notes)?,
-                end: at(self.end.as_deref(), &now, notes)?,
+                entry: target_entry(session, &context.terminal, self.entry.as_deref(), self.last)?,
+                start: at(self.start.as_deref(), &now, &context.terminal, notes)?,
+                end: at(self.end.as_deref(), &now, &context.terminal, notes)?,
                 note,
                 project,
                 tag: tags(&self.tags)?,
@@ -142,9 +142,9 @@ impl Runnable for LogCmd {
     fn run(&self) {
         exit_on_error(track(|session, context, notes| {
             let now = session.now();
-            let start = moment(&self.from, &now, notes)?;
+            let start = moment(&self.from, &now, &context.terminal, notes)?;
             let end = match (&self.to, &self.duration) {
-                (Some(to), _) => moment(to, &now, notes)?,
+                (Some(to), _) => moment(to, &now, &context.terminal, notes)?,
                 (None, Some(duration)) => {
                     let duration = parse_duration(duration)
                         .map_err(|error| error.attach_exit_code(ExitCode::Usage))?;
@@ -205,10 +205,14 @@ pub struct ForgetCmd {
 
 impl Runnable for ForgetCmd {
     fn run(&self) {
-        exit_on_error(track(|session, _, _| {
-            let chosen = chosen_entry(session, self.entry.as_deref(), self.last, "forget")?;
+        exit_on_error(track(|session, context, _| {
+            let asker = &context.terminal;
+            let chosen = chosen_entry(session, asker, self.entry.as_deref(), self.last, "forget")?;
             if !self.for_good {
-                confirm_forget(&entry_label(&chosen.state, &chosen.entry, &session.now()))?;
+                confirm_forget(
+                    asker,
+                    &entry_label(&chosen.state, &chosen.entry, &session.now()),
+                )?;
             }
             Ok(UseCase::Forget(Forget {
                 entry: chosen.entry.id,
@@ -218,8 +222,8 @@ impl Runnable for ForgetCmd {
 }
 
 /// Ask before forgetting; without a terminal, `--for-good` must say so.
-fn confirm_forget(label: &str) -> PaceResult<()> {
-    if !interactive() {
+fn confirm_forget(asker: &dyn Ask, label: &str) -> PaceResult<()> {
+    if !asker.can_ask() {
         return Err(PaceError::new(
             ErrorKind::InvalidInput,
             "forgetting {entry} can't be undone, so pace asks first",
@@ -228,7 +232,7 @@ fn confirm_forget(label: &str) -> PaceResult<()> {
         .attach_hint("add `--for-good` to forget it without being asked")
         .attach_exit_code(ExitCode::Usage));
     }
-    if confirm(&format!(
+    if asker.confirm(&format!(
         "Forget {label} for good? `pace undo` can't bring it back."
     ))? {
         return Ok(());
@@ -244,6 +248,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
+    use crate::prompt::Scripted;
 
     fn project(reason: Reason) -> Project {
         Project {
@@ -273,5 +278,42 @@ mod tests {
             assert_eq!(moved_project(Some(&project(reason))), Change::Keep);
         }
         assert_eq!(moved_project(None), Change::Keep);
+    }
+
+    #[test]
+    fn forget_declined_forgets_nothing() {
+        let asker = Scripted::confirming([false]);
+
+        let error = confirm_forget(&asker, "\"Write offer\" (09:00–10:00)").unwrap_err();
+
+        assert_eq!(error.to_string(), "nothing was forgotten");
+        assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+        assert_eq!(
+            asker.questions(),
+            ["Forget \"Write offer\" (09:00–10:00) for good? `pace undo` can't bring it back."]
+        );
+    }
+
+    #[test]
+    fn forget_confirmed_goes_on() {
+        let asker = Scripted::confirming([true]);
+
+        confirm_forget(&asker, "\"Write offer\" (09:00–10:00)").unwrap();
+
+        assert_eq!(asker.questions().len(), 1);
+    }
+
+    #[test]
+    fn forget_without_terminal_names_for_good() {
+        let asker = Scripted::without_terminal();
+
+        let error = confirm_forget(&asker, "\"Write offer\" (09:00–10:00)").unwrap_err();
+
+        assert_eq!(error.exit_code(), ExitCode::Usage);
+        assert_eq!(
+            error.hint(),
+            Some("add `--for-good` to forget it without being asked")
+        );
+        assert_eq!(asker.questions(), Vec::<String>::new());
     }
 }

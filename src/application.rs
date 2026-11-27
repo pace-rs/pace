@@ -17,6 +17,7 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use crate::config::load_settings;
 use crate::dirs::resolve_dirs;
 use crate::project::discover_project;
+use crate::prompt::Terminal;
 use crate::{
     commands::EntryPoint,
     config::Loaded,
@@ -45,6 +46,8 @@ pub struct Context {
     pub settings: Loaded,
     /// The project of the working directory, if any.
     pub project: Option<Project>,
+    /// The terminal pace asks on, if one is attached.
+    pub terminal: Terminal,
 }
 
 impl PaceApp {
@@ -108,6 +111,7 @@ impl PaceApp {
             dirs,
             settings,
             project,
+            terminal: Terminal::detect(),
         });
 
         self.after_config(()).map_err(|error| {

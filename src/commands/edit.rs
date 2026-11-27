@@ -17,7 +17,7 @@ use toml::Spanned;
 use crate::commands::tracking::track;
 use crate::editor::edit_in_editor;
 use crate::output::short_id;
-use crate::prompt::{confirm, interactive};
+use crate::prompt::Ask;
 use crate::select::chosen_entry;
 use crate::{
     application::{exit_on_error, print_error},
@@ -53,8 +53,9 @@ pub struct EditCmd {
 
 impl Runnable for EditCmd {
     fn run(&self) {
-        exit_on_error(track(|session, _, _| {
-            let chosen = chosen_entry(session, self.entry.as_deref(), self.last, "edit")?;
+        exit_on_error(track(|session, context, _| {
+            let asker = &context.terminal;
+            let chosen = chosen_entry(session, asker, self.entry.as_deref(), self.last, "edit")?;
             let now = session.now();
             let mut text = edit_in_editor(&write(&chosen, session.device(), &now)?, ".toml")?;
             loop {
@@ -65,9 +66,9 @@ impl Runnable for EditCmd {
                             ..adjust
                         }));
                     }
-                    Err(error) if error.exit_code() != ExitCode::NothingToDo && interactive() => {
+                    Err(error) if error.exit_code() != ExitCode::NothingToDo && asker.can_ask() => {
                         print_error(&error);
-                        if !confirm("Open the entry again to fix it?")? {
+                        if !asker.confirm("Open the entry again to fix it?")? {
                             return Err(PaceError::new(
                                 ErrorKind::InvalidInput,
                                 "the entry stays as it was",

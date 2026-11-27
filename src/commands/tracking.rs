@@ -14,7 +14,7 @@ use pace_time::{At, TimeRange, parse_at, relative_time};
 use crate::commands::now::recent_range_start;
 use crate::output::describe_outcome;
 use crate::print::print_lines;
-use crate::prompt::{choose, interactive};
+use crate::prompt::Ask;
 use crate::select::target_entry;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
@@ -43,9 +43,12 @@ pub(super) fn track(
 pub(super) fn at(
     value: Option<&str>,
     now: &ZonedDateTime,
+    asker: &dyn Ask,
     notes: &mut Vec<String>,
 ) -> PaceResult<Option<ZonedDateTime>> {
-    value.map(|value| moment(value, now, notes)).transpose()
+    value
+        .map(|value| moment(value, now, asker, notes))
+        .transpose()
 }
 
 /// A time in the `--at` grammar as a moment. A time that happened twice
@@ -54,14 +57,15 @@ pub(super) fn at(
 pub(super) fn moment(
     value: &str,
     now: &ZonedDateTime,
+    asker: &dyn Ask,
     notes: &mut Vec<String>,
 ) -> PaceResult<ZonedDateTime> {
     match parse_at(value, now).map_err(|error| error.attach_exit_code(ExitCode::Usage))? {
         At::Exact(moment) => Ok(moment),
         At::Ambiguous { earlier, later } => {
             let label = |moment: &ZonedDateTime| moment.strftime("%H:%M (%:z)").to_string();
-            if interactive() {
-                let choice = choose(
+            if asker.can_ask() {
+                let choice = asker.choose(
                     &format!(
                         "{value} happened twice, because the clocks were set back. Which one?"
                     ),
@@ -133,10 +137,10 @@ pub struct BeginCmd {
 impl Runnable for BeginCmd {
     fn run(&self) {
         exit_on_error(track(|session, context, notes| {
-            let at = at(self.at.as_deref(), &session.now(), notes)?;
+            let at = at(self.at.as_deref(), &session.now(), &context.terminal, notes)?;
             if self.again {
                 let count = context.settings.settings.most_recent_count;
-                let again = again(session, count)?;
+                let again = again(session, &context.terminal, count)?;
                 return Ok(UseCase::Begin(Begin {
                     at,
                     allow_overlap: self.allow_overlap,
@@ -159,7 +163,7 @@ impl Runnable for BeginCmd {
 }
 
 /// Note, project and tags of a recent entry, picked by the user.
-fn again(session: &Session, count: usize) -> PaceResult<Begin> {
+fn again(session: &Session, asker: &dyn Ask, count: usize) -> PaceResult<Begin> {
     let now = session.now();
     let recent = TimeRange::new(Some(recent_range_start(&now)), Some(now.clone()))?;
     let state = session.state(&recent)?;
@@ -192,8 +196,8 @@ fn again(session: &Session, count: usize) -> PaceResult<Begin> {
         .attach_hint("`pace begin <note>` begins a new one")
         .attach_exit_code(ExitCode::NothingToDo)),
         1 => Ok(candidates.remove(0)),
-        _ if interactive() => {
-            let choice = choose("Begin which entry again?", &labels)?;
+        _ if asker.can_ask() => {
+            let choice = asker.choose("Begin which entry again?", &labels)?;
             Ok(candidates.swap_remove(choice))
         }
         count => {
@@ -254,14 +258,14 @@ pub struct HoldCmd {
 
 impl Runnable for HoldCmd {
     fn run(&self) {
-        exit_on_error(track(|session, _, notes| {
+        exit_on_error(track(|session, context, notes| {
             let source = match (self.inner, self.outer) {
                 (true, _) => Some(HoldSource::Inner),
                 (_, true) => Some(HoldSource::Outer),
                 _ => None,
             };
             Ok(UseCase::Hold(Hold {
-                at: at(self.at.as_deref(), &session.now(), notes)?,
+                at: at(self.at.as_deref(), &session.now(), &context.terminal, notes)?,
                 source,
                 reason: self.reason.clone(),
             }))
@@ -289,9 +293,9 @@ pub struct PauseCmd {
 
 impl Runnable for PauseCmd {
     fn run(&self) {
-        exit_on_error(track(|session, _, notes| {
+        exit_on_error(track(|session, context, notes| {
             Ok(UseCase::Pause(Pause {
-                at: at(self.at.as_deref(), &session.now(), notes)?,
+                at: at(self.at.as_deref(), &session.now(), &context.terminal, notes)?,
                 kind: if self.lunch {
                     PauseKind::Lunch
                 } else {
@@ -323,10 +327,10 @@ pub struct ResumeCmd {
 
 impl Runnable for ResumeCmd {
     fn run(&self) {
-        exit_on_error(track(|session, _, notes| {
+        exit_on_error(track(|session, context, notes| {
             Ok(UseCase::Resume(Resume {
-                at: at(self.at.as_deref(), &session.now(), notes)?,
-                entry: target_entry(session, self.entry.as_deref(), false)?,
+                at: at(self.at.as_deref(), &session.now(), &context.terminal, notes)?,
+                entry: target_entry(session, &context.terminal, self.entry.as_deref(), false)?,
             }))
         }));
     }
@@ -373,11 +377,58 @@ pub struct EndCmd {
 
 impl Runnable for EndCmd {
     fn run(&self) {
-        exit_on_error(track(|session, _, notes| {
+        exit_on_error(track(|session, context, notes| {
             Ok(UseCase::End(End {
-                at: at(self.at.as_deref(), &session.now(), notes)?,
-                entry: target_entry(session, self.entry.as_deref(), false)?,
+                at: at(self.at.as_deref(), &session.now(), &context.terminal, notes)?,
+                entry: target_entry(session, &context.terminal, self.entry.as_deref(), false)?,
             }))
         }));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::prompt::Scripted;
+
+    /// Noon on the day the clocks in Berlin went back from 03:00 to 02:00.
+    fn clocks_set_back() -> ZonedDateTime {
+        "2026-10-25T12:00[Europe/Berlin]".parse().unwrap()
+    }
+
+    #[test]
+    fn time_that_happened_twice_is_the_one_user_chose() {
+        let asker = Scripted::choosing([1]);
+        let mut notes = Vec::new();
+
+        let moment = moment("02:30", &clocks_set_back(), &asker, &mut notes).unwrap();
+
+        assert_eq!(
+            moment.to_string(),
+            "2026-10-25T02:30:00+01:00[Europe/Berlin]"
+        );
+        assert_eq!(
+            asker.offered(),
+            [vec![
+                "the first 02:30 (+02:00)".to_owned(),
+                "the second 02:30 (+01:00)".to_owned(),
+            ]]
+        );
+        assert_eq!(notes, Vec::<String>::new());
+    }
+
+    #[test]
+    fn time_that_happened_twice_without_terminal_is_first_with_note() {
+        let asker = Scripted::without_terminal();
+        let mut notes = Vec::new();
+
+        let moment = moment("02:30", &clocks_set_back(), &asker, &mut notes).unwrap();
+
+        assert_eq!(
+            moment.to_string(),
+            "2026-10-25T02:30:00+02:00[Europe/Berlin]"
+        );
+        assert_eq!(notes.len(), 1);
+        assert_eq!(asker.questions(), Vec::<String>::new());
     }
 }

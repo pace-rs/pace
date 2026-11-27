@@ -23,7 +23,7 @@ opens the tracker over the `files` backend. What the user reads comes from
 | [`output.rs`](output.rs)           | How tracking commands describe what they did.                                                                                      |
 | [`print.rs`](print.rs)             | Writing what pace says to the standard output, as an error instead of a panic.                                                     |
 | [`project.rs`](project.rs)         | The project context: which project the working directory belongs to.                                                               |
-| [`prompt.rs`](prompt.rs)           | Asking the user, only when a terminal is attached.                                                                                 |
+| [`prompt.rs`](prompt.rs)           | Asking the user, only when a terminal is attached: the `Ask` trait and the `Terminal` that the edge finds once.                    |
 | [`select.rs`](select.rs)           | Choosing the entry a command acts on: by its ID or short ID, `--last`, or the open entry.                                          |
 | [`session.rs`](session.rs)         | What a tracking command works with: the tracker over the files backend, with this machine's device ID, the clock and the settings. |
 | [`bin/`](bin/)                     | The `pace` binary.                                                                                                                 |

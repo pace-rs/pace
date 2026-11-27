@@ -7,7 +7,7 @@ use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::TimeRange;
 
 use crate::output::entry_label;
-use crate::prompt::{choose, interactive};
+use crate::prompt::Ask;
 use crate::session::Session;
 
 /// How far back pace looks for an entry first, in days, before it reads
@@ -32,13 +32,14 @@ pub struct Chosen {
 /// If the text names no entry, or the store fails.
 pub fn target_entry(
     session: &Session,
+    asker: &dyn Ask,
     text: Option<&str>,
     last: bool,
 ) -> PaceResult<Option<EntryId>> {
     if text.is_some() || last {
-        return chosen_entry(session, text, last, "").map(|chosen| Some(chosen.entry.id));
+        return chosen_entry(session, asker, text, last, "").map(|chosen| Some(chosen.entry.id));
     }
-    if !interactive() {
+    if !asker.can_ask() {
         return Ok(None);
     }
     let state = session.state(&at_now(session)?)?;
@@ -46,7 +47,7 @@ pub fn target_entry(
     if open.len() < 2 {
         return Ok(None);
     }
-    pick(&state, &open, "Which open entry?", &session.now()).map(|entry| Some(entry.id))
+    pick(&state, &open, "Which open entry?", &session.now(), asker).map(|entry| Some(entry.id))
 }
 
 /// The entry `[ENTRY]` or `--last` names, else the open entry; `verb` is the
@@ -58,12 +59,13 @@ pub fn target_entry(
 /// store fails.
 pub fn chosen_entry(
     session: &Session,
+    asker: &dyn Ask,
     text: Option<&str>,
     last: bool,
     verb: &str,
 ) -> PaceResult<Chosen> {
     if let Some(text) = text {
-        return named(session, text);
+        return named(session, asker, text);
     }
     if last {
         return last_ended(session);
@@ -79,8 +81,8 @@ pub fn chosen_entry(
                 .attach_exit_code(ExitCode::NothingToDo));
         }
         [entry] => (*entry).clone(),
-        several if interactive() => {
-            pick(&state, several, "Which open entry?", &session.now())?.clone()
+        several if asker.can_ask() => {
+            pick(&state, several, "Which open entry?", &session.now(), asker)?.clone()
         }
         several => {
             let now = session.now();
@@ -102,7 +104,7 @@ pub fn chosen_entry(
 
 /// The entry with the ID `text`, or the one whose ID ends with `text`: at
 /// least four hex characters. Recent entries come first.
-fn named(session: &Session, text: &str) -> PaceResult<Chosen> {
+fn named(session: &Session, asker: &dyn Ask, text: &str) -> PaceResult<Chosen> {
     let full = text.parse::<EntryId>().ok();
     let suffix = text.to_lowercase();
     if full.is_none() && (suffix.len() < 4 || !suffix.bytes().all(|byte| byte.is_ascii_hexdigit()))
@@ -128,9 +130,9 @@ fn named(session: &Session, text: &str) -> PaceResult<Chosen> {
         let entry = match fitting.as_slice() {
             [] => continue,
             [entry] => (*entry).clone(),
-            several if interactive() => {
+            several if asker.can_ask() => {
                 let question = format!("`{text}` fits several entries. Which one?");
-                pick(&state, several, &question, &session.now())?.clone()
+                pick(&state, several, &question, &session.now(), asker)?.clone()
             }
             several => {
                 let now = session.now();
@@ -177,17 +179,19 @@ fn last_ended(session: &Session) -> PaceResult<Chosen> {
     )
 }
 
+/// Let the user pick one of `entries` by its label.
 fn pick<'s>(
     state: &'s State,
     entries: &[&'s Entry],
     question: &str,
     now: &ZonedDateTime,
+    asker: &dyn Ask,
 ) -> PaceResult<&'s Entry> {
     let labels: Vec<String> = entries
         .iter()
         .map(|entry| entry_label(state, entry, now))
         .collect();
-    let choice = choose(question, &labels)?;
+    let choice = asker.choose(question, &labels)?;
     entries.get(choice).copied().ok_or_else(|| {
         PaceError::new(ErrorKind::Internal, "the picker returned no entry").ask_report()
     })
@@ -210,4 +214,69 @@ fn look_back(session: &Session) -> impl Iterator<Item = PaceResult<TimeRange>> {
 
 fn days_back(now: &ZonedDateTime, days: i64) -> PaceResult<TimeRange> {
     TimeRange::new(now.checked_sub(days.days()).ok(), Some(now.clone()))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use pace_core::{Event, EventKind, Hlc, RecordedEvent};
+
+    use super::*;
+    use crate::prompt::Scripted;
+
+    fn id<T: std::str::FromStr>(prefix: u16, number: u32) -> T
+    where
+        T::Err: std::fmt::Debug,
+    {
+        format!("0193a8d0-{prefix:04x}-7000-8000-{number:012x}")
+            .parse()
+            .unwrap()
+    }
+
+    fn at(time: &str) -> ZonedDateTime {
+        format!("2026-11-26T{time}[Europe/Berlin]").parse().unwrap()
+    }
+
+    /// Entry `number` begun at `time` with `note`.
+    fn begun(number: u32, time: &str, note: &str) -> RecordedEvent {
+        RecordedEvent {
+            device: id(0xd, 1),
+            batch: id(0xb, number),
+            hlc: Hlc::new(at(time).timestamp(), number),
+            event: Event {
+                id: id(0xe, number),
+                at: at(time),
+                about: at(time),
+                kind: EventKind::EntryBegun {
+                    entry: id(0xa, number),
+                    project: None,
+                    note: Some(note.to_owned()),
+                    tags: BTreeSet::new(),
+                },
+            },
+        }
+    }
+
+    #[test]
+    fn picker_returns_entry_user_chose() {
+        let state = State::from_events(&[
+            begun(1, "09:00", "Write offer"),
+            begun(2, "09:30", "Call client"),
+        ]);
+        let open: Vec<&Entry> = state.open().collect();
+        let asker = Scripted::choosing([1]);
+
+        let entry = pick(&state, &open, "Which open entry?", &at("10:00"), &asker).unwrap();
+
+        assert_eq!(entry.id, open[1].id);
+        assert_eq!(asker.questions(), ["Which open entry?"]);
+        assert_eq!(
+            asker.offered(),
+            [vec![
+                entry_label(&state, open[0], &at("10:00")),
+                entry_label(&state, open[1], &at("10:00")),
+            ]]
+        );
+    }
 }
