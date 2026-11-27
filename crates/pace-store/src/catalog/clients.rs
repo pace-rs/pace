@@ -10,7 +10,7 @@ use pace_error::PaceResult;
 use crate::{
     catalog::{
         Field, SourceMentions,
-        fields::{Fields, Owner, duration, invalid_value, parsed, required, text},
+        fields::{Fields, Owner, duration, invalid_value, parsed, records, required, text},
     },
     toml_file::{TomlFile, TomlKey, TomlValue},
 };
@@ -31,8 +31,8 @@ const HOURLY: &str = "an amount such as 95.50";
 ///
 /// # Errors
 ///
-/// If it is no valid TOML, has another `version`, or a client that
-/// [`read_client`] refuses.
+/// If it is no valid TOML, has another `version`, a typo of `version`
+/// (see [`records`]), or a client that [`read_client`] refuses.
 pub(super) fn read_clients(
     file: &TomlFile<'_>,
     mentions: &mut SourceMentions<'_>,
@@ -40,10 +40,8 @@ pub(super) fn read_clients(
     let document = file.parse()?;
     let table = document.table();
     file.check_version(table)?;
-    table
-        .entries()
+    records(file, table)?
         .into_iter()
-        .filter(|(key, _)| key.name() != "version")
         .map(|(key, value)| read_client(file, key, value, mentions))
         .collect()
 }
@@ -68,6 +66,7 @@ fn read_client(
     let owner = Owner {
         noun: "client",
         key: key.name(),
+        table: key.name(),
         span: key.span(),
     };
     let name = required(file, fields.get("name"), &owner, "name")?;
@@ -86,7 +85,13 @@ fn read_client(
             .read("rounding", |value| read_rounding(file, value, &owner))?
             .unwrap_or(Rounding::NONE),
         rates: fields
-            .read("rates", |value| read_rates(file, value, currency, &owner))?
+            .read("rates", |value| {
+                let rate = Owner {
+                    noun: "rate of the client",
+                    ..owner.clone()
+                };
+                read_rates(file, value, &owner.path("rates"), currency, &rate)
+            })?
             .unwrap_or_default(),
         project_rates: fields
             .read("projects", |value| {
@@ -107,7 +112,8 @@ fn read_rounding(
     value: TomlValue<'_>,
     owner: &Owner<'_>,
 ) -> PaceResult<Rounding> {
-    let fields = Fields::of(file, file.table("rounding", value)?, &ROUNDING_KEYS)?;
+    let table = file.table(&owner.path("rounding"), value)?;
+    let fields = Fields::of(file, table, &ROUNDING_KEYS)?;
     let owner = Owner {
         span: value.span(),
         ..owner.clone()
@@ -123,7 +129,9 @@ fn read_rounding(
     .map_err(|error| invalid_value(file, error, step.span()))
 }
 
-/// A list of rates, `[[acme.rates]]`, each in the client's `currency`.
+/// A list of rates at the dotted `path`, such as `[[acme.rates]]`, each in
+/// the client's `currency`; an error about a rate names it as a rate of
+/// `owner`.
 ///
 /// # Errors
 ///
@@ -132,14 +140,14 @@ fn read_rounding(
 fn read_rates(
     file: &TomlFile<'_>,
     value: TomlValue<'_>,
+    path: &str,
     currency: Currency,
     owner: &Owner<'_>,
 ) -> PaceResult<Rates> {
     let mut rates = Vec::new();
-    for (table, span) in file.tables("rates", value)? {
+    for (table, span) in file.tables(path, value)? {
         let fields = Fields::of(file, table, &RATE_KEYS)?;
         let owner = Owner {
-            noun: "rate of the client",
             span,
             ..owner.clone()
         };
@@ -170,7 +178,7 @@ fn read_project_rates(
     mentions: &mut SourceMentions<'_>,
 ) -> PaceResult<BTreeMap<ProjectKey, Rates>> {
     let mut project_rates = BTreeMap::new();
-    for (key, value) in file.table("projects", value)?.entries() {
+    for (key, value) in file.table(&owner.path("projects"), value)?.entries() {
         let project: ProjectKey = key
             .name()
             .parse()
@@ -181,9 +189,18 @@ fn read_project_rates(
             Field::ProjectRates(key.name().to_owned()),
             key.span(),
         );
-        let fields = Fields::of(file, file.table(key.name(), value)?, &["rates"])?;
+        let table = format!("{}.{}", owner.path("projects"), key.name());
+        let rate = Owner {
+            noun: "rate of the project",
+            key: key.name(),
+            table: &table,
+            span: key.span(),
+        };
+        let fields = Fields::of(file, file.table(&table, value)?, &["rates"])?;
         let rates = fields
-            .read("rates", |value| read_rates(file, value, currency, owner))?
+            .read("rates", |value| {
+                read_rates(file, value, &rate.path("rates"), currency, &rate)
+            })?
             .unwrap_or_default();
         _ = project_rates.insert(project, rates);
     }

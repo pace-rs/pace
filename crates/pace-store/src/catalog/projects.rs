@@ -51,6 +51,7 @@ pub(super) fn read_project(
     let owner = Owner {
         noun: "project",
         key: &stem,
+        table: "",
         span: 0..0,
     };
     let id = required(file, fields.get("id"), &owner, "id")?;

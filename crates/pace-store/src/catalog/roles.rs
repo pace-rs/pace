@@ -7,7 +7,9 @@ use pace_error::PaceResult;
 use crate::{
     catalog::{
         Field, SourceMentions,
-        fields::{Fields, Owner, archived, duration, invalid_value, parsed, required, text},
+        fields::{
+            Fields, Owner, archived, duration, invalid_value, parsed, records, required, text,
+        },
     },
     toml_file::{TomlFile, TomlKey, TomlValue},
 };
@@ -19,8 +21,8 @@ const ROLE_KEYS: [&str; 6] = ["id", "kind", "name", "purpose", "weekly-target", 
 ///
 /// # Errors
 ///
-/// If it is no valid TOML, has another `version`, or a role that
-/// [`read_role`] refuses.
+/// If it is no valid TOML, has another `version`, a typo of `version`
+/// (see [`records`]), or a role that [`read_role`] refuses.
 pub(super) fn read_roles(
     file: &TomlFile<'_>,
     mentions: &mut SourceMentions<'_>,
@@ -28,10 +30,8 @@ pub(super) fn read_roles(
     let document = file.parse()?;
     let table = document.table();
     file.check_version(table)?;
-    table
-        .entries()
+    records(file, table)?
         .into_iter()
-        .filter(|(key, _)| key.name() != "version")
         .map(|(key, value)| read_role(file, key, value, mentions))
         .collect()
 }
@@ -56,6 +56,7 @@ fn read_role(
     let owner = Owner {
         noun: "role",
         key: key.name(),
+        table: key.name(),
         span: key.span(),
     };
     let id = required(file, fields.get("id"), &owner, "id")?;

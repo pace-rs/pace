@@ -462,3 +462,119 @@ fn rate_without_from_names_its_client() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn project_rate_without_from_names_its_project() -> TestResult {
+    let clients = CLIENTS.replace("from = 2026-09-01\n", "");
+    let dir = home(&[("clients.toml", &clients)])?;
+
+    let error = read_error(dir.path())?;
+
+    assert_eq!(
+        error.to_string(),
+        "the rate of the project `acme-webshop` has no `from`"
+    );
+    assert_eq!(blamed(&error), Some(("clients.toml".to_owned(), 16)));
+    Ok(())
+}
+
+/// A clients file with the client `acme` and `line` below its name and
+/// currency.
+fn acme_with(line: &str) -> String {
+    format!("version = 1\n\n[acme]\nname = \"ACME GmbH\"\ncurrency = \"EUR\"\n{line}\n")
+}
+
+#[test]
+fn nested_rates_that_are_no_list_say_to_write_their_dotted_header() -> TestResult {
+    let dir = home(&[("clients.toml", &acme_with("rates = 95"))])?;
+
+    let error = read_error(dir.path())?;
+
+    assert_eq!(error.to_string(), "`acme.rates` is a list of tables");
+    assert_eq!(
+        error.hint(),
+        Some("write each as `[[acme.rates]]` with its keys below")
+    );
+    assert_eq!(blamed(&error), Some(("clients.toml".to_owned(), 6)));
+    Ok(())
+}
+
+#[test]
+fn nested_rounding_that_is_no_table_says_to_write_its_dotted_header() -> TestResult {
+    let dir = home(&[("clients.toml", &acme_with("rounding = 5"))])?;
+
+    let error = read_error(dir.path())?;
+
+    assert_eq!(error.to_string(), "`acme.rounding` is a table");
+    assert_eq!(
+        error.hint(),
+        Some("write it as `[acme.rounding]` with its keys below")
+    );
+    Ok(())
+}
+
+#[test]
+fn project_rates_that_are_no_table_say_to_write_their_dotted_header() -> TestResult {
+    let dir = home(&[("clients.toml", &acme_with("projects = { webshop = 5 }"))])?;
+
+    let error = read_error(dir.path())?;
+
+    assert_eq!(
+        error.hint(),
+        Some("write it as `[acme.projects.webshop]` with its keys below")
+    );
+    Ok(())
+}
+
+#[test]
+fn archive_of_role_that_is_no_table_says_to_write_its_dotted_header() -> TestResult {
+    let roles = format!("{ROLES}archived = \"ended\"\n");
+    let dir = home(&[("roles.toml", &roles)])?;
+
+    let error = read_error(dir.path())?;
+
+    assert_eq!(
+        error.hint(),
+        Some("write it as `[work.archived]` with its keys below")
+    );
+    Ok(())
+}
+
+#[test]
+fn archive_of_project_that_is_no_table_says_to_write_its_header() -> TestResult {
+    let project = format!("{PROJECT}archived = \"ended\"\n");
+    let dir = home(&[("projects/acme-webshop.toml", &project)])?;
+
+    let error = read_error(dir.path())?;
+
+    assert_eq!(
+        error.hint(),
+        Some("write it as `[archived]` with its keys below")
+    );
+    Ok(())
+}
+
+#[test]
+fn version_typo_in_roles_file_names_version() -> TestResult {
+    let roles = ROLES.replace("version = 1", "verison = 1");
+    let dir = home(&[("roles.toml", &roles)])?;
+
+    let error = read_error(dir.path())?;
+
+    assert_eq!(error.to_string(), "`verison` is not a key pace knows");
+    assert_eq!(error.hint(), Some("did you mean `version`?"));
+    assert_eq!(blamed(&error), Some(("roles.toml".to_owned(), 1)));
+    Ok(())
+}
+
+#[test]
+fn version_typo_in_clients_file_names_version() -> TestResult {
+    let clients = CLIENTS.replace("version = 1", "verison = 1");
+    let dir = home(&[("clients.toml", &clients)])?;
+
+    let error = read_error(dir.path())?;
+
+    assert_eq!(error.hint(), Some("did you mean `version`?"));
+    assert!(error.is_code("pace::clients::unknown-key"), "{error:?}");
+    Ok(())
+}

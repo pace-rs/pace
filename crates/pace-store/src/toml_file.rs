@@ -141,6 +141,12 @@ impl<'file> TomlValue<'file> {
         self.0.span()
     }
 
+    /// Whether the value is a table, such as `[work]` or `{ on = … }`.
+    #[must_use]
+    pub fn is_table(self) -> bool {
+        self.0.get_ref().is_table()
+    }
+
     /// The tables of an array of tables, such as `[[event]]`; none for any
     /// other value.
     #[must_use]
@@ -422,7 +428,9 @@ impl<'file> TomlFile<'file> {
         .attach_error_code(format!("{}::invalid-value", self.code))
     }
 
-    /// The value as a table.
+    /// The value as a table. `name` is the value's dotted path from the
+    /// top of the file, such as `acme.rounding`, so the hint names the
+    /// header to write.
     ///
     /// # Errors
     ///
@@ -445,7 +453,8 @@ impl<'file> TomlFile<'file> {
     }
 
     /// The tables of a list of tables, such as `[[acme.rates]]`, each with
-    /// where it stands in the file.
+    /// where it stands in the file. `name` is the list's dotted path from
+    /// the top of the file, such as `acme.rates`.
     ///
     /// # Errors
     ///

@@ -8,7 +8,7 @@ use pace_core::Archived;
 use pace_error::{PaceError, PaceResult};
 use pace_time::parse_duration;
 
-use crate::toml_file::{TomlFile, TomlKey, TomlTable, TomlValue};
+use crate::toml_file::{TomlFile, TomlKey, TomlTable, TomlValue, closest_name};
 
 /// The fields of one table, each a key that its reader knows.
 #[derive(Debug)]
@@ -55,6 +55,28 @@ impl<'file> Fields<'file> {
     }
 }
 
+/// The records of a file with a table per record key, such as `roles.toml`:
+/// its entries but `version`.
+///
+/// # Errors
+///
+/// If an entry that is no table has a name close to `version`, such as
+/// `verison = 1`; the error names `version` as the closest key.
+pub(super) fn records<'file>(
+    file: &TomlFile<'_>,
+    table: TomlTable<'file>,
+) -> PaceResult<Vec<(TomlKey<'file>, TomlValue<'file>)>> {
+    let mut records = table.entries();
+    records.retain(|(key, _)| key.name() != "version");
+    let typo = records.iter().find(|(key, value)| {
+        !value.is_table() && closest_name(key.name(), ["version"].into_iter()).is_some()
+    });
+    if let Some((key, _)) = typo {
+        return Err(file.unknown_key(key.name(), key.span(), &["version"]));
+    }
+    Ok(records)
+}
+
 /// The record a table holds, so an error about a missing key names it and
 /// points at it.
 #[derive(Debug, Clone)]
@@ -63,8 +85,23 @@ pub(super) struct Owner<'key> {
     pub(super) noun: &'static str,
     /// Its key.
     pub(super) key: &'key str,
+    /// The dotted path of its table, such as `acme`; empty at the top of
+    /// its file, as in a project record.
+    pub(super) table: &'key str,
     /// Where it stands in its file.
     pub(super) span: Range<usize>,
+}
+
+impl Owner<'_> {
+    /// The dotted path of the owner's key `name`, such as `acme.rates`, so
+    /// a hint names the header to write.
+    pub(super) fn path(&self, name: &str) -> String {
+        if self.table.is_empty() {
+            name.to_owned()
+        } else {
+            format!("{}.{name}", self.table)
+        }
+    }
 }
 
 /// The value of `field`, which `owner` must hold.
@@ -164,7 +201,8 @@ pub(super) fn archived(
     value: TomlValue<'_>,
     owner: &Owner<'_>,
 ) -> PaceResult<Archived> {
-    let fields = Fields::of(file, file.table("archived", value)?, &["on", "reason"])?;
+    let table = file.table(&owner.path("archived"), value)?;
+    let fields = Fields::of(file, table, &["on", "reason"])?;
     let owner = Owner {
         span: value.span(),
         ..owner.clone()
