@@ -6,9 +6,10 @@ use std::collections::BTreeSet;
 
 use jiff::{SignedDuration, ZonedDateTime, civil::Date, tz::TimeZone};
 use pace_core::{
-    Catalog, Client, DeterminedBy, DeviceId, EntryId, Event, EventKind, Hlc, HoldSource, Ids,
-    PauseKind, ProjectId, ProjectRecord, ProjectRef, Rates, RecordedEvent, Report, ReportFilter,
-    ReportInput, ReportWarning, Role, RoleId, RoleKind, Rounding, State, testing::SequentialIds,
+    Catalog, Client, Compared, DeterminedBy, DeviceId, EntryId, Event, EventKind, Highlights, Hlc,
+    HoldSource, Ids, PauseKind, ProjectId, ProjectRecord, ProjectRef, Rates, RecordedEvent, Report,
+    ReportComparison, ReportFilter, ReportInput, ReportWarning, Role, RoleId, RoleKind, Rounding,
+    State, testing::SequentialIds,
 };
 use pace_time::TimeRange;
 
@@ -1258,5 +1259,171 @@ fn revenue_serializes_amount_as_exact_decimal_text() -> TestResult {
         serde_json::json!({ "amount": "80.00", "currency": "USD" })
     );
     assert_eq!(json["revenue"]["projects"][0]["billed"], "PT1H");
+    Ok(())
+}
+
+/// Last week (16 to 22 November) and this week (23 to 29 November): the
+/// webshop 2 h last week, 3 h this week, the garden 1 h only this week.
+fn two_weeks() -> Fallible<(Report, Report)> {
+    let mut log = Log::new(1)?;
+    let last = log.begin("2026-11-17T09:00", on(WEBSHOP)?)?;
+    log.hold(
+        last,
+        "2026-11-17T09:30",
+        "2026-11-17T09:40",
+        HoldSource::Outer,
+    )?;
+    log.end(last, "2026-11-17T11:00")?;
+    _ = log.log("2026-11-24T09:00", "2026-11-24T11:00", on(WEBSHOP)?)?;
+    _ = log.log("2026-11-25T09:00", "2026-11-25T10:00", on(WEBSHOP)?)?;
+    _ = log.log("2026-11-25T10:00", "2026-11-25T11:00", on(GARDEN)?)?;
+    let now = "2026-11-26T12:00";
+    let current = plain(&log, &days("2026-11-23", "2026-11-30")?, now)?;
+    let previous = plain(&log, &days("2026-11-16", "2026-11-23")?, now)?;
+    Ok((current, previous))
+}
+
+#[test]
+fn comparison_sets_previous_time_beside_each_number_with_change() -> TestResult {
+    let (current, previous) = two_weeks()?;
+
+    let comparison = ReportComparison::of(&current, &previous);
+
+    assert_eq!(comparison.period, previous.period);
+    assert_eq!(
+        comparison.tracked,
+        Compared {
+            previous: mins(110),
+            difference: mins(130),
+            percent: Some(118),
+        }
+    );
+    let roles: Vec<(SignedDuration, Option<i64>)> = comparison
+        .roles
+        .iter()
+        .map(|change| (change.previous, change.percent))
+        .collect();
+    // work 3 h against 1 h 50 m, health 1 h against nothing
+    assert_eq!(roles, vec![(mins(110), Some(64)), (mins(0), None)]);
+    let projects: Vec<SignedDuration> = comparison
+        .projects
+        .iter()
+        .map(|change| change.difference)
+        .collect();
+    assert_eq!(projects, vec![mins(70), mins(60)]);
+    Ok(())
+}
+
+#[test]
+fn comparison_counts_holds_and_falls_with_negative_change() -> TestResult {
+    let (current, previous) = two_weeks()?;
+
+    let comparison = ReportComparison::of(&current, &previous);
+
+    assert_eq!(
+        comparison.holds.total.count,
+        Compared {
+            previous: 1,
+            difference: -1,
+            percent: Some(-100),
+        }
+    );
+    assert_eq!(comparison.holds.total.time.difference, mins(-10));
+    let outer = comparison
+        .holds
+        .by_source
+        .iter()
+        .zip(&current.holds.by_source)
+        .find(|(_, share)| share.source == HoldSource::Outer)
+        .map(|(change, _)| change.count.previous);
+    assert_eq!(outer, Some(1));
+    assert_eq!(comparison.decided.unmarked.previous, mins(110));
+    Ok(())
+}
+
+#[test]
+fn comparison_of_reverse_reports_turns_changes_around() -> TestResult {
+    let (current, previous) = two_weeks()?;
+
+    let comparison = ReportComparison::of(&previous, &current);
+
+    assert_eq!(comparison.tracked.difference, mins(-130));
+    assert_eq!(comparison.tracked.percent, Some(-54));
+    Ok(())
+}
+
+#[test]
+fn highlights_name_busiest_day_and_top_project() -> TestResult {
+    let (current, previous) = two_weeks()?;
+
+    let comparison = ReportComparison::of(&current, &previous);
+
+    let busiest = comparison.highlights.busiest_day.ok_or("a busiest day")?;
+    // Tuesday and Wednesday both hold 2 h: the earlier wins
+    assert_eq!(
+        (busiest.date, busiest.net),
+        (date("2026-11-24")?, mins(120))
+    );
+    let top = comparison.highlights.top_project.ok_or("a top project")?;
+    assert_eq!((top.project, top.net), (project(WEBSHOP)?, mins(180)));
+    let earlier = comparison
+        .previous_highlights
+        .busiest_day
+        .ok_or("a busiest day last week")?;
+    assert_eq!(earlier.date, date("2026-11-17")?);
+    Ok(())
+}
+
+#[test]
+fn period_without_time_has_no_highlights() -> TestResult {
+    let log = Log::new(1)?;
+
+    let report = plain(&log, &days("2026-11-23", "2026-11-30")?, LATER)?;
+
+    assert_eq!(report.highlights(), Highlights::default());
+    Ok(())
+}
+
+#[test]
+fn revenue_compares_amounts_of_one_currency() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.log("2026-11-16T09:00", "2026-11-16T10:00", on(WEBSHOP)?)?;
+    _ = log.log("2026-11-23T09:00", "2026-11-23T10:30", on(WEBSHOP)?)?;
+    _ = log.log("2026-11-23T11:00", "2026-11-23T12:00", on(PORTAL)?)?;
+    let current = revenue_report(&log, &days("2026-11-23", "2026-11-30")?, LATER)?;
+    let previous = revenue_report(&log, &days("2026-11-16", "2026-11-23")?, LATER)?;
+
+    let comparison = ReportComparison::of(&current, &previous);
+
+    let totals: Vec<(String, String, Option<i64>)> = comparison
+        .revenue
+        .totals
+        .iter()
+        .map(|change| {
+            (
+                change.previous.to_string(),
+                change.difference.to_string(),
+                change.percent,
+            )
+        })
+        .collect();
+    // EUR: 180.00 against 120.00; USD: 80.00 against nothing
+    assert_eq!(
+        totals,
+        vec![
+            ("120.00".to_owned(), "60.00".to_owned(), Some(50)),
+            ("0.00".to_owned(), "80.00".to_owned(), None),
+        ]
+    );
+    let clients: Vec<Option<String>> = comparison
+        .revenue
+        .clients
+        .iter()
+        .map(|change| change.as_ref().map(|change| change.previous.to_string()))
+        .collect();
+    assert_eq!(
+        clients,
+        vec![Some("120.00".to_owned()), Some("0.00".to_owned())]
+    );
     Ok(())
 }

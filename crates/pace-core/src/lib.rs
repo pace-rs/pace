@@ -97,9 +97,11 @@ pub use key::{ClientKey, ProjectKey, RoleKey, Tag};
 pub use open::EntryVerb;
 pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier};
 pub use report::{
-    BudgetUse, ClientRevenue, DayTime, DecidedShares, HoldReport, HoldShare, PauseShare,
-    ProjectRevenue, ProjectTime, ReasonCount, Report, ReportCatch, ReportFilter, ReportInput,
-    ReportPeriod, ReportWarning, Revenue, RoleTarget, RoleTime, TOP_REASONS, TimeShare,
+    BudgetUse, ClientRevenue, Compared, ComparedBreaks, ComparedDecided, ComparedHolds,
+    ComparedRevenue, DayTime, DecidedShares, Highlights, HoldReport, HoldShare, PauseShare,
+    ProjectRevenue, ProjectTime, ReasonCount, Report, ReportCatch, ReportComparison, ReportFilter,
+    ReportInput, ReportPeriod, ReportWarning, Revenue, RoleTarget, RoleTime, TOP_REASONS,
+    TimeShare,
 };
 pub use rules::{OVERLAP, Policy, Rules};
 pub use scope::ReadScope;

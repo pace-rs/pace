@@ -429,3 +429,116 @@ fn frame_until_last_day_jiff_knows_asks_for_date_closer_to_today() -> TestResult
     assert_eq!(error.hint(), Some("give a date closer to today"));
     Ok(())
 }
+
+#[rstest]
+#[case::today(
+    TimeFrame::Today,
+    "2026-11-25T00:00:00+01:00[Europe/Berlin]",
+    "2026-11-26T00:00:00+01:00[Europe/Berlin]"
+)]
+#[case::yesterday(
+    TimeFrame::Yesterday,
+    "2026-11-24T00:00:00+01:00[Europe/Berlin]",
+    "2026-11-25T00:00:00+01:00[Europe/Berlin]"
+)]
+#[case::this_week(
+    TimeFrame::ThisWeek,
+    "2026-11-16T00:00:00+01:00[Europe/Berlin]",
+    "2026-11-23T00:00:00+01:00[Europe/Berlin]"
+)]
+#[case::last_week(
+    TimeFrame::LastWeek,
+    "2026-11-09T00:00:00+01:00[Europe/Berlin]",
+    "2026-11-16T00:00:00+01:00[Europe/Berlin]"
+)]
+#[case::this_month(
+    TimeFrame::ThisMonth,
+    "2026-10-01T00:00:00+02:00[Europe/Berlin]",
+    "2026-11-01T00:00:00+01:00[Europe/Berlin]"
+)]
+#[case::last_month(
+    TimeFrame::LastMonth,
+    "2026-09-01T00:00:00+02:00[Europe/Berlin]",
+    "2026-10-01T00:00:00+02:00[Europe/Berlin]"
+)]
+#[case::this_year(
+    TimeFrame::ThisYear,
+    "2025-01-01T00:00:00+01:00[Europe/Berlin]",
+    "2026-01-01T00:00:00+01:00[Europe/Berlin]"
+)]
+#[case::last_year(
+    TimeFrame::LastYear,
+    "2024-01-01T00:00:00+01:00[Europe/Berlin]",
+    "2025-01-01T00:00:00+01:00[Europe/Berlin]"
+)]
+fn previous_of_named_frame_is_the_one_before_it(
+    #[case] frame: TimeFrame,
+    #[case] start: &str,
+    #[case] end: &str,
+) -> TestResult {
+    let previous =
+        frame.resolve_previous(&at("2026-11-26T14:30[Europe/Berlin]")?, Weekday::Monday)?;
+
+    assert_eq!(
+        bounds(&previous),
+        (Some(start.to_owned()), Some(end.to_owned()))
+    );
+    Ok(())
+}
+
+#[rstest]
+// three days, from Monday to Wednesday: the three days before
+#[case::from_and_to(
+    Some("2026-11-23"),
+    Some("2026-11-25"),
+    "2026-11-20T00:00:00+01:00[Europe/Berlin]",
+    "2026-11-23T00:00:00+01:00[Europe/Berlin]"
+)]
+// from Tuesday to today, Thursday: three days
+#[case::from_to_now(
+    Some("2026-11-24"),
+    None,
+    "2026-11-21T00:00:00+01:00[Europe/Berlin]",
+    "2026-11-24T00:00:00+01:00[Europe/Berlin]"
+)]
+fn previous_of_days_is_as_many_days_just_before(
+    #[case] from: Option<&str>,
+    #[case] to: Option<&str>,
+    #[case] start: &str,
+    #[case] end: &str,
+) -> TestResult {
+    let frame = TimeFrame::Between {
+        from: from.map(str::parse).transpose()?,
+        to: to.map(str::parse).transpose()?,
+    };
+
+    let previous =
+        frame.resolve_previous(&at("2026-11-26T14:30[Europe/Berlin]")?, Weekday::Monday)?;
+
+    assert_eq!(
+        bounds(&previous),
+        (Some(start.to_owned()), Some(end.to_owned()))
+    );
+    Ok(())
+}
+
+#[rstest]
+#[case::all(TimeFrame::All, "`all` has no previous period to compare with")]
+#[case::until(
+    TimeFrame::Between { from: None, to: Some(jiff::civil::date(2026, 11, 20)) },
+    "`until 2026-11-20` has no previous period to compare with"
+)]
+fn frame_without_fixed_start_has_no_previous_period(
+    #[case] frame: TimeFrame,
+    #[case] message: &str,
+) -> TestResult {
+    let error = frame
+        .resolve_previous(&at("2026-11-26T14:30[Europe/Berlin]")?, Weekday::Monday)
+        .err()
+        .ok_or("a frame without a fixed start has no previous period")?;
+
+    assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), message);
+    assert!(error.hint().is_some_and(|hint| hint.contains("--from")));
+    Ok(())
+}

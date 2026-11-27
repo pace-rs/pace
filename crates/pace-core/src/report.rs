@@ -6,15 +6,22 @@
 //! hands it to [`Report::build`] with the [`Catalog`], the period, the
 //! [`ReportFilter`], now and the report's zone. When
 //! [`Report::needs_all_events`] says so, it also reads every event, for
-//! the budgets. The core reads nothing.
+//! the budgets. For `--compare`, it builds the report of the previous
+//! period as well, and [`ReportComparison::of`] sets the two side by side.
+//! The core reads nothing.
 
 mod breaks;
+mod compare;
 mod filter;
 mod revenue;
 mod split;
 mod time;
 
 pub use breaks::{HoldReport, HoldShare, PauseShare, ReasonCount, ReportCatch, TOP_REASONS};
+pub use compare::{
+    Compared, ComparedBreaks, ComparedDecided, ComparedHolds, ComparedRevenue, Highlights,
+    ReportComparison,
+};
 pub use filter::ReportFilter;
 pub(crate) use filter::canonical_project;
 use jiff::{SignedDuration, ZonedDateTime, tz::TimeZone};

@@ -93,6 +93,60 @@ impl TimeFrame {
     }
 }
 
+impl TimeFrame {
+    /// The range of the period before this frame, of the same length, seen
+    /// from `now`: for a named frame the one before it (`this-week` gives
+    /// last week, `last-month` the month before it); for days from
+    /// `--from` as many days just before them.
+    ///
+    /// # Errors
+    ///
+    /// For `all` and a frame without `--from`, which have no fixed start;
+    /// and as [`TimeFrame::resolve`] fails.
+    pub fn resolve_previous(
+        &self,
+        now: &ZonedDateTime,
+        week_start: Weekday,
+    ) -> PaceResult<TimeRange> {
+        _ = self.resolve(now, week_start)?;
+        let step = match *self {
+            Self::Today | Self::Yesterday => 1.day(),
+            Self::ThisWeek | Self::LastWeek => 1.week(),
+            Self::ThisMonth | Self::LastMonth => 1.month(),
+            Self::ThisYear | Self::LastYear => 1.year(),
+            Self::Between {
+                from: Some(from),
+                to,
+            } => return days_before(from, to.unwrap_or_else(|| now.date()), now.time_zone()),
+            Self::All | Self::Between { from: None, .. } => {
+                return Err(PaceError::new(
+                    ErrorKind::InvalidInput,
+                    "`{frame}` has no previous period to compare with",
+                )
+                .attach_context("frame", self.to_string())
+                .attach_hint(
+                    "`--compare` needs a period with a start: a named one such as `this-week`, or `--from`",
+                ));
+            }
+        };
+        let earlier = now.checked_sub(step).map_err(out_of_range)?;
+        self.resolve(&earlier, week_start)
+    }
+}
+
+/// The days just before `from`, as many as from `from` to `last`, both
+/// included.
+fn days_before(from: Date, last: Date, zone: &TimeZone) -> PaceResult<TimeRange> {
+    let days = from.until(last).map_err(out_of_range)?.get_days() + 1;
+    let start = from
+        .checked_sub(i64::from(days).days())
+        .map_err(out_of_range)?;
+    TimeRange::new(
+        Some(start_of_day(start, zone)?),
+        Some(start_of_day(from, zone)?),
+    )
+}
+
 fn between(from: Option<Date>, to: Option<Date>, now: &ZonedDateTime) -> PaceResult<TimeRange> {
     if let (Some(from), Some(to)) = (from, to)
         && from > to
