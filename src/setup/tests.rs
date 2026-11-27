@@ -492,41 +492,162 @@ fn record_client_that_breaks_client_project_rates_is_told_and_asked_again() {
     assert_eq!(flow.next_question().unwrap().id, "record-client");
 }
 
-#[test]
-fn saved_setup_serializes_and_replays_to_same_question() {
-    let mut flow = SetupFlow::new(first_run());
-    for answer in [
-        text("UTC"),
-        Answer::Choice(0),
-        Answer::YesNo(true),
-        text("work"),
-    ] {
+/// The flow of a first run that answered `answers`.
+fn answered(inputs: SetupInputs, answers: impl IntoIterator<Item = Answer>) -> SetupFlow {
+    let mut flow = SetupFlow::new(inputs);
+    for answer in answers {
         flow.take_answer(answer).unwrap();
     }
+    flow
+}
+
+#[test]
+fn saved_setup_serializes_and_replays_to_same_question() {
+    let flow = answered(
+        first_run(),
+        [
+            text("UTC"),
+            Answer::Choice(0),
+            Answer::YesNo(true),
+            text("work"),
+        ],
+    );
 
     let saved = flow.saved();
     let json = serde_json::to_string(&saved).unwrap();
     let replayed = SetupFlow::replayed(first_run(), &serde_json::from_str(&json).unwrap());
 
     assert_eq!(saved.step, SetupStep::Roles);
-    assert!(json.starts_with(r#"{"step":"roles","answers":[{"question":"time-zone""#));
-    assert_eq!(replayed.saved(), saved);
-    assert_eq!(replayed.next_question().unwrap().id, "name");
+    assert!(json.starts_with(
+        r#"{"version":1,"step":"roles","answers":[{"question":"time-zone","answer":{"text":"UTC"},"replaced":"system"}"#
+    ));
+    assert_eq!(replayed.changed, None);
+    assert_eq!(replayed.flow.saved(), saved);
+    assert_eq!(replayed.flow.next_question().unwrap().id, "name");
+}
+
+#[test]
+fn saved_setup_round_trips_through_toml_with_version_1() {
+    let saved = answered(
+        second_run(),
+        [
+            text("UTC"),
+            Answer::Choice(6),
+            Answer::YesNo(false),
+            Answer::Choice(2),
+        ],
+    )
+    .saved();
+
+    let toml = toml::to_string(&saved).unwrap();
+
+    assert!(
+        toml.starts_with("version = 1\nstep = \"clients\"\n"),
+        "{toml}"
+    );
+    assert_eq!(toml::from_str::<SavedSetup>(&toml).unwrap(), saved);
+    assert_eq!(
+        saved.answers.last().unwrap().picked.as_deref(),
+        Some("give `acme` a new rate")
+    );
 }
 
 #[test]
 fn saved_answer_of_another_question_stops_replay() {
     let saved = SavedSetup {
+        version: SAVED_SETUP_VERSION,
         step: SetupStep::Settings,
         answers: vec![SavedAnswer {
             question: "week-start".to_owned(),
             answer: Answer::Choice(6),
+            replaced: Some("monday".to_owned()),
+            picked: Some("sunday".to_owned()),
         }],
     };
 
     let replayed = SetupFlow::replayed(first_run(), &saved);
 
-    assert_eq!(replayed.saved().answers, []);
+    assert_eq!(replayed.flow.saved().answers, []);
+}
+
+#[test]
+fn value_changed_since_save_asks_its_question_again_and_shows_change() {
+    let saved = answered(first_run(), [text("UTC"), Answer::Choice(0)]).saved();
+    let changed = SetupInputs {
+        time_zone: "Europe/Vienna".to_owned(),
+        ..first_run()
+    };
+
+    let replayed = SetupFlow::replayed(changed, &saved);
+
+    assert_eq!(replayed.flow.next_question().unwrap().id, "time-zone");
+    assert_eq!(
+        replayed.changed.as_deref(),
+        Some("Since setup stopped, the value changed: `system` → `Europe/Vienna`.")
+    );
+}
+
+#[test]
+fn record_field_changed_since_save_asks_again_after_answers_before_it() {
+    let saved = answered(
+        second_run(),
+        [
+            text("Europe/Berlin"),
+            Answer::Choice(6),
+            Answer::YesNo(false),
+            Answer::Choice(0),
+            Answer::YesNo(true),
+            text("Shop"),
+        ],
+    )
+    .saved();
+    let renamed = ProjectRecord {
+        name: "Web shop".to_owned(),
+        ..webshop()
+    };
+    let changed = SetupInputs {
+        catalog: Catalog::new(vec![work()], vec![acme()], vec![renamed]).unwrap(),
+        ..second_run()
+    };
+
+    let replayed = SetupFlow::replayed(changed, &saved);
+
+    assert_eq!(replayed.flow.saved().answers, saved.answers[..5]);
+    assert_eq!(replayed.flow.next_question().unwrap().id, "record-name");
+    assert_eq!(
+        replayed.changed.as_deref(),
+        Some("Since setup stopped, the value changed: `Webshop` → `Web shop`.")
+    );
+}
+
+#[test]
+fn picked_item_that_moved_since_save_is_asked_again() {
+    let saved = answered(
+        second_run(),
+        [
+            text("Europe/Berlin"),
+            Answer::Choice(6),
+            Answer::YesNo(false),
+            Answer::Choice(2),
+        ],
+    )
+    .saved();
+    let aardvark = Client {
+        key: "aardvark".parse().unwrap(),
+        ..acme()
+    };
+    let changed = SetupInputs {
+        catalog: Catalog::new(vec![work()], vec![aardvark, acme()], vec![webshop()]).unwrap(),
+        ..second_run()
+    };
+
+    let replayed = SetupFlow::replayed(changed, &saved);
+
+    assert_eq!(replayed.flow.next_question().unwrap().id, "clients");
+    assert_eq!(
+        replayed.changed.as_deref(),
+        Some("Since setup stopped, the items changed: pick `give `acme` a new rate` again.")
+    );
 }
 
 #[test]

@@ -12,9 +12,11 @@
 //! whose answer differs becomes an edit. The flow writes nothing: the
 //! command writes the edits once the user accepts the summary.
 //!
-//! The flow keeps each answer with its question as a [`SavedAnswer`].
-//! [`SetupFlow::saved`] gives them with the step as a [`SavedSetup`], which
-//! serializes; [`SetupFlow::replayed`] answers a new flow with them again.
+//! The flow keeps each answer with its question and the value it replaced
+//! as a [`SavedAnswer`]. [`SetupFlow::saved`] gives them with the step as a
+//! [`SavedSetup`], which serializes; [`SetupFlow::replayed`] answers a new
+//! flow with them again, and stops at the first question whose value
+//! changed since.
 
 pub mod rate;
 pub mod record;
@@ -40,7 +42,7 @@ use crate::questions::init_project::{InitFlags, InitInputs, InitProjectFlow};
 use crate::questions::{Answer, Ended, Flow, Question, told};
 use crate::setup::rate::NewRateFlow;
 use crate::setup::record::ChangeRecordFlow;
-pub use crate::setup::saved::{SavedAnswer, SavedSetup, SetupStep};
+pub use crate::setup::saved::{SAVED_SETUP_VERSION, SavedAnswer, SavedSetup, SetupStep};
 use crate::setup::step_questions::key_question;
 use crate::setup::summary::{SetupChange, change_line, file_label};
 
@@ -157,6 +159,17 @@ enum Stage {
     Ended,
 }
 
+/// A flow answered with a saved setup's answers, and what changed since,
+/// if that stopped the replay.
+#[derive(Debug)]
+pub struct Replayed {
+    /// The flow, at the first question without an answer.
+    pub flow: SetupFlow,
+    /// What changed in the question the replay stopped at, such as
+    /// "Since setup stopped, the value changed: `system` → `UTC`."
+    pub changed: Option<String>,
+}
+
 /// The flow of `pace setup`: see the module's documentation.
 #[derive(Debug)]
 pub struct SetupFlow {
@@ -197,25 +210,40 @@ impl SetupFlow {
     }
 
     /// The flow over `inputs`, answered with the answers of `saved`, as
-    /// far as each answers the question the flow gives.
+    /// far as each answers the question the flow gives and the value it
+    /// replaced is still the question's default. Where a value changed
+    /// since, such as by a hand edit, [`Replayed::changed`] says how.
     #[must_use]
-    pub fn replayed(inputs: SetupInputs, saved: &SavedSetup) -> Self {
+    pub fn replayed(inputs: SetupInputs, saved: &SavedSetup) -> Replayed {
         let mut flow = Self::new(inputs);
         for saved in &saved.answers {
-            let fits = flow
-                .next_question()
-                .is_some_and(|question| question.id == saved.question);
-            if !fits || flow.take_answer(saved.answer.clone()).is_err() {
+            let Some(question) = flow.next_question() else {
+                break;
+            };
+            if question.id != saved.question {
+                break;
+            }
+            if let Some(changed) = saved.changed_since(&question) {
+                return Replayed {
+                    flow,
+                    changed: Some(changed),
+                };
+            }
+            if flow.take_answer(saved.answer.clone()).is_err() {
                 break;
             }
         }
-        flow
+        Replayed {
+            flow,
+            changed: None,
+        }
     }
 
     /// Where the flow stands, to save.
     #[must_use]
     pub fn saved(&self) -> SavedSetup {
         SavedSetup {
+            version: SAVED_SETUP_VERSION,
             step: self.step(),
             answers: self.answers.clone(),
         }
@@ -500,10 +528,7 @@ impl Flow for SetupFlow {
             .next_question()
             .ok_or("every question has its answer")?;
         self.take(question.id, answer.clone())?;
-        self.answers.push(SavedAnswer {
-            question: question.id.to_owned(),
-            answer,
-        });
+        self.answers.push(SavedAnswer::of(&question, answer));
         self.settle().map_err(|error| told(&error))
     }
 
