@@ -7,7 +7,7 @@ use crate::support::Sandbox;
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 /// Every command, as its path below `pace`.
-const COMMANDS: [&[&str]; 17] = [
+const COMMANDS: [&[&str]; 39] = [
     &["begin"],
     &["hold"],
     &["pause"],
@@ -20,11 +20,59 @@ const COMMANDS: [&[&str]; 17] = [
     &["edit"],
     &["undo"],
     &["forget"],
+    &["reflect"],
+    &["bill"],
+    &["export"],
+    &["role"],
+    &["role", "add"],
+    &["role", "list"],
+    &["role", "archive"],
+    &["role", "edit"],
+    &["client"],
+    &["client", "add"],
+    &["client", "list"],
+    &["client", "edit"],
+    &["project"],
+    &["project", "init"],
+    &["project", "add"],
+    &["project", "list"],
+    &["project", "archive"],
+    &["project", "edit"],
+    &["setup"],
     &["config"],
     &["config", "show"],
+    &["config", "get"],
+    &["config", "set"],
+    &["doctor"],
     &["store"],
     &["store", "split"],
     &["completions"],
+];
+
+/// The flags that phase 3 added to the commands.
+const FLAGS: [&str; 22] = [
+    "role",
+    "by-me",
+    "by-others",
+    "billable",
+    "not-billable",
+    "allow-overlap",
+    "change-billed",
+    "client",
+    "device",
+    "format",
+    "template",
+    "compare",
+    "month",
+    "mark-billed",
+    "invoice",
+    "format",
+    "json",
+    "start-over",
+    "visible",
+    "weekly-target",
+    "rounding-step",
+    "budget",
 ];
 
 /// The text by which each shell's script completes the command `path`.
@@ -77,6 +125,42 @@ fn completions_cover_every_shell_and_command(
             script.contains(&expected),
             "{shell} lacks `{}`: no {expected}",
             path.join(" ")
+        );
+    }
+    Ok(())
+}
+
+/// The text by which each shell's script completes the flag `--name`.
+fn fish_flag(name: &str) -> String {
+    format!("-l {name}")
+}
+
+fn long_flag(name: &str) -> String {
+    format!("--{name}")
+}
+
+#[rstest]
+#[case::bash("bash", long_flag)]
+#[case::zsh("zsh", long_flag)]
+#[case::fish("fish", fish_flag)]
+#[case::powershell("powershell", long_flag)]
+#[case::elvish("elvish", long_flag)]
+#[case::nushell("nushell", long_flag)]
+fn completions_cover_flags_of_phase_3(
+    #[case] shell: &str,
+    #[case] completes: fn(&str) -> String,
+) -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.pace().args(["completions", shell]).output()?;
+
+    assert!(output.status.success(), "{output:?}");
+    let script = String::from_utf8(output.stdout)?;
+    for flag in FLAGS {
+        let expected = completes(flag);
+        assert!(
+            script.contains(&expected),
+            "{shell} lacks `--{flag}`: no {expected}"
         );
     }
     Ok(())
