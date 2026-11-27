@@ -17,12 +17,24 @@ use pace_core::RecordedEvent;
 use pace_error::PaceResult;
 
 /// The events of a file's text, shared by the readers of one process.
-pub type Events = Arc<[RecordedEvent]>;
+pub(super) type Events = Arc<[RecordedEvent]>;
 
 /// The parsed event files of this process.
 #[derive(Default)]
-pub struct Parsed {
+pub(super) struct Parsed {
     files: Mutex<HashMap<PathBuf, ParsedFile>>,
+}
+
+/// Names the files, not their texts and events, which are long.
+impl std::fmt::Debug for Parsed {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut paths: Vec<PathBuf> = self.lock().keys().cloned().collect();
+        paths.sort();
+        formatter
+            .debug_struct("Parsed")
+            .field("files", &paths)
+            .finish()
+    }
 }
 
 /// The text a file had when it was parsed, and its events.
@@ -35,7 +47,7 @@ impl Parsed {
     /// The events of `path` with the content `text`: those parsed before,
     /// if this process parsed this text of the file, else what `parse`
     /// gives, which the cache then keeps.
-    pub fn events(
+    pub(super) fn events(
         &self,
         path: &Path,
         text: String,
@@ -60,7 +72,7 @@ impl Parsed {
 
     /// Keep `events` as the events of `path` with the content `text`, which
     /// this process wrote.
-    pub fn remember(&self, path: PathBuf, text: String, events: Events) {
+    pub(super) fn remember(&self, path: PathBuf, text: String, events: Events) {
         _ = self.lock().insert(path, ParsedFile { text, events });
     }
 

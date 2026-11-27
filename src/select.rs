@@ -15,6 +15,7 @@ use crate::session::Session;
 const LOOK_BACK_DAYS: [i64; 2] = [1, 31];
 
 /// An entry, and the state pace found it in.
+#[derive(Debug)]
 pub struct Chosen {
     /// The state that holds the entry.
     pub state: State,

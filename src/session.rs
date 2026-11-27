@@ -27,6 +27,7 @@ pub fn device_name(hostname: &OsStr) -> String {
 }
 
 /// A tracker for this run.
+#[derive(Debug)]
 pub struct Session {
     tracker: Tracker<FilesStore>,
     device: DeviceId,

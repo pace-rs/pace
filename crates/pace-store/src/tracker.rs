@@ -21,6 +21,7 @@ use crate::EventStore;
 /// commands about a named entry the last month, and `undo` what was recorded
 /// in it; [`Reading::scope`] says which. If that lacks what the rules need,
 /// the machine asks for everything.
+#[derive(Debug)]
 pub struct Tracker<S> {
     store: S,
     clock: Arc<dyn Clock>,

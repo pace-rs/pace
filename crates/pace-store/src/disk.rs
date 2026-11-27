@@ -13,10 +13,10 @@ use toml::Spanned;
 
 /// `device.toml`: in the machine directory the device ID, in a device
 /// directory the device's name and split.
-pub const DEVICE_FILE: &str = "device.toml";
+pub(crate) const DEVICE_FILE: &str = "device.toml";
 
 /// Remove the empty directories below `dir`, deepest first; `dir` stays.
-pub fn remove_empty_dirs(dir: &Path) -> PaceResult<()> {
+pub(crate) fn remove_empty_dirs(dir: &Path) -> PaceResult<()> {
     for entry in std::fs::read_dir(dir).map_err(|error| io_error(FileOp::Read, dir, error))? {
         let path = entry
             .map_err(|error| io_error(FileOp::Read, dir, error))?
@@ -37,7 +37,7 @@ pub fn remove_empty_dirs(dir: &Path) -> PaceResult<()> {
 }
 
 /// The event files in a device directory, oldest period first.
-pub fn event_files(dir: &Path) -> PaceResult<Vec<PathBuf>> {
+pub(crate) fn event_files(dir: &Path) -> PaceResult<Vec<PathBuf>> {
     let mut files = Vec::new();
     let mut pending = vec![dir.to_path_buf()];
     while let Some(dir) = pending.pop() {
@@ -66,12 +66,12 @@ pub fn event_files(dir: &Path) -> PaceResult<Vec<PathBuf>> {
     Ok(files)
 }
 
-pub fn create_dir(dir: &Path) -> PaceResult<()> {
+pub(crate) fn create_dir(dir: &Path) -> PaceResult<()> {
     std::fs::create_dir_all(dir).map_err(|error| io_error(FileOp::CreateDir, dir, error))
 }
 
 /// The lock file, locked exclusively until the returned file is dropped.
-pub fn lock(path: &Path) -> PaceResult<File> {
+pub(crate) fn lock(path: &Path) -> PaceResult<File> {
     let file = OpenOptions::new()
         .create(true)
         .truncate(false)
@@ -85,7 +85,7 @@ pub fn lock(path: &Path) -> PaceResult<File> {
 
 /// The name of an event file in the index: its path below `events/`, with
 /// `/` as separator on every OS.
-pub fn relative_name(events: &Path, path: &Path) -> String {
+pub(crate) fn relative_name(events: &Path, path: &Path) -> String {
     path.strip_prefix(events)
         .unwrap_or(path)
         .components()
@@ -95,7 +95,7 @@ pub fn relative_name(events: &Path, path: &Path) -> String {
 }
 
 /// Write `text` to `path` through a temporary file next to it.
-pub fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
+pub(crate) fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
     let (temporary, path) = prepare(path, text)?;
     _ = temporary
         .persist(&path)
@@ -104,7 +104,7 @@ pub fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
 }
 
 /// `text` in a temporary file next to `path`, ready to be renamed over it.
-pub fn prepare(path: &Path, text: &str) -> PaceResult<(tempfile::NamedTempFile, PathBuf)> {
+pub(crate) fn prepare(path: &Path, text: &str) -> PaceResult<(tempfile::NamedTempFile, PathBuf)> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     create_dir(dir)?;
     let mut temporary = tempfile::Builder::new()
@@ -132,7 +132,7 @@ struct Versioned {
 ///
 /// A file without a readable `version` passes: reading the whole file
 /// then names what is wrong with it.
-pub fn check_version(path: &Path, text: &str, reads: u32, repair: &str) -> PaceResult<()> {
+pub(crate) fn check_version(path: &Path, text: &str, reads: u32, repair: &str) -> PaceResult<()> {
     let Ok(Versioned { version }) = toml::from_str::<Versioned>(text) else {
         return Ok(());
     };
@@ -164,7 +164,7 @@ pub fn check_version(path: &Path, text: &str, reads: u32, repair: &str) -> PaceR
 
 /// A file operation that failed, for [`io_error`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FileOp {
+pub(crate) enum FileOp {
     Read,
     Write,
     Remove,
@@ -203,7 +203,7 @@ impl FileOp {
 }
 
 /// The error of the file operation `op` on `path`, caused by `error`.
-pub fn io_error(op: FileOp, path: &Path, error: std::io::Error) -> Box<PaceError> {
+pub(crate) fn io_error(op: FileOp, path: &Path, error: std::io::Error) -> Box<PaceError> {
     PaceError::with_source(ErrorKind::InputOutput, op.guidance(), error)
         .attach_context("path", path.display().to_string())
         .attach_hint(op.hint())

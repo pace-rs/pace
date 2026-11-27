@@ -18,8 +18,6 @@
 //! state before it: a batch exists only after a decided read, and an
 //! outcome only after its append.
 
-use std::fmt;
-
 use jiff::{ToSpan, ZonedDateTime};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
@@ -57,6 +55,7 @@ pub struct Outcome {
 }
 
 /// The command and what its rules need, through all its attempts.
+#[derive(Debug)]
 struct CommandRun<'a> {
     command: &'a Command,
     device: DeviceId,
@@ -64,18 +63,6 @@ struct CommandRun<'a> {
     policy: &'a Policy,
     /// The attempt under way, from 1 to [`ATTEMPTS`].
     attempt: usize,
-}
-
-impl fmt::Debug for CommandRun<'_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("CommandRun")
-            .field("command", self.command)
-            .field("device", &self.device)
-            .field("policy", self.policy)
-            .field("attempt", &self.attempt)
-            .finish_non_exhaustive()
-    }
 }
 
 /// A command that waits for the events of its [`scope`](Self::scope).

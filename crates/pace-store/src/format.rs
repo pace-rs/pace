@@ -20,7 +20,7 @@ use crate::hlc::hlc_text;
 use crate::toml_file::{TomlCause, TomlFile, closest, in_file_order};
 
 /// The version of the event file format.
-pub const FILE_VERSION: u32 = 1;
+pub(crate) const FILE_VERSION: u32 = 1;
 
 /// The version of every event type this pace writes.
 const EVENT_VERSION: u32 = 1;
@@ -109,7 +109,7 @@ struct Chunk<'a> {
 
 /// The header of a new event file.
 #[must_use]
-pub fn file_header() -> String {
+pub(crate) fn file_header() -> String {
     format!("version = {FILE_VERSION}\n")
 }
 
@@ -118,7 +118,7 @@ pub fn file_header() -> String {
 /// # Errors
 ///
 /// If an event cannot be written as TOML, which is a bug.
-pub fn serialize_events(events: &[RecordedEvent]) -> PaceResult<String> {
+pub(crate) fn serialize_events(events: &[RecordedEvent]) -> PaceResult<String> {
     let records: Vec<Record> = events.iter().map(record).collect();
     toml::to_string(&Chunk { event: &records }).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write an event as TOML", error)
@@ -131,7 +131,11 @@ pub fn serialize_events(events: &[RecordedEvent]) -> PaceResult<String> {
 /// # Errors
 ///
 /// If the file is no valid event file; the error names the file and the line.
-pub fn parse_events(path: &Path, text: &str, device: DeviceId) -> PaceResult<Vec<RecordedEvent>> {
+pub(crate) fn parse_events(
+    path: &Path,
+    text: &str,
+    device: DeviceId,
+) -> PaceResult<Vec<RecordedEvent>> {
     let file: File = match toml::from_str(text) {
         Ok(file) => file,
         Err(error) => return Err(explain(path, text, error)),

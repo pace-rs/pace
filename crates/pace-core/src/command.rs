@@ -210,7 +210,7 @@ mod change {
 
     use crate::Change;
 
-    pub fn serialize<T: Serialize, S: Serializer>(
+    pub(super) fn serialize<T: Serialize, S: Serializer>(
         change: &Change<T>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
@@ -220,7 +220,7 @@ mod change {
         }
     }
 
-    pub fn deserialize<'de, T: Deserialize<'de>, D: Deserializer<'de>>(
+    pub(super) fn deserialize<'de, T: Deserialize<'de>, D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Change<T>, D::Error> {
         Ok(Option::<T>::deserialize(deserializer)?.map_or(Change::Clear, Change::Set))

@@ -15,6 +15,7 @@ use toml::{
 };
 
 /// A TOML file and how to talk about it in errors.
+#[derive(Debug)]
 pub struct TomlFile<'a> {
     /// The file, for messages and snippets.
     pub path: &'a Path,

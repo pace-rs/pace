@@ -12,7 +12,7 @@ use crate::RecordedEvent;
 ///
 /// The CLI uses the system clock in the configured time zone; tests and
 /// journey tests use a [`FixedClock`].
-pub trait Clock: Send + Sync {
+pub trait Clock: std::fmt::Debug + Send + Sync {
     /// Now, in whole seconds and in the configured time zone.
     fn now(&self) -> ZonedDateTime;
 }
@@ -39,7 +39,7 @@ impl Clock for FixedClock {
 ///
 /// The CLI uses random IDs, also with `PACE_TEST_NOW`; tests that build a
 /// tracker in-process use [`SequentialIds`], one seed per simulated device.
-pub trait Ids: Send + Sync {
+pub trait Ids: std::fmt::Debug + Send + Sync {
     /// A new UUIDv7.
     fn next_id(&self) -> Uuid;
 }
@@ -115,7 +115,7 @@ pub struct Notice {
 }
 
 /// Where notices go: the terminal for the CLI, the OS for a later daemon.
-pub trait Notifier: Send + Sync {
+pub trait Notifier: std::fmt::Debug + Send + Sync {
     /// Show `notice`.
     ///
     /// # Errors

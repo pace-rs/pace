@@ -361,7 +361,8 @@ fn reading_shows_its_command_and_attempt_in_debug() -> TestResult {
         shown.contains("CommandRun { command: Undo, device: "),
         "{shown}"
     );
-    assert!(shown.contains("attempt: 1, .. }"), "{shown}");
+    assert!(shown.contains("ids: SequentialIds { "), "{shown}");
+    assert!(shown.contains("attempt: 1 }"), "{shown}");
     Ok(())
 }
 

@@ -42,7 +42,7 @@ use std::{
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 
 mod constants {
-    pub const DEFAULT_ISSUE_URL: &str = "https://github.com/pace-rs/pace/issues/new";
+    pub(crate) const DEFAULT_ISSUE_URL: &str = "https://github.com/pace-rs/pace/issues/new";
 }
 
 /// Result type of every fallible public function in pace.

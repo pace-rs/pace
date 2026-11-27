@@ -124,7 +124,7 @@ struct Own {
 
 /// How far this machine wrote its own log, and which tombstones it applied.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct Cursors {
+pub(crate) struct Cursors {
     /// The HLC of the last event this machine wrote, if it remembers one.
     pub last_written: Option<Hlc>,
     /// Forgotten entries whose events this machine removed from its log.
@@ -133,7 +133,7 @@ pub struct Cursors {
 
 impl Cursors {
     /// The cursors in the machine directory; none if there is no file yet.
-    pub fn load(machine: &Path) -> PaceResult<Self> {
+    pub(crate) fn load(machine: &Path) -> PaceResult<Self> {
         let path = machine.join(CURSORS_FILE);
         let text = match std::fs::read_to_string(&path) {
             Ok(text) => text,
@@ -164,7 +164,7 @@ impl Cursors {
     }
 
     /// Write the cursors to the machine directory.
-    pub fn save(&self, machine: &Path) -> PaceResult<()> {
+    pub(crate) fn save(&self, machine: &Path) -> PaceResult<()> {
         write(
             &machine.join(CURSORS_FILE),
             &CursorsFile {
@@ -180,7 +180,7 @@ impl Cursors {
 
 /// The error when this machine's own log reaches `own_last`, beyond the
 /// last event it wrote, `remembered`.
-pub fn clone_detected(machine: &Path, own_last: Hlc, remembered: Hlc) -> Box<PaceError> {
+pub(crate) fn clone_detected(machine: &Path, own_last: Hlc, remembered: Hlc) -> Box<PaceError> {
     PaceError::new(
         ErrorKind::InputOutput,
         "another machine writes with this machine's device ID: the log of this ID reaches {own_last}, but this machine wrote up to {remembered}",

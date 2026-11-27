@@ -22,10 +22,10 @@ use crate::machine::Cursors;
 
 /// A tombstone: the forgotten entry, and the moment its events are filed
 /// under, in milliseconds.
-pub type Tombstone = (EntryId, i64);
+pub(super) type Tombstone = (EntryId, i64);
 
 /// The tombstones in the files of `index`.
-pub fn index_tombstones(index: &Index) -> Vec<Tombstone> {
+pub(super) fn index_tombstones(index: &Index) -> Vec<Tombstone> {
     index
         .files
         .values()
@@ -34,7 +34,7 @@ pub fn index_tombstones(index: &Index) -> Vec<Tombstone> {
 }
 
 /// The tombstones among the events `recorded`.
-pub fn batch_tombstones(recorded: &[RecordedEvent]) -> Vec<Tombstone> {
+pub(super) fn batch_tombstones(recorded: &[RecordedEvent]) -> Vec<Tombstone> {
     recorded
         .iter()
         .filter_map(|recorded| match recorded.event.kind {

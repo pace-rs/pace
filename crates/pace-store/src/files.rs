@@ -47,6 +47,7 @@ use parsed::{Events, Parsed};
 use renames::{Prepared, persist, rename_all};
 
 /// The files backend for one device.
+#[derive(Debug)]
 pub struct FilesStore {
     home: PathBuf,
     machine: PathBuf,

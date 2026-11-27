@@ -12,14 +12,14 @@ use tempfile::TempDir;
 use uuid::Uuid;
 
 /// The `pace` binary built for this test run.
-pub fn pace() -> Command {
+pub(crate) fn pace() -> Command {
     Command::new(env!("CARGO_BIN_EXE_pace"))
 }
 
 /// Run `command` and describe its outcome for a snapshot: exit status,
 /// stdout and stderr. Unlike `insta_cmd`, nothing about the environment goes
 /// into the snapshot, so sandbox paths never end up in the repository.
-pub fn run(command: &mut Command) -> std::io::Result<String> {
+pub(crate) fn run(command: &mut Command) -> std::io::Result<String> {
     let output = command.output()?;
     Ok(format!(
         "success: {:?}\nexit_code: {}\n----- stdout -----\n{}\n----- stderr -----\n{}",
@@ -32,7 +32,7 @@ pub fn run(command: &mut Command) -> std::io::Result<String> {
 
 /// The short ID that follows `prefix` at the start of a line of `output`,
 /// such as `ad5e` after `Began ` in `Began ad5e "Write offer" at 09:00.`
-pub fn short_id_after(output: &str, prefix: &str) -> Result<String, String> {
+pub(crate) fn short_id_after(output: &str, prefix: &str) -> Result<String, String> {
     output
         .lines()
         .find_map(|line| line.strip_prefix(prefix))
@@ -43,7 +43,7 @@ pub fn short_id_after(output: &str, prefix: &str) -> Result<String, String> {
 
 /// An entry begun on another machine, apart: it has its own data
 /// directory, which is then synced into this one.
-pub fn begin_apart(
+pub(crate) fn begin_apart(
     sandbox: &Sandbox,
     time: &str,
     note: &str,
@@ -60,12 +60,12 @@ pub fn begin_apart(
 /// A temporary directory with a working directory `work/` and an empty
 /// `config/pace.global.toml` inside, and `PACE_CONFIG`, `PACE_HOME` and
 /// `PACE_MACHINE_DIR` pointing into it.
-pub struct Sandbox {
+pub(crate) struct Sandbox {
     root: TempDir,
 }
 
 impl Sandbox {
-    pub fn new() -> std::io::Result<Self> {
+    pub(crate) fn new() -> std::io::Result<Self> {
         let root = scratch_dir()?;
         std::fs::create_dir(root.path().join("work"))?;
         std::fs::create_dir(root.path().join("config"))?;
@@ -74,12 +74,12 @@ impl Sandbox {
     }
 
     /// Create a directory and its parents inside the sandbox.
-    pub fn mkdir(&self, relative: &str) -> std::io::Result<()> {
+    pub(crate) fn mkdir(&self, relative: &str) -> std::io::Result<()> {
         std::fs::create_dir_all(self.path(relative))
     }
 
     /// Write a file inside the sandbox, creating its directory.
-    pub fn write(&self, relative: &str, content: &str) -> std::io::Result<()> {
+    pub(crate) fn write(&self, relative: &str, content: &str) -> std::io::Result<()> {
         let path = self.path(relative);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -89,7 +89,7 @@ impl Sandbox {
 
     /// Copy the device directories of another data directory in the sandbox
     /// into `home/events`, as a file sync would.
-    pub fn sync_events_from(&self, other_home: &str) -> std::io::Result<()> {
+    pub(crate) fn sync_events_from(&self, other_home: &str) -> std::io::Result<()> {
         copy_dir(
             &self.path(other_home).join("events"),
             &self.path("home/events"),
@@ -98,7 +98,7 @@ impl Sandbox {
 
     /// Copy the device directories of `home/events` into another data
     /// directory in the sandbox, as a file sync would.
-    pub fn sync_events_to(&self, other_home: &str) -> std::io::Result<()> {
+    pub(crate) fn sync_events_to(&self, other_home: &str) -> std::io::Result<()> {
         copy_dir(
             &self.path("home/events"),
             &self.path(other_home).join("events"),
@@ -106,17 +106,17 @@ impl Sandbox {
     }
 
     /// Replace the content of the global config file.
-    pub fn write_config(&self, content: &str) -> std::io::Result<()> {
+    pub(crate) fn write_config(&self, content: &str) -> std::io::Result<()> {
         std::fs::write(self.path("config/pace.global.toml"), content)
     }
 
-    pub fn path(&self, relative: impl AsRef<Path>) -> PathBuf {
+    pub(crate) fn path(&self, relative: impl AsRef<Path>) -> PathBuf {
         self.root.path().join(relative)
     }
 
     /// `pace` run in `work/`, with the three pace variables set and every
     /// other `PACE_*` variable of the caller removed.
-    pub fn pace(&self) -> Command {
+    pub(crate) fn pace(&self) -> Command {
         let mut command = self.bare_pace();
         _ = command
             .env("PACE_CONFIG", self.path("config/pace.global.toml"))
@@ -128,7 +128,7 @@ impl Sandbox {
     /// [`Sandbox::pace`] with the clock fixed at `time` (`HH:MM` on
     /// 2026-11-26 in Berlin, or a full RFC 9557 time) and Berlin as the
     /// configured time zone.
-    pub fn pace_at(&self, time: &str) -> Command {
+    pub(crate) fn pace_at(&self, time: &str) -> Command {
         let now = if time.contains('[') {
             time.to_owned()
         } else {
@@ -145,7 +145,10 @@ impl Sandbox {
     /// [`Sandbox::pace_at`] and the arguments, and describe them for a
     /// snapshot: a line with the command and its time, then [`run`]'s
     /// outcome, with the IDs redacted by [`Sandbox::redact_ids`].
-    pub fn journey(&self, steps: &[(&str, &[&str])]) -> Result<String, Box<dyn std::error::Error>> {
+    pub(crate) fn journey(
+        &self,
+        steps: &[(&str, &[&str])],
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let mut transcript = String::new();
         for (time, args) in steps {
             writeln!(transcript, "$ pace {}   # at {time}", args.join(" "))?;
@@ -164,7 +167,7 @@ impl Sandbox {
     /// The IDs come from the event files in the sandbox: device IDs and the
     /// IDs of events, batches and entries. An ID that the test wrote itself,
     /// such as a project ID in a manifest, stays.
-    pub fn redact_ids(&self, text: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub(crate) fn redact_ids(&self, text: &str) -> Result<String, Box<dyn std::error::Error>> {
         let made = MadeIds::find(self.root.path())?;
         let mut numbered: Vec<Uuid> = Vec::new();
         let mut redacted = String::with_capacity(text.len());
@@ -193,7 +196,7 @@ impl Sandbox {
     }
 
     /// [`Sandbox::pace`] run in `work/<relative>`.
-    pub fn pace_in(&self, relative: &str) -> Command {
+    pub(crate) fn pace_in(&self, relative: &str) -> Command {
         let mut command = self.pace();
         _ = command.current_dir(self.path("work").join(relative));
         command
@@ -201,13 +204,13 @@ impl Sandbox {
 
     /// `pace` run in `work/` without any `PACE_*` variable, and without the
     /// variables by which the caller's shell sets colour, graphics or width.
-    pub fn bare_pace(&self) -> Command {
+    pub(crate) fn bare_pace(&self) -> Command {
         self.bare(pace())
     }
 
     /// Copy the `pace` binary into the sandbox directory `relative`, for
     /// portable mode, and return the path of the copy.
-    pub fn copy_pace_to(&self, relative: &str) -> std::io::Result<PathBuf> {
+    pub(crate) fn copy_pace_to(&self, relative: &str) -> std::io::Result<PathBuf> {
         let binary = Path::new(env!("CARGO_BIN_EXE_pace"));
         let name = binary.file_name().ok_or_else(|| {
             std::io::Error::other(format!("{} has no file name", binary.display()))
@@ -222,7 +225,7 @@ impl Sandbox {
     /// [`Sandbox::bare_pace`] runs, with `HOME` and the XDG directories in the
     /// sandbox's `fallback-home/`. So if portable mode breaks, pace falls
     /// back to the sandbox, not to the caller's real directories.
-    pub fn portable_pace(&self, binary: &Path) -> Command {
+    pub(crate) fn portable_pace(&self, binary: &Path) -> Command {
         let home = self.path("fallback-home");
         let mut command = self.bare(Command::new(binary));
         _ = command
@@ -252,7 +255,7 @@ impl Sandbox {
 
     /// Snapshot settings that replace the sandbox path with `[SANDBOX]` and
     /// use `/` as the path separator on every OS.
-    pub fn settings(&self) -> insta::Settings {
+    pub(crate) fn settings(&self) -> insta::Settings {
         let mut settings = insta::Settings::clone_current();
         // The working directory of a child is the canonical path: on macOS
         // /private/var/… for /var/…, on Windows with a \\?\ prefix.

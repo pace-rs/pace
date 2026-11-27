@@ -227,6 +227,7 @@ const fn entry_of(kind: &EventKind) -> Option<EntryId> {
 /// Before each of its next `races` appends, the rival runs its command. So
 /// one thread plays two pace commands at once: the rival writes between the
 /// read and the append of the other.
+#[derive(Debug)]
 pub struct Raced<S, R> {
     store: S,
     rival: Tracker<R>,

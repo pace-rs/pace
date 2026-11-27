@@ -43,13 +43,16 @@ fn test_clock_refuses_poisoned_time() -> TestResult {
 }
 
 #[test]
-fn clock_shows_its_time_in_debug() -> TestResult {
+fn clock_behind_trait_shows_its_type_and_time_in_debug() -> TestResult {
     let clock = TestClock::new(nine()?);
     let clock: &dyn Clock = &clock;
 
-    assert_eq!(
-        format!("{clock:?}"),
-        "Clock(2026-11-26T09:00:00+01:00[Europe/Berlin])"
+    let shown = format!("{clock:?}");
+
+    assert!(shown.starts_with("TestClock("), "{shown}");
+    assert!(
+        shown.contains("2026-11-26T09:00:00+01:00[Europe/Berlin]"),
+        "{shown}"
     );
     Ok(())
 }

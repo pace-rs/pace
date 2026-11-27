@@ -12,7 +12,7 @@ use tempfile::NamedTempFile;
 use crate::disk::{FileOp, io_error, write_atomically};
 
 /// An event file of a batch, written to a temporary file next to it.
-pub struct Prepared {
+pub(super) struct Prepared {
     /// The file's new text.
     pub temporary: NamedTempFile,
     /// The event file.
@@ -22,7 +22,7 @@ pub struct Prepared {
 }
 
 /// The rename step of [`rename_all`] outside tests: `temporary` over `path`.
-pub fn persist(temporary: NamedTempFile, path: &Path) -> io::Result<()> {
+pub(super) fn persist(temporary: NamedTempFile, path: &Path) -> io::Result<()> {
     temporary
         .persist(path)
         .map(drop)
@@ -41,7 +41,7 @@ struct Renamed {
 /// dismissed and [`restore`] puts them back, so a restore that fails ends
 /// up in the error. On a panic, the guard puts them back and reports to no
 /// one. Once every rename holds, the guard is dismissed.
-pub fn rename_all(
+pub(super) fn rename_all(
     files: Vec<Prepared>,
     mut rename: impl FnMut(NamedTempFile, &Path) -> io::Result<()>,
 ) -> PaceResult<()> {

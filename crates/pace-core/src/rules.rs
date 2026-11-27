@@ -51,6 +51,7 @@ impl Default for Policy {
 }
 
 /// Decides commands against a state.
+#[derive(Debug)]
 pub struct Rules<'a> {
     /// The current state.
     pub state: &'a State,

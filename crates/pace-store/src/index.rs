@@ -29,18 +29,18 @@ use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts};
 
 /// The version of `index.json`; another version is rebuilt. Version 2
 /// added `forgotten`.
-pub const INDEX_VERSION: u32 = 2;
+pub(crate) const INDEX_VERSION: u32 = 2;
 
 /// The index: summaries by file, relative to `PACE_HOME/events`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Index {
+pub(crate) struct Index {
     pub version: u32,
     pub files: BTreeMap<String, FileSummary>,
 }
 
 /// What pace needs to know about an event file without parsing it.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FileSummary {
+pub(crate) struct FileSummary {
     pub len: u64,
     pub modified: Option<u128>,
     /// The latest HLC as milliseconds and counter.
@@ -64,7 +64,7 @@ impl FileSummary {
     /// # Errors
     ///
     /// If the index holds a reading outside the range of a timestamp.
-    pub fn max_hlc(&self, index_path: &Path) -> PaceResult<Option<Hlc>> {
+    pub(crate) fn max_hlc(&self, index_path: &Path) -> PaceResult<Option<Hlc>> {
         self.max_hlc
             .map(|parts| hlc_from_parts(parts, index_path))
             .transpose()
@@ -72,7 +72,7 @@ impl FileSummary {
 }
 
 /// The summary of the events of one file.
-pub fn summarize(events: &[RecordedEvent]) -> FileSummary {
+pub(crate) fn summarize(events: &[RecordedEvent]) -> FileSummary {
     let undone: BTreeSet<_> = events
         .iter()
         .filter_map(|recorded| match recorded.event.kind {
@@ -168,7 +168,7 @@ fn span(moments: &[i64]) -> Option<(i64, i64)> {
 /// where an open entry began, those with an event recorded since the
 /// scope's moment, and every file with events about the same entries as
 /// a selected file.
-pub fn select(files: &BTreeMap<String, FileSummary>, scope: &ReadScope) -> BTreeSet<String> {
+pub(crate) fn select(files: &BTreeMap<String, FileSummary>, scope: &ReadScope) -> BTreeSet<String> {
     let ended_elsewhere: BTreeSet<EntryId> = files
         .values()
         .flat_map(|summary| summary.ends_elsewhere.iter().copied())

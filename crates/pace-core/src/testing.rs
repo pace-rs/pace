@@ -65,11 +65,3 @@ pub fn locked<'lock, T>(lock: &'lock Mutex<T>, what: &str) -> PaceResult<MutexGu
             .ask_report()
     })
 }
-
-/// So a test double that holds a clock derives `Debug`, as `pace_store`'s
-/// in-memory store does. The orphan rule keeps this impl in `pace_core`.
-impl std::fmt::Debug for dyn Clock {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Clock({})", self.now())
-    }
-}

@@ -7,15 +7,15 @@ use pace_core::Hlc;
 use pace_error::{ErrorKind, PaceError, PaceResult};
 
 /// An HLC as milliseconds since the epoch and the counter.
-pub type HlcParts = (i64, u32);
+pub(crate) type HlcParts = (i64, u32);
 
 /// The parts of `hlc`, to write it.
-pub fn hlc_parts(hlc: Hlc) -> HlcParts {
+pub(crate) fn hlc_parts(hlc: Hlc) -> HlcParts {
     (hlc.wall().as_millisecond(), hlc.counter())
 }
 
 /// `hlc` as the event files write it: `2026-11-26T08:02:11.204Z/0`.
-pub fn hlc_text(hlc: Hlc) -> String {
+pub(crate) fn hlc_text(hlc: Hlc) -> String {
     format!(
         "{}/{}",
         hlc.wall().strftime("%Y-%m-%dT%H:%M:%S%.3fZ"),
@@ -30,7 +30,7 @@ pub fn hlc_text(hlc: Hlc) -> String {
 /// If the milliseconds lie outside the range of a timestamp. The error
 /// names the file, so that a broken file never passes for one without a
 /// reading.
-pub fn hlc_from_parts((millis, counter): HlcParts, path: &Path) -> PaceResult<Hlc> {
+pub(crate) fn hlc_from_parts((millis, counter): HlcParts, path: &Path) -> PaceResult<Hlc> {
     let wall = jiff::Timestamp::from_millisecond(millis).map_err(|error| {
         PaceError::with_source(
             ErrorKind::InputOutput,

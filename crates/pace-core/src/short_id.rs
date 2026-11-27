@@ -9,7 +9,7 @@ use crate::EntryId;
 /// entries recorded close together; the last ones are random. It takes one
 /// pass over `among`, so a sentence that names one entry costs no more than
 /// that.
-pub fn short_id_among(id: EntryId, among: impl IntoIterator<Item = EntryId>) -> String {
+pub(crate) fn short_id_among(id: EntryId, among: impl IntoIterator<Item = EntryId>) -> String {
     let own = id.uuid().as_u128();
     // Each hex character is four bits: the trailing zero bits of the XOR
     // count the trailing characters two IDs share.
