@@ -26,7 +26,10 @@ fn berlin(time: &str) -> Result<ZonedDateTime, jiff::Error> {
     at(&format!("2026-11-26T{time}[Europe/Berlin]"))
 }
 
+/// A device of the test, with its own `PACE_HOME`. It holds the scratch
+/// folder of its pair, so the folder lives as long as either device.
 struct Device {
+    _root: Arc<TempDir>,
     home: PathBuf,
     id: DeviceId,
     clock: Arc<TestClock>,
@@ -35,18 +38,18 @@ struct Device {
 
 impl Device {
     fn new(
-        root: &Path,
+        root: &Arc<TempDir>,
         name: &str,
         number: u16,
         split: Split,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let home = root.join(name).join("home");
+        let home = root.path().join(name).join("home");
         let id: DeviceId = format!("0193a8d0-000d-7000-8000-{number:012x}").parse()?;
         let clock = Arc::new(TestClock::new(berlin("08:00")?));
         let tracker = Tracker::new(
             FilesStore::new(
                 home.clone(),
-                root.join(name).join("machine"),
+                root.path().join(name).join("machine"),
                 id,
                 clock.clone(),
                 split,
@@ -57,6 +60,7 @@ impl Device {
             id,
         );
         Ok(Self {
+            _root: root.clone(),
             home,
             id,
             clock,
@@ -131,17 +135,15 @@ fn sync(a: &Device, b: &Device) -> TestResult {
 }
 
 struct Pair {
-    _root: TempDir,
     laptop: Device,
     desktop: Device,
 }
 
 fn pair(desktop_split: Split) -> Result<Pair, Box<dyn std::error::Error>> {
-    let root = scratch_dir()?;
+    let root = Arc::new(scratch_dir()?);
     Ok(Pair {
-        laptop: Device::new(root.path(), "laptop", 1, Split::Month)?,
-        desktop: Device::new(root.path(), "desktop", 2, desktop_split)?,
-        _root: root,
+        laptop: Device::new(&root, "laptop", 1, Split::Month)?,
+        desktop: Device::new(&root, "desktop", 2, desktop_split)?,
     })
 }
 
@@ -153,10 +155,21 @@ fn only_entry(state: &State) -> Result<EntryId, Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn devices_keep_their_folder_when_pair_is_taken_apart() -> TestResult {
+    let Pair { laptop, .. } = pair(Split::Month)?;
+    let root = laptop
+        .home
+        .ancestors()
+        .nth(2)
+        .ok_or("the home has no root")?;
+
+    assert!(root.is_dir(), "{} is gone", root.display());
+    Ok(())
+}
+
+#[test]
 fn after_sync_both_devices_see_the_same_state() -> TestResult {
-    let Pair {
-        laptop, desktop, ..
-    } = pair(Split::Week)?;
+    let Pair { laptop, desktop } = pair(Split::Week)?;
     laptop.run("09:00", &Command::Begin(Begin::default()))?;
     sync(&laptop, &desktop)?;
     desktop.run("10:00", &Command::End(End::default()))?;
@@ -169,9 +182,7 @@ fn after_sync_both_devices_see_the_same_state() -> TestResult {
 
 #[test]
 fn changes_made_apart_merge_by_the_later_change_per_field() -> TestResult {
-    let Pair {
-        laptop, desktop, ..
-    } = pair(Split::Month)?;
+    let Pair { laptop, desktop } = pair(Split::Month)?;
     laptop.run(
         "09:00",
         &Command::Log(Log::new(berlin("07:00")?, berlin("08:00")?)),
@@ -213,9 +224,7 @@ fn changes_made_apart_merge_by_the_later_change_per_field() -> TestResult {
 
 #[test]
 fn entries_begun_apart_are_both_running_until_one_ends() -> TestResult {
-    let Pair {
-        laptop, desktop, ..
-    } = pair(Split::Month)?;
+    let Pair { laptop, desktop } = pair(Split::Month)?;
     laptop.run("09:00", &Command::Begin(Begin::default()))?;
     desktop.run("09:30", &Command::Begin(Begin::default()))?;
     sync(&laptop, &desktop)?;
@@ -247,9 +256,7 @@ fn entries_begun_apart_are_both_running_until_one_ends() -> TestResult {
 
 #[test]
 fn entries_logged_apart_can_overlap_and_pace_finds_them() -> TestResult {
-    let Pair {
-        laptop, desktop, ..
-    } = pair(Split::Month)?;
+    let Pair { laptop, desktop } = pair(Split::Month)?;
     laptop.run(
         "18:00",
         &Command::Log(Log::new(berlin("09:00")?, berlin("10:00")?)),
@@ -271,9 +278,7 @@ fn entries_logged_apart_can_overlap_and_pace_finds_them() -> TestResult {
 
 #[test]
 fn forgotten_entry_leaves_the_own_files_of_every_device() -> TestResult {
-    let Pair {
-        laptop, desktop, ..
-    } = pair(Split::Week)?;
+    let Pair { laptop, desktop } = pair(Split::Week)?;
     laptop.run(
         "09:00",
         &Command::Begin(Begin {
