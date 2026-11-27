@@ -100,7 +100,7 @@ impl Key {
             Self::HoldsDefaultSource => "`inner`, `outer` or `unknown`",
             Self::StorageSplit => "`year`, `month`, `week` or `day`",
             Self::ReportsTemplates => {
-                "the full path of a directory, or empty for pace's own templates"
+                "a full path, one that starts with `~/`, or empty for pace's own templates"
             }
         }
     }

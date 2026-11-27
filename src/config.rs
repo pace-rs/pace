@@ -28,8 +28,8 @@ pub(crate) use self::values::hold_source_name;
 use self::{
     key::Kind,
     values::{
-        Value, expand_home, parse_count, parse_hold_source, parse_templates_dir, parse_time_zone,
-        parse_weekday, weekday_name,
+        Value, expand_home, home_relative, parse_count, parse_hold_source, parse_templates_dir,
+        parse_time_zone, parse_weekday, weekday_name,
     },
 };
 use crate::{dirs::Located, origin::Origin};
@@ -426,11 +426,7 @@ fn project_path(
                 .attach_error_code("pace::config::invalid-value")
         })?;
 
-    let relative_to_home = written
-        .strip_prefix("~/")
-        .or_else(|| written.strip_prefix("~\\"))
-        .or_else(|| (written == "~").then_some(""));
-    let expanded = match (relative_to_home, home) {
+    let expanded = match (home_relative(written), home) {
         (Some(rest), Some(home)) => home.join(rest),
         (Some(_), None) => {
             return Err(file.error_at(
@@ -447,7 +443,7 @@ fn project_path(
         return Err(file
             .error_at(
                 dir.span(),
-                "`{path}` is not an absolute path",
+                "`{path}` is not a full path",
                 [("path", written.to_owned())],
                 "write the full path, or start it with `~/`",
                 "relative path",

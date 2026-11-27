@@ -279,3 +279,27 @@ fn config_set_creates_missing_config_file() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn config_set_of_empty_value_shows_empty_quotes() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = run(sandbox
+        .pace()
+        .args(["config", "set", "reports.templates", ""]))?;
+    let again = sandbox
+        .pace()
+        .args(["config", "set", "reports.templates", ""])
+        .output()?;
+
+    assert!(
+        output.contains("Set reports.templates to \"\" in "),
+        "{output}"
+    );
+    let stderr = String::from_utf8(again.stderr)?;
+    assert!(
+        stderr.contains("sets reports.templates to \"\" already"),
+        "{stderr}"
+    );
+    Ok(())
+}

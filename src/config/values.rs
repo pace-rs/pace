@@ -159,7 +159,7 @@ pub(crate) fn expand_home(dir: PathBuf, home: Option<&Path>) -> PaceResult<PathB
 }
 
 /// The rest of `path` after a leading `~/`, `~\` or a lone `~`.
-fn home_relative(path: &str) -> Option<&str> {
+pub(crate) fn home_relative(path: &str) -> Option<&str> {
     path.strip_prefix("~/")
         .or_else(|| path.strip_prefix("~\\"))
         .or_else(|| (path == "~").then_some(""))

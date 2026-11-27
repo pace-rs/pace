@@ -9,7 +9,7 @@ exit_code: 1
 ----- stderr -----
 pace::config::invalid-value
 
-  × `work/repo` is not an absolute path
+  × `work/repo` is not a full path
    ╭─[[SANDBOX]/config/pace.global.toml:2:1]
  1 │ [project-paths]
  2 │ "work/repo" = "client-repo"

@@ -84,7 +84,7 @@ impl SetCmd {
         let file = path.display().to_string();
         let key = setting_key(&self.key, &format!("edit [project-paths] in {file}"))?;
         let value = setting_value(key, &self.value).map_err(usage)?;
-        let shown = plain_value(&value);
+        let shown = sentence_value(&value);
         if context.settings.file_value(key) == Some(&value) {
             return Err(PaceError::new(
                 ErrorKind::InvalidInput,
@@ -151,6 +151,15 @@ fn plain_value(value: &toml::Value) -> String {
     match value {
         toml::Value::String(text) => text.clone(),
         other => other.to_string(),
+    }
+}
+
+/// A setting's value inside a sentence: text without quotes, empty text as
+/// `""`, so the sentence still shows the value.
+fn sentence_value(value: &toml::Value) -> String {
+    match value {
+        toml::Value::String(text) if text.is_empty() => "\"\"".to_owned(),
+        other => plain_value(other),
     }
 }
 
