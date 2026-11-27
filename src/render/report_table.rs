@@ -9,7 +9,7 @@ use pace_core::{
 use pace_time::{TimeFrame, format_duration, format_moment};
 
 use crate::output::{counted, project_label, role_label};
-use crate::render::Canvas;
+use crate::render::{Canvas, percent};
 
 /// The widest label a row shows; a longer one is cut.
 const LABEL_WIDTH: usize = 24;
@@ -194,12 +194,6 @@ fn bar_part(heading: &str, rows: &[BarRow], whole: SignedDuration, canvas: Canva
         lines.push(line.trim_end().to_owned());
     }
     lines
-}
-
-/// `part` of `whole` in whole percent, rounded; `None` for no whole.
-fn percent(part: SignedDuration, whole: SignedDuration) -> Option<i128> {
-    let whole = whole.as_nanos();
-    (whole > 0).then(|| (part.as_nanos() * 100 + whole / 2) / whole)
 }
 
 /// Time per role, per project with the back-flow, and per day.
@@ -727,14 +721,5 @@ mod tests {
             }),
             "Nothing tracked until 2026-11-02."
         );
-    }
-
-    #[test]
-    fn share_rounds_to_whole_percent() {
-        let mins = SignedDuration::from_mins;
-
-        assert_eq!(percent(mins(1), mins(3)), Some(33));
-        assert_eq!(percent(mins(2), mins(3)), Some(67));
-        assert_eq!(percent(mins(2), SignedDuration::ZERO), None);
     }
 }

@@ -1,10 +1,14 @@
-//! Output drawn by code for the terminal: the canvas it fits, bars and
-//! headings, and the report's table.
+//! Output drawn by code: the canvas a table fits, bars and headings, the
+//! report's table, and the report's rows in the schema of JSON and CSV.
 
+mod report_rows;
 mod report_table;
+pub mod schema;
 
 use std::{ffi::OsString, io::IsTerminal as _};
 
+use jiff::SignedDuration;
+pub use report_rows::{ReportRows, report_rows};
 pub use report_table::{ReportTable, nothing_tracked, report_table};
 
 /// The width without a terminal, and on a terminal whose width pace can't
@@ -142,6 +146,12 @@ impl Canvas {
         cut.push(mark);
         cut
     }
+}
+
+/// `part` of `whole` in whole percent, rounded; `None` for no whole.
+fn percent(part: SignedDuration, whole: SignedDuration) -> Option<i128> {
+    let whole = whole.as_nanos();
+    (whole > 0).then(|| (part.as_nanos() * 100 + whole / 2) / whole)
 }
 
 /// The words of `text` between spaces; a span in backticks stays one
@@ -293,6 +303,15 @@ mod tests {
             narrow.wrap("a-very-long-word", "  "),
             ["  a-very-long-word"]
         );
+    }
+
+    #[test]
+    fn share_rounds_to_whole_percent() {
+        let mins = SignedDuration::from_mins;
+
+        assert_eq!(percent(mins(1), mins(3)), Some(33));
+        assert_eq!(percent(mins(2), mins(3)), Some(67));
+        assert_eq!(percent(mins(2), SignedDuration::ZERO), None);
     }
 
     #[test]

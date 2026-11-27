@@ -444,8 +444,10 @@ role = "work"
 billable = true
 "#;
 
-#[test]
-fn sentence_lines_wrap_to_eighty_columns() -> TestResult {
+/// A sandbox of a busy Tuesday: role targets of 180 hours a week, a
+/// project whose client has no rate before 2027, an overlap and a long
+/// hold reason.
+fn busy_sandbox() -> Result<Sandbox, Box<dyn std::error::Error>> {
     let sandbox = Sandbox::new()?;
     sandbox.write("home/roles.toml", BUSY_ROLES)?;
     sandbox.write("home/clients.toml", LATE_RATE)?;
@@ -493,6 +495,12 @@ fn sentence_lines_wrap_to_eighty_columns() -> TestResult {
     for (time, args) in steps {
         _ = run(sandbox.pace_at(time).args(args))?;
     }
+    Ok(sandbox)
+}
+
+#[test]
+fn sentence_lines_wrap_to_eighty_columns() -> TestResult {
+    let sandbox = busy_sandbox()?;
 
     let raw = run(sandbox.pace_at("15:00").args(["reflect", "--plain"]))?;
     let output = sandbox.journey(&[("15:00", &["reflect", "--plain"])])?;
@@ -529,6 +537,91 @@ fn overlap_is_named_by_short_ids() -> TestResult {
         ),
         ("10:00", &["reflect", "today", "--plain"]),
     ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn reflect_shows_week_as_json() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--format", "json"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn reflect_shows_week_as_csv() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--format", "csv"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn csv_quotes_note_with_comma_and_quote() -> TestResult {
+    let sandbox = catalog_sandbox()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
+    _ = run(sandbox
+        .pace_at("09:30")
+        .args(["catch", r#"call Bob, say "hi""#]))?;
+
+    let output = run(sandbox
+        .pace_at("10:00")
+        .args(["reflect", "today", "--format", "csv"]))?;
+
+    let catch = output
+        .lines()
+        .find(|line| line.starts_with("pauses,catch,"))
+        .ok_or_else(|| format!("no catch row in {output}"))?;
+    assert!(catch.contains(r#","call Bob, say ""hi""","#), "{catch}");
+    Ok(())
+}
+
+#[test]
+fn json_money_is_decimal_string_with_currency() -> TestResult {
+    let sandbox = catalog_sandbox()?;
+    sandbox.write(
+        "home/clients.toml",
+        &CLIENTS.replace("hourly = 95", "hourly = 95.50"),
+    )?;
+    _ = run(sandbox.pace_at("11:00").args([
+        "log",
+        "Plan relaunch",
+        "--project",
+        "acme-webshop",
+        "--from",
+        "09:00",
+        "--to",
+        "10:00",
+    ]))?;
+
+    let output = run(sandbox
+        .pace_at("11:00")
+        .args(["reflect", "today", "--format", "json"]))?;
+
+    assert!(output.contains(r#""amount": "95.50","#), "{output}");
+    assert!(output.contains(r#""currency": "EUR""#), "{output}");
+    Ok(())
+}
+
+#[test]
+fn json_names_warnings_and_time_without_rate() -> TestResult {
+    let sandbox = busy_sandbox()?;
+
+    let output = sandbox.journey(&[(
+        "15:00",
+        &[
+            "reflect",
+            "--from",
+            "2026-11-24",
+            "--to",
+            "2026-11-24",
+            "--format",
+            "json",
+        ],
+    )])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

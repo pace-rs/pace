@@ -1,0 +1,192 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --from 2026-11-24 --to 2026-11-24 --format json   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+{
+  "version": 1,
+  "kind": "reflect",
+  "rows": [
+    {
+      "part": "time",
+      "group": "tracked",
+      "start": "2026-11-24T00:00:00+01:00[Europe/Berlin]",
+      "end": "2026-11-25T00:00:00+01:00[Europe/Berlin]",
+      "net_seconds": 14400,
+      "net": "4h",
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "untracked",
+      "net_seconds": 72000,
+      "net": "20h"
+    },
+    {
+      "part": "time",
+      "group": "role",
+      "key": "work",
+      "id": "[ID-1]",
+      "name": "Work",
+      "net_seconds": 7200,
+      "net": "2h",
+      "percent": 50,
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "role",
+      "net_seconds": 7200,
+      "net": "2h",
+      "percent": 50,
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "project",
+      "key": "acme-relaunch",
+      "id": "[ID-2]",
+      "name": "Relaunch of the webshop for the spring collection",
+      "net_seconds": 7200,
+      "net": "2h",
+      "percent": 50,
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "project",
+      "net_seconds": 7200,
+      "net": "2h",
+      "percent": 50,
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-24",
+      "net_seconds": 14400,
+      "net": "4h",
+      "percent": 100,
+      "running": false
+    },
+    {
+      "part": "target",
+      "group": "role",
+      "key": "family",
+      "id": "[ID-3]",
+      "name": "Family",
+      "net_seconds": 0,
+      "net": "0s",
+      "percent": 0,
+      "target_seconds": 41142,
+      "target": "11h 25m",
+      "running": false
+    },
+    {
+      "part": "target",
+      "group": "role",
+      "key": "work",
+      "id": "[ID-1]",
+      "name": "Work",
+      "net_seconds": 7200,
+      "net": "2h",
+      "percent": 14,
+      "target_seconds": 51428,
+      "target": "14h 17m",
+      "running": false
+    },
+    {
+      "part": "target",
+      "group": "targets_above_week",
+      "target_seconds": 648000,
+      "target": "180h"
+    },
+    {
+      "part": "revenue",
+      "group": "no_rate",
+      "key": "acme-relaunch",
+      "id": "[ID-2]",
+      "name": "Relaunch of the webshop for the spring collection",
+      "client": "acme",
+      "date": "2026-11-24",
+      "net_seconds": 7200,
+      "net": "2h",
+      "billed_seconds": 7200,
+      "billed": "2h",
+      "running": false
+    },
+    {
+      "part": "interruptions",
+      "group": "total",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s"
+    },
+    {
+      "part": "interruptions",
+      "group": "source",
+      "key": "inner",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s"
+    },
+    {
+      "part": "interruptions",
+      "group": "source",
+      "key": "outer",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s"
+    },
+    {
+      "part": "interruptions",
+      "group": "source",
+      "key": "unknown",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s"
+    },
+    {
+      "part": "decided",
+      "group": "determined_by",
+      "key": "self",
+      "net_seconds": 0,
+      "net": "0s",
+      "percent": 0,
+      "running": false
+    },
+    {
+      "part": "decided",
+      "group": "determined_by",
+      "key": "other",
+      "net_seconds": 0,
+      "net": "0s",
+      "percent": 0,
+      "running": false
+    },
+    {
+      "part": "decided",
+      "group": "determined_by",
+      "key": "unmarked",
+      "net_seconds": 14400,
+      "net": "4h",
+      "percent": 100,
+      "running": false
+    },
+    {
+      "part": "overlaps",
+      "group": "overlap",
+      "id": "[ID-4]",
+      "short": "[ID-4]",
+      "start": "2026-11-24T10:00:00+01:00[Europe/Berlin]",
+      "end": "2026-11-24T11:00:00+01:00[Europe/Berlin]",
+      "other_id": "[ID-5]",
+      "other_short": "[ID-5]"
+    }
+  ]
+}
+
+----- stderr -----

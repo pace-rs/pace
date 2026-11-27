@@ -16,7 +16,10 @@ use crate::commands::{client::unknown_client, role::known_role, tracking::tags};
 use crate::output::usage;
 use crate::print::print_lines;
 use crate::project::Reason;
-use crate::render::{Canvas, ReportTable, nothing_tracked, report_table};
+use crate::render::{
+    Canvas, ReportRows, ReportTable, nothing_tracked, report_rows, report_table,
+    schema::{SchemaKind, schema_csv, schema_json},
+};
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
     session::Session,
@@ -100,6 +103,10 @@ pub struct ReflectCmd {
 pub enum ReflectFormat {
     /// A table for the terminal, with bars.
     Table,
+    /// JSON for scripts, in the schema of version 1.
+    Json,
+    /// CSV for spreadsheets, in the schema of version 1.
+    Csv,
 }
 
 impl Runnable for ReflectCmd {
@@ -134,10 +141,19 @@ impl ReflectCmd {
             zone: &zone,
             all_time: all_time.as_ref(),
         })?;
+        let rows = || {
+            report_rows(&ReportRows {
+                report: &report,
+                catalog,
+                state: &state,
+            })
+        };
         match self.format {
             ReflectFormat::Table if report.roles.is_empty() => {
                 print_lines([nothing_tracked(&frame)])
             }
+            ReflectFormat::Json => print_lines([schema_json(SchemaKind::Reflect, &rows())?]),
+            ReflectFormat::Csv => print_lines(schema_csv(SchemaKind::Reflect, &rows())),
             ReflectFormat::Table => print_lines(report_table(
                 &ReportTable {
                     report: &report,

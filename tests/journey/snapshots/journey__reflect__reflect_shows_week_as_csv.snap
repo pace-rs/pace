@@ -1,0 +1,40 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --format csv   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+part,group,key,id,short,name,client,date,start,end,count,net_seconds,net,percent,target_seconds,target,budget_seconds,budget,billed_seconds,billed,held_seconds,held,paused_seconds,paused,amount,currency,reason,note,other_id,other_short,running
+time,tracked,,,,,,,2026-11-23T00:00:00+01:00[Europe/Berlin],2026-11-30T00:00:00+01:00[Europe/Berlin],,26100,7h 15m,,,,,,,,,,,,,,,,,,true
+time,untracked,,,,,,,,,,287100,79h 45m,,,,,,,,,,,,,,,,,,
+time,role,work,[ID-1],,Work,,,,,,18900,5h 15m,72,,,,,,,,,,,,,,,,,false
+time,role,health,[ID-2],,Health,,,,,,3600,1h,14,,,,,,,,,,,,,,,,,false
+time,role,,,,,,,,,,3600,1h,14,,,,,,,,,,,,,,,,,true
+time,project,acme-webshop,[ID-3],,Webshop relaunch,,,,,,18900,5h 15m,72,,,,,,,,,,,,,,,,,false
+time,project,,,,,,,,,,7200,2h,28,,,,,,,,,,,,,,,,,true
+time,day,,,,,,2026-11-23,,,,0,0s,0,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-24,,,,3600,1h,14,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-25,,,,7200,2h,28,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-26,,,,15300,4h 15m,59,,,,,,,,,,,,,,,,,true
+time,day,,,,,,2026-11-27,,,,0,0s,0,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-28,,,,0,0s,0,,,,,,,,,,,,,,,,,false
+time,day,,,,,,2026-11-29,,,,0,0s,0,,,,,,,,,,,,,,,,,false
+target,role,work,[ID-1],,Work,,,,,,18900,5h 15m,18,108000,30h,,,,,,,,,,,,,,,false
+budget,project,acme-webshop,[ID-3],,Webshop relaunch,,,,,,18900,5h 15m,53,,,36000,10h,,,,,,,,,,,,,false
+revenue,client,acme,,,ACME GmbH,,,,,,,,,,,,,18900,5h 15m,,,,,498.75,EUR,,,,,false
+revenue,project,acme-webshop,[ID-3],,Webshop relaunch,acme,,,,,,,,,,,,18900,5h 15m,,,,,498.75,EUR,,,,,false
+revenue,total,,,,,,,,,,,,,,,,,,,,,,,498.75,EUR,,,,,
+interruptions,total,,,,,,,,,1,,,,,,,,,,900,15m,,,,,,,,,
+interruptions,source,inner,,,,,,,,0,,,,,,,,,,0,0s,,,,,,,,,
+interruptions,source,outer,,,,,,,,1,,,,,,,,,,900,15m,,,,,,,,,
+interruptions,source,unknown,,,,,,,,0,,,,,,,,,,0,0s,,,,,,,,,
+interruptions,reason,,,,,,,,,1,,,,,,,,,,,,,,,,phone call,,,,
+pauses,kind,lunch,,,,,,,,1,,,,,,,,,,,,1800,30m,,,,,,,
+pauses,catch,,[ID-4],[ID-4],,,,2026-11-26T14:30:00+01:00[Europe/Berlin],,,,,,,,,,,,,,,,,,,call Bob back,,,
+decided,determined_by,self,,,,,,,,,3600,1h,14,,,,,,,,,,,,,,,,,false
+decided,determined_by,other,,,,,,,,,3600,1h,14,,,,,,,,,,,,,,,,,true
+decided,determined_by,unmarked,,,,,,,,,18900,5h 15m,72,,,,,,,,,,,,,,,,,false
+
+----- stderr -----
