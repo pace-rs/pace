@@ -1,5 +1,5 @@
 //! The event store of pace: its port, its driver, its backends, and pace's
-//! TOML file reader.
+//! TOML file reader and writer.
 //!
 //! - [`EventStore`]: the port, the trait every backend implements.
 //! - [`Tracker`]: the blocking driver of `pace_core`'s tracking machine; it
@@ -11,6 +11,8 @@
 //!   [`existing_device_id`] reads it without creating one.
 //! - [`toml_file`]: span-aware reading of pace's TOML files, so errors name
 //!   the file and the line.
+//! - [`field_edit`]: the field writer of pace's TOML files, which keeps
+//!   their comments and order.
 //! - `testing` (feature `testing`): a scratch directory for tests that write
 //!   through a backend, the in-memory `MemoryStore`, `Raced`, and the store
 //!   contract every backend passes.
@@ -48,12 +50,14 @@
 //! ```
 
 mod disk;
+pub mod field_edit;
 mod files;
 mod format;
 mod hlc;
 mod index;
 mod machine;
 mod port;
+mod renames;
 mod split;
 #[cfg(feature = "testing")]
 pub mod testing;

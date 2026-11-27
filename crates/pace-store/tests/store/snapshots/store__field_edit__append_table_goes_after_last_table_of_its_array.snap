@@ -1,0 +1,22 @@
+---
+source: crates/pace-store/tests/store/field_edit.rs
+expression: read(&clients)?
+---
+version = 1
+
+# Our oldest client.
+[acme]
+name = "ACME Inc." # as on the invoices
+currency = "EUR"
+
+[[acme.rates]]
+from = 2026-01-01
+hourly = 90.00
+
+[[acme.rates]]
+from = 2026-07-01
+hourly = 95.50
+
+# Since spring.
+[globex]
+name = "Globex"

@@ -1,0 +1,9 @@
+---
+source: crates/pace-store/tests/store/field_edit.rs
+expression: read(&project)?
+---
+version = 1
+name = "Website relaunch"
+
+[[rates]]
+hourly = 1200

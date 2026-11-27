@@ -32,6 +32,7 @@ use crate::disk::{
 };
 use crate::format::parse_events;
 use crate::machine::clone_detected;
+use crate::renames::{Prepared, persist, rename_all};
 use crate::{
     EventStore, Split,
     index::{FileSummary, INDEX_VERSION, Index, select_event_files, summarize},
@@ -40,11 +41,13 @@ use crate::{
 
 mod own_log;
 mod parsed;
-mod renames;
 
 use own_log::{Tombstone, batch_tombstones, index_tombstones};
+
+/// How to take back the part of a batch that an event file keeps when a
+/// rename fails and pace can't put the file back.
+const KEPT_EVENTS_HINT: &str = "run `pace undo` to take back the part that pace recorded";
 use parsed::{Events, Parsed};
-use renames::{Prepared, persist, rename_all};
 
 /// The files backend for one device.
 #[derive(Debug)]
@@ -146,7 +149,7 @@ impl FilesStore {
 
     /// [`EventStore::append`], with `rename` as the step that renames a
     /// temporary file over its event file; a test makes it fail.
-    fn append_with(
+    pub(crate) fn append_with(
         &self,
         batch: Batch,
         read: ChangeMarker,
@@ -219,7 +222,7 @@ impl FilesStore {
         // or none: a failed rename or a panic puts back the files renamed
         // before it. A kill between two renames, or a file that can't be
         // put back, leaves part of the batch; the error names that file.
-        rename_all(written, rename)?;
+        rename_all(written, rename, KEPT_EVENTS_HINT)?;
         // The batch is in the log: what follows can fail without failing it.
         for file in held {
             self.parsed.remember(file.path, file.text, file.events);

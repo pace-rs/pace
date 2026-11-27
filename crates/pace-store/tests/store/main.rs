@@ -3,6 +3,7 @@
 mod device;
 mod devices;
 mod failures;
+mod field_edit;
 mod file_access;
 mod files;
 mod invariants;

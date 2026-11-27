@@ -22,6 +22,7 @@ serde_json = { workspace = true }
 strsim = { workspace = true }
 tempfile = { workspace = true }
 toml = { workspace = true }
+toml_edit = { workspace = true }
 
 [features]
 # `pace_store::testing`: a scratch directory, the in-memory store and the

@@ -1,0 +1,14 @@
+---
+source: crates/pace-store/tests/store/field_edit.rs
+expression: "format!(\"pace.global.toml:\\n{}\\n.pace.toml:\\n{}\", read(&global)?,\nread(&manifest)?)"
+---
+pace.global.toml:
+version = 1
+
+# Where I live.
+time-zone = "Europe/Lisbon"
+split = "month"
+
+.pace.toml:
+version = 1
+project = "website"

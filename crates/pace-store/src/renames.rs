@@ -1,4 +1,5 @@
-//! The renames that put a batch into its event files, all or none.
+//! The renames that put the files of one write in place, all or none: the
+//! event files of a batch, or the TOML files of a field edit.
 
 use std::{
     io,
@@ -11,18 +12,18 @@ use tempfile::NamedTempFile;
 
 use crate::disk::{FileOp, io_error, write_atomically};
 
-/// An event file of a batch, written to a temporary file next to it.
-pub(super) struct Prepared {
+/// A file of a write, its new text in a temporary file next to it.
+pub(crate) struct Prepared {
     /// The file's new text.
     pub temporary: NamedTempFile,
-    /// The event file.
+    /// The file.
     pub path: PathBuf,
-    /// The file's text before the batch; `None` if the batch creates it.
+    /// The file's text before the write; `None` if the write creates it.
     pub before: Option<String>,
 }
 
 /// The rename step of [`rename_all`] outside tests: `temporary` over `path`.
-pub(super) fn persist(temporary: NamedTempFile, path: &Path) -> io::Result<()> {
+pub(crate) fn persist(temporary: NamedTempFile, path: &Path) -> io::Result<()> {
     temporary
         .persist(path)
         .map(drop)
@@ -35,15 +36,17 @@ struct Renamed {
     before: Option<String>,
 }
 
-/// Rename each of `files` over its event file with `rename`, all or none.
+/// Rename each of `files` over its file with `rename`, all or none.
 ///
-/// A guard holds the files renamed so far. If a rename fails, the guard is
+/// If a file can't be put back, the error names it, with `kept_hint` as
+/// the way to take back its part. A guard holds the files renamed so far. If a rename fails, the guard is
 /// dismissed and [`restore`] puts them back, so a restore that fails ends
 /// up in the error. On a panic, the guard puts them back and reports to no
 /// one. Once every rename holds, the guard is dismissed.
-pub(super) fn rename_all(
+pub(crate) fn rename_all(
     files: Vec<Prepared>,
     mut rename: impl FnMut(NamedTempFile, &Path) -> io::Result<()>,
+    kept_hint: &'static str,
 ) -> PaceResult<()> {
     let mut renamed = DropGuard::new(Vec::with_capacity(files.len()), |renamed: Vec<Renamed>| {
         _ = restore(&renamed);
@@ -60,7 +63,7 @@ pub(super) fn rename_all(
             return Err(if kept.is_empty() {
                 error
             } else {
-                keeps_part(error, &kept)
+                keeps_part(error, &kept, kept_hint)
             });
         }
         renamed.push(Renamed { path, before });
@@ -70,7 +73,7 @@ pub(super) fn rename_all(
 }
 
 /// Put back each of `renamed`, the last first: write its text before, or
-/// remove it if the batch created it. Returns the files it could not put
+/// remove it if the write created it. Returns the files it could not put
 /// back; it never panics, as it runs in a guard during an unwind too.
 fn restore(renamed: &[Renamed]) -> Vec<PathBuf> {
     renamed
@@ -81,7 +84,7 @@ fn restore(renamed: &[Renamed]) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Whether `renamed` holds its text before again, or is gone if the batch
+/// Whether `renamed` holds its text before again, or is gone if the write
 /// created it.
 fn put_back(Renamed { path, before }: &Renamed) -> bool {
     let Some(text) = before else {
@@ -96,8 +99,8 @@ fn put_back(Renamed { path, before }: &Renamed) -> bool {
 }
 
 /// `error` of a failed rename, which also names the files `kept` that still
-/// hold part of the batch.
-fn keeps_part(error: Box<PaceError>, kept: &[PathBuf]) -> Box<PaceError> {
+/// hold part of the write, and `hint`, how to take that part back.
+fn keeps_part(error: Box<PaceError>, kept: &[PathBuf], hint: &'static str) -> Box<PaceError> {
     let kept = kept
         .iter()
         .map(|path| path.display().to_string())
@@ -106,7 +109,7 @@ fn keeps_part(error: Box<PaceError>, kept: &[PathBuf]) -> Box<PaceError> {
     error
         .append_guidance_line("{kept} still holds part of the command: pace failed to put it back")
         .attach_context("kept", kept)
-        .attach_hint("run `pace undo` to take back the part that pace recorded")
+        .attach_hint(hint)
 }
 
 #[cfg(test)]

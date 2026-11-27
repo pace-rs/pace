@@ -334,9 +334,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::{
-        EventStore, Tracker, files::renames::persist, machine::Cursors, testing::scratch_dir,
-    };
+    use crate::{EventStore, Tracker, machine::Cursors, renames::persist, testing::scratch_dir};
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
