@@ -45,6 +45,10 @@ where
         entries_recorded_since_are_read_wherever_they_are_filed(&new_storage()),
     )?;
     within(
+        WHOLE_ENTRIES,
+        read_returns_every_event_of_its_entries(&new_storage()),
+    )?;
+    within(
         UNDO_WITH_BATCH,
         an_undo_is_read_with_its_batch(&new_storage()),
     )?;
@@ -74,6 +78,7 @@ const OPEN_ENTRIES: &str = "open entries are read whatever the range";
 const OVERLAPPING_ENTRIES: &str = "entries overlapping the range are read wherever they are filed";
 const RECORDED_SINCE: &str =
     "entries with an event recorded since a moment are read wherever they are filed";
+const WHOLE_ENTRIES: &str = "a read returns every event of each entry it returns";
 const UNDO_WITH_BATCH: &str = "an undo is read with its batch";
 const HLC_NEVER_GOES_BACK: &str = "the HLC never goes back when the clock does";
 const HLC_AFTER_OTHER_DEVICES: &str = "the HLC comes after what other devices wrote";
@@ -288,6 +293,56 @@ where
         note.as_deref() == Some("Recorded in November"),
         check,
         format!("the entry came without its adjustment: its note is {note:?}"),
+    )
+}
+
+/// Device 2 begins an entry that device 1 ends: with a daily split on
+/// device 1 and a monthly one on device 2, the end lies in a file whose
+/// moments are far from what device 1 begins later.
+fn read_returns_every_event_of_its_entries<O, S>(open_store: &O) -> PaceResult<()>
+where
+    O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
+    S: EventStore,
+{
+    let check = WHOLE_ENTRIES;
+    let laptop = open(open_store, 1, "2026-11-03T10:00[Europe/Berlin]")?;
+    let desktop = open(open_store, 2, "2026-11-03T09:00[Europe/Berlin]")?;
+    _ = desktop.tracker.run(&Command::Begin(Begin::default()))?;
+    _ = laptop.tracker.run(&Command::End(End::default()))?;
+    laptop.clock.set(at("2026-11-20T09:00[Europe/Berlin]")?);
+    _ = laptop.tracker.run(&Command::Begin(Begin::default()))?;
+    desktop.clock.set(at("2026-11-21T10:00[Europe/Berlin]")?);
+    _ = desktop.tracker.run(&Command::Log(Log {
+        allow_overlap: true,
+        ..Log::new(
+            at("2026-11-21T08:00[Europe/Berlin]")?,
+            at("2026-11-21T09:00[Europe/Berlin]")?,
+        )
+    }))?;
+    laptop.clock.set(at("2026-11-27T09:00[Europe/Berlin]")?);
+
+    let all = laptop.tracker.state(&TimeRange::new(None, None)?)?;
+    let state = laptop.tracker.state(&range(
+        "2026-11-27T00:00[Europe/Berlin]",
+        "2026-11-28T00:00[Europe/Berlin]",
+    )?)?;
+    for entry in state.entries() {
+        ensure(
+            all.entry(entry.id) == Some(entry),
+            check,
+            format!(
+                "the entry begun at {} came without some of its events",
+                entry.start
+            ),
+        )?;
+    }
+    ensure(
+        state.open().count() == 1,
+        check,
+        format!(
+            "a read of 27 November shows {} open entries, not one",
+            state.open().count()
+        ),
     )
 }
 

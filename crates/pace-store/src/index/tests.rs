@@ -313,6 +313,47 @@ fn files_of_other_devices_about_the_same_entries_come_along() -> TestResult {
 }
 
 #[test]
+fn files_about_the_entries_of_files_that_came_along_come_along_too() -> TestResult {
+    // The desktop splits by month and began entry 1, which the laptop,
+    // splitting by day, ended; the laptop's open entry 2 brings the
+    // desktop's month, and its entry 1 brings the laptop's 3 November.
+    let mut month = Events::new();
+    _ = month
+        .add(1, "11-03T09:00", "11-03T09:00", begun(entry(1)?))?
+        .add(
+            3,
+            "11-21T10:00",
+            "11-21T08:00",
+            EventKind::EntryLogged {
+                entry: entry(3)?,
+                end: at("11-21T09:00")?,
+                project: None,
+                note: None,
+                tags: BTreeSet::new(),
+            },
+        )?;
+    let mut ended = Events::new();
+    _ = ended.add(
+        2,
+        "11-03T10:00",
+        "11-03T09:00",
+        EventKind::EntryEnded { entry: entry(1)? },
+    )?;
+    let mut open = Events::new();
+    _ = open.add(4, "11-20T09:00", "11-20T09:00", begun(entry(2)?))?;
+    let all = files(vec![
+        ("a/2026/11/2026-11-03.toml", summary_of(&ended)),
+        ("a/2026/11/2026-11-20.toml", summary_of(&open)),
+        ("b/2026/2026-11.toml", summary_of(&month)),
+    ]);
+
+    let selected = select(&all, &range("11-27T00:00", "11-28T00:00")?);
+
+    assert_eq!(selected, all.keys().cloned().collect());
+    Ok(())
+}
+
+#[test]
 fn files_with_events_recorded_since_are_selected_with_their_entries() -> TestResult {
     // Logged on 26 November about June: the moments lie in June, the HLC
     // in November.

@@ -92,8 +92,15 @@ fn collect(root: &Path, dir: &Path, files: &mut Vec<String>) -> std::io::Result<
     Ok(())
 }
 
-#[test]
-fn the_files_backend_keeps_the_store_contract() -> TestResult {
+#[rstest]
+#[case::month_on_both(Split::Month, Split::Month)]
+#[case::day_beside_month(Split::Day, Split::Month)]
+#[case::month_beside_day(Split::Month, Split::Day)]
+fn the_files_backend_keeps_the_store_contract(
+    #[case] first_split: Split,
+    #[case] other_split: Split,
+) -> TestResult {
+    let first = device(1)?;
     run_store_contract(|| {
         let dir = scratch_dir().expect("a temporary directory for the store");
         move |device: DeviceId, clock: Arc<TestClock>| {
@@ -104,7 +111,11 @@ fn the_files_backend_keeps_the_store_contract() -> TestResult {
                 device,
                 "laptop".to_owned(),
                 clock,
-                Split::Month,
+                if device == first {
+                    first_split
+                } else {
+                    other_split
+                },
             )
         }
     })?;

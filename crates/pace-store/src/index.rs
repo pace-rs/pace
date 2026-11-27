@@ -166,7 +166,8 @@ fn span(moments: &[i64]) -> Option<(i64, i64)> {
 
 /// The files to read for `scope`: those whose moments meet its range, those
 /// where an open entry began, those with an event recorded since the
-/// scope's moment, and every file with events about the same entries.
+/// scope's moment, and every file with events about the same entries as
+/// a selected file.
 pub fn select(files: &BTreeMap<String, FileSummary>, scope: &ReadScope) -> BTreeSet<String> {
     let ended_elsewhere: BTreeSet<EntryId> = files
         .values()
@@ -182,9 +183,9 @@ pub fn select(files: &BTreeMap<String, FileSummary>, scope: &ReadScope) -> BTree
         start.is_none_or(|start| max >= start) && end.is_none_or(|end| min <= end)
     };
 
-    let first: Vec<&FileSummary> = files
-        .values()
-        .filter(|summary| {
+    let first: BTreeSet<&str> = files
+        .iter()
+        .filter(|(_, summary)| {
             summary.envelope.is_some_and(meets)
                 || recorded_since
                     .is_some_and(|since| summary.max_hlc.is_some_and(|(latest, _)| latest >= since))
@@ -193,21 +194,42 @@ pub fn select(files: &BTreeMap<String, FileSummary>, scope: &ReadScope) -> BTree
                     .iter()
                     .any(|entry| !ended_elsewhere.contains(entry))
         })
+        .map(|(name, _)| name.as_str())
         .collect();
 
-    files
-        .iter()
-        .filter(|(_, summary)| {
-            summary.abouts.is_some_and(|(min, max)| {
-                first.iter().any(|chosen| {
-                    chosen.abouts.is_some_and(|(chosen_min, chosen_max)| {
-                        min <= chosen_max && chosen_min <= max
-                    })
-                })
-            })
-        })
-        .map(|(name, _)| name.clone())
+    with_same_entries(files, first)
+        .into_iter()
+        .map(str::to_owned)
         .collect()
+}
+
+/// `chosen` and every file whose `about` range meets one of theirs, until
+/// no file comes along: a file that came along can bring an entry whose
+/// other events lie in a file that meets none of the first ones, when
+/// devices split their logs differently.
+fn with_same_entries<'a>(
+    files: &'a BTreeMap<String, FileSummary>,
+    mut chosen: BTreeSet<&'a str>,
+) -> BTreeSet<&'a str> {
+    let abouts = |name: &str| files.get(name).and_then(|summary| summary.abouts);
+    let mut frontier: Vec<(i64, i64)> = chosen.iter().filter_map(|name| abouts(name)).collect();
+    while !frontier.is_empty() {
+        let new: Vec<&str> = files
+            .iter()
+            .filter(|(name, summary)| {
+                !chosen.contains(name.as_str())
+                    && summary.abouts.is_some_and(|(min, max)| {
+                        frontier
+                            .iter()
+                            .any(|&(chosen_min, chosen_max)| min <= chosen_max && chosen_min <= max)
+                    })
+            })
+            .map(|(name, _)| name.as_str())
+            .collect();
+        frontier = new.iter().filter_map(|name| abouts(name)).collect();
+        chosen.extend(new);
+    }
+    chosen
 }
 
 #[cfg(test)]
