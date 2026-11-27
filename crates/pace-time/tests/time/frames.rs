@@ -2,6 +2,7 @@
 //! "now", which is the report time zone.
 
 use jiff::{ZonedDateTime, civil::Weekday};
+use pace_error::ErrorKind;
 use pace_time::{TimeFrame, TimeRange};
 use rstest::rstest;
 
@@ -65,13 +66,34 @@ fn days_between_read_as_sentence(
 }
 
 #[test]
-fn misspelled_frame_suggests_the_closest_name() {
+fn misspelled_frame_suggests_the_closest_name() -> TestResult {
     let error = "this-wek"
         .parse::<TimeFrame>()
         .err()
-        .map(|error| error.hint().unwrap_or_default().to_owned());
+        .ok_or("a misspelled frame must fail")?;
 
-    assert_eq!(error.as_deref(), Some("did you mean `this-week`?"));
+    assert_eq!(
+        error.to_string(),
+        "`this-wek` is not a time frame; pace knows today, yesterday, \
+         this-week, last-week, this-month, last-month, this-year, last-year, all"
+    );
+    assert_eq!(error.hint(), Some("did you mean `this-week`?"));
+    Ok(())
+}
+
+#[test]
+fn frame_name_unlike_any_points_to_from_and_to() -> TestResult {
+    let error = "fortnight"
+        .parse::<TimeFrame>()
+        .err()
+        .ok_or("an unknown frame must fail")?;
+
+    assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    assert_eq!(
+        error.hint(),
+        Some("pick one of the names above, or use `--from` and `--to`")
+    );
+    Ok(())
 }
 
 #[rstest]
@@ -397,6 +419,36 @@ fn range_that_ends_before_it_starts_is_rejected() -> TestResult {
         Some(at("2021-02-02T00:00[Europe/Berlin]")?),
     );
 
-    assert!(result.is_err());
+    let error = result.err().ok_or("an end before the start must fail")?;
+    assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "the time range ends at 2021-02-02T00:00:00+01:00[Europe/Berlin], \
+         before it starts at 2021-02-04T00:00:00+01:00[Europe/Berlin]"
+    );
+    assert_eq!(error.hint(), Some("swap the start and the end"));
+    Ok(())
+}
+
+// jiff calculates with moments up to 9999-12-30 22:00 UTC, so the midnight
+// after 9999-12-30 lies beyond it.
+#[test]
+fn frame_until_last_day_jiff_knows_asks_for_date_closer_to_today() -> TestResult {
+    let frame = TimeFrame::Between {
+        from: None,
+        to: Some("9999-12-30".parse()?),
+    };
+
+    let error = frame
+        .resolve(&at("2026-11-26T14:30[Europe/Berlin]")?, Weekday::Monday)
+        .err()
+        .ok_or("a frame beyond jiff's range must fail")?;
+
+    assert_eq!(error.kind(), ErrorKind::Time);
+    assert_eq!(
+        error.to_string(),
+        "the date lies outside the range pace can calculate with"
+    );
+    assert_eq!(error.hint(), Some("give a date closer to today"));
     Ok(())
 }
