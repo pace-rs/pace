@@ -8,7 +8,7 @@ exit_code: 0
 ----- stdout -----
 Found the record of the project `webshop` (Webshop relaunch).
 Wrote the manifest .pace.toml, which links this directory to the project.
-pace took these defaults: key `webshop` from the directory name; `pace project init --key` names another project.
+pace took these defaults: key `webshop` from the directory name. To link this directory to another project, remove .pace.toml and run `pace project init --key KEY`.
 
 ----- stderr -----
 

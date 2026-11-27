@@ -184,17 +184,20 @@ fn initialised_lines(asked: &Asked<InitProject>) -> Vec<String> {
     lines.extend(if made.record_added {
         defaults_line(&asked.defaults, &record.key)
     } else {
-        found_defaults_line(&asked.defaults)
+        found_defaults_line(&asked.defaults, &manifest)
     });
     lines
 }
 
 /// The line that names the `defaults` pace took for a record it found:
-/// the key, which only `--key` gives otherwise.
-fn found_defaults_line(defaults: &[String]) -> Option<String> {
+/// the key, and how to link the directory to another project instead.
+/// The `manifest` just written holds the key, so `--key` alone would
+/// clash with it: the hint names the file to remove first.
+fn found_defaults_line(defaults: &[String], manifest: &str) -> Option<String> {
     (!defaults.is_empty()).then(|| {
         format!(
-            "pace took these defaults: {}; `pace project init --key` names another project.",
+            "pace took these defaults: {}. To link this directory to another project, \
+             remove {manifest} and run `pace project init --key KEY`.",
             listed(defaults)
         )
     })

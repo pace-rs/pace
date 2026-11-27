@@ -67,6 +67,30 @@ fn project_init_in_second_checkout_writes_only_manifest() -> TestResult {
 }
 
 #[test]
+fn project_init_after_second_checkout_follows_its_hint_to_another_project() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write("home/projects/webshop.toml", WEBSHOP_RECORD)?;
+    sandbox.mkdir("work/laptop/webshop")?;
+    let first = sandbox
+        .pace_in("laptop/webshop")
+        .args(["project", "init"])
+        .output()?;
+    assert!(first.status.success());
+
+    std::fs::remove_file(sandbox.path("work/laptop/webshop/.pace.toml"))?;
+    let second = sandbox
+        .pace_in("laptop/webshop")
+        .args(["project", "init", "--key", "shop"])
+        .output()?;
+
+    assert!(second.status.success(), "{second:?}");
+    let manifest = std::fs::read_to_string(sandbox.path("work/laptop/webshop/.pace.toml"))?;
+    assert!(manifest.contains("key = \"shop\""), "{manifest}");
+    assert!(sandbox.path("home/projects/shop.toml").exists());
+    Ok(())
+}
+
+#[test]
 fn project_init_gives_phase_two_manifest_its_id_and_takes_its_name() -> TestResult {
     let sandbox = Sandbox::new()?;
     sandbox.write(
