@@ -1,0 +1,23 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace undo   # at 15:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::core::billed
+
+  × the undo would change [ID-1] "Fix the checkout", billed on invoice 2026-0042
+  help: add `--change-billed` to undo it anyway
+
+
+$ pace undo --change-billed   # at 15:05
+success: true
+exit_code: 0
+----- stdout -----
+Took back the logged entry [ID-1] "Fix the checkout", 2026-10-07 09:00–2026-10-07 12:00.
+
+----- stderr -----

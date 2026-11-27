@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use pace_core::{
     Change, Command, DeterminedBy, HoldSource, PauseKind, ProjectRef,
-    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, MarkBilled, Pause, Resume},
+    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, MarkBilled, Pause, Resume, Undo},
 };
 use rstest::rstest;
 
@@ -44,7 +44,7 @@ fn begin_carries_what_was_typed() -> TestResult {
 #[case::resume(Command::Resume(Resume::default()), r#"{"command":"resume"}"#)]
 #[case::end(Command::End(End::default()), r#"{"command":"end"}"#)]
 #[case::adjust(Command::Adjust(Adjust::default()), r#"{"command":"adjust"}"#)]
-#[case::undo(Command::Undo, r#"{"command":"undo"}"#)]
+#[case::undo(Command::Undo(Undo::default()), r#"{"command":"undo"}"#)]
 fn defaults_are_left_out(#[case] command: Command, #[case] json: &str) -> TestResult {
     assert_eq!(round_trip(&command)?, json);
     Ok(())
@@ -160,6 +160,7 @@ fn adjust_changes_role_determined_by_and_billable_like_note() -> TestResult {
 fn forget_names_the_entry() -> TestResult {
     let command = Command::Forget(Forget {
         entry: "0193a8d0-6c1e-7f3a-9b2d-4e5f60718293".parse()?,
+        change_billed: false,
     });
 
     assert_eq!(
@@ -202,8 +203,32 @@ fn mark_billed_of_all_time_leaves_out_start_and_end() -> TestResult {
 }
 
 #[rstest]
+#[case::adjust(
+    Command::Adjust(Adjust { change_billed: true, ..Adjust::default() }),
+    r#"{"command":"adjust","change-billed":true}"#
+)]
+#[case::undo(
+    Command::Undo(Undo { change_billed: true }),
+    r#"{"command":"undo","change-billed":true}"#
+)]
+#[case::forget(
+    Command::Forget(Forget {
+        entry: "0193a8d0-6c1e-7f3a-9b2d-4e5f60718293".parse().unwrap(),
+        change_billed: true,
+    }),
+    r#"{"command":"forget","entry":"0193a8d0-6c1e-7f3a-9b2d-4e5f60718293","change-billed":true}"#
+)]
+fn change_billed_is_written_only_when_given(
+    #[case] command: Command,
+    #[case] json: &str,
+) -> TestResult {
+    assert_eq!(round_trip(&command)?, json);
+    Ok(())
+}
+
+#[rstest]
 #[case::end(r#"["end"]"#, Command::End(End::default()))]
-#[case::undo(r#"["undo"]"#, Command::Undo)]
+#[case::undo(r#"["undo"]"#, Command::Undo(Undo::default()))]
 fn command_without_fields_reads_from_sequence(
     #[case] json: &str,
     #[case] command: Command,
@@ -215,7 +240,10 @@ fn command_without_fields_reads_from_sequence(
 #[rstest]
 #[case::unknown_field_of_end(r#"{"command":"end","force":true}"#, "unknown field `force`")]
 #[case::unknown_field_of_undo(r#"{"command":"undo","force":true}"#, "unknown field `force`")]
-#[case::undo_sequence_with_element(r#"["undo",true]"#, "invalid length 1, expected no fields")]
+#[case::undo_sequence_with_extra_element(
+    r#"["undo",true,1]"#,
+    "invalid length 2, expected 1 element in sequence"
+)]
 #[case::unknown_command(r#"{"command":"stop"}"#, "unknown variant `stop`")]
 #[case::project_without_key_or_id(
     r#"{"command":"begin","project":"acme-webshop"}"#,

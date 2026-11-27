@@ -525,7 +525,7 @@ fn mark_billed_refuses_format_and_blank_reference_as_usage() -> TestResult {
 /// An entry that is open and billed: it ended on this device, which
 /// syncs it to a second device with the same catalog. That device marks
 /// October billed, and this one takes back the end before it syncs the
-/// marking in.
+/// marking in, with `--change-billed`, for the end is of a billed entry.
 fn open_billed_entry(sandbox: &Sandbox) -> TestResult {
     for (time, args) in [
         (
@@ -546,7 +546,7 @@ fn open_billed_entry(sandbox: &Sandbox) -> TestResult {
         .args(["bill", "--mark-billed", "2026-0042"]))?;
     assert!(marked.starts_with("success: true"), "{marked}");
     sandbox.sync_events_from("other-home")?;
-    let undone = run(sandbox.pace_at("14:30").arg("undo"))?;
+    let undone = run(sandbox.pace_at("14:30").args(["undo", "--change-billed"]))?;
     assert!(undone.starts_with("success: true"), "{undone}");
     Ok(())
 }
@@ -624,6 +624,112 @@ fn mark_billed_rounds_days_of_reports_time_zone() -> TestResult {
                 "2026-10-31",
             ],
         ),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+// Billed entries are protected
+
+#[test]
+fn adjust_of_billed_entry_names_invoice_and_change_billed() -> TestResult {
+    let sandbox = october_sandbox()?;
+
+    let output = sandbox.journey(&[
+        ("15:00", &["bill", "--mark-billed", "2026-0042"]),
+        (
+            "15:05",
+            &["adjust", "--last", "--note", "Write the blog post"],
+        ),
+        (
+            "15:06",
+            &[
+                "adjust",
+                "--last",
+                "--note",
+                "Write the blog post",
+                "--change-billed",
+            ],
+        ),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn forget_of_billed_entry_is_refused() -> TestResult {
+    let sandbox = october_sandbox()?;
+
+    let output = sandbox.journey(&[
+        ("15:00", &["bill", "--mark-billed", "2026-0042"]),
+        ("15:05", &["forget", "--last", "--for-good"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn edit_of_billed_entry_is_refused_before_editor_opens() -> TestResult {
+    let sandbox = october_sandbox()?;
+    _ = run(sandbox
+        .pace_at("15:00")
+        .args(["bill", "--mark-billed", "2026-0042"]))?;
+
+    let refused = run(sandbox
+        .pace_at("15:05")
+        .env("VISUAL", "false")
+        .args(["edit", "--last"]))?;
+    let edited = run(sandbox
+        .pace_at("15:06")
+        .env(
+            "VISUAL",
+            "sed -i -e 's/^note = .*/note = \"Write the blog post\"/'",
+        )
+        .args(["edit", "--last", "--change-billed"]))?;
+
+    let transcript = sandbox.redact_ids(&format!("{refused}\n{edited}"))?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
+/// An entry logged on this device and billed on a second one, whose
+/// marking this device then syncs in: the last batch of this device is
+/// the entry's own.
+fn entry_billed_on_other_device(sandbox: &Sandbox) -> TestResult {
+    _ = run(sandbox.pace_at(&october(7, "12:00")).args([
+        "log",
+        "Fix the checkout",
+        "--project",
+        "acme-webshop",
+        "--from",
+        "2026-10-07 09:00",
+        "--to",
+        "2026-10-07 12:00",
+    ]))?;
+    sandbox.sync_events_to("other-home")?;
+    sandbox.write("other-home/clients.toml", ACME)?;
+    sandbox.write("other-home/projects/acme-webshop.toml", WEBSHOP)?;
+    let marked = run(sandbox
+        .pace_at("14:00")
+        .env("PACE_HOME", sandbox.path("other-home"))
+        .env("PACE_MACHINE_DIR", sandbox.path("other-machine"))
+        .args(["bill", "--mark-billed", "2026-0042"]))?;
+    assert!(marked.starts_with("success: true"), "{marked}");
+    sandbox.sync_events_from("other-home")?;
+    Ok(())
+}
+
+#[test]
+fn undo_of_begin_of_billed_entry_is_refused() -> TestResult {
+    let sandbox = catalog_sandbox(false)?;
+    entry_billed_on_other_device(&sandbox)?;
+
+    let output = sandbox.journey(&[
+        ("15:00", &["undo"]),
+        ("15:05", &["undo", "--change-billed"]),
     ])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())

@@ -411,7 +411,10 @@ mod tests {
         let entry = pair.write_offer()?;
         pair.clock.set("2026-11-26T09:30[Europe/Berlin]".parse()?);
 
-        let texts = pair.renamed_texts(&Command::Forget(Forget { entry }))?;
+        let texts = pair.renamed_texts(&Command::Forget(Forget {
+            entry,
+            change_billed: false,
+        }))?;
 
         let [text] = texts.as_slice() else {
             return Err(format!("one file renamed, not {}", texts.len()).into());
@@ -426,9 +429,10 @@ mod tests {
         let pair = Pair::new()?;
         let entry = pair.write_offer()?;
         pair.clock.set("2026-11-26T09:30[Europe/Berlin]".parse()?);
-        _ = pair
-            .tracker(pair.desktop, 2)
-            .run(&Command::Forget(Forget { entry }))?;
+        _ = pair.tracker(pair.desktop, 2).run(&Command::Forget(Forget {
+            entry,
+            change_billed: false,
+        }))?;
         pair.clock.set("2026-11-26T09:45[Europe/Berlin]".parse()?);
 
         let texts = pair.renamed_texts(&Command::Begin(Begin::default()))?;
@@ -446,7 +450,10 @@ mod tests {
         let entry = pair.write_offer()?;
         let tracker = pair.tracker(pair.laptop, 2);
         pair.clock.set("2026-11-26T09:30[Europe/Berlin]".parse()?);
-        _ = tracker.run(&Command::Forget(Forget { entry }))?;
+        _ = tracker.run(&Command::Forget(Forget {
+            entry,
+            change_billed: false,
+        }))?;
         pair.clock.set("2026-11-26T09:45[Europe/Berlin]".parse()?);
 
         _ = tracker.run(&Command::Begin(Begin::default()))?;

@@ -103,7 +103,7 @@ pub use report::{
     ReportInput, ReportPeriod, ReportWarning, Revenue, RoleTarget, RoleTime, TOP_REASONS,
     TimeShare,
 };
-pub use rules::{INVOICE_USED, OVERLAP, Policy, Rules};
+pub use rules::{BILLED, BilledChange, INVOICE_USED, OVERLAP, Policy, Rules, refuse_billed_change};
 pub use scope::ReadScope;
 pub use state::{Overlap, State, UndoTarget};
 pub use steps::{AfterAppend, AfterRead, Appending, Decided, Outcome, Reading};

@@ -311,7 +311,7 @@ fn scope(command: &Command, now: &ZonedDateTime) -> PaceResult<ReadScope> {
         }
         // The last batch may be about any time, so the read takes what was
         // recorded lately.
-        Command::Undo => match look_back {
+        Command::Undo(_) => match look_back {
             Some(back) => ReadScope::of(now_to_now()?).with_recorded_since(back.timestamp()),
             None => ReadScope::everything(),
         },
@@ -354,7 +354,7 @@ fn suffices(command: &Command, state: &State, scope: &ReadScope, device: DeviceI
         | Command::End(End {
             entry: Some(id), ..
         })
-        | Command::Forget(Forget { entry: id }) => named(*id),
+        | Command::Forget(Forget { entry: id, .. }) => named(*id),
         Command::Adjust(adjust) => match (adjust.entry, adjusted_entry(state, adjust)) {
             (_, Some(entry)) => {
                 let checked_from = adjust.start.as_ref().unwrap_or(&entry.start);
@@ -364,7 +364,7 @@ fn suffices(command: &Command, state: &State, scope: &ReadScope, device: DeviceI
             // No open entry, or several: every read has all open entries.
             (None, None) => true,
         },
-        Command::Undo => state.last_undoable(device).is_some_and(|target| {
+        Command::Undo(_) => state.last_undoable(device).is_some_and(|target| {
             scope
                 .recorded_since()
                 .is_none_or(|since| target.recorded.wall() >= since)

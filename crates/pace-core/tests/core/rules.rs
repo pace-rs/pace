@@ -6,10 +6,11 @@ use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Batch, BatchId, Catalog, Change, Command, DeterminedBy, DeviceId, EntryChanges, EntryId,
-    EntryState, EntryVerb, Event, EventId, EventKind, Hlc, HoldSource, Ids, OVERLAP, PauseKind,
-    Policy, ProjectRecord, ProjectRef, RecordedEvent, Role, RoleId, RoleKind, Rules, State,
-    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
+    BILLED, Batch, BatchId, Billing, Catalog, Change, Command, DeterminedBy, DeviceId,
+    EntryChanges, EntryId, EntryState, EntryVerb, Event, EventId, EventKind, Hlc, HoldSource, Ids,
+    Money, OVERLAP, PauseKind, Policy, ProjectRecord, ProjectRef, RecordedEvent, Role, RoleId,
+    RoleKind, Rules, State,
+    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume, Undo},
     testing::SequentialIds,
 };
 use pace_error::{ExitCode, PaceError};
@@ -98,10 +99,21 @@ impl World {
     /// recorded at `now` (both Berlin), without the rules: an entry as an
     /// older pace or a merge of two devices left it.
     fn record(&mut self, now: &str, time: &str, kind: EventKind) -> TestResult {
+        self.record_by(self.device, now, time, kind)
+    }
+
+    /// [`record`](Self::record), as `device` recorded it.
+    fn record_by(
+        &mut self,
+        device: DeviceId,
+        now: &str,
+        time: &str,
+        kind: EventKind,
+    ) -> TestResult {
         let at = berlin(time)?;
         self.counter += 1;
         self.log.push(RecordedEvent {
-            device: self.device,
+            device,
             batch: BatchId::try_from(self.ids.next_id())?,
             hlc: Hlc::new(berlin(now)?.timestamp(), self.counter),
             event: Event {
@@ -1559,7 +1571,7 @@ fn undo_reverts_the_last_command_of_this_device() -> TestResult {
     _ = world.run("09:00", &begin("Write offer"))?;
     _ = world.run("10:00", &Command::End(End::default()))?;
 
-    let batch = world.run("10:01", &Command::Undo)?;
+    let batch = world.run("10:01", &Command::Undo(Undo::default()))?;
 
     assert_eq!(kinds(&batch), ["batch.undone"]);
     _ = world.only_entry(EntryState::Running)?;
@@ -1572,8 +1584,8 @@ fn undo_again_goes_one_command_further_back() -> TestResult {
     _ = world.run("09:00", &begin("Write offer"))?;
     _ = world.run("10:00", &Command::End(End::default()))?;
 
-    _ = world.run("10:01", &Command::Undo)?;
-    _ = world.run("10:02", &Command::Undo)?;
+    _ = world.run("10:01", &Command::Undo(Undo::default()))?;
+    _ = world.run("10:02", &Command::Undo(Undo::default()))?;
 
     assert_eq!(world.state().entries().count(), 0);
     Ok(())
@@ -1583,7 +1595,7 @@ fn undo_again_goes_one_command_further_back() -> TestResult {
 fn undo_with_nothing_left_has_nothing_to_do() -> TestResult {
     let mut world = World::new()?;
 
-    let error = failure(world.run("10:00", &Command::Undo))?;
+    let error = failure(world.run("10:00", &Command::Undo(Undo::default())))?;
 
     assert_eq!(error.to_string(), "this device has nothing left to undo");
     assert_eq!(error.exit_code(), ExitCode::NothingToDo);
@@ -1597,7 +1609,7 @@ fn undo_leaves_other_devices_alone() -> TestResult {
     _ = desktop.run("09:00", &begin("on the desktop"))?;
     laptop.log.extend(desktop.log);
 
-    let error = failure(laptop.run("10:00", &Command::Undo))?;
+    let error = failure(laptop.run("10:00", &Command::Undo(Undo::default())))?;
 
     assert_eq!(error.exit_code(), ExitCode::NothingToDo);
     Ok(())
@@ -1609,7 +1621,10 @@ fn undo_is_filed_with_every_period_its_batch_touched() -> TestResult {
     _ = world.run("2026-10-31T23:00[Europe/Berlin]", &begin("late"))?;
     let switch = world.run("2026-11-01T00:30[Europe/Berlin]", &begin("early"))?;
 
-    let undo = world.run("2026-11-01T00:31[Europe/Berlin]", &Command::Undo)?;
+    let undo = world.run(
+        "2026-11-01T00:31[Europe/Berlin]",
+        &Command::Undo(Undo::default()),
+    )?;
 
     assert_eq!(kinds(&undo), ["batch.undone", "batch.undone"]);
     let abouts: Vec<_> = undo
@@ -1639,12 +1654,184 @@ fn forget_writes_tombstone_that_undo_skips() -> TestResult {
     _ = world.run("09:00", &begin("Write offer"))?;
     let entry = world.only_entry(EntryState::Running)?;
 
-    let batch = world.run("10:00", &Command::Forget(Forget { entry }))?;
-    let undo = failure(world.run("10:01", &Command::Undo))?;
+    let batch = world.run(
+        "10:00",
+        &Command::Forget(Forget {
+            entry,
+            change_billed: false,
+        }),
+    )?;
+    let undo = failure(world.run("10:01", &Command::Undo(Undo::default())))?;
 
     assert_eq!(kinds(&batch), ["entry.forgotten"]);
     assert_eq!(undo.exit_code(), ExitCode::NothingToDo);
     assert_eq!(world.state().entries().count(), 0);
+    Ok(())
+}
+
+// billed entries
+
+/// An entry logged from 09:00 to 10:00, and its marking on invoice
+/// 2026-0042, recorded at 10:30 by `marking_device` in a batch of its
+/// own, as `bill --mark-billed` writes it.
+fn billed_entry(marking_device: u16) -> Result<(World, EntryId), Box<dyn std::error::Error>> {
+    let mut world = World::new()?;
+    _ = world.run("10:05", &log("Write offer", "09:00", "10:00")?)?;
+    let entry = world.only_entry(EntryState::Ended)?;
+    let eur = "EUR".parse()?;
+    let billing = Billing {
+        invoice: "2026-0042".parse()?,
+        net: jiff::SignedDuration::from_hours(1),
+        billed: jiff::SignedDuration::from_hours(1),
+        rate: Money::parse_decimal("100", eur)?,
+        amount: Money::parse_decimal("100", eur)?,
+    };
+    let device = World::on_device(marking_device)?.device;
+    world.record_by(
+        device,
+        "10:30",
+        "09:00",
+        EventKind::BillingMarked { entry, billing },
+    )?;
+    Ok((world, entry))
+}
+
+fn new_note(entry: EntryId, change_billed: bool) -> Result<Command, Box<dyn std::error::Error>> {
+    Ok(Command::Adjust(Adjust {
+        entry: Some(entry),
+        note: Change::Set("Write the offer".parse()?),
+        change_billed,
+        ..Adjust::default()
+    }))
+}
+
+#[test]
+fn adjust_of_billed_entry_is_refused_naming_invoice_and_flag() -> TestResult {
+    let (mut world, entry) = billed_entry(1)?;
+    let short = world.state().short_id(entry);
+
+    let error = failure(world.run("11:00", &new_note(entry, false)?))?;
+
+    assert_eq!(
+        error.to_string(),
+        format!("{short} \"Write offer\" is billed on invoice 2026-0042")
+    );
+    assert_eq!(
+        error.hint(),
+        Some("add `--change-billed` to change it anyway; the invoice keeps its amounts")
+    );
+    assert!(error.is_code(BILLED));
+    assert_eq!(error.exit_code(), ExitCode::Error);
+    Ok(())
+}
+
+#[test]
+fn adjust_of_billed_entry_with_change_billed_keeps_frozen_billing() -> TestResult {
+    let (mut world, entry) = billed_entry(1)?;
+    let billing = world.state().billing(entry).cloned();
+
+    let batch = world.run("11:00", &new_note(entry, true)?)?;
+
+    assert_eq!(kinds(&batch), ["entry.adjusted"]);
+    let state = world.state();
+    assert_eq!(
+        state.entry(entry).and_then(|entry| entry.note.as_deref()),
+        Some("Write the offer")
+    );
+    assert_eq!(state.billing(entry).cloned(), billing);
+    Ok(())
+}
+
+#[test]
+fn adjust_without_change_of_billed_entry_has_nothing_to_do() -> TestResult {
+    let (mut world, entry) = billed_entry(1)?;
+
+    let error = failure(world.run(
+        "11:00",
+        &Command::Adjust(Adjust {
+            entry: Some(entry),
+            ..Adjust::default()
+        }),
+    ))?;
+
+    assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
+fn forget_of_billed_entry_is_refused_unless_change_billed() -> TestResult {
+    let (mut world, entry) = billed_entry(1)?;
+
+    let error = failure(world.run(
+        "11:00",
+        &Command::Forget(Forget {
+            entry,
+            change_billed: false,
+        }),
+    ))?;
+    let batch = world.run(
+        "11:01",
+        &Command::Forget(Forget {
+            entry,
+            change_billed: true,
+        }),
+    )?;
+
+    assert!(error.is_code(BILLED));
+    assert_eq!(
+        error.hint(),
+        Some("add `--change-billed` to forget it anyway, and take it off the invoice")
+    );
+    assert_eq!(kinds(&batch), ["entry.forgotten"]);
+    Ok(())
+}
+
+#[test]
+fn undo_of_marking_batch_takes_billing_back() -> TestResult {
+    let (mut world, entry) = billed_entry(1)?;
+
+    let batch = world.run("11:00", &Command::Undo(Undo::default()))?;
+
+    assert_eq!(kinds(&batch), ["batch.undone"]);
+    assert_eq!(world.state().billing(entry), None);
+    Ok(())
+}
+
+#[test]
+fn undo_of_begin_of_billed_entry_is_refused_unless_change_billed() -> TestResult {
+    let (mut world, entry) = billed_entry(2)?;
+    let short = world.state().short_id(entry);
+
+    let error = failure(world.run("11:00", &Command::Undo(Undo::default())))?;
+    let batch = world.run(
+        "11:01",
+        &Command::Undo(Undo {
+            change_billed: true,
+        }),
+    )?;
+
+    assert_eq!(
+        error.to_string(),
+        format!("the undo would change {short} \"Write offer\", billed on invoice 2026-0042")
+    );
+    assert_eq!(
+        error.hint(),
+        Some("add `--change-billed` to undo it anyway")
+    );
+    assert!(error.is_code(BILLED));
+    assert_eq!(kinds(&batch), ["batch.undone"]);
+    assert_eq!(world.state().entries().count(), 0);
+    Ok(())
+}
+
+#[test]
+fn undo_of_adjustment_of_billed_entry_is_refused() -> TestResult {
+    let (mut world, entry) = billed_entry(1)?;
+    _ = world.run("11:00", &new_note(entry, true)?)?;
+
+    let error = failure(world.run("11:01", &Command::Undo(Undo::default())))?;
+
+    assert!(error.is_code(BILLED));
     Ok(())
 }
 

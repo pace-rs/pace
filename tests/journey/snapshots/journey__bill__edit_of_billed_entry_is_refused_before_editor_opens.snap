@@ -1,0 +1,21 @@
+---
+source: tests/journey/bill.rs
+expression: transcript
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::core::billed
+
+  × [ID-1] "Write the launch post" is billed on invoice 2026-0042
+  help: add `--change-billed` to change it anyway; the invoice keeps its amounts
+
+
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write the blog post": note "Write the blog post" (was "Write the launch post").
+
+----- stderr -----

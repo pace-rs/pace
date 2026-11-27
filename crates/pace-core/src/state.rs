@@ -55,6 +55,9 @@ struct BatchRecord {
     standing: Standing,
     /// Undo and forget can't be undone.
     undoable: bool,
+    /// Whether its events are all `billing.marked`: the batch of
+    /// `bill --mark-billed`, whose undo takes the marking back.
+    marks_billing: bool,
     /// The entries its events concern; undoing a batch whose entries are all
     /// gone for good would change nothing.
     entries: BTreeSet<EntryId>,
@@ -86,6 +89,11 @@ pub struct UndoTarget {
     pub recorded: Hlc,
     /// The moments its events are filed under.
     pub abouts: Vec<ZonedDateTime>,
+    /// The entries its events concern.
+    pub entries: BTreeSet<EntryId>,
+    /// Whether its events are all `billing.marked`: an undo takes a
+    /// marking back.
+    pub marks_billing: bool,
 }
 
 impl State {
@@ -238,6 +246,7 @@ impl State {
             recorded.event.kind,
             EventKind::BatchUndone { .. } | EventKind::EntryForgotten { .. }
         );
+        let marks_billing = matches!(recorded.event.kind, EventKind::BillingMarked { .. });
         let entry = recorded.event.kind.entry();
         let about = &recorded.event.about;
         if let Some(batch) = self
@@ -246,6 +255,7 @@ impl State {
             .and_then(|&position| self.batches.get_mut(position))
         {
             batch.undoable &= undoable;
+            batch.marks_billing &= marks_billing;
             batch.entries.extend(entry);
             if !batch.abouts.contains(about) {
                 batch.abouts.push(about.clone());
@@ -260,6 +270,7 @@ impl State {
                 recorded: recorded.hlc,
                 standing,
                 undoable,
+                marks_billing,
                 entries: entry.into_iter().collect(),
                 abouts: vec![about.clone()],
             });
@@ -284,6 +295,8 @@ impl State {
                 batch: batch.id,
                 recorded: batch.recorded,
                 abouts: batch.abouts.clone(),
+                entries: batch.entries.clone(),
+                marks_billing: batch.marks_billing,
             })
     }
 

@@ -1,0 +1,22 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --mark-billed 2026-0042   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Billed 3 entries on invoice 2026-0042: 6h 15m for 712.50 EUR.
+
+----- stderr -----
+
+$ pace forget --last --for-good   # at 15:05
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::core::billed
+
+  × [ID-1] "Write the launch post" is billed on invoice 2026-0042
+  help: add `--change-billed` to forget it anyway, and take it off the invoice

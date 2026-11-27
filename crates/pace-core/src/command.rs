@@ -1,12 +1,9 @@
 //! The use cases as data; see [`Command`].
 
-use std::{collections::BTreeSet, fmt};
+use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
-use serde::{
-    Deserialize, Deserializer, Serialize,
-    de::{Error as _, IgnoredAny, MapAccess, SeqAccess, Visitor},
-};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Change, ClientKey, DeterminedBy, EntryId, HoldSource, InvoiceRef, PauseKind, ProjectRef,
@@ -41,10 +38,7 @@ pub enum Command {
     /// Change an entry.
     Adjust(Adjust),
     /// Revert this device's last command.
-    // A unit variant of an internally tagged enum ignores other fields, so
-    // it reads them with `no_fields`, which refuses them as the structs do.
-    #[serde(deserialize_with = "no_fields")]
-    Undo,
+    Undo(Undo),
     /// Remove an entry for good.
     Forget(Forget),
     /// Mark a client's bill over a period as billed on an invoice.
@@ -230,6 +224,18 @@ pub struct Adjust {
     /// `--allow-overlap`; the entry keeps it from now on.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub allow_overlap: bool,
+    /// `--change-billed`: change the entry though it is billed.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub change_billed: bool,
+}
+
+/// `pace undo`
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Undo {
+    /// `--change-billed`: undo a batch that changed a billed entry.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub change_billed: bool,
 }
 
 /// `pace forget`; the adapter asks first.
@@ -238,6 +244,9 @@ pub struct Adjust {
 pub struct Forget {
     /// The entry.
     pub entry: EntryId,
+    /// `--change-billed`: forget the entry though it is billed.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub change_billed: bool,
 }
 
 /// `pace bill --mark-billed`: the bill of `client` over the period from
@@ -278,35 +287,5 @@ mod change {
         deserializer: D,
     ) -> Result<Change<T>, D::Error> {
         Ok(Option::<T>::deserialize(deserializer)?.map_or(Change::Clear, Change::Set))
-    }
-}
-
-/// The fields of a command without fields: none, so an unknown one is an
-/// error, as `deny_unknown_fields` makes it for the other commands. serde hands
-/// over the fields as a map, or as a sequence in its sequence form (`["undo"]`).
-fn no_fields<'de, D: Deserializer<'de>>(deserializer: D) -> Result<(), D::Error> {
-    deserializer.deserialize_any(NoFields)
-}
-
-/// Reads a map or a sequence that must be empty; see [`no_fields`].
-struct NoFields;
-
-impl<'de> Visitor<'de> for NoFields {
-    type Value = ();
-
-    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("no fields")
-    }
-
-    fn visit_map<A: MapAccess<'de>>(self, mut fields: A) -> Result<(), A::Error> {
-        fields
-            .next_key::<String>()?
-            .map_or(Ok(()), |field| Err(A::Error::unknown_field(&field, &[])))
-    }
-
-    fn visit_seq<A: SeqAccess<'de>>(self, mut elements: A) -> Result<(), A::Error> {
-        elements
-            .next_element::<IgnoredAny>()?
-            .map_or(Ok(()), |_| Err(A::Error::invalid_length(1, &self)))
     }
 }

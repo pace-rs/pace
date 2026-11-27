@@ -7,7 +7,7 @@ use std::{collections::BTreeSet, sync::Arc};
 use jiff::{SignedDuration, ZonedDateTime};
 use pace_core::{
     Catalog, Clock, Command, DeterminedBy, DeviceId, Entry, EntryId, Policy, RoleId, State, Tag,
-    command::{Adjust, Begin, End, Forget, Hold, Log, Pause, Resume},
+    command::{Adjust, Begin, End, Forget, Hold, Log, Pause, Resume, Undo},
     testing::SequentialIds,
     testing::TestClock,
 };
@@ -186,10 +186,15 @@ fn command(step: &Step, now: &ZonedDateTime, state: &State) -> Result<Command, T
             tag: BTreeSet::from(["dev".parse::<Tag>().map_err(fail)?]),
             ..Adjust::default()
         }),
-        Verb::Undo => Command::Undo,
+        Verb::Undo => Command::Undo(Undo::default()),
         // With no entry to forget, the step undoes instead.
         Verb::Forget { entry } => {
-            pick(state, *entry).map_or(Command::Undo, |entry| Command::Forget(Forget { entry }))
+            pick(state, *entry).map_or(Command::Undo(Undo::default()), |entry| {
+                Command::Forget(Forget {
+                    entry,
+                    change_billed: false,
+                })
+            })
         }
     })
 }

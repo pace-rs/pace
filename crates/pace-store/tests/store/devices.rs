@@ -312,7 +312,13 @@ fn forgotten_on_laptop() -> Result<(Pair, EntryId), Box<dyn std::error::Error>> 
     desktop.run("09:30", &Command::Hold(Hold::default()))?;
     sync(&laptop, &desktop)?;
     let entry = only_entry(&laptop.state()?)?;
-    laptop.run("10:00", &Command::Forget(Forget { entry }))?;
+    laptop.run(
+        "10:00",
+        &Command::Forget(Forget {
+            entry,
+            change_billed: false,
+        }),
+    )?;
     sync(&laptop, &desktop)?;
     Ok((Pair { laptop, desktop }, entry))
 }

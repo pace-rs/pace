@@ -6,7 +6,7 @@ use jiff::ZonedDateTime;
 use pace_core::{
     Catalog, Clock, Command, DeviceId, EntryState, Policy, ProjectKey, ProjectRecord, ProjectRef,
     ReadScope, RecordedEvent, State,
-    command::{Adjust, Begin, End, Forget, Log, Resume},
+    command::{Adjust, Begin, End, Forget, Log, Resume, Undo},
     testing::SequentialIds,
     testing::TestClock,
 };
@@ -158,7 +158,7 @@ fn an_outcome_shows_the_state_before_and_what_an_undo_took_back() -> TestResult 
     let tracker = tracker(store, &clock, 1)?;
     let begun = tracker.run(&Command::Begin(Begin::default()))?;
 
-    let undo = tracker.run(&Command::Undo)?;
+    let undo = tracker.run(&Command::Undo(Undo::default()))?;
 
     assert_eq!(undo.before.open().count(), 1);
     assert_eq!(undo.state.open().count(), 0);
@@ -375,7 +375,10 @@ fn end_naming_an_ended_entry_says_when_it_ended() -> TestResult {
 fn forget_finds_entry_that_has_ended() -> TestResult {
     let (tracker, entry) = tracker_after_an_ended_entry()?;
 
-    let outcome = tracker.run(&Command::Forget(Forget { entry }))?;
+    let outcome = tracker.run(&Command::Forget(Forget {
+        entry,
+        change_billed: false,
+    }))?;
 
     assert_eq!(outcome.recorded.len(), 1);
     assert_eq!(outcome.state.entries().count(), 0);
@@ -425,7 +428,10 @@ fn adjust_and_forget_find_entry_of_long_ago() -> TestResult {
         end: Some(at("2026-06-15T10:30[Europe/Berlin]")?),
         ..Adjust::default()
     }))?;
-    let forgotten = tracker.run(&Command::Forget(Forget { entry }))?;
+    let forgotten = tracker.run(&Command::Forget(Forget {
+        entry,
+        change_billed: false,
+    }))?;
 
     let end = adjusted
         .state
@@ -473,7 +479,7 @@ fn undo_takes_back_log_of_long_ago_recorded_last() -> TestResult {
         at("2026-05-04T10:00[Europe/Berlin]")?,
     )))?;
 
-    let undone = tracker.run(&Command::Undo)?;
+    let undone = tracker.run(&Command::Undo(Undo::default()))?;
 
     assert_eq!(undone.undone, logged.recorded);
     let state = tracker.state(&everything()?)?;
@@ -486,7 +492,7 @@ fn undo_takes_back_log_of_long_ago_recorded_last() -> TestResult {
 fn undo_reaches_batch_recorded_long_ago() -> TestResult {
     let (tracker, _, june) = tracker_after_an_entry_in_june()?;
 
-    let undone = tracker.run(&Command::Undo)?;
+    let undone = tracker.run(&Command::Undo(Undo::default()))?;
 
     assert_eq!(undone.undone.len(), 1);
     assert!(tracker.state(&everything()?)?.entry(june).is_none());

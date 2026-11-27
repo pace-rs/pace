@@ -3,8 +3,9 @@
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Change, Command as UseCase, EntryVerb, ProjectRef, Text,
-    command::{Adjust, Forget, Log},
+    BilledChange, Change, Command as UseCase, EntryVerb, ProjectRef, Text,
+    command::{Adjust, Forget, Log, Undo},
+    refuse_billed_change,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::parse_duration;
@@ -75,7 +76,14 @@ pub struct AdjustCmd {
 
     #[arg(long, help = "Allow the entry to overlap another one")]
     allow_overlap: bool,
+
+    #[arg(long, help = CHANGE_BILLED_HELP)]
+    change_billed: bool,
 }
+
+/// The help of `--change-billed` on `adjust` and `edit`.
+pub const CHANGE_BILLED_HELP: &str =
+    "Change the entry though it is billed; the invoice keeps its amounts";
 
 impl Runnable for AdjustCmd {
     fn run(&self) {
@@ -104,6 +112,7 @@ impl Runnable for AdjustCmd {
                     .map_or(Change::Keep, Change::Set),
                 billable: self.billable.billable().map_or(Change::Keep, Change::Set),
                 allow_overlap: self.allow_overlap,
+                change_billed: self.change_billed,
             }))
         }));
     }
@@ -218,11 +227,22 @@ fn end_after(start: &ZonedDateTime, duration: &str) -> PaceResult<ZonedDateTime>
 
 /// `pace undo`
 #[derive(clap::Args, Command, Debug)]
-pub struct UndoCmd {}
+pub struct UndoCmd {
+    #[arg(
+        long,
+        help = "Undo the last command though it changed a billed entry; \
+                the marking of a bill is undone without it"
+    )]
+    change_billed: bool,
+}
 
 impl Runnable for UndoCmd {
     fn run(&self) {
-        exit_on_error(track(|_, _, _| Ok(UseCase::Undo)));
+        exit_on_error(track(|_, _, _| {
+            Ok(UseCase::Undo(Undo {
+                change_billed: self.change_billed,
+            }))
+        }));
     }
 }
 
@@ -241,6 +261,12 @@ pub struct ForgetCmd {
 
     #[arg(long, help = "Forget it without asking: it is gone for good")]
     for_good: bool,
+
+    #[arg(
+        long,
+        help = "Forget it though it is billed, and take it off its invoice"
+    )]
+    change_billed: bool,
 }
 
 impl Runnable for ForgetCmd {
@@ -253,6 +279,9 @@ impl Runnable for ForgetCmd {
                 Target::new(self.entry.as_deref(), self.last),
                 EntryVerb::Forget,
             )?;
+            if !self.change_billed {
+                refuse_billed_change(&chosen.state, [chosen.entry.id], BilledChange::Forget)?;
+            }
             if !self.for_good {
                 confirm_forget(
                     asker,
@@ -261,6 +290,7 @@ impl Runnable for ForgetCmd {
             }
             Ok(UseCase::Forget(Forget {
                 entry: chosen.entry.id,
+                change_billed: self.change_billed,
             }))
         }));
     }

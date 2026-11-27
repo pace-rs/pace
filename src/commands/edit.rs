@@ -6,14 +6,16 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Catalog, Change, Command as UseCase, DeterminedBy, DeviceId, Entry, EntryOrigin, EntryVerb,
-    OVERLAP, ProjectId, ProjectKey, ProjectRef, RoleId, RoleKey, Tag, Text, command::Adjust,
+    BilledChange, Catalog, Change, Command as UseCase, DeterminedBy, DeviceId, Entry, EntryOrigin,
+    EntryVerb, OVERLAP, ProjectId, ProjectKey, ProjectRef, RoleId, RoleKey, Tag, Text,
+    command::Adjust, refuse_billed_change,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Snippet};
 use pace_time::{NOT_UNDERSTOOD, format_moment, parse_at};
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
+use crate::commands::corrections::CHANGE_BILLED_HELP;
 use crate::commands::role::known_role;
 use crate::commands::tracking::{chosen_moment, track_run};
 use crate::editor::{edit_in_editor, editor_command};
@@ -50,6 +52,9 @@ pub struct EditCmd {
 
     #[arg(long, help = "Allow the entry to overlap another one")]
     allow_overlap: bool,
+
+    #[arg(long, help = CHANGE_BILLED_HELP)]
+    change_billed: bool,
 }
 
 impl Runnable for EditCmd {
@@ -63,6 +68,9 @@ impl Runnable for EditCmd {
                 Target::new(self.entry.as_deref(), self.last),
                 EntryVerb::Edit,
             )?;
+            if !self.change_billed {
+                refuse_billed_change(&chosen.state, [chosen.entry.id], BilledChange::Adjust)?;
+            }
             let now = session.now();
             edit_until_applied(
                 &write_entry_text(&chosen, session.device(), &now, &context.catalog)?,
@@ -74,6 +82,7 @@ impl Runnable for EditCmd {
                         read_adjustment(text, &chosen.entry, &now, &context.catalog, asker, notes)?;
                     session.run(&UseCase::Adjust(Adjust {
                         allow_overlap: allow_overlap || adjust.allow_overlap,
+                        change_billed: self.change_billed,
                         ..adjust
                     }))
                 },
@@ -404,6 +413,7 @@ fn read_adjustment(
         determined_by: edited.determined_by.map_or(Change::Clear, Change::Set),
         billable: edited_billable(edited.billable, entry),
         allow_overlap,
+        change_billed: false,
     };
     // a role or billable flag equal to the project's changes nothing
     if adjust.recorded_changes(entry, catalog).is_empty() {

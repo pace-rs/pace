@@ -7,7 +7,7 @@ use jiff::ZonedDateTime;
 use pace_core::{
     Appended, Batch, Billing, Catalog, Clock, Command, DeterminedBy, DeviceId, Event, EventKind,
     Money, Policy, ProjectRef, ReadScope,
-    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause},
+    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Undo},
     testing::SequentialIds,
     testing::TestClock,
 };
@@ -224,7 +224,10 @@ fn the_event_file_reads_like_the_plan() -> TestResult {
             at("2026-11-26T11:30[America/New_York]")?,
         )),
     )?;
-    run("2026-11-26T18:01:00[Europe/Berlin]", Command::Undo)?;
+    run(
+        "2026-11-26T18:01:00[Europe/Berlin]",
+        Command::Undo(Undo::default()),
+    )?;
 
     let text = std::fs::read_to_string(setup.device_dir().join("2026/2026-11.toml"))?;
     insta::assert_snapshot!(text);
@@ -734,7 +737,10 @@ fn store_reads_back_what_it_wrote_like_fresh_store() -> TestResult {
     _ = tracker.run(&Command::Begin(Begin::default()))?;
     setup.clock.set(at("2026-11-26T09:45[Europe/Berlin]")?);
 
-    _ = tracker.run(&Command::Forget(Forget { entry: running }))?;
+    _ = tracker.run(&Command::Forget(Forget {
+        entry: running,
+        change_billed: false,
+    }))?;
 
     assert_eq!(
         tracker.store().read(&ReadScope::everything())?,
@@ -812,7 +818,10 @@ fn forgotten_entry_leaves_every_own_file_that_holds_it() -> TestResult {
         .map(|entry| entry.id)
         .ok_or("the October entry")?;
 
-    _ = tracker.run(&Command::Forget(Forget { entry: october }))?;
+    _ = tracker.run(&Command::Forget(Forget {
+        entry: october,
+        change_billed: false,
+    }))?;
 
     assert_eq!(
         setup.files()?,
@@ -834,14 +843,17 @@ fn forgotten_entry_leaves_undo_of_other_command_in_file() -> TestResult {
         at("2026-11-26T08:00[Europe/Berlin]")?,
     )))?;
     setup.clock.set(at("2026-11-26T09:01[Europe/Berlin]")?);
-    _ = tracker.run(&Command::Undo)?;
+    _ = tracker.run(&Command::Undo(Undo::default()))?;
     setup.clock.set(at("2026-11-26T09:02[Europe/Berlin]")?);
     _ = tracker.run(&Command::Begin(Begin::default()))?;
     let state = tracker.state(&TimeRange::everything())?;
     let running = state.open().next().map(|entry| entry.id).ok_or("running")?;
     setup.clock.set(at("2026-11-26T09:03[Europe/Berlin]")?);
 
-    _ = tracker.run(&Command::Forget(Forget { entry: running }))?;
+    _ = tracker.run(&Command::Forget(Forget {
+        entry: running,
+        change_billed: false,
+    }))?;
 
     let text = event_text(&setup)?;
     let batch = logged.recorded.first().ok_or("the log's event")?.batch;

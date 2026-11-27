@@ -6,7 +6,7 @@ use jiff::ZonedDateTime;
 use pace_core::{
     Appended, Catalog, Change, Clock, Command, DeviceId, EntryState, EventKind, Policy, ReadScope,
     Rules, State,
-    command::{Adjust, Begin, End, Log},
+    command::{Adjust, Begin, End, Log, Undo},
     testing::SequentialIds,
     testing::TestClock,
 };
@@ -363,7 +363,7 @@ where
     laptop.clock.set(at("2026-10-15T10:00[Europe/Berlin]")?);
     _ = laptop.tracker.run(&Command::End(End::default()))?;
     laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
-    _ = laptop.tracker.run(&Command::Undo)?;
+    _ = laptop.tracker.run(&Command::Undo(Undo::default()))?;
 
     let state = laptop.tracker.state(&range(
         "2026-10-15T00:00[Europe/Berlin]",

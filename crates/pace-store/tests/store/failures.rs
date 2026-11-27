@@ -126,7 +126,10 @@ fn failed_cleaning_keeps_the_append_and_is_retried() -> TestResult {
         .map(|entry| entry.id)
         .ok_or("the logged entry")?;
     clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
-    _ = desktop.run(&Command::Forget(Forget { entry }))?;
+    _ = desktop.run(&Command::Forget(Forget {
+        entry,
+        change_billed: false,
+    }))?;
     let october = home
         .join("events")
         .join(device(1)?.to_string())

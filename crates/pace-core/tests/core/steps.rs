@@ -9,7 +9,7 @@ use pace_core::{
     AfterAppend, AfterRead, Appended, Batch, Catalog, Change, ChangeMarker, Command, Decided,
     DeviceId, EntryId, EventKind, Hlc, Policy, ProjectRecord, ProjectRef, ReadScope, Reading,
     RecordedEvent,
-    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, MarkBilled, Pause, Resume},
+    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, MarkBilled, Pause, Resume, Undo},
     testing::SequentialIds,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError};
@@ -154,7 +154,10 @@ fn commands_about_named_entry_read_from_month_ago() -> TestResult {
             ..Resume::default()
         }),
         Command::Adjust(Adjust::default()),
-        Command::Forget(Forget { entry: entry()? }),
+        Command::Forget(Forget {
+            entry: entry()?,
+            change_billed: false,
+        }),
     ];
 
     for command in &commands {
@@ -190,7 +193,7 @@ fn adjust_to_earlier_time_reads_from_it() -> TestResult {
 fn undo_reads_open_entries_and_what_was_recorded_in_last_month() -> TestResult {
     let now = berlin("10:00")?;
 
-    let scope = scope_of(&Command::Undo, &now)?;
+    let scope = scope_of(&Command::Undo(Undo::default()), &now)?;
 
     assert_eq!(
         scope,
@@ -204,7 +207,7 @@ fn undo_reads_open_entries_and_what_was_recorded_in_last_month() -> TestResult {
 fn undo_within_month_of_earliest_time_reads_everything() -> TestResult {
     let now: ZonedDateTime = "-009999-01-10T00:00:00+00:00[UTC]".parse()?;
 
-    let scope = scope_of(&Command::Undo, &now)?;
+    let scope = scope_of(&Command::Undo(Undo::default()), &now)?;
 
     assert_eq!(scope, ReadScope::everything());
     Ok(())
@@ -215,7 +218,10 @@ fn named_entry_missing_from_read_makes_command_read_everything() -> TestResult {
     let now = berlin("10:00")?;
     let ids = SequentialIds::starting_at(&now, 1);
     let policy = Policy::default();
-    let command = Command::Forget(Forget { entry: entry()? });
+    let command = Command::Forget(Forget {
+        entry: entry()?,
+        change_billed: false,
+    });
     let reading = Reading::start(&command, now, device()?, &ids, &policy, &CATALOG)?;
 
     let after = reading.decide(ChangeMarker::new(7), Vec::new())?;
@@ -242,7 +248,10 @@ fn named_entry_in_read_is_decided_on_it() -> TestResult {
     let policy = Policy::default();
     let begun = begun_at(berlin("09:00")?, &ids, &policy)?;
     let entry = begun_entry(&begun)?;
-    let command = Command::Forget(Forget { entry });
+    let command = Command::Forget(Forget {
+        entry,
+        change_billed: false,
+    });
     let reading = Reading::start(&command, now, device()?, &ids, &policy, &CATALOG)?;
 
     let Decided { batch, .. } = decided(reading.decide(ChangeMarker::new(7), begun)?)?;
@@ -284,7 +293,8 @@ fn undo_of_batch_recorded_before_read_makes_it_read_everything() -> TestResult {
     // Open, so every read has it, but recorded before the read's month: a
     // later batch could lie outside the read.
     let begun = begun_at("2026-10-01T09:00[Europe/Berlin]".parse()?, &ids, &policy)?;
-    let reading = Reading::start(&Command::Undo, now, device()?, &ids, &policy, &CATALOG)?;
+    let undo = Command::Undo(Undo::default());
+    let reading = Reading::start(&undo, now, device()?, &ids, &policy, &CATALOG)?;
 
     let after = reading.decide(ChangeMarker::new(7), begun)?;
 
@@ -376,12 +386,13 @@ fn reading_shows_its_command_and_attempt_in_debug() -> TestResult {
     let now = berlin("10:00")?;
     let ids = SequentialIds::starting_at(&now, 1);
     let policy = Policy::default();
-    let reading = Reading::start(&Command::Undo, now, device()?, &ids, &policy, &CATALOG)?;
+    let undo = Command::Undo(Undo::default());
+    let reading = Reading::start(&undo, now, device()?, &ids, &policy, &CATALOG)?;
 
     let shown = format!("{reading:?}");
 
     assert!(
-        shown.contains("CommandRun { command: Undo, device: "),
+        shown.contains("CommandRun { command: Undo(Undo { change_billed: false }), device: "),
         "{shown}"
     );
     assert!(shown.contains("ids: SequentialIds { "), "{shown}");
@@ -495,7 +506,7 @@ fn recorded_undo_gives_events_it_undid() -> TestResult {
     )?;
     let Decided { batch, .. } = decided(reading.decide(ChangeMarker::new(7), Vec::new())?)?;
     let begun = recorded(&batch, device()?);
-    let undo = Command::Undo;
+    let undo = Command::Undo(Undo::default());
     let reading = Reading::start(&undo, berlin("10:00")?, device()?, &ids, &policy, &CATALOG)?;
     let Decided {
         batch, appending, ..

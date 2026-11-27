@@ -11,12 +11,14 @@ use uuid::Uuid;
 use crate::{
     Batch, Catalog, Change, Command, DeviceId, Entry, EntryChanges, EntryId, EntryVerb, Event,
     EventKind, HoldSource, Ids, ProjectRef, RoleId, State,
-    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
+    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume, Undo},
 };
 
+mod billed;
 mod checks;
 mod marking;
 
+pub use billed::{BILLED, BilledChange, refuse_billed_change};
 pub use marking::INVOICE_USED;
 
 const NOW_HINT: &str = "pace records what happened; `pace begin` starts an entry now";
@@ -92,7 +94,7 @@ impl Rules<'_> {
             Command::End(end) => self.end(end)?,
             Command::Log(log) => self.log(log)?,
             Command::Adjust(adjust) => self.adjust(adjust)?,
-            Command::Undo => self.undo()?,
+            Command::Undo(undo) => self.undo(undo)?,
             Command::Forget(forget) => self.forget(forget)?,
             Command::MarkBilled(mark) => self.mark_billed(mark)?,
         };
@@ -299,6 +301,9 @@ impl Rules<'_> {
                 "give what to change, such as `--start`, `--note` or `--role`; `pace adjust --help` lists every flag",
             ));
         }
+        if !adjust.change_billed {
+            refuse_billed_change(self.state, [entry.id], BilledChange::Adjust)?;
+        }
         if changes.start.is_some() || changes.end.is_some() {
             self.check_moved_times(entry, &changes, &start, end.as_ref())?;
             if !self.overlap_allowed(adjust.allow_overlap, project_after(entry, &changes)) {
@@ -321,14 +326,23 @@ impl Rules<'_> {
     }
 
     /// One `batch.undone` per moment the batch's events are filed under, so
-    /// a store that reads a period sees the undo with the batch.
-    fn undo(&self) -> PaceResult<Vec<Event>> {
+    /// a store that reads a period sees the undo with the batch. A batch
+    /// that changed a billed entry stays without `change_billed`, unless
+    /// it is the marking itself.
+    fn undo(&self, undo: &Undo) -> PaceResult<Vec<Event>> {
         let target = self.state.last_undoable(self.device).ok_or_else(|| {
             nothing_to_do(
                 "this device has nothing left to undo",
                 "`pace undo` reverts the commands of this device, newest first",
             )
         })?;
+        if !undo.change_billed && !target.marks_billing {
+            refuse_billed_change(
+                self.state,
+                target.entries.iter().copied(),
+                BilledChange::Undo,
+            )?;
+        }
         target
             .abouts
             .iter()
@@ -346,6 +360,9 @@ impl Rules<'_> {
 
     fn forget(&self, forget: &Forget) -> PaceResult<Vec<Event>> {
         let entry = self.known_entry(forget.entry)?;
+        if !forget.change_billed {
+            refuse_billed_change(self.state, [entry.id], BilledChange::Forget)?;
+        }
         Ok(vec![self.event(
             self.now,
             &entry.filed,
