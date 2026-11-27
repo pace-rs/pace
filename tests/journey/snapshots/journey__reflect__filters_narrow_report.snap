@@ -1,0 +1,117 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --role health   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+This week: Mon 2026-11-23 to Sun 2026-11-29, Europe/Berlin
+Tracked 1h, untracked 86h.
+
+Time per role
+  Health  1h  100%  ████████████████████████████████████████
+
+Time per project
+  No project  1h  100%  ████████████████████████████████████████
+
+Time per day
+  Mon 2026-11-23   –
+  Tue 2026-11-24   –
+  Wed 2026-11-25  1h  100%  ████████████████████████████████████████
+  Thu 2026-11-26   –
+  Fri 2026-11-27   –
+  Sat 2026-11-28   –
+  Sun 2026-11-29   –
+
+Who decided
+  By me      1h  100%  ████████████████████████████████████████
+  By others   –
+  Unmarked    –
+
+----- stderr -----
+
+$ pace reflect --project acme-webshop --tag offer   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+This week: Mon 2026-11-23 to Sun 2026-11-29, Europe/Berlin
+Tracked 3h 15m, untracked 83h 45m.
+
+Time per role
+  Work  3h 15m  100%  ████████████████████████████████████████
+
+Time per project
+  Webshop relaunch  3h 15m  100%  ████████████████████████████████████████
+
+Time per day
+  Mon 2026-11-23       –
+  Tue 2026-11-24       –
+  Wed 2026-11-25       –
+  Thu 2026-11-26  3h 15m  100%  ████████████████████████████████████████
+  Fri 2026-11-27       –
+  Sat 2026-11-28       –
+  Sun 2026-11-29       –
+
+Target vs. actual
+  Work  3h 15m  of 30h  11%
+
+Budgets, used to date
+  Webshop relaunch  5h 15m  of 10h  53%
+
+Revenue
+  ACME GmbH           3h 15m  308.75 EUR
+    Webshop relaunch  3h 15m  308.75 EUR
+  Total                       308.75 EUR
+
+Interruptions
+  1 hold, 15m: inner 0, outer 1 (15m), unknown 0.
+  Most frequent reasons: phone call 1.
+
+Pauses and catches
+  Pauses: lunch 1 (30m).
+
+Who decided
+  By me           –
+  By others       –
+  Unmarked   3h 15m  100%  ████████████████████████████████████████
+
+----- stderr -----
+
+$ pace reflect --client acme today   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Today: Thu 2026-11-26, Europe/Berlin
+Tracked 3h 15m, untracked 11h 45m.
+
+Time per role
+  Work  3h 15m  100%  ████████████████████████████████████████
+
+Time per project
+  Webshop relaunch  3h 15m  100%  ████████████████████████████████████████
+
+Target vs. actual
+  Work  3h 15m  of 4h 17m  76%
+
+Budgets, used to date
+  Webshop relaunch  5h 15m  of 10h  53%
+
+Revenue
+  ACME GmbH           3h 15m  308.75 EUR
+    Webshop relaunch  3h 15m  308.75 EUR
+  Total                       308.75 EUR
+
+Interruptions
+  1 hold, 15m: inner 0, outer 1 (15m), unknown 0.
+  Most frequent reasons: phone call 1.
+
+Pauses and catches
+  Pauses: lunch 1 (30m).
+
+Who decided
+  By me           –
+  By others       –
+  Unmarked   3h 15m  100%  ████████████████████████████████████████
+
+----- stderr -----

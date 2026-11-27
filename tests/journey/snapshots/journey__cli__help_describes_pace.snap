@@ -22,6 +22,7 @@ Commands:
   edit         Change an entry in your editor
   undo         Take back the last command of this device
   forget       Remove an entry for good
+  reflect      Look back on a period: time per role and project, targets, budgets, revenue and breaks [alias: ref]
   role         Keep the roles: the lasting responsibilities time goes to
   client       Keep the clients: who gets billed, in which currency, at which rates
   project      Keep the project records: client, role, billing and budget

@@ -359,7 +359,7 @@ fn clients_file_alone(
 
 /// The error for the client `key` that pace doesn't know: it names the
 /// closest of `keys`.
-fn unknown_client<'key>(
+pub(crate) fn unknown_client<'key>(
     key: &ClientKey,
     keys: impl Iterator<Item = &'key str>,
     left: Option<(&Path, &PaceError)>,

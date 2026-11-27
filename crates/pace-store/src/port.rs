@@ -43,8 +43,8 @@ pub trait EventStore: Send + Sync {
 
     /// The devices that have written to the log.
     ///
-    /// No command asks for them yet: phase 5 (remotes, push) keeps a cursor
-    /// per device.
+    /// `pace reflect --device` finds a device by them, by its ID or its
+    /// name.
     ///
     /// # Errors
     ///

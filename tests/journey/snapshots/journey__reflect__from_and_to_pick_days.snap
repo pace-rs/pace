@@ -1,0 +1,105 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --from 2026-11-25 --to 2026-11-25   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Wed 2026-11-25, Europe/Berlin
+Tracked 2h, untracked 22h.
+
+Time per role
+  Health  1h   50%  ████████████████████████████████████████
+  Work    1h   50%  ████████████████████████████████████████
+
+Time per project
+  Webshop relaunch  1h   50%  ████████████████████████████████████████
+  No project        1h   50%  ████████████████████████████████████████
+
+Target vs. actual
+  Work  1h  of 4h 17m  23%
+
+Budgets, used to date
+  Webshop relaunch  5h 15m  of 10h  53%
+
+Who decided
+  By me      1h   50%  ████████████████████████████████████████
+  By others   –
+  Unmarked   1h   50%  ████████████████████████████████████████
+
+----- stderr -----
+
+$ pace reflect --to 2026-11-24   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Tue 2026-11-24, Europe/Berlin
+Tracked 1h, untracked 0s.
+
+Time per role
+  Work  1h  100%  ████████████████████████████████████████
+
+Time per project
+  Webshop relaunch  1h  100%  ████████████████████████████████████████
+
+Target vs. actual
+  Work  1h  of 4h 17m  23%
+
+Budgets, used to date
+  Webshop relaunch  5h 15m  of 10h  53%
+
+Revenue
+  ACME GmbH           2h  190.00 EUR
+    Webshop relaunch  2h  190.00 EUR
+  Total                   190.00 EUR
+
+Who decided
+  By me       –
+  By others   –
+  Unmarked   1h  100%  ████████████████████████████████████████
+
+----- stderr -----
+
+$ pace reflect --from 2026-11-26   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Thu 2026-11-26, Europe/Berlin
+Tracked 4h 15m, untracked 10h 45m.
+
+Time per role
+  Work     3h 15m   76%  ████████████████████████████████████████
+  No role     1h*   24%  ████████████▎
+
+Time per project
+  Webshop relaunch  3h 15m   76%  ████████████████████████████████████████
+  No project           1h*   24%  ████████████▎
+
+Target vs. actual
+  Work  3h 15m  of 4h 17m  76%
+
+Budgets, used to date
+  Webshop relaunch  5h 15m  of 10h  53%
+
+Revenue
+  ACME GmbH           3h 15m  308.75 EUR
+    Webshop relaunch  3h 15m  308.75 EUR
+  Total                       308.75 EUR
+
+Interruptions
+  1 hold, 15m: inner 0, outer 1 (15m), unknown 0.
+  Most frequent reasons: phone call 1.
+
+Pauses and catches
+  Pauses: lunch 1 (30m).
+  1 catch.
+
+Who decided
+  By me           –
+  By others      1h   24%  ████████████▎
+  Unmarked   3h 15m   76%  ████████████████████████████████████████
+
+* counts a running entry up to now.
+
+----- stderr -----

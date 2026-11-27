@@ -1,0 +1,19 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect last-week   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Nothing tracked last week.
+
+----- stderr -----
+
+$ pace reflect --from 2026-11-01 --to 2026-11-02   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Nothing tracked from 2026-11-01 to 2026-11-02.
+
+----- stderr -----

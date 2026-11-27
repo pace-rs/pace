@@ -3,9 +3,9 @@
 
 use std::{ffi::OsStr, path::PathBuf, sync::Arc};
 
-use pace_core::{Command, DeviceId, Ids, Outcome, Policy};
+use pace_core::{Command, Device, DeviceId, Ids, Outcome, Policy};
 use pace_error::PaceResult;
-use pace_store::{FilesStore, Resplit, Split, Tracker, device_id, existing_device_id};
+use pace_store::{EventStore, FilesStore, Resplit, Split, Tracker, device_id, existing_device_id};
 use pace_time::TimeRange;
 
 use crate::clock::clock_for_run;
@@ -126,6 +126,15 @@ impl Session {
     /// If the store fails.
     pub fn state(&self, range: &TimeRange) -> PaceResult<pace_core::State> {
         self.tracker.state(range)
+    }
+
+    /// The devices that have written to the store, with their names.
+    ///
+    /// # Errors
+    ///
+    /// If a device's `device.toml` can't be read.
+    pub fn devices(&self) -> PaceResult<Vec<Device>> {
+        self.tracker.store().devices()
     }
 
     /// Rewrite this device's event files split by `split`.

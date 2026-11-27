@@ -9,6 +9,7 @@ pub mod entry_fields;
 pub mod now;
 pub mod project;
 pub mod project_init;
+pub mod reflect;
 pub mod role;
 pub mod setup;
 pub mod store;
@@ -28,6 +29,7 @@ use self::{
     edit::EditCmd,
     now::{NowCmd, NowFormat},
     project::ProjectCmd,
+    reflect::ReflectCmd,
     role::RoleCmd,
     setup::SetupCmd,
     store::StoreCmd,
@@ -117,6 +119,11 @@ pub enum PaceCmd {
 
     /// Remove an entry for good
     Forget(ForgetCmd),
+
+    /// Look back on a period: time per role and project, targets, budgets,
+    /// revenue and breaks
+    #[command(visible_alias = "ref")]
+    Reflect(ReflectCmd),
 
     /// Keep the roles: the lasting responsibilities time goes to
     #[command(subcommand)]

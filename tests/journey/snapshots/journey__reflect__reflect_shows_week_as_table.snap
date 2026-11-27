@@ -1,0 +1,56 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+This week: Mon 2026-11-23 to Sun 2026-11-29, Europe/Berlin
+Tracked 7h 15m, untracked 79h 45m.
+
+Time per role
+  Work     5h 15m   72%  ████████████████████████████████████████
+  Health       1h   14%  ███████▌
+  No role     1h*   14%  ███████▌
+
+Time per project
+  Webshop relaunch  5h 15m   72%  ████████████████████████████████████████
+  No project           2h*   28%  ███████████████▏
+
+Time per day
+  Mon 2026-11-23       –
+  Tue 2026-11-24      1h   14%  █████████▍
+  Wed 2026-11-25      2h   28%  ██████████████████▊
+  Thu 2026-11-26  4h 15m   59%  ████████████████████████████████████████
+  Fri 2026-11-27       –
+  Sat 2026-11-28       –
+  Sun 2026-11-29       –
+
+Target vs. actual
+  Work  5h 15m  of 30h  18%
+
+Budgets, used to date
+  Webshop relaunch  5h 15m  of 10h  53%
+
+Revenue
+  ACME GmbH           5h 15m  498.75 EUR
+    Webshop relaunch  5h 15m  498.75 EUR
+  Total                       498.75 EUR
+
+Interruptions
+  1 hold, 15m: inner 0, outer 1 (15m), unknown 0.
+  Most frequent reasons: phone call 1.
+
+Pauses and catches
+  Pauses: lunch 1 (30m).
+  1 catch.
+
+Who decided
+  By me          1h   14%  ███████▌
+  By others      1h   14%  ███████▌
+  Unmarked   5h 15m   72%  ████████████████████████████████████████
+
+* counts a running entry up to now.
+
+----- stderr -----

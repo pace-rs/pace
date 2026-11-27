@@ -70,6 +70,8 @@ pub struct Context {
     pub host: String,
     /// The working directory pace runs in.
     pub cwd: PathBuf,
+    /// `--plain`: output without colour and without symbols.
+    pub plain: bool,
 }
 
 impl Context {
@@ -165,6 +167,7 @@ impl PaceApp {
             test_now: std::env::var_os(TEST_NOW),
             host: device_name(&gethostname::gethostname()),
             cwd,
+            plain: command.plain,
         });
 
         self.after_config(()).map_err(|error| {

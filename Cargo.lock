@@ -804,6 +804,7 @@ dependencies = [
  "serde_json",
  "shell-words",
  "tempfile",
+ "terminal_size",
  "toml 1.2.3+spec-1.1.0",
  "uuid",
 ]

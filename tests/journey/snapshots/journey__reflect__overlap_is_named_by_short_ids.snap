@@ -1,0 +1,45 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace log Standup --from 08:00 --to 09:00   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-1] "Standup" from 08:00 to 09:00 (1h).
+
+----- stderr -----
+
+$ pace log Review --from 08:30 --to 09:30 --allow-overlap   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-2] "Review" from 08:30 to 09:30 (1h).
+
+----- stderr -----
+
+$ pace reflect today --plain   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Today: Thu 2026-11-26, Europe/Berlin
+Tracked 2h, untracked 8h.
+
+Time per role
+  No role  2h  100%  ########################################
+
+Time per project
+  No project  2h  100%  ########################################
+
+Target vs. actual
+  Work  0s  of 4h 17m  0%
+
+Who decided
+  By me       -
+  By others   -
+  Unmarked   2h  100%  ########################################
+
+Overlaps
+  [ID-1] and [ID-2] both cover 08:30–09:00; change one with `pace adjust <id>`.
+
+----- stderr -----
