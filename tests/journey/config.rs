@@ -254,3 +254,15 @@ fn newer_file_version_wins_over_unknown_key_above_it() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn setting_values_ignore_case() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config(
+        "time-zone = \"europe/BERLIN\"\nweek-start = \"Sunday\"\n\n[holds]\ndefault-source = \"Outer\"\n\n[storage]\nsplit = \"WEEK\"\n",
+    )?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

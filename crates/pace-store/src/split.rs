@@ -56,8 +56,9 @@ impl fmt::Display for Split {
 impl FromStr for Split {
     type Err = Box<PaceError>;
 
+    /// The split named `text`, in any case.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        match text {
+        match text.to_lowercase().as_str() {
             "year" => Ok(Self::Year),
             "month" => Ok(Self::Month),
             "week" => Ok(Self::Week),
@@ -80,6 +81,12 @@ mod tests {
         for split in [Split::Year, Split::Month, Split::Week, Split::Day] {
             assert_eq!(split.to_string().parse::<Split>()?, split);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn split_name_ignores_case() -> Result<(), Box<PaceError>> {
+        assert_eq!("Week".parse::<Split>()?, Split::Week);
         Ok(())
     }
 }

@@ -1,0 +1,23 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+# config file: [SANDBOX]/config/pace.global.toml
+# data:        [SANDBOX]/home
+# machine:     [SANDBOX]/machine
+# project:     none
+
+time-zone = "Europe/Berlin"
+week-start = "sunday"
+most-recent-count = 9
+
+[holds]
+default-source = "outer"
+
+[storage]
+split = "week"
+
+----- stderr -----

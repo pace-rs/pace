@@ -233,7 +233,7 @@ fn parse_count(value: &Value) -> PaceResult<usize> {
 }
 
 fn parse_hold_source(value: &str) -> PaceResult<HoldSource> {
-    match value {
+    match value.to_lowercase().as_str() {
         "inner" => Ok(HoldSource::Inner),
         "outer" => Ok(HoldSource::Outer),
         "unknown" => Ok(HoldSource::Unknown),
