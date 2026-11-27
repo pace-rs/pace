@@ -3,13 +3,14 @@
 The event store: its port `EventStore` (`port.rs`), the `Tracker` that drives
 pace_core's tracking machine over it (`tracker.rs`), and the backends; so far
 the `files` backend, one TOML event log per device in `PACE_HOME`. `files.rs`
-appends and reads under a lock, `format.rs` writes and reads the event files,
-`index.rs` keeps the machine-local index of them, and `machine.rs` the device ID
-and the cursors. `disk.rs` holds the file operations they share, `hlc.rs` the
-HLC as pace's files keep it. `toml_file.rs` reads pace's TOML files with spans,
-so an error points at its line. `testing.rs`, behind the feature `testing`,
-gives tests a scratch directory in memory, the in-memory `MemoryStore` and
-`Raced`; `testing/contract.rs` holds the store contract every backend passes.
+appends under a lock and reads without one, `format.rs` writes and reads the
+event files, `index.rs` keeps the machine-local index of them, and `machine.rs`
+the device ID and the cursors. `disk.rs` holds the file operations they share,
+`hlc.rs` the HLC as pace's files keep it. `toml_file.rs` reads pace's TOML files
+with spans, so an error points at its line. `testing.rs`, behind the feature
+`testing`, gives tests a scratch directory in memory, the in-memory
+`MemoryStore` and `Raced`; `testing/contract.rs` holds the store contract every
+backend passes.
 
 ## Files
 

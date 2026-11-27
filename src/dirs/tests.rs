@@ -1,3 +1,6 @@
+//! How the global config file, the data directory and the machine directory
+//! resolve from flags, variables and the platform.
+
 use std::{
     ffi::OsString,
     path::{Path, PathBuf},

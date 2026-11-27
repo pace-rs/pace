@@ -10,7 +10,7 @@ license = { workspace = true }
 publish = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
-description = "pace_store: the event store of pace, its port, driver and backends, devices and state files"
+description = "pace_store: the event store of pace, its port, driver and backends, the machine directory, and pace's TOML file reader"
 
 [dependencies]
 jiff = { workspace = true, features = ["serde"] }

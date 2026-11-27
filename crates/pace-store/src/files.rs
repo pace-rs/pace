@@ -113,6 +113,7 @@ impl FilesStore {
     /// lock in the machine directory `machine`. `name`, the readable name,
     /// and `split` apply when the device writes its first event; afterwards
     /// its `device.toml` decides.
+    ///
     /// The device's files come with its first append. Before it, a read
     /// saves only the index cache `index.json` when the event files
     /// changed, and creates the machine directory for it.

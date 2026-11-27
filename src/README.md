@@ -5,8 +5,9 @@ top of the core. `application.rs` resolves the directories, the settings and the
 project before a command runs. It is the only place that reads the environment:
 the terminal, the editor, the hostname and `PACE_TEST_NOW` reach the commands in
 the `Context`. `commands/` holds the commands, and `session.rs` opens the
-tracker over the `files` backend. What the user reads comes from `output.rs`,
-and what pace asks from `prompt.rs`.
+tracker over the `files` backend. The commands write what the user reads through
+`print.rs`; `output.rs` words the sentences of the tracking commands, and
+`prompt.rs` asks the user.
 
 ## Files
 

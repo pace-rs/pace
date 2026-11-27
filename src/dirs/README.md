@@ -7,9 +7,9 @@ machine directory resolve from flags, variables and the platform.
 
 <!-- files -->
 
-| File                   | What it holds |
-| ---------------------- | ------------- |
-| [`tests.rs`](tests.rs) | Tests.        |
+| File                   | What it holds                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| [`tests.rs`](tests.rs) | Tests: How the global config file, the data directory and the machine directory resolve from flags, variables and the platform. |
 
 <!-- /files -->
 
