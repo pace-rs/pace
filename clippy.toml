@@ -1,2 +1,5 @@
 # ".." keeps clippy's default list.
 doc-valid-idents = ["UUIDv7", ".."]
+# A test may unwrap: a panic is how a test fails, and it names the line.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

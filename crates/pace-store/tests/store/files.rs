@@ -96,11 +96,9 @@ fn everything() -> Result<TimeRange, Box<dyn std::error::Error>> {
 #[test]
 fn the_files_backend_keeps_the_store_contract() -> TestResult {
     pollster::block_on(run_store_contract(|| {
-        let dir = tempfile::tempdir().ok();
+        let dir = tempfile::tempdir().expect("a temporary directory for the store");
         move |device: DeviceId, clock: Arc<TestClock>| {
-            let root = dir
-                .as_ref()
-                .map_or_else(std::env::temp_dir, |dir| dir.path().to_path_buf());
+            let root = dir.path();
             FilesStore::new(
                 root.join("home"),
                 root.join("machine").join(device.to_string()),

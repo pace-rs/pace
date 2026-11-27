@@ -7,7 +7,8 @@
      --all-targets --all-features -- -D warnings && cargo nextest run
    ```
 2. The workspace lints are clippy's `pedantic` and `nursery`, `unwrap_used`,
-   `expect_used` and rustc's `unused_results`; CI makes warnings errors.
+   `expect_used` and rustc's `unused_results`; CI makes warnings errors. In
+   tests, `clippy.toml` allows `unwrap` and `expect`.
 3. Discard a value explicitly with `_ = …`.
 4. An `#[allow(clippy::expect_used)]` says why; every new allowance fails
    codegate's lint-allows gate until `codegate lint-allows --bless` records it.
