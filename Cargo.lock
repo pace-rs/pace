@@ -917,6 +917,7 @@ dependencies = [
  "jiff",
  "pace_core",
  "pace_error",
+ "pace_store",
  "pace_time",
  "pollster",
  "rstest",

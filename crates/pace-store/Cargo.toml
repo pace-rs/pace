@@ -24,9 +24,14 @@ strsim = { workspace = true }
 tempfile = { workspace = true }
 toml = { workspace = true }
 
+[features]
+# `pace_store::testing`, for tests that write through a backend.
+testing = []
+
 [dev-dependencies]
 insta = { workspace = true }
 pace_core = { workspace = true, features = ["testing"] }
+pace_store = { path = ".", features = ["testing"] }
 pollster = { workspace = true }
 rstest = { workspace = true }
 

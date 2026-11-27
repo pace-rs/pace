@@ -25,3 +25,6 @@
     its coverage counts for the CRAP gate.
 12. An interactive path needs a pty and has no journey test yet, so keep its
     logic in functions a test can call.
+13. A test that writes through a store backend, or a `Sandbox`, takes its
+    temporary directory from `pace_store::testing::scratch_dir`: in memory, a
+    sync costs nothing, so the slow-tests gate does not time the disk.

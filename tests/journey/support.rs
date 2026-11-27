@@ -7,6 +7,7 @@ use std::{
     process::Command,
 };
 
+use pace_store::testing::scratch_dir;
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -38,7 +39,7 @@ pub struct Sandbox {
 
 impl Sandbox {
     pub fn new() -> std::io::Result<Self> {
-        let root = tempfile::tempdir()?;
+        let root = scratch_dir()?;
         std::fs::create_dir(root.path().join("work"))?;
         std::fs::create_dir(root.path().join("config"))?;
         std::fs::write(root.path().join("config/pace.global.toml"), "")?;

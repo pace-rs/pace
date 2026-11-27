@@ -9,7 +9,7 @@ use pace_core::{
     command::{Begin, End},
     testing::TestClock,
 };
-use pace_store::{FilesStore, Split, device_id};
+use pace_store::{FilesStore, Split, device_id, testing::scratch_dir};
 use pace_time::TimeRange;
 
 use crate::TestResult;
@@ -20,7 +20,7 @@ fn at(rfc9557: &str) -> Result<ZonedDateTime, jiff::Error> {
 
 #[test]
 fn the_first_run_creates_the_device_id_and_later_runs_keep_it() -> TestResult {
-    let dir = tempfile::tempdir()?;
+    let dir = scratch_dir()?;
     let machine = dir.path().join("machine");
     let ids = SequentialIds::starting_at(&at("2026-11-26T09:00[Europe/Berlin]")?, 7);
 
@@ -37,7 +37,7 @@ fn the_first_run_creates_the_device_id_and_later_runs_keep_it() -> TestResult {
 
 #[test]
 fn broken_device_file_says_how_to_get_new_id() -> TestResult {
-    let dir = tempfile::tempdir()?;
+    let dir = scratch_dir()?;
     let machine = dir.path().join("machine");
     std::fs::create_dir_all(&machine)?;
     std::fs::write(
@@ -82,7 +82,7 @@ fn machine(
 
 #[test]
 fn device_id_used_by_two_machines_stops_writing() -> TestResult {
-    let dir = tempfile::tempdir()?;
+    let dir = scratch_dir()?;
     let home = dir.path().join("home");
     let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
     let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
@@ -116,7 +116,7 @@ fn device_id_used_by_two_machines_stops_writing() -> TestResult {
 
 #[test]
 fn deleting_the_index_changes_nothing() -> TestResult {
-    let dir = tempfile::tempdir()?;
+    let dir = scratch_dir()?;
     let home = dir.path().join("home");
     let machine_dir = dir.path().join("machine");
     let clock = Arc::new(TestClock::new(at("2026-10-15T09:00[Europe/Berlin]")?));

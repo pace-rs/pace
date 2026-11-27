@@ -10,7 +10,7 @@ use pace_core::{
     command::{Adjust, Begin, Catch, End, Hold, Log, Pause},
     testing::{Raced, TestClock},
 };
-use pace_store::{FilesStore, Split};
+use pace_store::{FilesStore, Split, testing::scratch_dir};
 use pace_time::TimeRange;
 use rstest::rstest;
 use tempfile::TempDir;
@@ -34,7 +34,7 @@ struct Setup {
 impl Setup {
     fn new(now: &str) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
-            dir: tempfile::tempdir()?,
+            dir: scratch_dir()?,
             clock: Arc::new(TestClock::new(at(now)?)),
             device: device(1)?,
         })
@@ -96,7 +96,7 @@ fn everything() -> Result<TimeRange, Box<dyn std::error::Error>> {
 #[test]
 fn the_files_backend_keeps_the_store_contract() -> TestResult {
     pollster::block_on(run_store_contract(|| {
-        let dir = tempfile::tempdir().expect("a temporary directory for the store");
+        let dir = scratch_dir().expect("a temporary directory for the store");
         move |device: DeviceId, clock: Arc<TestClock>| {
             let root = dir.path();
             FilesStore::new(

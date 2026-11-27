@@ -12,7 +12,7 @@ use pace_core::{
     command::{Adjust, Begin, End, Forget, Hold, Log},
     testing::TestClock,
 };
-use pace_store::{FilesStore, Split};
+use pace_store::{FilesStore, Split, testing::scratch_dir};
 use pace_time::TimeRange;
 use tempfile::TempDir;
 
@@ -137,7 +137,7 @@ struct Pair {
 }
 
 fn pair(desktop_split: Split) -> Result<Pair, Box<dyn std::error::Error>> {
-    let root = tempfile::tempdir()?;
+    let root = scratch_dir()?;
     Ok(Pair {
         laptop: Device::new(root.path(), "laptop", 1, Split::Month)?,
         desktop: Device::new(root.path(), "desktop", 2, desktop_split)?,

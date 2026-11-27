@@ -88,6 +88,7 @@ uuid = { workspace = true, features = ["v7"] }
 
 [dev-dependencies]
 insta = { workspace = true }
+pace_store = { workspace = true, features = ["testing"] }
 rstest = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
