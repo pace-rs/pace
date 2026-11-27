@@ -166,7 +166,7 @@ fn forget_asks_for_good_without_terminal() -> TestResult {
 }
 
 #[test]
-fn undo_after_another_device_forgot_the_entry_has_nothing_to_do() -> TestResult {
+fn undo_after_other_device_forgot_entry_has_nothing_to_do() -> TestResult {
     let sandbox = Sandbox::new()?;
     let began = run(sandbox.pace_at("09:00").args(["begin", "secret meeting"]))?;
     let entry = short_id_after(&began, "Began ")?;

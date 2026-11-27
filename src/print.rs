@@ -37,7 +37,7 @@ pub fn print_bytes(bytes: &[u8]) -> PaceResult<()> {
 /// # Errors
 ///
 /// If `out` takes no more, other than a closed pipe.
-pub fn write_lines<I>(out: &mut impl Write, lines: I) -> PaceResult<()>
+fn write_lines<I>(out: &mut impl Write, lines: I) -> PaceResult<()>
 where
     I: IntoIterator,
     I::Item: Display,
