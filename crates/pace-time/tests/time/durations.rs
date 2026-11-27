@@ -113,3 +113,35 @@ fn text_that_is_no_duration_is_rejected() {
         Some("`a while` is not a duration")
     );
 }
+
+#[rstest]
+#[case::leading(" 30m")]
+#[case::trailing("30m ")]
+fn space_around_duration_is_ignored(#[case] input: &str) -> TestResult {
+    assert_eq!(parse_duration(input)?, SignedDuration::from_mins(30));
+    Ok(())
+}
+
+#[rstest]
+#[case::ago("30m ago", "did you mean `30m`?")]
+#[case::minus("-1h 30m", "did you mean `1h 30m`?")]
+#[case::zero("0m", "give a duration longer than zero, like `15m`")]
+#[case::longest_negative(
+    "-9223372036854775808s",
+    "give a duration longer than zero, like `15m`"
+)]
+fn duration_that_is_not_positive_is_rejected(
+    #[case] input: &str,
+    #[case] expected_hint: &str,
+) -> TestResult {
+    let error = parse_duration(input)
+        .err()
+        .ok_or_else(|| format!("`{input}` must be rejected"))?;
+
+    assert_eq!(
+        error.to_string(),
+        format!("the duration `{input}` is not positive")
+    );
+    assert_eq!(error.hint(), Some(expected_hint));
+    Ok(())
+}
