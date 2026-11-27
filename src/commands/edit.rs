@@ -249,16 +249,16 @@ fn read(
         )
         .attach_context("message", error.message().trim());
         // A missing field has no spot in the file, though toml gives it
-        // an empty span at 0; a syntax error's empty span marks its spot.
-        if lacks_start(text) {
-            return mistake
-                .attach_hint("write the fields back, at least `start`; nothing was changed");
-        }
+        // an empty span at 0; a syntax error's empty span marks its spot,
+        // and so does every other span, also in a file without `start`.
         match error.span() {
-            Some(span) => mistake
+            Some(span) if !(span.is_empty() && lacks_start(text)) => mistake
                 .attach_snippet(Snippet::new(EDITED, text, span, "here"))
                 .attach_hint("fix the marked spot; nothing was changed"),
-            None => mistake.attach_hint("fix the named mistake; nothing was changed"),
+            _ if lacks_start(text) => {
+                mistake.attach_hint("write the fields back, at least `start`; nothing was changed")
+            }
+            _ => mistake.attach_hint("fix the named mistake; nothing was changed"),
         }
     })?;
 
@@ -560,6 +560,53 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(labels(&error).len(), 1);
+        assert_eq!(
+            error.hint(),
+            Some("fix the marked spot; nothing was changed")
+        );
+    }
+
+    #[test]
+    fn mistyped_start_key_marks_its_spot() {
+        let text = format!(
+            "# pace edit: entry 7049, begun on this device.\nstrat = \"{}\"\n",
+            at("09:00")
+        );
+
+        let error = read(
+            &text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            labels(&error),
+            [(text.find("strat").unwrap(), "here".to_owned())]
+        );
+        assert_eq!(
+            error.hint(),
+            Some("fix the marked spot; nothing was changed")
+        );
+    }
+
+    #[test]
+    fn wrong_type_without_start_marks_its_spot() {
+        let text = "# Started at 09:00.\nend = 10\n";
+
+        let error = read(
+            text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(labels(&error).len(), 1, "{error}");
+        assert_eq!(labels(&error)[0].1, "here");
         assert_eq!(
             error.hint(),
             Some("fix the marked spot; nothing was changed")
