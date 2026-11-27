@@ -85,6 +85,22 @@ slug_key!(
     "project",
     "acme-webshop"
 );
+impl ProjectKey {
+    /// `name`, such as a directory's name, as a project key: lowercase,
+    /// with each run of other characters than ASCII letters and digits
+    /// turned into one dash, so `Web Shop_2.0` is `web-shop-2-0`. `None` if
+    /// `name` has no ASCII letter or digit.
+    #[must_use]
+    pub fn slug_of(name: &str) -> Option<Self> {
+        let lower = name.to_ascii_lowercase();
+        let words: Vec<&str> = lower
+            .split(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit()))
+            .filter(|word| !word.is_empty())
+            .collect();
+        (!words.is_empty()).then(|| Self(words.join("-")))
+    }
+}
+
 slug_key!(
     /// The key of a role, as people type it: `work`.
     RoleKey,
@@ -144,5 +160,25 @@ impl From<Tag> for String {
 impl fmt::Display for Tag {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slug_of_directory_name_lowers_and_joins_words_by_dashes() {
+        let slug = |name| ProjectKey::slug_of(name).map(|key| key.to_string());
+
+        assert_eq!(slug("webshop").as_deref(), Some("webshop"));
+        assert_eq!(slug("Web Shop_2.0").as_deref(), Some("web-shop-2-0"));
+        assert_eq!(slug("--acme--webshop--").as_deref(), Some("acme-webshop"));
+    }
+
+    #[test]
+    fn slug_of_name_without_ascii_letters_or_digits_is_none() {
+        assert_eq!(ProjectKey::slug_of("日本"), None);
+        assert_eq!(ProjectKey::slug_of(" - "), None);
     }
 }
