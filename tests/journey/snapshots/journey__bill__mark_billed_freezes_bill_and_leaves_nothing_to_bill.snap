@@ -1,0 +1,70 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --mark-billed 2026-0042   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Billed 3 entries on invoice 2026-0042: 6h 15m for 712.50 EUR.
+
+----- stderr -----
+
+$ pace bill   # at 15:05
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × nothing to bill for acme in October 2026
+  help: end [ID-1] "Write the offer" to bill it
+
+
+--- billing.marked in home/events ---
+[[event]]
+id = "[ID-2]"
+type = "billing.marked"
+v = 1
+batch = "[ID-3]"
+at = "2026-11-26T15:00:00+01:00[Europe/Berlin]"
+about = "2026-10-20T14:00:00+02:00[Europe/Berlin]"
+hlc = "2026-11-26T14:00:00.000Z/0"
+entry = "[ID-4]"
+invoice = "2026-0042"
+net-seconds = 4800
+billed-seconds = 5400
+rate = "95.00"
+currency = "EUR"
+amount = "142.50"
+
+[[event]]
+id = "[ID-5]"
+type = "billing.marked"
+v = 1
+batch = "[ID-3]"
+at = "2026-11-26T15:00:00+01:00[Europe/Berlin]"
+about = "2026-10-05T09:00:00+02:00[Europe/Berlin]"
+hlc = "2026-11-26T14:00:00.000Z/1"
+entry = "[ID-6]"
+invoice = "2026-0042"
+net-seconds = 7800
+billed-seconds = 8100
+rate = "120.00"
+currency = "EUR"
+amount = "270.00"
+
+[[event]]
+id = "[ID-7]"
+type = "billing.marked"
+v = 1
+batch = "[ID-3]"
+at = "2026-11-26T15:00:00+01:00[Europe/Berlin]"
+about = "2026-10-07T09:00:00+02:00[Europe/Berlin]"
+hlc = "2026-11-26T14:00:00.000Z/2"
+entry = "[ID-8]"
+invoice = "2026-0042"
+net-seconds = 9000
+billed-seconds = 9000
+rate = "120.00"
+currency = "EUR"
+amount = "300.00"

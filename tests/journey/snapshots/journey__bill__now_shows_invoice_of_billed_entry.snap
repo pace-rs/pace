@@ -1,0 +1,12 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace now   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Running: [ID-1] "Fix the checkout", since 2026-10-07 09:00 (on 2026-10-07).
+  1207h net so far; project Webshop relaunch; billed (2026-0042).
+
+----- stderr -----

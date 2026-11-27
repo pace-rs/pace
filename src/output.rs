@@ -2,9 +2,12 @@
 //! commands, lists in a sentence and tables.
 
 use jiff::ZonedDateTime;
+use std::collections::BTreeMap;
+
+use jiff::SignedDuration;
 use pace_core::{
-    Catalog, Change, DeterminedBy, Entry, EntryChanges, EntryId, EventKind, HoldSource, Outcome,
-    PauseKind, ProjectRef, RecordedEvent, RoleId, State, Tag,
+    Billing, Catalog, Change, DeterminedBy, Entry, EntryChanges, EntryId, EventKind, HoldSource,
+    InvoiceRef, Outcome, PauseKind, ProjectRef, RecordedEvent, RoleId, State, Tag, Totals,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{format_duration, format_moment};
@@ -16,6 +19,16 @@ pub fn counted(count: usize, noun: &str) -> String {
         format!("1 {noun}")
     } else {
         format!("{count} {noun}s")
+    }
+}
+
+/// `1 entry`, `2 entries`: [`counted`] for the noun with its own plural.
+#[must_use]
+pub fn counted_entries(count: usize) -> String {
+    if count == 1 {
+        "1 entry".to_owned()
+    } else {
+        format!("{count} entries")
     }
 }
 
@@ -126,9 +139,14 @@ fn in_role(entry: &Entry, catalog: &Catalog) -> String {
 /// events and no line says so: both are bugs.
 pub fn describe_outcome(outcome: &Outcome, catalog: &Catalog) -> PaceResult<Vec<String>> {
     let mut lines = Vec::new();
+    let mut marked = Invoices::default();
     for recorded in &outcome.recorded {
+        if let EventKind::BillingMarked { billing, .. } = &recorded.event.kind {
+            marked.add(billing)?;
+        }
         lines.extend(recorded_line(outcome, recorded, catalog)?);
     }
+    lines.extend(marked.billed_lines());
     lines.extend(undid(outcome)?);
     if lines.is_empty() && !outcome.recorded.is_empty() {
         return Err(PaceError::new(
@@ -209,14 +227,11 @@ fn recorded_line(
                 entry.clock_times(now)
             )
         }
-        EventKind::BillingMarked { entry, billing } => format!(
-            "Billed {} on invoice {}: {} for {} {}.",
-            state.entry_name(known(state, *entry)?),
-            billing.invoice,
-            format_duration(billing.billed),
-            billing.amount,
-            billing.amount.currency()
-        ),
+        // A marking is one line per invoice, from `Invoices::billed_lines`.
+        EventKind::BillingMarked { entry, .. } => {
+            _ = known(state, *entry)?;
+            return Ok(None);
+        }
         EventKind::BatchUndone { .. } => return Ok(None),
     };
     Ok(Some(line))
@@ -227,18 +242,76 @@ fn recorded_line(
 /// has nothing left to take back, so it has no line.
 fn undid(outcome: &Outcome) -> PaceResult<Vec<String>> {
     let before = &outcome.before;
-    outcome
-        .undone
-        .iter()
-        .filter(|recorded| {
-            recorded
-                .event
-                .kind
-                .entry()
-                .is_none_or(|entry| before.entry(entry).is_some())
+    let mut lines = Vec::new();
+    let mut unmarked = Invoices::default();
+    let still_there = outcome.undone.iter().filter(|recorded| {
+        recorded
+            .event
+            .kind
+            .entry()
+            .is_none_or(|entry| before.entry(entry).is_some())
+    });
+    for recorded in still_there {
+        if let EventKind::BillingMarked { billing, .. } = &recorded.event.kind {
+            unmarked.add(billing)?;
+        } else {
+            lines.push(took_back(before, recorded, &outcome.now)?);
+        }
+    }
+    lines.extend(unmarked.took_back_lines());
+    Ok(lines)
+}
+
+/// The billings of a marking, or of its undo, per invoice: so a marking of
+/// many entries says in one line what it did.
+#[derive(Default)]
+struct Invoices {
+    invoices: BTreeMap<InvoiceRef, InvoiceSums>,
+}
+
+/// The entries, the billed time and the amounts of one invoice.
+#[derive(Default)]
+struct InvoiceSums {
+    entries: usize,
+    billed: SignedDuration,
+    amounts: Totals,
+}
+
+impl Invoices {
+    /// Count `billing` on its invoice.
+    fn add(&mut self, billing: &Billing) -> PaceResult<()> {
+        let sums = self.invoices.entry(billing.invoice.clone()).or_default();
+        sums.entries += 1;
+        sums.billed += billing.billed;
+        sums.amounts.add(billing.amount)
+    }
+
+    /// `Billed 3 entries on invoice 2026-0042: 6h 30m for 712.50 EUR.`
+    fn billed_lines(&self) -> impl Iterator<Item = String> + '_ {
+        self.invoices.iter().map(|(invoice, sums)| {
+            let amounts: Vec<String> = sums
+                .amounts
+                .iter()
+                .map(|amount| format!("{amount} {}", amount.currency()))
+                .collect();
+            format!(
+                "Billed {} on invoice {invoice}: {} for {}.",
+                counted_entries(sums.entries),
+                format_duration(sums.billed),
+                listed(&amounts)
+            )
         })
-        .map(|recorded| took_back(before, recorded, &outcome.now))
-        .collect()
+    }
+
+    /// `Took back the billing of 3 entries on invoice 2026-0042.`
+    fn took_back_lines(&self) -> impl Iterator<Item = String> + '_ {
+        self.invoices.iter().map(|(invoice, sums)| {
+            format!(
+                "Took back the billing of {} on invoice {invoice}.",
+                counted_entries(sums.entries)
+            )
+        })
+    }
 }
 
 /// The line for one undone event.
@@ -280,11 +353,15 @@ fn took_back(before: &State, recorded: &RecordedEvent, now: &ZonedDateTime) -> P
             "Took back the adjustment of {}.",
             before.entry_name(known(before, *entry)?)
         ),
-        EventKind::BillingMarked { entry, billing } => format!(
-            "Took back the billing of {} on invoice {}.",
-            before.entry_name(known(before, *entry)?),
-            billing.invoice
-        ),
+        // `undid` counts them per invoice.
+        EventKind::BillingMarked { .. } => {
+            return Err(PaceError::new(
+                ErrorKind::Internal,
+                "pace took back the billing {event} without its invoice",
+            )
+            .attach_context("event", recorded.event.id.to_string())
+            .ask_report());
+        }
         // The state never offers an undo or a forget to undo.
         EventKind::EntryForgotten { .. } | EventKind::BatchUndone { .. } => {
             return Err(PaceError::new(
@@ -729,7 +806,7 @@ mod tests {
                 "Took back the logged entry 0003 \"Review\", 09:00–10:00.",
                 "Took back the adjustment of 0001 \"Write offer\".",
                 "Took back the end of 0001 \"Write offer\" at 09:00; it is open again.",
-                "Took back the billing of 0001 \"Write offer\" on invoice 2026-0042.",
+                "Took back the billing of 1 entry on invoice 2026-0042.",
             ]
         );
         Ok(())
@@ -788,8 +865,8 @@ mod tests {
         let eur = "EUR".parse()?;
         Ok(Billing {
             invoice: invoice.parse()?,
-            net: jiff::SignedDuration::from_mins(50),
-            billed: jiff::SignedDuration::from_hours(1),
+            net: SignedDuration::from_mins(50),
+            billed: SignedDuration::from_hours(1),
             rate: Money::from_minor(9550, eur),
             amount: Money::from_minor(9550, eur),
         })
@@ -806,7 +883,62 @@ mod tests {
 
         assert_eq!(
             lines,
-            ["Billed 0001 \"Write offer\" on invoice 2026-0042: 1h for 95.50 EUR."]
+            ["Billed 1 entry on invoice 2026-0042: 1h for 95.50 EUR."]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn marking_of_several_entries_is_one_line_with_their_count_and_sums() -> TestResult {
+        let (first, second): (EntryId, EntryId) = (id(0xa, 1)?, id(0xa, 2)?);
+        let began = [
+            recorded(1, 1, begun(first))?,
+            recorded(2, 2, begun(second))?,
+        ];
+        let marked = [first, second]
+            .into_iter()
+            .zip(3..)
+            .map(|(entry, number)| {
+                let billing = billing("2026-0042")?;
+                recorded(3, number, EventKind::BillingMarked { entry, billing })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let outcome = outcome(&began, marked, Vec::new())?;
+
+        let lines = describe_outcome(&outcome, &Catalog::default())?;
+
+        assert_eq!(
+            lines,
+            ["Billed 2 entries on invoice 2026-0042: 2h for 191.00 EUR."]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn undone_marking_of_several_entries_is_one_line_with_their_count() -> TestResult {
+        let (first, second): (EntryId, EntryId) = (id(0xa, 1)?, id(0xa, 2)?);
+        let began = [
+            recorded(1, 1, begun(first))?,
+            recorded(2, 2, begun(second))?,
+        ];
+        let marked = [first, second]
+            .into_iter()
+            .zip(3..)
+            .map(|(entry, number)| {
+                let billing = billing("2026-0042")?;
+                recorded(3, number, EventKind::BillingMarked { entry, billing })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let batch = marked[0].batch;
+        let undo = recorded(4, 5, EventKind::BatchUndone { batch })?;
+        let read: Vec<_> = began.iter().chain(&marked).cloned().collect();
+        let outcome = outcome(&read, vec![undo], marked)?;
+
+        let lines = describe_outcome(&outcome, &Catalog::default())?;
+
+        assert_eq!(
+            lines,
+            ["Took back the billing of 2 entries on invoice 2026-0042."]
         );
         Ok(())
     }

@@ -1,15 +1,19 @@
 //! `pace bill`: the bill of a client over a period, as a table, JSON, CSV
-//! or Markdown from a template.
+//! or Markdown from a template; with `--mark-billed`, the bill frozen on an
+//! invoice.
 
 use abscissa_core::{Command, Runnable};
 use jiff::civil::Date;
-use pace_core::{Bill, BillInput, Catalog, Client, ClientKey, State};
+use pace_core::{
+    Bill, BillInput, Catalog, Client, ClientKey, Command as UseCase, InvoiceRef, State,
+    command::MarkBilled,
+};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{TimeFrame, TimeRange};
 
 use crate::clock::zone;
 use crate::commands::client::unknown_client;
-use crate::output::{listed, usage};
+use crate::output::{describe_outcome, listed, usage};
 use crate::print::{print_bytes, print_lines};
 use crate::render::{
     BillPeriod, BillRows, BillTable, BuiltInTemplate, Canvas, ReportTemplate, bill_rows,
@@ -69,6 +73,15 @@ pub struct BillCmd {
         help = "How to show the bill"
     )]
     format: BillFormat,
+
+    #[arg(
+        long,
+        value_name = "INVOICE",
+        conflicts_with = "format",
+        help = "Mark the bill as billed on the invoice with this reference, such as 2026-0042, \
+                and freeze its amounts; `pace undo` takes it back"
+    )]
+    mark_billed: Option<String>,
 }
 
 /// How `pace bill` shows the bill.
@@ -94,7 +107,18 @@ impl BillCmd {
     fn execute(&self, context: &Context) -> PaceResult<()> {
         let catalog = &context.catalog;
         let client = bill_client(catalog, self.client.as_deref())?;
-        let session = Session::open_existing(context)?;
+        let invoice: Option<InvoiceRef> = self
+            .mark_billed
+            .as_deref()
+            .map(str::parse)
+            .transpose()
+            .map_err(usage)?;
+        // Marking writes, so it needs this machine's device ID.
+        let session = if invoice.is_some() {
+            Session::open(context)?
+        } else {
+            Session::open_existing(context)?
+        };
         let zone = zone(&context.settings.settings.reports_time_zone)?;
         let now = session.now().with_time_zone(zone.clone());
         let range = self
@@ -113,6 +137,9 @@ impl BillCmd {
         let period = BillPeriod::of(&range, &zone);
         if bill.is_empty() {
             return Err(nothing_to_bill(&bill, client, period, &state));
+        }
+        if let Some(invoice) = invoice {
+            return mark_billed(&session, catalog, client, &range, invoice);
         }
         let rows = || {
             bill_rows(&BillRows {
@@ -162,6 +189,25 @@ impl BillCmd {
             (None, None, from, to) => Ok(TimeFrame::Between { from, to }),
         }
     }
+}
+
+/// Mark the bill of `client` over `range` billed on `invoice`, and say
+/// so in one line. The core decides the bill again on what it reads, so
+/// a change since the bill above was built can't slip in.
+fn mark_billed(
+    session: &Session,
+    catalog: &Catalog,
+    client: &Client,
+    range: &TimeRange,
+    invoice: InvoiceRef,
+) -> PaceResult<()> {
+    let outcome = session.run(&UseCase::MarkBilled(MarkBilled {
+        client: client.key.clone(),
+        start: range.start().cloned(),
+        end: range.end().cloned(),
+        invoice,
+    }))?;
+    print_lines(describe_outcome(&outcome, catalog)?)
 }
 
 /// The range of events the bill reads: from the period's start on, with

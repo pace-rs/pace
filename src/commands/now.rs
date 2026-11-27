@@ -72,7 +72,7 @@ fn render_text(
     }
     for entry in &open {
         lines.push(headline(state, entry, now));
-        let details = details(entry, session, &context.catalog, now);
+        let details = details(state, entry, session, &context.catalog, now);
         lines.push(format!("  {}.", details.join("; ")));
     }
     if open.len() > 1 {
@@ -135,6 +135,7 @@ fn headline(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
 }
 
 fn details(
+    state: &State,
     entry: &Entry,
     session: &Session,
     catalog: &Catalog,
@@ -163,6 +164,9 @@ fn details(
     }
     if entry.determined_by == Some(DeterminedBy::Others) {
         details.push("other-determined".to_owned());
+    }
+    if let Some(billing) = state.billing(entry.id) {
+        details.push(format!("billed ({})", billing.invoice));
     }
     if entry.device != session.device() {
         details.push("on another device".to_owned());
@@ -194,6 +198,8 @@ struct OpenJson<'state> {
     billable: bool,
     /// Whether its overlap is marked as intended.
     allow_overlap: bool,
+    /// The invoice it is billed on; `None` while it is not billed.
+    billed: Option<&'state str>,
     start: String,
     since: String,
     net_seconds: i64,
@@ -275,6 +281,9 @@ fn render_json(
                 determined_by: entry.determined_by,
                 billable: entry.effective_billable(&context.catalog),
                 allow_overlap: entry.allow_overlap,
+                billed: state
+                    .billing(entry.id)
+                    .map(|billing| billing.invoice.as_str()),
                 start: entry.start.to_string(),
                 since: since.to_string(),
                 net_seconds: entry.net(now).as_secs(),

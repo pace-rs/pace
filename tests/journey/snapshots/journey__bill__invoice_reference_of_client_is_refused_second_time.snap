@@ -1,0 +1,40 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --mark-billed 2026-0042   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Billed 3 entries on invoice 2026-0042: 6h 15m for 712.50 EUR.
+
+----- stderr -----
+
+$ pace log Fix the cart --project acme-webshop --from 2026-10-21 09:00 --to 2026-10-21 10:00   # at 15:05
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-1] "Fix the cart" from 2026-10-21 09:00 to 2026-10-21 10:00 (1h).
+Project: acme-webshop (from --project).
+
+----- stderr -----
+
+$ pace bill --mark-billed 2026-0042   # at 15:10
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::core::invoice-used
+
+  × acme's invoice 2026-0042 is marked already, on 3 entries
+  help: give the new invoice a reference of its own
+
+
+$ pace bill --mark-billed 2026-0043   # at 15:15
+success: true
+exit_code: 0
+----- stdout -----
+Billed 1 entry on invoice 2026-0043: 1h for 120.00 EUR.
+
+----- stderr -----

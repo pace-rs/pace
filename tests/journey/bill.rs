@@ -413,3 +413,161 @@ fn no_client_is_nothing_to_bill() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+/// The `billing.marked` events of October 2026, as the event files hold
+/// them: each is filed under its entry's start.
+fn october_billings(sandbox: &Sandbox) -> Result<String, Box<dyn std::error::Error>> {
+    let mut text = String::new();
+    for device in std::fs::read_dir(sandbox.path("home/events"))? {
+        let file = device?.path().join("2026/2026-10.toml");
+        if file.is_file() {
+            let events = std::fs::read_to_string(file)?;
+            for event in events.split("[[event]]\n") {
+                if event.contains("type = \"billing.marked\"") {
+                    text.push_str("[[event]]\n");
+                    text.push_str(event);
+                }
+            }
+        }
+    }
+    Ok(text)
+}
+
+#[test]
+fn mark_billed_freezes_bill_and_leaves_nothing_to_bill() -> TestResult {
+    let sandbox = october_sandbox()?;
+
+    let transcript = sandbox.transcript_in(
+        "",
+        &[
+            ("15:00", &["bill", "--mark-billed", "2026-0042"]),
+            ("15:05", &["bill"]),
+        ],
+    )?;
+    let output = sandbox.redact_ids(&format!(
+        "{transcript}--- billing.marked in home/events ---\n{}",
+        october_billings(&sandbox)?
+    ))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn undo_takes_marking_back() -> TestResult {
+    let sandbox = october_sandbox()?;
+
+    let output = sandbox.journey(&[
+        ("15:00", &["bill", "--mark-billed", "2026-0042"]),
+        ("15:05", &["undo"]),
+        ("15:10", &["bill", "--format", "csv"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn invoice_reference_of_client_is_refused_second_time() -> TestResult {
+    let sandbox = october_sandbox()?;
+
+    let output = sandbox.journey(&[
+        ("15:00", &["bill", "--mark-billed", "2026-0042"]),
+        (
+            "15:05",
+            &[
+                "log",
+                "Fix the cart",
+                "--project",
+                "acme-webshop",
+                "--from",
+                "2026-10-21 09:00",
+                "--to",
+                "2026-10-21 10:00",
+            ],
+        ),
+        ("15:10", &["bill", "--mark-billed", "2026-0042"]),
+        ("15:15", &["bill", "--mark-billed", "2026-0043"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn mark_billed_with_nothing_to_bill_exits_three() -> TestResult {
+    let sandbox = catalog_sandbox(false)?;
+
+    let output = run(sandbox
+        .pace_at("15:00")
+        .args(["bill", "--mark-billed", "2026-0042"]))?;
+
+    assert!(output.contains("exit_code: 3"), "{output}");
+    assert!(
+        output.contains("nothing to bill for acme in October 2026"),
+        "{output}"
+    );
+    Ok(())
+}
+
+#[test]
+fn mark_billed_refuses_format_and_blank_reference_as_usage() -> TestResult {
+    let sandbox = october_sandbox()?;
+
+    let output = sandbox.journey(&[
+        (
+            "15:00",
+            &["bill", "--mark-billed", "2026-0042", "--format", "json"],
+        ),
+        ("15:00", &["bill", "--mark-billed", " "]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+/// An entry that is open and billed: it ended on this device, which
+/// syncs it to a second device with the same catalog. That device marks
+/// October billed, and this one takes back the end before it syncs the
+/// marking in.
+fn open_billed_entry(sandbox: &Sandbox) -> TestResult {
+    for (time, args) in [
+        (
+            october(7, "09:00"),
+            &["begin", "Fix the checkout", "--project", "acme-webshop"][..],
+        ),
+        (october(7, "12:00"), &["end"][..]),
+    ] {
+        _ = run(sandbox.pace_at(&time).args(args))?;
+    }
+    sandbox.sync_events_to("other-home")?;
+    sandbox.write("other-home/clients.toml", ACME)?;
+    sandbox.write("other-home/projects/acme-webshop.toml", WEBSHOP)?;
+    let marked = run(sandbox
+        .pace_at("14:00")
+        .env("PACE_HOME", sandbox.path("other-home"))
+        .env("PACE_MACHINE_DIR", sandbox.path("other-machine"))
+        .args(["bill", "--mark-billed", "2026-0042"]))?;
+    assert!(marked.starts_with("success: true"), "{marked}");
+    sandbox.sync_events_from("other-home")?;
+    let undone = run(sandbox.pace_at("14:30").arg("undo"))?;
+    assert!(undone.starts_with("success: true"), "{undone}");
+    Ok(())
+}
+
+#[test]
+fn now_shows_invoice_of_billed_entry() -> TestResult {
+    let sandbox = catalog_sandbox(false)?;
+    open_billed_entry(&sandbox)?;
+
+    let output = sandbox.journey(&[("15:00", &["now"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn now_json_names_invoice_of_billed_entry() -> TestResult {
+    let sandbox = catalog_sandbox(false)?;
+    open_billed_entry(&sandbox)?;
+
+    let output = run(sandbox.pace_at("15:00").args(["now", "--json"]))?;
+
+    assert!(output.contains(r#""billed": "2026-0042""#), "{output}");
+    Ok(())
+}

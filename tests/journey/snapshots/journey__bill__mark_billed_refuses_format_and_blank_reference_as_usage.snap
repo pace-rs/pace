@@ -1,0 +1,26 @@
+---
+source: tests/journey/bill.rs
+expression: output
+---
+$ pace bill --mark-billed 2026-0042 --format json   # at 15:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+error: the argument '--mark-billed <INVOICE>' cannot be used with '--format <FORMAT>'
+
+Usage: pace bill --mark-billed <INVOICE> [PERIOD]
+
+For more information, try '--help'.
+
+$ pace bill --mark-billed     # at 15:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+pace::core::invoice-ref
+
+  × " " is no invoice reference
+  help: give the reference as one line of text, like `2026-0042`

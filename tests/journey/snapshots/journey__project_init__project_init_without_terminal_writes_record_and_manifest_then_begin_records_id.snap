@@ -42,6 +42,7 @@ exit_code: 0
       "determined_by": null,
       "billable": false,
       "allow_overlap": false,
+      "billed": null,
       "start": "2026-11-26T09:01:00+01:00[Europe/Berlin]",
       "since": "2026-11-26T09:01:00+01:00[Europe/Berlin]",
       "net_seconds": 1740,
