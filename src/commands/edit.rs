@@ -402,7 +402,7 @@ fn read_adjustment(
         tag: edited.tags,
         role,
         determined_by: edited.determined_by.map_or(Change::Clear, Change::Set),
-        billable: edited.billable.map_or(Change::Clear, Change::Set),
+        billable: edited_billable(edited.billable, entry),
         allow_overlap,
     };
     // a role or billable flag equal to the project's changes nothing
@@ -430,8 +430,11 @@ fn edited_role(
     let Some(value) = value else {
         return Ok(Change::Clear);
     };
-    if let Some(own) = entry.role.filter(|own| own.to_string() == *value.get_ref()) {
-        return Ok(Change::Set(own));
+    if entry
+        .role
+        .is_some_and(|own| own.to_string() == *value.get_ref())
+    {
+        return Ok(Change::Keep);
     }
     let role = value
         .get_ref()
@@ -456,7 +459,26 @@ fn edited_role(
             role.key, archived.on
         ));
     }
-    Ok(Change::Set(role.id))
+    Ok(own_kept(Change::Set(role.id), entry.role.as_ref()))
+}
+
+/// The billable flag of the edited `billable` line; without the line the
+/// entry's own flag goes, so the project's applies.
+fn edited_billable(value: Option<bool>, entry: &Entry) -> Change<bool> {
+    own_kept(
+        value.map_or(Change::Clear, Change::Set),
+        entry.billable.as_ref(),
+    )
+}
+
+/// `change`, unless it sets the entry's `own` value again: an untouched
+/// line keeps the own value, also where it equals the project's, as
+/// `pace adjust` keeps it without the flag.
+fn own_kept<T: PartialEq>(change: Change<T>, own: Option<&T>) -> Change<T> {
+    match change {
+        Change::Set(value) if own == Some(&value) => Change::Keep,
+        change => change,
+    }
 }
 
 /// Whether the edited entry marks its overlap as intended. An entry with
@@ -1466,5 +1488,13 @@ mod tests {
                 Some("write `allow-overlap = true` back; nothing was changed")
             );
         }
+    }
+
+    #[test]
+    fn line_equal_to_own_value_keeps_it() {
+        assert_eq!(own_kept(Change::Set(true), Some(&true)), Change::Keep);
+        assert_eq!(own_kept(Change::Set(true), Some(&false)), Change::Set(true));
+        assert_eq!(own_kept(Change::Set(true), None), Change::Set(true));
+        assert_eq!(own_kept(Change::<bool>::Clear, Some(&true)), Change::Clear);
     }
 }

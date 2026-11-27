@@ -717,3 +717,44 @@ fn edit_to_project_role_and_billable_leaves_entry_unchanged() -> TestResult {
         .bind(|| insta::assert_snapshot!(transcript));
     Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn edit_keeps_own_role_and_billable_equal_to_later_project() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox
+        .pace_at("08:50")
+        .args(["role", "add", "work", "--name", "Work"]))?;
+    _ = run(sandbox.pace_at("09:00").args([
+        "--project",
+        "webshop",
+        "begin",
+        "Write offer",
+        "--role",
+        "work",
+        "--billable",
+    ]))?;
+    _ = run(sandbox.pace_at("09:10").args([
+        "project",
+        "add",
+        "webshop",
+        "--role",
+        "work",
+        "--billable",
+    ]))?;
+
+    let unchanged = run(sandbox.pace_at("09:30").env("VISUAL", "true").arg("edit"))?;
+    let note = run(sandbox
+        .pace_at("09:31")
+        .env("VISUAL", r#"sed -i -e 's/^note = .*/note = "Send offer"/'"#)
+        .arg("edit"))?;
+
+    let transcript = sandbox.redact_ids(&format!(
+        "{unchanged}\n{note}\n--- home/events ---\n{}",
+        event_text(&sandbox)?
+    ))?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
