@@ -80,8 +80,11 @@ pkg-url = "{ repo }/releases/download/{ name }-v{ version }/{ name }-{ target }{
 bin-dir = "{ name }-{ target }/{ bin }{ binary-ext }"
 pkg-fmt = "txz"
 
+# dist packs the Windows zip flat, without the folder `{ name }-{ target }/`
+# that its tarballs have (dist 0.34.0, `make_executable_zip_for_variant`).
 [package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
 pkg-fmt = "zip"
+bin-dir = "{ bin }{ binary-ext }"
 
 [[bin]]
 name = "pace"
