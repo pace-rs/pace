@@ -93,7 +93,7 @@ pub fn clock(setting: &TimeZoneSetting, test_now: Option<OsString>) -> PaceResul
     let fixed: ZonedDateTime = test_now.to_string_lossy().parse().map_err(|error| {
         PaceError::with_source(
             ErrorKind::Configuration,
-            "{variable} is no time like `2026-11-26T09:00[Europe/Berlin]`",
+            "the value of {variable} is no time like `2026-11-26T09:00[Europe/Berlin]`",
             error,
         )
         .attach_context("variable", TEST_NOW)
@@ -132,5 +132,22 @@ mod tests {
             "2026-11-26T03:00:00-05:00[America/New_York]"
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_time_that_is_no_time_names_its_variable_first() {
+        let Err(error) = clock(
+            &TimeZoneSetting::Named("UTC".to_owned()),
+            Some("tomorrow".into()),
+        ) else {
+            panic!("`tomorrow` was read as a time");
+        };
+
+        assert!(
+            error
+                .to_string()
+                .starts_with("the value of PACE_TEST_NOW is no time like"),
+            "{error}"
+        );
     }
 }
