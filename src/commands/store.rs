@@ -5,6 +5,7 @@ use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_store::Split;
 
 use crate::output::counted;
+use crate::print::print_lines;
 use crate::{
     application::{PACE_APP, exit_on_error},
     session::Session,
@@ -60,28 +61,30 @@ impl SplitCmd {
             .attach_hint("name another period with `--by`")
             .attach_exit_code(ExitCode::NothingToDo));
         }
-        if resplit.events == 0 {
-            println!(
+        let lines = if resplit.events == 0 {
+            vec![format!(
                 "This device has no events yet; it splits them by {split} from the first one."
-            );
+            )]
         } else if resplit.from == resplit.to {
-            println!(
+            vec![format!(
                 "Finished splitting this device's {} by {split}, into {}.",
                 counted(resplit.events, "event"),
                 counted(resplit.files_after, "file")
-            );
+            )]
         } else {
-            println!(
-                "Split this device's {} by {} instead of {}, into {}.",
-                counted(resplit.events, "event"),
-                resplit.to,
-                resplit.from,
-                counted(resplit.files_after, "file")
-            );
-            println!(
-                "Other devices keep their split; `pace store split --by {split}` on each of them matches it."
-            );
-        }
-        Ok(())
+            vec![
+                format!(
+                    "Split this device's {} by {} instead of {}, into {}.",
+                    counted(resplit.events, "event"),
+                    resplit.to,
+                    resplit.from,
+                    counted(resplit.files_after, "file")
+                ),
+                format!(
+                    "Other devices keep their split; `pace store split --by {split}` on each of them matches it."
+                ),
+            ]
+        };
+        print_lines(lines)
     }
 }

@@ -5,7 +5,9 @@ use clap::{CommandFactory, ValueEnum};
 use clap_complete::generate;
 use clap_complete_nushell::Nushell;
 
+use crate::application::exit_on_error;
 use crate::commands::EntryPoint;
+use crate::print::print_bytes;
 
 /// `pace completions`
 #[derive(clap::Args, Command, Debug)]
@@ -31,23 +33,35 @@ enum Shell {
 
 impl Runnable for CompletionsCmd {
     fn run(&self) {
+        exit_on_error(print_bytes(&self.script()));
+    }
+}
+
+impl CompletionsCmd {
+    /// The completion script, whole, so a failed write is pace's error and
+    /// not a panic in the generator.
+    fn script(&self) -> Vec<u8> {
         let mut command = EntryPoint::command();
-        let mut out = std::io::stdout();
+        let mut script = Vec::new();
         let name = "pace";
         match self.shell {
-            Shell::Bash => generate(clap_complete::Shell::Bash, &mut command, name, &mut out),
-            Shell::Zsh => generate(clap_complete::Shell::Zsh, &mut command, name, &mut out),
-            Shell::Fish => generate(clap_complete::Shell::Fish, &mut command, name, &mut out),
-            Shell::Powershell => {
-                generate(
-                    clap_complete::Shell::PowerShell,
-                    &mut command,
-                    name,
-                    &mut out,
-                );
-            }
-            Shell::Elvish => generate(clap_complete::Shell::Elvish, &mut command, name, &mut out),
-            Shell::Nushell => generate(Nushell, &mut command, name, &mut out),
+            Shell::Bash => generate(clap_complete::Shell::Bash, &mut command, name, &mut script),
+            Shell::Zsh => generate(clap_complete::Shell::Zsh, &mut command, name, &mut script),
+            Shell::Fish => generate(clap_complete::Shell::Fish, &mut command, name, &mut script),
+            Shell::Powershell => generate(
+                clap_complete::Shell::PowerShell,
+                &mut command,
+                name,
+                &mut script,
+            ),
+            Shell::Elvish => generate(
+                clap_complete::Shell::Elvish,
+                &mut command,
+                name,
+                &mut script,
+            ),
+            Shell::Nushell => generate(Nushell, &mut command, name, &mut script),
         }
+        script
     }
 }

@@ -170,3 +170,24 @@ fn end_names_an_entry_that_has_ended() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn begin_into_full_disk_is_error_not_crash() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    let full = std::fs::File::options().write(true).open("/dev/full")?;
+
+    let output = sandbox
+        .pace_at("09:00")
+        .args(["begin", "Write offer"])
+        .stdout(full)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("cannot write to the standard output"),
+        "{stderr}"
+    );
+    Ok(())
+}

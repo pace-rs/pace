@@ -36,3 +36,20 @@ fn an_unknown_shell_is_usage_error() -> TestResult {
     assert_eq!(output.status.code(), Some(2));
     Ok(())
 }
+
+#[test]
+fn completions_into_closed_pipe_end_quietly() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    let (reader, writer) = std::io::pipe()?;
+    drop(reader);
+
+    let output = sandbox
+        .pace()
+        .args(["completions", "zsh"])
+        .stdout(writer)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(String::from_utf8(output.stderr)?, "");
+    Ok(())
+}

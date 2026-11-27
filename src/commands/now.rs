@@ -8,6 +8,7 @@ use pace_time::{TimeFrame, format_duration, relative_time};
 use serde::Serialize;
 
 use crate::output::{entry_name, project_name, short_id};
+use crate::print::print_lines;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
     output::clock,
@@ -39,13 +40,10 @@ pub fn show(json: bool) -> PaceResult<()> {
     let today = TimeFrame::Today.resolve(&now, context.settings.settings.week_start)?;
     let state = session.state(&today)?;
     if json {
-        println!("{}", as_json(context, &session, &state, &now)?);
+        print_lines([as_json(context, &session, &state, &now)?])
     } else {
-        for line in as_text(context, &session, &state, &now) {
-            println!("{line}");
-        }
+        print_lines(as_text(context, &session, &state, &now))
     }
-    Ok(())
 }
 
 fn as_text(

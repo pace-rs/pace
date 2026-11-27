@@ -14,6 +14,7 @@ pub mod dirs;
 pub mod editor;
 pub mod origin;
 pub mod output;
+pub mod print;
 pub mod project;
 pub mod prompt;
 pub mod select;

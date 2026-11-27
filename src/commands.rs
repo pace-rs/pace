@@ -22,6 +22,7 @@ use self::{
     tracking::{BeginCmd, CatchCmd, EndCmd, HoldCmd, PauseCmd, ResumeCmd},
 };
 use crate::application::exit_on_error;
+use crate::print::print_lines;
 
 /// pace: a local-first command-line time tracker for work and daily life.
 #[derive(clap::Parser, Command, Debug)]
@@ -122,9 +123,10 @@ impl Runnable for EntryPoint {
     fn run(&self) {
         match &self.cmd {
             Some(cmd) => cmd.run(),
-            None => exit_on_error(now::show(false).map(|()| {
-                println!("Run `pace help` to see all commands.");
-            })),
+            None => exit_on_error(
+                now::show(false)
+                    .and_then(|()| print_lines(["Run `pace help` to see all commands."])),
+            ),
         }
     }
 }

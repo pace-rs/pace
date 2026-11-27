@@ -21,6 +21,7 @@ opens the tracker over the `files` backend. What the user reads comes from
 | [`lib.rs`](lib.rs)                 | pace: a local-first command-line time tracker for work and daily life.                                                             |
 | [`origin.rs`](origin.rs)           | Where a setting or a directory comes from.                                                                                         |
 | [`output.rs`](output.rs)           | How tracking commands describe what they did.                                                                                      |
+| [`print.rs`](print.rs)             | Writing what pace says to the standard output, as an error instead of a panic.                                                     |
 | [`project.rs`](project.rs)         | The project context: which project the working directory belongs to.                                                               |
 | [`prompt.rs`](prompt.rs)           | Asking the user, only when a terminal is attached.                                                                                 |
 | [`select.rs`](select.rs)           | Choosing the entry a command acts on: by its ID or short ID, `--last`, or the open entry.                                          |

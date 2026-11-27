@@ -13,6 +13,7 @@ use pace_time::{At, TimeRange, parse_at, relative_time};
 
 use crate::commands::now::recent_range_start;
 use crate::output::describe_outcome;
+use crate::print::print_lines;
 use crate::prompt::{choose, interactive};
 use crate::select::target_entry;
 use crate::{
@@ -30,13 +31,12 @@ pub(super) fn track(
     let mut notes = Vec::new();
     let command = build(&session, &mut notes)?;
     let outcome = session.run(&command)?;
-    for line in describe_outcome(&outcome) {
-        println!("{line}");
-    }
-    for note in notes.iter().chain(session.first_use_note().iter()) {
-        println!("{note}");
-    }
-    Ok(())
+    print_lines(
+        describe_outcome(&outcome)
+            .into_iter()
+            .chain(notes)
+            .chain(session.first_use_note()),
+    )
 }
 
 /// A `--at` value as a moment, if there is one.

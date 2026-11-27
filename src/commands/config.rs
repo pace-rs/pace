@@ -6,6 +6,7 @@ use pace_error::PaceResult;
 use crate::{
     application::{PACE_APP, exit_on_error},
     dirs::Located,
+    print::print_lines,
     project::Project,
 };
 
@@ -43,13 +44,14 @@ impl ShowCmd {
             ("data", &dirs.data, dirs.data.path.is_dir()),
             ("machine", &dirs.machine, dirs.machine.path.is_dir()),
         ];
-        for (label, located, exists) in places {
-            println!("{}", self.describe_place(label, located, exists));
-        }
-        println!("{}", self.describe_project(context.project.as_ref()));
+        let mut lines: Vec<String> = places
+            .into_iter()
+            .map(|(label, located, exists)| self.describe_place(label, located, exists))
+            .collect();
+        lines.push(self.describe_project(context.project.as_ref()));
 
         let loaded = &context.settings;
-        println!();
+        lines.push(String::new());
         // Top-level keys first, then each table: TOML needs that order.
         let entries = loaded.entries();
         let mut tables: Vec<&str> = Vec::new();
@@ -60,23 +62,27 @@ impl ShowCmd {
                 tables.push(table);
             }
         }
-        self.print_toml(
-            entries
-                .iter()
-                .filter(|(key, _, _)| !key.contains('.'))
-                .map(|(key, value, origin)| (format!("{key} = {value}"), origin.to_string())),
+        lines.extend(
+            self.toml_lines(
+                entries
+                    .iter()
+                    .filter(|(key, _, _)| !key.contains('.'))
+                    .map(|(key, value, origin)| (format!("{key} = {value}"), origin.to_string())),
+            ),
         );
         for table in tables {
-            println!("\n[{table}]");
-            self.print_toml(entries.iter().filter_map(|(key, value, origin)| {
-                let inner = key.strip_prefix(table)?.strip_prefix('.')?;
-                Some((format!("{inner} = {value}"), origin.to_string()))
-            }));
+            lines.extend([String::new(), format!("[{table}]")]);
+            lines.extend(
+                self.toml_lines(entries.iter().filter_map(|(key, value, origin)| {
+                    let inner = key.strip_prefix(table)?.strip_prefix('.')?;
+                    Some((format!("{inner} = {value}"), origin.to_string()))
+                })),
+            );
         }
 
         if !loaded.project_paths.is_empty() {
-            println!("\n[project-paths]");
-            self.print_toml(loaded.project_paths.iter().map(|mapping| {
+            lines.extend([String::new(), "[project-paths]".to_owned()]);
+            lines.extend(self.toml_lines(loaded.project_paths.iter().map(|mapping| {
                 (
                     format!(
                         "{} = {}",
@@ -85,9 +91,9 @@ impl ShowCmd {
                     ),
                     mapping.origin.to_string(),
                 )
-            }));
+            })));
         }
-        Ok(())
+        print_lines(lines)
     }
 
     fn describe_place(&self, label: &str, located: &Located, exists: bool) -> String {
@@ -120,17 +126,20 @@ impl ShowCmd {
         format!("# {:<12} {}{name}{reason}", "project:", project.key)
     }
 
-    /// Print TOML lines; with `--origin`, aligned with their origin.
-    fn print_toml(&self, lines: impl Iterator<Item = (String, String)>) {
+    /// TOML lines; with `--origin`, aligned with their origin.
+    fn toml_lines(&self, lines: impl Iterator<Item = (String, String)>) -> Vec<String> {
         let lines: Vec<_> = lines.collect();
         let width = lines.iter().map(|(line, _)| line.len()).max().unwrap_or(0);
-        for (line, origin) in lines {
-            if self.origin {
-                println!("{line:<width$}  # {origin}");
-            } else {
-                println!("{line}");
-            }
-        }
+        lines
+            .into_iter()
+            .map(|(line, origin)| {
+                if self.origin {
+                    format!("{line:<width$}  # {origin}")
+                } else {
+                    line
+                }
+            })
+            .collect()
     }
 }
 

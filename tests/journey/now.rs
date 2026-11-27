@@ -179,3 +179,20 @@ fn now_on_first_run_writes_nothing() -> TestResult {
     assert!(!sandbox.path("home").exists());
     Ok(())
 }
+
+#[test]
+fn now_into_closed_pipe_ends_quietly() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    let (reader, writer) = std::io::pipe()?;
+    drop(reader);
+
+    let output = sandbox
+        .pace_at("09:00")
+        .arg("now")
+        .stdout(writer)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(String::from_utf8(output.stderr)?, "");
+    Ok(())
+}
