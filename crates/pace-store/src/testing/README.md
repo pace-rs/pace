@@ -21,7 +21,7 @@ passes, and `tests.rs` the tests of the scratch directory and the memory store.
 <!-- uses -->
 
 - Uses: no other module.
-- Used by: [`field_edit`](../field_edit.rs), [`files`](../files/),
+- Used by: [`field_edit`](../field_edit/), [`files`](../files/),
   [`renames`](../renames.rs).
 
 <!-- /uses -->

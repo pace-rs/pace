@@ -11,9 +11,10 @@ the files of one write in place, all or none. `catalog.rs` reads the roles, the
 clients and the project records of `PACE_HOME` into pace_core's `Catalog`.
 `toml_file.rs` reads pace's TOML files with spans, so an error points at its
 line; `field_edit.rs` writes them field by field, so the comments and the order
-of a file edited by hand survive. `testing.rs`, behind the feature `testing`,
-gives tests a scratch directory in memory, the in-memory `MemoryStore` and
-`Raced`; `testing/contract.rs` holds the store contract every backend passes.
+of a file edited by hand survive; `field_edit/table.rs` replaces a whole table
+in its place. `testing.rs`, behind the feature `testing`, gives tests a scratch
+directory in memory, the in-memory `MemoryStore` and `Raced`;
+`testing/contract.rs` holds the store contract every backend passes.
 
 ## Files
 
@@ -37,6 +38,7 @@ gives tests a scratch directory in memory, the in-memory `MemoryStore` and
 | [`toml_file.rs`](toml_file.rs)   | pace's TOML files, read with spans so every error can point at its line.                                                                           |
 | [`tracker.rs`](tracker.rs)       | The tracker: the blocking driver of the tracking machine, over the event store.                                                                    |
 | [`catalog/`](catalog/)           | The catalog's files in `PACE_HOME`: `roles.toml`, `clients.toml` and `projects/<key>.toml`, read into one `Catalog`.                               |
+| [`field_edit/`](field_edit/)     | The field writer of pace's TOML files: it sets, removes and appends single fields, so the comments and the order of a file edited by hand survive. |
 | [`files/`](files/)               | The `files` backend: TOML event files in `PACE_HOME`.                                                                                              |
 | [`format/`](format/)             | The TOML format of event files.                                                                                                                    |
 | [`index/`](index/)               | The machine-local index of the event files.                                                                                                        |

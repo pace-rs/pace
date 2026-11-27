@@ -4,8 +4,9 @@
 use std::path::Path;
 
 use jiff::civil::date;
+use pace_error::ErrorKind;
 use pace_store::{
-    field_edit::{FieldEdit, FieldValue, write_field_edits},
+    field_edit::{FieldEdit, FieldValue, apply_field_edits, table_text, write_field_edits},
     testing::scratch_dir,
 };
 
@@ -275,4 +276,149 @@ fn failed_write_leaves_every_file_whole() -> TestResult {
     );
     assert_eq!(read(&clients)?, CLIENTS);
     Ok(())
+}
+
+/// The table `acme` of [`CLIENTS`], as [`table_text`] shows it alone.
+const ACME: &str = r#"# Our oldest client.
+[acme]
+name = "ACME Inc." # as on the invoices
+currency = "EUR"
+
+[[acme.rates]]
+from = 2026-01-01
+hourly = 90.00
+"#;
+
+#[test]
+fn table_text_shows_table_alone_with_comment_above_it() -> TestResult {
+    let text = table_text(Path::new("clients.toml"), CLIENTS, &["acme"])?;
+
+    assert_eq!(text.as_deref(), Some(ACME));
+    assert_eq!(
+        table_text(Path::new("clients.toml"), CLIENTS, &["initech"])?,
+        None
+    );
+    Ok(())
+}
+
+#[test]
+fn replace_table_with_its_own_text_changes_nothing() -> TestResult {
+    let edit = FieldEdit::replace_table("clients.toml", &["acme"], ACME);
+
+    let text = apply_field_edits(Path::new("clients.toml"), CLIENTS, &[edit])?;
+
+    assert_eq!(text, CLIENTS);
+    Ok(())
+}
+
+#[test]
+fn replace_table_keeps_its_place_and_tables_of_others() -> TestResult {
+    let edited = format!(
+        "{}\n# From July.\n[[acme.rates]]\nfrom = 2026-07-01\nhourly = 95.50\n",
+        ACME.replace("ACME Inc.", "ACME GmbH")
+    );
+    let edit = FieldEdit::replace_table("clients.toml", &["acme"], &edited);
+
+    let text = apply_field_edits(Path::new("clients.toml"), CLIENTS, &[edit])?;
+
+    assert_eq!(
+        text,
+        r#"version = 1
+
+# Our oldest client.
+[acme]
+name = "ACME GmbH" # as on the invoices
+currency = "EUR"
+
+[[acme.rates]]
+from = 2026-01-01
+hourly = 90.00
+
+# From July.
+[[acme.rates]]
+from = 2026-07-01
+hourly = 95.50
+
+# Since spring.
+[globex]
+name = "Globex"
+"#
+    );
+    Ok(())
+}
+
+#[test]
+fn replace_table_gathers_its_tables_where_the_first_stood() -> TestResult {
+    let scattered = "version = 1\n\n[acme]\nname = \"ACME\"\n\n[globex]\nname = \"Globex\"\n\n[[acme.rates]]\nfrom = 2026-01-01\nhourly = 90\n";
+    let edited = "[acme]\nname = \"ACME\"\n\n[[acme.rates]]\nfrom = 2026-01-01\nhourly = 95\n";
+    let edit = FieldEdit::replace_table("clients.toml", &["acme"], edited);
+
+    let text = apply_field_edits(Path::new("clients.toml"), scattered, &[edit])?;
+
+    assert_eq!(
+        text,
+        "version = 1\n\n[acme]\nname = \"ACME\"\n\n[[acme.rates]]\nfrom = 2026-01-01\nhourly = 95\n\n[globex]\nname = \"Globex\"\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn replace_of_missing_table_adds_it_at_end_of_file() -> TestResult {
+    let edit = FieldEdit::replace_table(
+        "clients.toml",
+        &["initech"],
+        "[initech]\nname = \"Initech\"\n",
+    );
+
+    let text = apply_field_edits(Path::new("clients.toml"), CLIENTS, &[edit])?;
+
+    assert_eq!(text, format!("{CLIENTS}\n[initech]\nname = \"Initech\"\n"));
+    Ok(())
+}
+
+#[test]
+fn replace_table_refuses_text_with_other_keys() {
+    let edited = format!("version = 1\n{ACME}");
+    let edit = FieldEdit::replace_table("clients.toml", &["acme"], &edited);
+
+    let error = apply_field_edits(Path::new("clients.toml"), CLIENTS, &[edit]).unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "the text for the table `acme` holds `version`, outside of the table"
+    );
+    assert_eq!(
+        error.hint(),
+        Some("keep only `[acme]` and the tables below it, such as `[acme.…]`")
+    );
+}
+
+#[test]
+fn replace_table_refuses_text_without_table() {
+    let edit = FieldEdit::replace_table("clients.toml", &["acme"], "# gone\n");
+
+    let error = apply_field_edits(Path::new("clients.toml"), CLIENTS, &[edit]).unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "the text for the table `acme` holds no table `acme`"
+    );
+    assert_eq!(error.hint(), Some("keep the header `[acme]`"));
+}
+
+#[test]
+fn replace_table_refuses_text_that_is_no_toml() {
+    let edited = ACME.replace("currency = \"EUR\"", "currency = EUR");
+    let edit = FieldEdit::replace_table("clients.toml", &["acme"], &edited);
+
+    let error = apply_field_edits(Path::new("clients.toml"), CLIENTS, &[edit]).unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "the text for the table `acme` is not valid TOML"
+    );
+    assert_eq!(error.hint(), Some("fix the TOML at the marked spot"));
 }

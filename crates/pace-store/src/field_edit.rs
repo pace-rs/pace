@@ -8,7 +8,13 @@
 //! a new key goes at the end of its table, a new table at the end of the
 //! file. A file that doesn't exist yet starts with `version = 1`.
 //!
+//! A [`FieldChange::ReplaceTable`] replaces a whole table, such as a
+//! client edited in the editor, in its place; [`table_text`] shows a table
+//! alone, for the editor.
+//!
 //! The writer knows nothing of what the files mean: the callers do.
+
+mod table;
 
 use std::{
     io,
@@ -23,8 +29,10 @@ use toml_edit::{
     Array, ArrayOfTables, DocumentMut, InlineTable, Item, RawString, Table, TableLike, Value,
 };
 
+pub use self::table::table_text;
 use crate::{
     disk::{FileOp, io_error, prepare_temporary_file},
+    field_edit::table::replace_table,
     renames::{Prepared, persist, rename_all},
     toml_file::not_valid_toml,
 };
@@ -68,6 +76,11 @@ pub enum FieldChange {
     /// Append a table with these fields to the array of tables at the key,
     /// such as `[[acme.rates]]`.
     AppendTable(Vec<(String, FieldValue)>),
+    /// Replace the table at the key with the table that this TOML text
+    /// holds at the key, comments and all, such as the text that
+    /// [`table_text`] showed and the user edited. The tables of the
+    /// replacement stand where the first table of the old one stood.
+    ReplaceTable(String),
 }
 
 /// One change to one key of one TOML file.
@@ -105,6 +118,13 @@ impl FieldEdit {
         Self::new(file, key, FieldChange::AppendTable(fields))
     }
 
+    /// Replace the table `key` of `file` with the table `text` holds at
+    /// `key`; see [`FieldChange::ReplaceTable`].
+    #[must_use]
+    pub fn replace_table(file: impl AsRef<Path>, key: &[&str], text: &str) -> Self {
+        Self::new(file, key, FieldChange::ReplaceTable(text.to_owned()))
+    }
+
     fn new(file: impl AsRef<Path>, key: &[&str], change: FieldChange) -> Self {
         Self {
             file: file.as_ref().to_path_buf(),
@@ -140,7 +160,7 @@ fn write_field_edits_with(
     for (path, edits) in edits_by_file(edits) {
         let before = read_if_exists(&path)?;
         let start = before.as_deref().unwrap_or(NEW_FILE);
-        let text = edited_text(&path, start, &edits)?;
+        let text = apply_field_edits(&path, start, &edits)?;
         if text == start {
             continue;
         }
@@ -175,9 +195,30 @@ fn read_if_exists(path: &Path) -> PaceResult<Option<String>> {
     }
 }
 
-/// `text` of `path` with `edits` applied.
-fn edited_text(path: &Path, text: &str, edits: &[FieldEdit]) -> PaceResult<String> {
-    let mut document = text.parse::<DocumentMut>().map_err(|error| {
+/// `text` of the file `path` with `edits` applied, without writing it:
+/// what [`write_field_edits`] would write, so a caller can check it first.
+///
+/// # Errors
+///
+/// If `text` is no valid TOML, if a key's path runs through a value that
+/// is no table, or if the text of a [`FieldChange::ReplaceTable`] is no
+/// valid TOML or holds more than its table: an error of the kind
+/// `InvalidInput`, so the user can fix the text.
+pub fn apply_field_edits(path: &Path, text: &str, edits: &[FieldEdit]) -> PaceResult<String> {
+    let mut document = parsed_document(path, text)?;
+    for edit in edits {
+        apply(&mut document, edit).map_err(|refused| refused.into_error(path, text))?;
+    }
+    Ok(document.to_string())
+}
+
+/// `text` of the file `path` as a TOML document.
+///
+/// # Errors
+///
+/// If `text` is no valid TOML.
+pub(crate) fn parsed_document(path: &Path, text: &str) -> PaceResult<DocumentMut> {
+    text.parse::<DocumentMut>().map_err(|error| {
         not_valid_toml(
             ErrorKind::InputOutput,
             "pace::store",
@@ -186,19 +227,17 @@ fn edited_text(path: &Path, text: &str, edits: &[FieldEdit]) -> PaceResult<Strin
             error.span().unwrap_or(0..0),
             error.message(),
         )
-    })?;
-    for edit in edits {
-        apply(&mut document, edit).map_err(|refused| refused.into_error(path, text))?;
-    }
-    Ok(document.to_string())
+    })
 }
 
 /// Why [`apply`] refused an edit, before it knows the file.
-enum Refused {
+pub(crate) enum Refused {
     /// The value at `key` is no table, but the path runs through it.
     NoTable { key: Vec<String> },
     /// The value at `key` is no array of tables to append to.
     NoArrayOfTables { key: Vec<String> },
+    /// The text of a [`FieldChange::ReplaceTable`] doesn't fit.
+    Table(Box<PaceError>),
     /// A bug of the caller.
     Internal(Box<PaceError>),
 }
@@ -206,7 +245,7 @@ enum Refused {
 impl Refused {
     fn into_error(self, path: &Path, text: &str) -> Box<PaceError> {
         let (guidance, what, key) = match self {
-            Self::Internal(error) => return error,
+            Self::Internal(error) | Self::Table(error) => return error,
             Self::NoTable { key } => (
                 "{file} holds {key} as a value, not as a table",
                 "a table",
@@ -264,6 +303,9 @@ fn apply(document: &mut DocumentMut, edit: &FieldEdit) -> Result<(), Refused> {
                 key: edit.key.clone(),
             })?;
         }
+        FieldChange::ReplaceTable(text) => {
+            replace_table(document, &edit.key, text).map_err(Refused::Table)?;
+        }
     }
     Ok(())
 }
@@ -298,8 +340,8 @@ fn remove_key(item: &mut Item, path: &[String], key: &str) {
 
 /// The table that a [`FieldChange::Set`] or [`FieldChange::AppendTable`]
 /// writes into.
-struct Parent<'document> {
-    table: &'document mut dyn TableLike,
+pub(crate) struct Parent<'document> {
+    pub(crate) table: &'document mut dyn TableLike,
     /// Whether it is an inline table.
     inline: bool,
     /// The position for a new table: after every table of the file.
@@ -309,7 +351,7 @@ struct Parent<'document> {
 /// The table at `path` in `document`; the tables missing on the way are
 /// made, as implicit tables at the end of the file, or as inline tables
 /// inside an inline table.
-fn parent_table<'document>(
+pub(crate) fn parent_table<'document>(
     document: &'document mut DocumentMut,
     path: &[String],
 ) -> Result<Parent<'document>, Refused> {
@@ -378,7 +420,7 @@ fn new_table(inline: bool, position: &mut isize) -> Item {
 
 /// The position after every table of `table`, so a new table goes at the
 /// end of the file.
-fn next_table_position(table: &Table) -> isize {
+pub(crate) fn next_table_position(table: &Table) -> isize {
     let mut next = table.position().map_or(0, |position| position + 1);
     for (_, item) in table {
         let tables: Vec<&Table> = match item {
@@ -546,7 +588,7 @@ mod tests {
             ),
         ];
 
-        let edited = edited_text(Path::new("clients.toml"), text, &edits)?;
+        let edited = apply_field_edits(Path::new("clients.toml"), text, &edits)?;
 
         assert_eq!(
             edited,
@@ -563,7 +605,7 @@ mod tests {
             &["acme", "contact", "phone", "office"],
         )];
 
-        let edited = edited_text(Path::new("clients.toml"), text, &edits)?;
+        let edited = apply_field_edits(Path::new("clients.toml"), text, &edits)?;
 
         assert_eq!(edited, text);
         Ok(())
@@ -574,7 +616,7 @@ mod tests {
         let text = "version = 1\nc = { a = 1, b = 2 }\n";
         let edits = [FieldEdit::remove("roles.toml", &["c", "b"])];
 
-        let edited = edited_text(Path::new("roles.toml"), text, &edits)?;
+        let edited = apply_field_edits(Path::new("roles.toml"), text, &edits)?;
 
         assert_eq!(edited, "version = 1\nc = { a = 1 }\n");
         Ok(())
@@ -589,7 +631,7 @@ mod tests {
             FieldEdit::append_table("clients.toml", &["acme", "rates"], rate()),
         ];
 
-        let edited = edited_text(Path::new("clients.toml"), text, &edits)?;
+        let edited = apply_field_edits(Path::new("clients.toml"), text, &edits)?;
 
         assert_eq!(
             edited,
@@ -607,7 +649,7 @@ mod tests {
             vec![("hourly".to_owned(), FieldValue::Integer(2))],
         )];
 
-        let edited = edited_text(Path::new("clients.toml"), text, &edits)?;
+        let edited = apply_field_edits(Path::new("clients.toml"), text, &edits)?;
 
         assert_eq!(
             edited,
@@ -625,7 +667,7 @@ mod tests {
             Vec::new(),
         )];
 
-        let error = edited_text(Path::new("clients.toml"), text, &edits)
+        let error = apply_field_edits(Path::new("clients.toml"), text, &edits)
             .err()
             .ok_or("acme.rates is no array of tables")?;
 
@@ -648,7 +690,7 @@ mod tests {
             FieldValue::Decimal("95,50".to_owned()),
         )];
 
-        let error = edited_text(Path::new("roles.toml"), NEW_FILE, &edits)
+        let error = apply_field_edits(Path::new("roles.toml"), NEW_FILE, &edits)
             .err()
             .ok_or("95,50 is no decimal")?;
 
@@ -660,7 +702,7 @@ mod tests {
     fn edit_without_key_is_bug() -> TestResult {
         let edits = [FieldEdit::remove("roles.toml", &[])];
 
-        let error = edited_text(Path::new("roles.toml"), NEW_FILE, &edits)
+        let error = apply_field_edits(Path::new("roles.toml"), NEW_FILE, &edits)
             .err()
             .ok_or("an edit needs a key")?;
 
