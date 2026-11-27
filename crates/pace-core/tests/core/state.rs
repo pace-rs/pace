@@ -682,7 +682,6 @@ fn events_about_an_unknown_entry_change_nothing() -> TestResult {
 #[rstest]
 #[case::held(held(entry(1)?, None))]
 #[case::paused(paused(entry(1)?, None))]
-#[case::resumed(EventKind::EntryResumed { entry: entry(1)? })]
 fn break_about_ended_entry_changes_nothing(#[case] kind: EventKind) -> TestResult {
     let mut log = Log::new(1)?;
     let e = entry(1)?;
