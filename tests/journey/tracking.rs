@@ -1,6 +1,6 @@
 //! Tracking with a fixed clock: begin, hold, pause, resume, catch, end.
 
-use crate::support::{Sandbox, run};
+use crate::support::{Sandbox, run, short_id_after};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -160,12 +160,7 @@ fn every_event_has_its_own_id_also_at_the_same_moment() -> TestResult {
 fn end_names_an_entry_that_has_ended() -> TestResult {
     let sandbox = Sandbox::new()?;
     let began = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
-    let short = began
-        .lines()
-        .find_map(|line| line.strip_prefix("Began "))
-        .and_then(|rest| rest.split_whitespace().next())
-        .ok_or("the short ID")?
-        .to_owned();
+    let short = short_id_after(&began, "Began ")?;
 
     let output = sandbox.journey(&[
         ("09:15", &["end"]),

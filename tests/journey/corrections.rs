@@ -1,6 +1,6 @@
 //! Correcting the log: adjust, log, edit, undo and forget.
 
-use crate::support::{Sandbox, run};
+use crate::support::{Sandbox, run, short_id_after};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -60,12 +60,7 @@ fn an_older_entry_is_found_by_its_short_id_and_last() -> TestResult {
         "--to",
         "15:00",
     ]))?;
-    let short = logged
-        .lines()
-        .find_map(|line| line.strip_prefix("Logged "))
-        .and_then(|rest| rest.split_whitespace().next())
-        .ok_or("the short ID")?
-        .to_owned();
+    let short = short_id_after(&logged, "Logged ")?;
 
     let output = sandbox.journey(&[
         ("10:00", &["adjust", &short, "--note", "Offer for ACME"]),

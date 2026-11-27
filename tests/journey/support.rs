@@ -30,6 +30,17 @@ pub fn run(command: &mut Command) -> std::io::Result<String> {
     ))
 }
 
+/// The short ID that follows `prefix` at the start of a line of `output`,
+/// such as `ad5e` after `Began ` in `Began ad5e "Write offer" at 09:00.`
+pub fn short_id_after(output: &str, prefix: &str) -> Result<String, String> {
+    output
+        .lines()
+        .find_map(|line| line.strip_prefix(prefix))
+        .and_then(|rest| rest.split_whitespace().next())
+        .map(str::to_owned)
+        .ok_or_else(|| format!("no line starts with {prefix:?} and a short ID"))
+}
+
 /// A temporary directory with a working directory `work/` and an empty
 /// `config/pace.global.toml` inside, and `PACE_CONFIG`, `PACE_HOME` and
 /// `PACE_MACHINE_DIR` pointing into it.
@@ -335,7 +346,7 @@ fn regex_escape(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::support::Sandbox;
+    use crate::support::{Sandbox, short_id_after};
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -425,6 +436,15 @@ mod tests {
         let error = sandbox.redact_ids("Began ad5e.").err().ok_or("an error")?;
 
         assert!(error.to_string().contains("`ad5e`"), "{error}");
+        Ok(())
+    }
+
+    #[test]
+    fn short_id_is_read_after_its_prefix() -> TestResult {
+        let output = "success: true\n----- stdout -----\nBegan ad5e \"Write offer\" at 09:00.\n";
+
+        assert_eq!(short_id_after(output, "Began ")?, "ad5e");
+        assert!(short_id_after(output, "Ended ").is_err());
         Ok(())
     }
 }
