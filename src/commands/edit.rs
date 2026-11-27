@@ -374,6 +374,8 @@ fn time_forms(now: &ZonedDateTime) -> String {
 mod tests {
     use std::{cell::Cell, collections::VecDeque};
 
+    use pace_core::{HoldSource, PauseKind};
+
     use super::*;
     use crate::prompt::Scripted;
 
@@ -776,5 +778,155 @@ mod tests {
         );
         assert_eq!(reported, 0);
         assert_eq!(asker.questions(), Vec::<String>::new());
+    }
+
+    /// The file pace writes for `entry`, seen from device 2.
+    fn written(entry: Entry) -> String {
+        let chosen = Chosen {
+            state: pace_core::State::default(),
+            entry,
+        };
+        write(
+            &chosen,
+            "0193a8d0-000d-7000-8000-000000000002".parse().unwrap(),
+            &at("10:05"),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn written_entry_shows_its_origin_device_and_breaks_as_comments() {
+        let entry = Entry {
+            origin: EntryOrigin::Logged,
+            holds: vec![pace_core::Hold {
+                start: at("09:10"),
+                end: Some(at("09:20")),
+                source: HoldSource::Outer,
+                reason: Some("phone call".to_owned()),
+            }],
+            pauses: vec![pace_core::Pause {
+                start: at("09:40"),
+                end: None,
+                kind: PauseKind::Break,
+                reason: None,
+            }],
+            catches: vec![pace_core::Catch {
+                at: at("09:30"),
+                text: "call Anna".to_owned(),
+            }],
+            ..entry()
+        };
+
+        let text = written(entry);
+
+        let lines: Vec<&str> = text.lines().collect();
+        let breaks = lines.iter().position(|line| *line == "#").unwrap() + 1;
+        assert_eq!(
+            lines[0],
+            "# pace edit: entry 0193a8d0-000a-7000-8000-000000000001, logged on another device."
+        );
+        assert_eq!(
+            lines[breaks..breaks + 4],
+            [
+                "# Held 09:10–09:20: phone call.",
+                "# Paused since 09:40.",
+                "# Caught at 09:30: call Anna",
+                "# Holds, pauses and catches are shown here, not edited.",
+            ],
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn written_entry_without_note_offers_note_line() {
+        let text = written(Entry {
+            note: None,
+            ..entry()
+        });
+
+        assert!(text.lines().any(|line| line == "# note = \"\""), "{text}");
+        assert!(!text.lines().any(|line| line.starts_with("note")), "{text}");
+    }
+
+    #[test]
+    fn written_project_reads_back_as_same_project() {
+        let id: ProjectId = "0193a8d0-000c-7000-8000-000000000001".parse().unwrap();
+        for project in [ProjectRef::Id(id), ProjectRef::Key("acme".parse().unwrap())] {
+            let entry = Entry {
+                project: Some(project),
+                ..entry()
+            };
+            let text = written(entry.clone());
+
+            let error = read(
+                &text,
+                &entry,
+                &at("10:05"),
+                &Scripted::without_terminal(),
+                &mut Vec::new(),
+            )
+            .unwrap_err();
+
+            assert_eq!(error.to_string(), "the entry is unchanged", "{text}");
+            assert!(!text.contains("# project-key"), "{text}");
+        }
+    }
+
+    #[test]
+    fn edited_project_and_project_key_together_are_refused() {
+        let text =
+            saved("project = \"0193a8d0-000c-7000-8000-000000000001\"\nproject-key = \"acme\"");
+
+        let error = read(
+            &text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "the edited entry has `project` and `project-key`; it needs one"
+        );
+        assert_eq!(error.hint(), Some("keep one of them; nothing was changed"));
+    }
+
+    #[test]
+    fn edited_project_id_sets_project() {
+        let id: ProjectId = "0193a8d0-000c-7000-8000-000000000001".parse().unwrap();
+        let text = saved(&format!("note = \"Draft\"\nproject = \"{id}\""));
+
+        let adjust = read(
+            &text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap();
+
+        assert_eq!(adjust.project, Change::Set(ProjectRef::Id(id)));
+    }
+
+    #[test]
+    fn removed_end_of_ended_entry_is_refused() {
+        let text = format!("start = \"{}\"\nnote = \"Draft\"\n", at("09:00"));
+
+        let error = read(
+            &text,
+            &entry(),
+            &at("10:05"),
+            &Scripted::without_terminal(),
+            &mut Vec::new(),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "the entry has ended, so it keeps an end");
+        assert_eq!(
+            error.hint(),
+            Some("move the end instead of removing it; nothing was changed")
+        );
     }
 }
