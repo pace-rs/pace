@@ -36,7 +36,7 @@ pub struct TomlFile<'a> {
 /// The TOML error behind a file that is no valid TOML. It shows only its
 /// message: its own rendering repeats the snippet the error already shows.
 #[derive(Debug)]
-pub struct TomlCause(pub toml::de::Error);
+pub(crate) struct TomlCause(pub(crate) toml::de::Error);
 
 impl Display for TomlCause {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -46,15 +46,90 @@ impl Display for TomlCause {
 
 impl std::error::Error for TomlCause {}
 
-/// The entries of a table in the order they appear in the file.
-pub type Entries<'t, 'i> = Vec<(&'t Spanned<DeString<'i>>, &'t Spanned<DeValue<'i>>)>;
+/// A TOML file as [`TomlFile::parse`] read it: its top table, with the
+/// spans of its keys and values.
+#[derive(Debug)]
+pub struct TomlDocument<'text>(Spanned<DeTable<'text>>);
 
-/// The entries of `table`, by their position in the file.
-#[must_use]
-pub fn in_file_order<'t, 'i>(table: &'t DeTable<'i>) -> Entries<'t, 'i> {
-    let mut entries: Entries<'t, 'i> = table.iter().collect();
-    entries.sort_by_key(|(key, _)| key.span().start);
-    entries
+impl TomlDocument<'_> {
+    /// The file's top table.
+    #[must_use]
+    pub fn table(&self) -> TomlTable<'_> {
+        TomlTable(self.0.get_ref())
+    }
+}
+
+/// A table of a parsed TOML file.
+#[derive(Debug, Clone, Copy)]
+pub struct TomlTable<'file>(&'file DeTable<'file>);
+
+impl<'file> TomlTable<'file> {
+    /// The table's keys and values, in the order they stand in the file.
+    #[must_use]
+    pub fn entries(self) -> Vec<(TomlKey<'file>, TomlValue<'file>)> {
+        let mut entries: Vec<_> = self
+            .0
+            .iter()
+            .map(|(key, value)| (TomlKey(key), TomlValue(value)))
+            .collect();
+        entries.sort_by_key(|(key, _)| key.span().start);
+        entries
+    }
+
+    /// The value of `name`, if the table holds it.
+    #[must_use]
+    pub fn get(self, name: &str) -> Option<TomlValue<'file>> {
+        self.0.get(name).map(TomlValue)
+    }
+}
+
+/// A key of a TOML table, and where it stands in the file.
+#[derive(Debug, Clone, Copy)]
+pub struct TomlKey<'file>(&'file Spanned<DeString<'file>>);
+
+impl<'file> TomlKey<'file> {
+    /// The key as written, without quotes.
+    #[must_use]
+    pub fn name(self) -> &'file str {
+        self.0.get_ref()
+    }
+
+    /// Where the key stands in the file.
+    #[must_use]
+    pub fn span(self) -> Range<usize> {
+        self.0.span()
+    }
+}
+
+/// A value in a TOML file, and where it stands. [`TomlFile`] reads it as
+/// text, a number or a table.
+#[derive(Debug, Clone, Copy)]
+pub struct TomlValue<'file>(&'file Spanned<DeValue<'file>>);
+
+impl<'file> TomlValue<'file> {
+    /// Where the value stands in the file.
+    #[must_use]
+    pub fn span(self) -> Range<usize> {
+        self.0.span()
+    }
+
+    /// The tables of an array of tables, such as `[[event]]`; none for any
+    /// other value.
+    #[must_use]
+    pub fn tables(self) -> Vec<TomlTable<'file>> {
+        self.0.get_ref().as_array().map_or_else(Vec::new, |items| {
+            items
+                .iter()
+                .filter_map(|item| item.get_ref().as_table())
+                .map(TomlTable)
+                .collect()
+        })
+    }
+
+    /// The value's TOML type with its article: `a string`, `an integer`.
+    fn type_with_article(self) -> String {
+        with_article(self.0.get_ref().type_str())
+    }
 }
 
 impl<'a> TomlFile<'a> {
@@ -64,20 +139,22 @@ impl<'a> TomlFile<'a> {
     ///
     /// If it is no valid TOML; the snippet points at the spot, and the TOML
     /// error is the cause.
-    pub fn parse(&self) -> PaceResult<Spanned<DeTable<'a>>> {
-        DeTable::parse(self.text).map_err(|error| {
-            let span = error.span().unwrap_or(0..0);
-            let label = error.message().trim().to_owned();
-            PaceError::with_source(
-                self.kind,
-                "the file {file} is not valid TOML",
-                TomlCause(error),
-            )
-            .attach_context("file", self.path.display().to_string())
-            .attach_hint("fix the TOML at the marked spot")
-            .attach_error_code(format!("{}::syntax", self.code))
-            .attach_snippet(self.snippet(span, &label))
-        })
+    pub fn parse(&self) -> PaceResult<TomlDocument<'a>> {
+        DeTable::parse(self.text)
+            .map(TomlDocument)
+            .map_err(|error| {
+                let span = error.span().unwrap_or(0..0);
+                let label = error.message().trim().to_owned();
+                PaceError::with_source(
+                    self.kind,
+                    "the file {file} is not valid TOML",
+                    TomlCause(error),
+                )
+                .attach_context("file", self.path.display().to_string())
+                .attach_hint("fix the TOML at the marked spot")
+                .attach_error_code(format!("{}::syntax", self.code))
+                .attach_snippet(self.snippet(span, &label))
+            })
     }
 
     fn snippet(&self, span: Range<usize>, label: &str) -> Snippet {
@@ -138,11 +215,11 @@ impl<'a> TomlFile<'a> {
     /// # Errors
     ///
     /// If it is not the version this pace reads; a newer one asks to update.
-    pub fn check_version(&self, table: &DeTable<'_>) -> PaceResult<()> {
+    pub fn check_version(&self, table: TomlTable<'_>) -> PaceResult<()> {
         let Some(value) = table.get("version") else {
             return Ok(());
         };
-        let version = value.get_ref().as_integer().and_then(number);
+        let version = value.0.get_ref().as_integer().and_then(number);
         if version == Some(self.version) {
             return Ok(());
         }
@@ -151,10 +228,8 @@ impl<'a> TomlFile<'a> {
         } else {
             format!("write `version = {}`", self.version)
         };
-        let found = version.map_or_else(
-            || with_article(value.get_ref().type_str()),
-            |version| version.to_string(),
-        );
+        let found =
+            version.map_or_else(|| value.type_with_article(), |version| version.to_string());
         Err(self
             .error_at(
                 value.span(),
@@ -175,19 +250,19 @@ impl<'a> TomlFile<'a> {
     /// # Errors
     ///
     /// If it is no text; the error says what `name` takes (`expects`).
-    pub fn string<'v>(
+    pub fn string<'value>(
         &self,
         name: &str,
-        value: &'v Spanned<DeValue<'_>>,
+        value: TomlValue<'value>,
         expects: &str,
-    ) -> PaceResult<&'v str> {
-        value.get_ref().as_str().ok_or_else(|| {
+    ) -> PaceResult<&'value str> {
+        value.0.get_ref().as_str().ok_or_else(|| {
             self.wrong_type(
                 name,
                 value,
                 expects,
                 format!("write it as text, for example `{name} = \"…\"`"),
-                &with_article(value.get_ref().type_str()),
+                &value.type_with_article(),
             )
         })
     }
@@ -199,18 +274,13 @@ impl<'a> TomlFile<'a> {
     ///
     /// If it is no integer, or one too large; the error says what `name`
     /// takes (`expects`).
-    pub fn integer(
-        &self,
-        name: &str,
-        value: &Spanned<DeValue<'_>>,
-        expects: &str,
-    ) -> PaceResult<i64> {
-        let integer = value.get_ref().as_integer();
+    pub fn integer(&self, name: &str, value: TomlValue<'_>, expects: &str) -> PaceResult<i64> {
+        let integer = value.0.get_ref().as_integer();
         integer.and_then(number).ok_or_else(|| {
             let label = if integer.is_some() {
                 "too large a number".to_owned()
             } else {
-                with_article(value.get_ref().type_str())
+                value.type_with_article()
             };
             self.wrong_type(
                 name,
@@ -226,7 +296,7 @@ impl<'a> TomlFile<'a> {
     fn wrong_type(
         &self,
         name: &str,
-        value: &Spanned<DeValue<'_>>,
+        value: TomlValue<'_>,
         expects: &str,
         hint: String,
         label: &str,
@@ -246,18 +316,18 @@ impl<'a> TomlFile<'a> {
     /// # Errors
     ///
     /// If it is no table.
-    pub fn table<'v, 'i>(
+    pub fn table<'value>(
         &self,
         name: &str,
-        value: &'v Spanned<DeValue<'i>>,
-    ) -> PaceResult<&'v DeTable<'i>> {
-        value.get_ref().as_table().ok_or_else(|| {
+        value: TomlValue<'value>,
+    ) -> PaceResult<TomlTable<'value>> {
+        value.0.get_ref().as_table().map(TomlTable).ok_or_else(|| {
             self.error_at(
                 value.span(),
                 "`{key}` is a table",
                 [("key", name.to_owned())],
                 format!("write it as `[{name}]` with its keys below"),
-                &with_article(value.get_ref().type_str()),
+                &value.type_with_article(),
             )
             .attach_error_code(format!("{}::invalid-value", self.code))
         })
@@ -336,6 +406,41 @@ mod tests {
     }
 
     #[test]
+    fn entries_come_in_file_order_with_their_spans() -> TestResult {
+        let file = manifest("b = 1\na = \"x\"\n");
+        let document = file.parse()?;
+
+        let entries = document.table().entries();
+
+        let names: Vec<&str> = entries.iter().map(|(key, _)| key.name()).collect();
+        assert_eq!(names, ["b", "a"]);
+        let (key, value) = entries.get(1).ok_or("two entries")?;
+        assert_eq!(key.span(), 6..7);
+        assert_eq!(value.span(), 10..13);
+        assert_eq!(file.string("a", *value, "text")?, "x");
+        Ok(())
+    }
+
+    #[test]
+    fn tables_of_array_are_tables_and_other_values_have_none() -> TestResult {
+        let file = manifest("[[event]]\nkind = 1\n[[event]]\nnote = 2\n");
+        let document = file.parse()?;
+        let table = document.table();
+
+        let events = table.get("event").ok_or("the key is there")?.tables();
+        let keys: Vec<&str> = events
+            .iter()
+            .flat_map(|event| event.entries())
+            .map(|(key, _)| key.name())
+            .collect();
+
+        assert_eq!(keys, ["kind", "note"]);
+        let kind = events.first().and_then(|event| event.get("kind"));
+        assert!(kind.ok_or("kind is there")?.tables().is_empty());
+        Ok(())
+    }
+
+    #[test]
     fn broken_toml_keeps_its_cause_and_the_kind_of_the_file() -> TestResult {
         let error = manifest("key = ")
             .parse()
@@ -379,10 +484,10 @@ mod tests {
     #[test]
     fn version_too_new_names_both_versions() -> TestResult {
         let file = manifest("version = 2\n");
-        let table = file.parse()?;
+        let document = file.parse()?;
 
         let error = file
-            .check_version(table.get_ref())
+            .check_version(document.table())
             .err()
             .ok_or("version 2 is refused")?;
 
@@ -405,10 +510,10 @@ mod tests {
     #[test]
     fn version_too_old_asks_to_write_version() -> TestResult {
         let file = manifest("version = 0\n");
-        let table = file.parse()?;
+        let document = file.parse()?;
 
         let error = file
-            .check_version(table.get_ref())
+            .check_version(document.table())
             .err()
             .ok_or("version 0 is refused")?;
 
@@ -423,10 +528,10 @@ mod tests {
     #[test]
     fn version_as_text_names_its_type() -> TestResult {
         let file = manifest("version = \"1\"\n");
-        let table = file.parse()?;
+        let document = file.parse()?;
 
         let error = file
-            .check_version(table.get_ref())
+            .check_version(document.table())
             .err()
             .ok_or("a version as text is refused")?;
 
@@ -441,8 +546,8 @@ mod tests {
     #[test]
     fn integer_beyond_i64_is_refused_as_too_large() -> TestResult {
         let file = manifest("minutes = 0xffff_ffff_ffff_ffff\n");
-        let table = file.parse()?;
-        let value = table.get_ref().get("minutes").ok_or("the key is there")?;
+        let document = file.parse()?;
+        let value = document.table().get("minutes").ok_or("the key is there")?;
 
         let error = file
             .integer("minutes", value, "a number of minutes")
@@ -461,8 +566,8 @@ mod tests {
     #[test]
     fn table_written_as_value_says_how_to_write_it() -> TestResult {
         let file = manifest("billing = 1\n");
-        let table = file.parse()?;
-        let value = table.get_ref().get("billing").ok_or("the key is there")?;
+        let document = file.parse()?;
+        let value = document.table().get("billing").ok_or("the key is there")?;
 
         let error = file
             .table("billing", value)

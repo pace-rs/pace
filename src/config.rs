@@ -18,12 +18,8 @@ use jiff::{civil::Weekday, tz::TimeZone};
 use pace_core::{HoldSource, ProjectKey};
 use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
 use pace_store::Split;
-use toml::{
-    Spanned,
-    de::{DeString, DeValue},
-};
 
-use pace_store::toml_file::{TomlFile, closest, in_file_order, read_hint};
+use pace_store::toml_file::{TomlFile, TomlKey, TomlValue, closest, read_hint};
 
 use crate::{dirs::Located, origin::Origin};
 
@@ -484,7 +480,7 @@ fn file_values(
     home: Option<&Path>,
     project_paths: &mut Vec<ProjectPath>,
 ) -> PaceResult<Vec<(Key, Value, Range<usize>)>> {
-    let table = file.parse()?;
+    let document = file.parse()?;
     let mut known: Vec<&str> = Vec::new();
     for key in Key::ALL {
         let name = key.name();
@@ -495,21 +491,22 @@ fn file_values(
     }
     known.extend([PROJECT_PATHS, "version"]);
 
-    file.check_version(table.get_ref())?;
+    let table = document.table();
+    file.check_version(table)?;
     let mut values = Vec::new();
-    for (key, value) in in_file_order(table.get_ref()) {
-        let name = key.get_ref().as_ref();
+    for (key, value) in table.entries() {
+        let name = key.name();
         if name == "version" {
             // checked above
         } else if name == PROJECT_PATHS {
-            for (dir, project) in in_file_order(file.table(name, value)?) {
+            for (dir, project) in file.table(name, value)?.entries() {
                 project_paths.push(project_path(file, home, dir, project)?);
             }
         } else if let Some(setting) = Key::ALL.into_iter().find(|setting| setting.name() == name) {
             values.push((setting, scalar(file, name, setting, value)?, value.span()));
         } else if let Some(in_table) = table_keys(name) {
-            for (key, value) in in_file_order(file.table(name, value)?) {
-                let inner = key.get_ref().as_ref();
+            for (key, value) in file.table(name, value)?.entries() {
+                let inner = key.name();
                 let Some(setting) = Key::ALL.into_iter().find(|setting| {
                     setting
                         .name()
@@ -543,7 +540,7 @@ fn scalar(
     file: &TomlFile<'_>,
     name: &str,
     setting: Key,
-    value: &Spanned<DeValue<'_>>,
+    value: TomlValue<'_>,
 ) -> PaceResult<Value> {
     Ok(match setting.kind() {
         Kind::Text => Value::Text(file.string(name, value, setting.expects())?.to_owned()),
@@ -554,10 +551,10 @@ fn scalar(
 fn project_path(
     file: &TomlFile<'_>,
     home: Option<&Path>,
-    dir: &Spanned<DeString<'_>>,
-    project: &Spanned<DeValue<'_>>,
+    dir: TomlKey<'_>,
+    project: TomlValue<'_>,
 ) -> PaceResult<ProjectPath> {
-    let written = dir.get_ref().as_ref();
+    let written = dir.name();
     let key = file
         .string(written, project, "a project key like `acme-webshop`")?
         .parse::<ProjectKey>()

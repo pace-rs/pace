@@ -14,8 +14,7 @@ use std::{
 use pace_core::{ProjectId, ProjectKey, ProjectRef};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 
-use pace_store::toml_file::{TomlFile, in_file_order, read_hint};
-use toml::{Spanned, de::DeValue};
+use pace_store::toml_file::{TomlFile, TomlTable, TomlValue, read_hint};
 
 use crate::config::ProjectPath;
 
@@ -193,12 +192,13 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
         kind: ErrorKind::Project,
         version: MANIFEST_VERSION,
     };
-    let table = file.parse()?;
-    file.check_version(table.get_ref())?;
+    let document = file.parse()?;
+    let table = document.table();
+    file.check_version(table)?;
 
     let mut project = None;
-    for (key, value) in in_file_order(table.get_ref()) {
-        match key.get_ref().as_ref() {
+    for (key, value) in table.entries() {
+        match key.name() {
             "version" => {}
             "project" => project = Some(file.table("project", value)?),
             name => return Err(file.unknown_key(name, key.span(), &["version", "project"])),
@@ -208,8 +208,8 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
     let mut id = None;
     let mut project_key = None;
     let mut name = None;
-    for (key, value) in project.map_or_else(Vec::new, in_file_order) {
-        match key.get_ref().as_ref() {
+    for (key, value) in project.map_or_else(Vec::new, TomlTable::entries) {
+        match key.name() {
             "key" => {
                 let text = file.string("key", value, "a project key like `acme-webshop`")?;
                 project_key = Some(text.parse::<ProjectKey>().map_err(|error| {
@@ -249,7 +249,7 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
 }
 
 /// The project's `name`, which must hold more than blanks.
-fn project_name(file: &TomlFile<'_>, value: &Spanned<DeValue<'_>>) -> PaceResult<String> {
+fn project_name(file: &TomlFile<'_>, value: TomlValue<'_>) -> PaceResult<String> {
     let name = file.string("name", value, "the project's name")?;
     if name.trim().is_empty() {
         return Err(file

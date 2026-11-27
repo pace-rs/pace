@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
 use crate::hlc::hlc_text;
-use crate::toml_file::{TomlCause, TomlFile, closest, in_file_order};
+use crate::toml_file::{TomlCause, TomlFile, closest};
 
 /// The version of the event file format.
 pub(crate) const FILE_VERSION: u32 = 1;
@@ -184,24 +184,20 @@ const REPAIR: &str = "repair the file, or restore it from a backup";
 /// unknown key, or the value at fault. The TOML error is its cause.
 fn explain(path: &Path, text: &str, error: toml::de::Error) -> Box<PaceError> {
     let file = event_file(path, text);
-    let Ok(table) = file.parse() else {
+    let Ok(document) = file.parse() else {
         return broken(&file, error, "the event file {file} is not valid TOML")
             .attach_error_code("pace::store::syntax");
     };
-    for (key, value) in in_file_order(table.get_ref()) {
-        if !KEYS.contains(&key.get_ref().as_ref()) {
-            return unknown_key(&file, key.get_ref(), key.span());
-        }
-        if let Some(events) = value.get_ref().as_array() {
-            for event in events {
-                let Some(event) = event.get_ref().as_table() else {
-                    continue;
-                };
-                for (key, _) in in_file_order(event) {
-                    if !KEYS.contains(&key.get_ref().as_ref()) {
-                        return unknown_key(&file, key.get_ref(), key.span());
-                    }
-                }
+    for (key, value) in document.table().entries() {
+        let keys = std::iter::once(key).chain(
+            value
+                .tables()
+                .into_iter()
+                .flat_map(|event| event.entries().into_iter().map(|(key, _)| key)),
+        );
+        for key in keys {
+            if !KEYS.contains(&key.name()) {
+                return unknown_key(&file, key.name(), key.span());
             }
         }
     }
