@@ -29,7 +29,7 @@ pub use event::{
 };
 pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId};
 pub use key::{ProjectKey, Tag};
-pub use port::{Clock, EventStore, FixedClock, Ids, Notice, Notifier, SequentialIds};
+pub use port::{Appended, Clock, EventStore, FixedClock, Ids, Notice, Notifier, SequentialIds};
 pub use rules::{Policy, Rules};
 pub use short_id::short_ids;
 pub use state::{State, UndoTarget};

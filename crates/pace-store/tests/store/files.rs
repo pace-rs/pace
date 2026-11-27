@@ -8,7 +8,7 @@ use pace_core::testing::contract::run_store_contract;
 use pace_core::{
     Clock, Command, DeviceId, EventStore, Policy, SequentialIds, Tracker,
     command::{Adjust, Begin, Catch, End, Hold, Log, Pause},
-    testing::TestClock,
+    testing::{Raced, TestClock},
 };
 use pace_store::{FilesStore, Split};
 use pace_time::TimeRange;
@@ -482,9 +482,53 @@ fn an_event_in_two_files_is_read_once() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn begin_raced_by_another_process_decides_again_and_switches_from_it() -> TestResult {
+    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+    _ = pollster::block_on(setup.tracker(Split::Month).run(&Command::Log(Log::new(
+        at("2026-11-26T07:00[Europe/Berlin]")?,
+        at("2026-11-26T08:00[Europe/Berlin]")?,
+    ))))?;
+    // The rival read a minute earlier.
+    let rival_clock = Arc::new(TestClock::new(at("2026-11-26T08:59[Europe/Berlin]")?));
+    let rival = Tracker::new(
+        setup.store(Split::Month),
+        rival_clock.clone(),
+        Arc::new(SequentialIds::starting_at(&rival_clock.now(), 2)),
+        Policy::default(),
+        setup.device,
+    );
+    let tracker = Tracker::new(
+        Raced::new(
+            setup.store(Split::Month),
+            rival,
+            Command::Begin(Begin {
+                note: Some("B".to_owned()),
+                ..Begin::default()
+            }),
+            1,
+        ),
+        setup.clock.clone(),
+        Arc::new(SequentialIds::starting_at(&setup.clock.now(), 1)),
+        Policy::default(),
+        setup.device,
+    );
+
+    _ = pollster::block_on(tracker.run(&Command::Begin(Begin {
+        note: Some("A".to_owned()),
+        ..Begin::default()
+    })))?;
+
+    let state = pollster::block_on(setup.tracker(Split::Month).state(&everything()?))?;
+    let open: Vec<_> = state.open().map(|entry| entry.note.clone()).collect();
+    assert_eq!(open, vec![Some("A".to_owned())]);
+    assert_eq!(state.entries().count(), 3);
+    Ok(())
+}
+
 /// Tests that cost more than the others: four threads append 40 events to one
 /// event file at once, each append under the file lock, and the test reads
-/// the file back. `.config/nextest.toml` runs them in the test group
+/// the file back. A thread runs a command again that the others outran. `.config/nextest.toml` runs them in the test group
 /// `expensive`.
 mod expensive {
     use super::*;
@@ -517,11 +561,17 @@ mod expensive {
                         device,
                     );
                     for round in 0..10 {
-                        _ = pollster::block_on(tracker.run(&Command::Adjust(Adjust {
+                        let adjust = Command::Adjust(Adjust {
                             entry: Some(entry),
                             note: pace_core::Change::Set(format!("{writer}/{round}")),
                             ..Adjust::default()
-                        })));
+                        });
+                        // A command that the others outran is run again, as
+                        // its error asks.
+                        while pollster::block_on(tracker.run(&adjust))
+                            .is_err_and(|error| error.is_code("pace::core::concurrent-write"))
+                        {
+                        }
                     }
                 });
             }

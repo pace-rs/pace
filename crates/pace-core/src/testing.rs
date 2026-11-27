@@ -4,13 +4,19 @@
 use std::{
     collections::BTreeMap,
     future::Future,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{
+        Arc, Mutex, MutexGuard,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use jiff::ZonedDateTime;
 use pace_error::{ErrorKind, PaceError, PaceResult};
 
-use crate::{Batch, ChangeMarker, Clock, Device, DeviceId, EventStore, Hlc, RecordedEvent};
+use crate::{
+    Appended, Batch, ChangeMarker, Clock, Command, Device, DeviceId, EventStore, Hlc,
+    RecordedEvent, Tracker,
+};
 
 /// A clock that tests set.
 #[derive(Debug)]
@@ -104,9 +110,12 @@ impl MemoryStore {
 }
 
 impl MemoryStore {
-    fn append_now(&self, batch: Batch) -> PaceResult<Vec<RecordedEvent>> {
+    fn append_now(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
         let now = self.clock.now();
         let mut storage = self.storage()?;
+        if ChangeMarker::new(storage.appends) != read {
+            return Ok(Appended::Stale);
+        }
         let mut last = storage.events.iter().map(|recorded| recorded.hlc).max();
         let recorded: Vec<RecordedEvent> = batch
             .events
@@ -133,14 +142,18 @@ impl MemoryStore {
             });
         storage.appends += 1;
         drop(storage);
-        Ok(recorded)
+        Ok(Appended::Recorded(recorded))
     }
 }
 
 // Everything happens in memory at once, so the futures are ready right away.
 impl EventStore for MemoryStore {
-    fn append(&self, batch: Batch) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send {
-        std::future::ready(self.append_now(batch))
+    fn append(
+        &self,
+        batch: Batch,
+        read: ChangeMarker,
+    ) -> impl Future<Output = PaceResult<Appended>> + Send {
+        std::future::ready(self.append_now(batch, read))
     }
 
     fn read(
@@ -165,6 +178,61 @@ impl EventStore for MemoryStore {
     }
 }
 
+/// A store whose appends race a rival tracker on the same storage.
+///
+/// Before each of its next `races` appends, the rival runs its command. So
+/// one thread plays two pace commands at once: the rival writes between the
+/// read and the append of the other.
+pub struct Raced<S, R> {
+    store: S,
+    rival: Tracker<R>,
+    command: Command,
+    races: AtomicUsize,
+}
+
+impl<S, R> Raced<S, R> {
+    /// `store`, raced `races` times by `rival` running `command`.
+    #[must_use]
+    pub const fn new(store: S, rival: Tracker<R>, command: Command, races: usize) -> Self {
+        Self {
+            store,
+            rival,
+            command,
+            races: AtomicUsize::new(races),
+        }
+    }
+}
+
+impl<S: EventStore, R: EventStore> EventStore for Raced<S, R> {
+    async fn append(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
+        let raced = self
+            .races
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |left| {
+                left.checked_sub(1)
+            })
+            .is_ok();
+        if raced {
+            _ = self.rival.run(&self.command).await?;
+        }
+        self.store.append(batch, read).await
+    }
+
+    fn read(
+        &self,
+        range: &pace_time::TimeRange,
+    ) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send {
+        self.store.read(range)
+    }
+
+    fn devices(&self) -> impl Future<Output = PaceResult<Vec<Device>>> + Send {
+        self.store.devices()
+    }
+
+    fn marker(&self) -> impl Future<Output = PaceResult<ChangeMarker>> + Send {
+        self.store.marker()
+    }
+}
+
 /// The contract of [`EventStore`], as checks that every backend runs.
 pub mod contract {
     use std::sync::Arc;
@@ -175,7 +243,8 @@ pub mod contract {
 
     use crate::testing::TestClock;
     use crate::{
-        Clock, Command, DeviceId, EntryState, EventStore, Policy, SequentialIds, State, Tracker,
+        Appended, Clock, Command, DeviceId, EntryState, EventStore, Policy, Rules, SequentialIds,
+        State, Tracker,
         command::{Begin, End, Hold, Log},
     };
 
@@ -199,6 +268,7 @@ pub mod contract {
         an_undo_is_read_with_its_batch(&new_storage()).await?;
         devices_are_the_ones_that_wrote(&new_storage()).await?;
         the_marker_changes_with_the_data(&new_storage()).await?;
+        append_after_stale_read_is_refused(&new_storage()).await?;
         Ok(())
     }
 
@@ -500,6 +570,44 @@ pub mod contract {
             store.marker().await? != before,
             check,
             "it stayed after an append",
+        )
+    }
+
+    async fn append_after_stale_read_is_refused<O, S>(open_store: &O) -> PaceResult<()>
+    where
+        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
+        S: EventStore,
+    {
+        let check = "an append after a stale read is refused";
+        let laptop = open(open_store, 1, "2026-11-26T09:00[Europe/Berlin]")?;
+        let store = open_store(laptop.id, laptop.clock.clone());
+        let read = store.marker().await?;
+        _ = laptop
+            .tracker
+            .run(&Command::Begin(Begin::default()))
+            .await?;
+        // The batch as decided on the stale read: nothing was open.
+        let now = laptop.clock.now();
+        let batch = Rules {
+            state: &State::default(),
+            now: &now,
+            device: laptop.id,
+            ids: &SequentialIds::starting_at(&now, 9),
+            policy: &Policy::default(),
+        }
+        .decide(&Command::Begin(Begin::default()))?;
+
+        let appended = store.append(batch, read).await?;
+        ensure(
+            appended == Appended::Stale,
+            check,
+            "it appended a batch decided before another append",
+        )?;
+        let state = laptop.tracker.state(&TimeRange::new(None, None)?).await?;
+        ensure(
+            state.entries().count() == 1,
+            check,
+            "the refused batch is in the log",
         )
     }
 }

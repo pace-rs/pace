@@ -7,8 +7,9 @@
 //!
 //! Each device only appends to its own directory, so syncing `PACE_HOME`
 //! never conflicts. Appends happen under the lock file in the machine
-//! directory; every changed file is written to a temporary file next to it
-//! and then renamed over it.
+//! directory, and only if the event files are as they were when the
+//! command read them; every changed file is written to a temporary file
+//! next to it and then renamed over it.
 
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, hash_map::DefaultHasher},
@@ -23,7 +24,7 @@ use std::{
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, EventKind, EventStore, Hlc,
+    Appended, Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, EventKind, EventStore, Hlc,
     RecordedEvent,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult};
@@ -107,12 +108,18 @@ impl FilesStore {
         self.events_dir().join(device.to_string())
     }
 
-    fn append_now(&self, batch: Batch) -> PaceResult<Vec<RecordedEvent>> {
+    fn append_now(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
         let now = self.clock.now();
-        let dir = self.device_dir(self.device);
-        create_dir(&dir)?;
         create_dir(&self.machine)?;
         let _lock = lock(&self.machine.join("lock"))?;
+        // Under the lock, so no other process writes between this check and
+        // the append. The device directory comes after it: a new directory
+        // changes the marker.
+        if self.marker_now()? != read {
+            return Ok(Appended::Stale);
+        }
+        let dir = self.device_dir(self.device);
+        create_dir(&dir)?;
 
         let (index, _) = self.refreshed_index()?;
         let own_prefix = format!("{}/", self.device);
@@ -204,7 +211,7 @@ impl FilesStore {
             }
         }
         cursors.save(&self.machine)?;
-        Ok(recorded)
+        Ok(Appended::Recorded(recorded))
     }
 
     /// Rewrite this device's event files split by `split`, and record the
@@ -504,8 +511,12 @@ impl FilesStore {
 
 // The files backend works synchronously, so its futures are ready at once.
 impl EventStore for FilesStore {
-    fn append(&self, batch: Batch) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send {
-        std::future::ready(self.append_now(batch))
+    fn append(
+        &self,
+        batch: Batch,
+        read: ChangeMarker,
+    ) -> impl Future<Output = PaceResult<Appended>> + Send {
+        std::future::ready(self.append_now(batch, read))
     }
 
     fn read(

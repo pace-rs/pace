@@ -3,12 +3,17 @@
 use std::sync::Arc;
 
 use jiff::ZonedDateTime;
-use pace_error::PaceResult;
+use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
 
 use crate::{
-    Clock, Command, DeviceId, EventKind, EventStore, Ids, Policy, RecordedEvent, Rules, State,
+    Appended, Clock, Command, DeviceId, EventKind, EventStore, Ids, Policy, RecordedEvent, Rules,
+    State,
 };
+
+/// How often [`Tracker::run`] reads and decides before it gives up on
+/// commands that write at the same time.
+const ATTEMPTS: usize = 5;
 
 /// The use cases over the ports: read the state, decide, append.
 ///
@@ -70,45 +75,34 @@ impl<S: EventStore> Tracker<S> {
 
     /// Decide `command` and append its events.
     ///
+    /// If another command wrote between the read and the append, the store
+    /// refuses the batch, and the tracker reads and decides again, up to
+    /// five times in all. So of two commands at once, the later one
+    /// decides on what the earlier one wrote.
+    ///
     /// # Errors
     ///
-    /// If the store fails, or the command doesn't fit the state; then
-    /// nothing is appended.
+    /// If the store fails, the command doesn't fit the state, or other
+    /// commands wrote in between five times; then nothing is appended.
     pub async fn run(&self, command: &Command) -> PaceResult<Outcome> {
-        let now = self.clock.now();
-        let events = self.store.read(&scope(command, &now)?).await?;
-        let state = State::from_events(&events);
-        let batch = Rules {
-            state: &state,
-            now: &now,
-            device: self.device,
-            ids: &*self.ids,
-            policy: &self.policy,
+        for _ in 0..ATTEMPTS {
+            let now = self.clock.now();
+            let marker = self.store.marker().await?;
+            let events = self.store.read(&scope(command, &now)?).await?;
+            let state = State::from_events(&events);
+            let batch = Rules {
+                state: &state,
+                now: &now,
+                device: self.device,
+                ids: &*self.ids,
+                policy: &self.policy,
+            }
+            .decide(command)?;
+            if let Appended::Recorded(recorded) = self.store.append(batch, marker).await? {
+                return Ok(outcome(events, state, recorded, now));
+            }
         }
-        .decide(command)?;
-        let recorded = self.store.append(batch).await?;
-
-        let undone_batches: Vec<_> = recorded
-            .iter()
-            .filter_map(|recorded| match recorded.event.kind {
-                EventKind::BatchUndone { batch } => Some(batch),
-                _ => None,
-            })
-            .collect();
-        let undone = events
-            .iter()
-            .filter(|event| undone_batches.contains(&event.batch))
-            .cloned()
-            .collect();
-        let mut all = events;
-        all.extend(recorded.iter().cloned());
-        Ok(Outcome {
-            recorded,
-            before: state,
-            state: State::from_events(&all),
-            undone,
-            now,
-        })
+        Err(concurrent_writes())
     }
 
     /// The state of the entries that overlap `range`, and of the open ones.
@@ -119,6 +113,47 @@ impl<S: EventStore> Tracker<S> {
     pub async fn state(&self, range: &TimeRange) -> PaceResult<State> {
         Ok(State::from_events(&self.store.read(range).await?))
     }
+}
+
+/// What a command did, from the events it read and the ones it appended.
+fn outcome(
+    events: Vec<RecordedEvent>,
+    before: State,
+    recorded: Vec<RecordedEvent>,
+    now: ZonedDateTime,
+) -> Outcome {
+    let undone_batches: Vec<_> = recorded
+        .iter()
+        .filter_map(|recorded| match recorded.event.kind {
+            EventKind::BatchUndone { batch } => Some(batch),
+            _ => None,
+        })
+        .collect();
+    let undone = events
+        .iter()
+        .filter(|event| undone_batches.contains(&event.batch))
+        .cloned()
+        .collect();
+    let mut all = events;
+    all.extend(recorded.iter().cloned());
+    Outcome {
+        recorded,
+        before,
+        state: State::from_events(&all),
+        undone,
+        now,
+    }
+}
+
+/// The error when other commands wrote between each read and append.
+fn concurrent_writes() -> Box<PaceError> {
+    PaceError::new(
+        ErrorKind::InputOutput,
+        "other pace commands wrote to the event log {attempts} times while this one decided",
+    )
+    .attach_context("attempts", ATTEMPTS.to_string())
+    .attach_hint("run the command again once the other pace commands are done")
+    .attach_error_code("pace::core::concurrent-write")
 }
 
 /// The time a command's rules need to see.

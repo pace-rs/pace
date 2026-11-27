@@ -104,7 +104,17 @@ pub trait EventStore: Send + Sync {
     /// under the store's lock, and return them as recorded. The store gives
     /// each event its [`Hlc`](crate::Hlc): later than every event of every
     /// device it knows, even if this machine's clock is behind.
-    fn append(&self, batch: Batch) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send;
+    ///
+    /// `read` is the [`marker`](Self::marker) taken before the read the
+    /// batch was decided on. If the store changed since, another command
+    /// wrote in between: the store appends nothing and returns
+    /// [`Appended::Stale`], and the caller reads and decides again. The
+    /// store compares the markers under the same lock as the append.
+    fn append(
+        &self,
+        batch: Batch,
+        read: ChangeMarker,
+    ) -> impl Future<Output = PaceResult<Appended>> + Send;
 
     /// From the logs of all devices: every event of every entry whose time
     /// overlaps `range` (an open entry lasts until now, whatever the range),
@@ -122,6 +132,15 @@ pub trait EventStore: Send + Sync {
     /// The current state of the store. Comparing it with an earlier marker
     /// says whether the data changed since.
     fn marker(&self) -> impl Future<Output = PaceResult<ChangeMarker>> + Send;
+}
+
+/// What [`EventStore::append`] did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Appended {
+    /// The batch is in the log: its events, as recorded.
+    Recorded(Vec<RecordedEvent>),
+    /// Nothing: the store changed since the read the batch was decided on.
+    Stale,
 }
 
 /// Something to tell the user outside the command's output, for example
