@@ -5,9 +5,9 @@
 //! A billed entry carries the rate and the amount its `billing.marked`
 //! event froze. An unbilled billable entry carries the rate of its start
 //! day in the report's zone, and the amount of its net time, rounded half
-//! up to the minor unit. The client's step doesn't round it: rounding per
-//! day belongs to a bill (restart.md 3.7). A running entry counts up to
-//! now.
+//! up to the minor unit. The client's step doesn't round it, as it rounds
+//! a bill and the revenue of `pace reflect` (`billable_charges`). A running
+//! entry counts up to now.
 
 use std::collections::BTreeSet;
 
