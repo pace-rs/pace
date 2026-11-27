@@ -12,12 +12,12 @@ use pace_core::{
     BatchId, Change, DeviceId, EntryChanges, EntryId, Event, EventId, EventKind, Hlc, HoldSource,
     PauseKind, ProjectId, ProjectKey, ProjectRef, RecordedEvent, Tag,
 };
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::{ErrorKind, PaceError, PaceResult, closest_name};
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
 use crate::hlc::hlc_text;
-use crate::toml_file::{TomlCause, TomlFile, closest_name};
+use crate::toml_file::{TomlCause, TomlFile};
 
 /// The version of the event file format.
 pub(crate) const FILE_VERSION: u32 = 1;

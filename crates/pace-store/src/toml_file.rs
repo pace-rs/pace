@@ -9,7 +9,7 @@ use std::{
 };
 
 use jiff::civil::Date;
-use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
+use pace_error::{ErrorKind, PaceError, PaceResult, Snippet, closest_name};
 use toml::{
     Spanned,
     de::{DeInteger, DeString, DeTable, DeValue},
@@ -516,19 +516,6 @@ pub fn read_hint(error: &std::io::Error) -> &'static str {
     } else {
         "check that pace may read the file"
     }
-}
-
-/// The known name closest to `input`, if any is close enough (Jaro-Winkler
-/// similarity above 0.8).
-pub fn closest_name<'names>(
-    input: &str,
-    names: impl Iterator<Item = &'names str>,
-) -> Option<&'names str> {
-    names
-        .map(|name| (strsim::jaro_winkler(input, name), name))
-        .filter(|(score, _)| *score > 0.8)
-        .max_by(|a, b| a.0.total_cmp(&b.0))
-        .map(|(_, name)| name)
 }
 
 #[cfg(test)]

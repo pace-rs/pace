@@ -18,7 +18,6 @@ jiff = { workspace = true, features = ["serde"] }
 pace_error = { workspace = true }
 pace_time = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-strsim = { workspace = true }
 uuid = { workspace = true }
 
 [features]

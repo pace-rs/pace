@@ -5,10 +5,10 @@ use std::{ops::Range, str::FromStr};
 
 use jiff::SignedDuration;
 use pace_core::Archived;
-use pace_error::{PaceError, PaceResult};
+use pace_error::{PaceError, PaceResult, closest_name};
 use pace_time::parse_duration;
 
-use crate::toml_file::{TomlFile, TomlKey, TomlTable, TomlValue, closest_name};
+use crate::toml_file::{TomlFile, TomlKey, TomlTable, TomlValue};
 
 /// The fields of one table, each a key that its reader knows.
 #[derive(Debug)]

@@ -8,7 +8,7 @@ use jiff::{
     civil::{Date, Weekday},
     tz::TimeZone,
 };
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::{ErrorKind, PaceError, PaceResult, closest_name};
 
 use crate::{TimeRange, out_of_range};
 
@@ -171,12 +171,7 @@ impl FromStr for TimeFrame {
         }
 
         let names = NAMED.map(|(name, _)| name);
-        let closest = names
-            .iter()
-            .map(|name| (strsim::jaro_winkler(input, name), name))
-            .filter(|(score, _)| *score > 0.8)
-            .max_by(|a, b| a.0.total_cmp(&b.0))
-            .map(|(_, name)| *name);
+        let closest = closest_name(input, names.into_iter());
 
         let error = PaceError::new(
             ErrorKind::InvalidInput,

@@ -19,7 +19,6 @@ pace_error = { workspace = true }
 pace_time = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-strsim = { workspace = true }
 tempfile = { workspace = true }
 toml = { workspace = true }
 toml_edit = { workspace = true }

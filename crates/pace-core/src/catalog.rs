@@ -68,7 +68,7 @@ use std::{collections::BTreeMap, fmt};
 pub use client::{Client, Rate, Rates};
 use jiff::civil::Date;
 pub use money::{Currency, Money, Totals};
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::{ErrorKind, PaceError, PaceResult, closest_name};
 pub use project::ProjectRecord;
 pub use role::{ArchiveReason, Archived, Role, RoleKind};
 pub use rounding::{Rounding, RoundingMode, RoundingPer};
@@ -362,7 +362,7 @@ fn unknown_reference<'keys>(
     key: &str,
     known: impl Iterator<Item = &'keys str> + Clone,
 ) -> Box<PaceError> {
-    let hint = closest_key(key, known.clone()).map_or_else(
+    let hint = closest_name(key, known.clone()).map_or_else(
         || {
             let known: Vec<String> = known.map(|known| format!("`{known}`")).collect();
             if known.is_empty() {
@@ -384,13 +384,4 @@ fn unknown_reference<'keys>(
     .attach_context("key", key)
     .attach_hint(hint)
     .attach_error_code(code)
-}
-
-/// The known key closest to `input`, if one is close enough to be a typo.
-fn closest_key<'keys>(input: &str, known: impl Iterator<Item = &'keys str>) -> Option<&'keys str> {
-    known
-        .map(|known| (strsim::jaro_winkler(input, known), known))
-        .filter(|(score, _)| *score > 0.8)
-        .max_by(|a, b| a.0.total_cmp(&b.0))
-        .map(|(_, known)| known)
 }

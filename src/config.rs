@@ -16,10 +16,10 @@ use std::{
 
 use jiff::{civil::Weekday, tz::TimeZone};
 use pace_core::{HoldSource, ProjectKey};
-use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
+use pace_error::{ErrorKind, PaceError, PaceResult, Severity, closest_name};
 use pace_store::Split;
 
-use pace_store::toml_file::{TomlFile, TomlKey, TomlValue, closest_name, read_hint};
+use pace_store::toml_file::{TomlFile, TomlKey, TomlValue, read_hint};
 
 use crate::{dirs::Located, origin::Origin};
 

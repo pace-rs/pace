@@ -14,6 +14,7 @@ description = "pace_error: errors with fix hints and exit codes for pace"
 
 [dependencies]
 miette = { workspace = true }
+strsim = { workspace = true }
 
 [lints]
 workspace = true

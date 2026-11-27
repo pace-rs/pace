@@ -9,8 +9,7 @@ use std::{collections::BTreeMap, fmt, str::FromStr};
 
 use iso_currency::IntoEnumIterator;
 use jiff::SignedDuration;
-use pace_error::{ErrorKind, PaceError, PaceResult};
-use strsim::jaro_winkler;
+use pace_error::{ErrorKind, PaceError, PaceResult, closest_name};
 
 const SECONDS_PER_HOUR: i128 = 3600;
 
@@ -65,12 +64,12 @@ impl FromStr for Currency {
 /// The error for a code that is no ISO 4217 currency; it names the closest.
 fn unknown_currency(code: &str) -> Box<PaceError> {
     let upper = code.to_ascii_uppercase();
-    let closest = iso_currency::Currency::iter()
-        .filter(|iso| iso.exponent().is_some())
-        .map(|iso| (jaro_winkler(&upper, iso.code()), iso.code()))
-        .filter(|(score, _)| *score > 0.8)
-        .max_by(|a, b| a.0.total_cmp(&b.0))
-        .map(|(_, closest)| closest);
+    let closest = closest_name(
+        &upper,
+        iso_currency::Currency::iter()
+            .filter(|iso| iso.exponent().is_some())
+            .map(|iso| iso.code()),
+    );
     let hint = closest.map_or_else(
         || "a currency is a code of ISO 4217, such as `EUR` or `USD`".to_owned(),
         |closest| format!("did you mean `{closest}`?"),

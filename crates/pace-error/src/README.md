@@ -8,9 +8,10 @@ input. It reports through miette.
 
 <!-- files -->
 
-| File               | What it holds                                  |
-| ------------------ | ---------------------------------------------- |
-| [`lib.rs`](lib.rs) | Errors with fix hints and exit codes for pace. |
+| File                       | What it holds                                                        |
+| -------------------------- | -------------------------------------------------------------------- |
+| [`closest.rs`](closest.rs) | The known name closest to a mistyped one, for a "did you mean" hint. |
+| [`lib.rs`](lib.rs)         | Errors with fix hints and exit codes for pace.                       |
 
 <!-- /files -->
 

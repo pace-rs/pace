@@ -11,6 +11,8 @@
 //! - the [cause](PaceError::with_source) that led to it, kept as its `source()`
 //! - a [snippet](Snippet) that points at a line of a file
 //!
+//! [`closest_name`] picks the known name a "did you mean" hint suggests.
+//!
 //! `Display` prints the filled guidance alone. The [`miette::Diagnostic`]
 //! implementation adds the code, the hint, the severity and the snippet. It
 //! lists the context that no placeholder took as details. miette's report
@@ -39,6 +41,10 @@ use std::{
 };
 
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
+
+mod closest;
+
+pub use closest::closest_name;
 
 /// Where a user reports a bug.
 const ISSUE_URL: &str = "https://github.com/pace-rs/pace/issues/new";

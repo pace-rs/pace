@@ -821,7 +821,6 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "strsim",
  "uuid",
 ]
 
@@ -830,6 +829,7 @@ name = "pace_error"
 version = "0.0.0"
 dependencies = [
  "miette",
+ "strsim",
 ]
 
 [[package]]
@@ -847,7 +847,6 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "strsim",
  "tempfile",
  "toml 1.2.3+spec-1.1.0",
  "toml_edit",
@@ -861,7 +860,6 @@ dependencies = [
  "pace_error",
  "proptest",
  "rstest",
- "strsim",
 ]
 
 [[package]]
