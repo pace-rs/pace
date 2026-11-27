@@ -1,0 +1,94 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --format html   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Report from 2026-11-23 to 2026-11-29</title>
+<style>
+body { font-family: sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+table { border-collapse: collapse; margin-bottom: 1rem; }
+th, td { padding: 0.2rem 0.8rem; border-bottom: 1px solid #ddd; text-align: left; }
+td.number, th.number { text-align: right; }
+</style>
+</head>
+<body>
+<h1>Report from 2026-11-23 to 2026-11-29</h1>
+<p>Tracked 7h 15m, untracked 79h 45m.</p>
+
+<h2>Time per role</h2>
+<table>
+<tr><th>Role</th><th class="number">Time</th><th class="number">Share</th></tr>
+<tr><td>Work</td><td class="number">5h 15m</td><td class="number">72%</td></tr>
+<tr><td>Health</td><td class="number">1h</td><td class="number">14%</td></tr>
+<tr><td>No role</td><td class="number">1h*</td><td class="number">14%</td></tr>
+</table>
+
+<h2>Time per project</h2>
+<table>
+<tr><th>Project</th><th class="number">Time</th><th class="number">Share</th></tr>
+<tr><td>Webshop relaunch</td><td class="number">5h 15m</td><td class="number">72%</td></tr>
+<tr><td>No project</td><td class="number">2h*</td><td class="number">28%</td></tr>
+</table>
+
+<h2>Time per day</h2>
+<table>
+<tr><th>Day</th><th class="number">Time</th><th class="number">Share</th></tr>
+<tr><td>2026-11-23</td><td class="number">–</td><td class="number"></td></tr>
+<tr><td>2026-11-24</td><td class="number">1h</td><td class="number">14%</td></tr>
+<tr><td>2026-11-25</td><td class="number">2h</td><td class="number">28%</td></tr>
+<tr><td>2026-11-26</td><td class="number">4h 15m*</td><td class="number">59%</td></tr>
+<tr><td>2026-11-27</td><td class="number">–</td><td class="number"></td></tr>
+<tr><td>2026-11-28</td><td class="number">–</td><td class="number"></td></tr>
+<tr><td>2026-11-29</td><td class="number">–</td><td class="number"></td></tr>
+</table>
+
+<h2>Target vs. actual</h2>
+<table>
+<tr><th>Role</th><th class="number">Time</th><th class="number">Target</th><th class="number">Share</th></tr>
+<tr><td>Work</td><td class="number">5h 15m</td><td class="number">30h</td><td class="number">18%</td></tr>
+</table>
+
+<h2>Budgets, used to date</h2>
+<table>
+<tr><th>Project</th><th class="number">Used</th><th class="number">Budget</th><th class="number">Share</th></tr>
+<tr><td>Webshop relaunch</td><td class="number">5h 15m</td><td class="number">10h</td><td class="number">53%</td></tr>
+</table>
+
+<h2>Revenue</h2>
+<table>
+<tr><th>Client and project</th><th class="number">Billed</th><th class="number">Amount</th></tr>
+<tr><td>ACME GmbH</td><td class="number">5h 15m</td><td class="number">498.75 EUR</td></tr>
+<tr><td>– Webshop relaunch</td><td class="number">5h 15m</td><td class="number">498.75 EUR</td></tr>
+<tr><th>Total</th><td></td><th class="number">498.75 EUR</th></tr>
+</table>
+
+<h2>Interruptions</h2>
+<p>1 hold, 15m: inner 0, outer 1 (15m), unknown 0.</p>
+<p>Most frequent reasons: phone call 1.</p>
+
+<h2>Pauses and catches</h2>
+<p>Pauses: lunch 1 (30m).</p>
+<ul>
+<li>Catch on 2026-11-26 at 14:30: call Bob back</li>
+</ul>
+
+<h2>Who decided</h2>
+<table>
+<tr><th>Decided by</th><th class="number">Time</th><th class="number">Share</th></tr>
+<tr><td>Me</td><td class="number">1h</td><td class="number">14%</td></tr>
+<tr><td>Others</td><td class="number">1h*</td><td class="number">14%</td></tr>
+<tr><td>Unmarked</td><td class="number">5h 15m</td><td class="number">72%</td></tr>
+</table>
+
+<p>* counts a running entry up to now.</p>
+</body>
+</html>
+
+----- stderr -----

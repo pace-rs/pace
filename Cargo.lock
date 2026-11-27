@@ -804,6 +804,7 @@ dependencies = [
  "serde_json",
  "shell-words",
  "tempfile",
+ "tera",
  "terminal_size",
  "toml 1.2.3+spec-1.1.0",
  "uuid",
@@ -1316,6 +1317,15 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys",
+]
+
+[[package]]
+name = "tera"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61e0cadeeb54426080b4c5395d59769ce8293f542cc25511c167c742b2175809"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

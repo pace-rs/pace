@@ -1,0 +1,158 @@
+{#- The report of `pace reflect --format html`: a page with a table per
+    part. It receives the JSON document of the schema, version 1: `version`,
+    `kind` and `rows`. Tera escapes every value, as the name ends in
+    `.html.tera`. A `*` marks time that counts a running entry. -#}
+{%- set parts = rows | group_by(attribute="part") -%}
+{%- set time = parts.time | default(value=[]) | group_by(attribute="group") -%}
+{%- set tracked = time.tracked | default(value=[]) | first -%}
+{%- set untracked = time.untracked | default(value=[]) | first -%}
+{%- set days = time.day | default(value=[]) -%}
+{%- set_global marked = false -%}
+{%- for row in rows -%}{%- if row.running -%}{%- set_global marked = true -%}{%- endif -%}{%- endfor -%}
+{%- set_global title = "Report" -%}
+{%- if days -%}
+{%- set first_day = days | first -%}
+{%- set last_day = days | last -%}
+{%- if first_day.date == last_day.date -%}
+{%- set_global title = "Report for " ~ first_day.date -%}
+{%- else -%}
+{%- set_global title = "Report from " ~ first_day.date ~ " to " ~ last_day.date -%}
+{%- endif -%}
+{%- endif -%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+body { font-family: sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+table { border-collapse: collapse; margin-bottom: 1rem; }
+th, td { padding: 0.2rem 0.8rem; border-bottom: 1px solid #ddd; text-align: left; }
+td.number, th.number { text-align: right; }
+</style>
+</head>
+<body>
+<h1>{{ title }}</h1>
+{% if not tracked or tracked.net_seconds == 0 -%}
+<p>Nothing tracked.</p>
+{% else -%}
+<p>Tracked {{ tracked.net }}, untracked {{ untracked.net }}.</p>
+
+<h2>Time per role</h2>
+<table>
+<tr><th>Role</th><th class="number">Time</th><th class="number">Share</th></tr>
+{% for row in time.role | default(value=[]) -%}
+<tr><td>{{ row.name | default(value="No role") }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.percent }}%</td></tr>
+{% endfor -%}
+</table>
+
+<h2>Time per project</h2>
+<table>
+<tr><th>Project</th><th class="number">Time</th><th class="number">Share</th></tr>
+{% for row in time.project | default(value=[]) -%}
+<tr><td>{{ row.name | default(value=row.key | default(value="No project")) }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.percent }}%</td></tr>
+{% endfor -%}
+</table>
+
+<h2>Time per day</h2>
+<table>
+<tr><th>Day</th><th class="number">Time</th><th class="number">Share</th></tr>
+{% for row in days -%}
+<tr><td>{{ row.date }}</td><td class="number">{% if row.net_seconds == 0 %}–{% else %}{{ row.net }}{% if row.running %}*{% endif %}{% endif %}</td><td class="number">{% if row.net_seconds > 0 %}{{ row.percent }}%{% endif %}</td></tr>
+{% endfor -%}
+</table>
+{% set target = parts.target | default(value=[]) | group_by(attribute="group") -%}
+{% if target %}
+<h2>Target vs. actual</h2>
+{% for row in target.targets_above_week | default(value=[]) -%}
+<p>The weekly targets add up to {{ row.target }}, more than the 168h of a week.</p>
+{% endfor -%}
+{% if target.role -%}
+<table>
+<tr><th>Role</th><th class="number">Time</th><th class="number">Target</th><th class="number">Share</th></tr>
+{% for row in target.role -%}
+<tr><td>{{ row.name | default(value=row.id) }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.target }}</td><td class="number">{{ row.percent }}%</td></tr>
+{% endfor -%}
+</table>
+{% endif -%}
+{% endif -%}
+{% if parts.budget %}
+<h2>Budgets, used to date</h2>
+<table>
+<tr><th>Project</th><th class="number">Used</th><th class="number">Budget</th><th class="number">Share</th></tr>
+{% for row in parts.budget -%}
+<tr><td>{{ row.name | default(value=row.key) }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.budget }}</td><td class="number">{{ row.percent }}%</td></tr>
+{% endfor -%}
+</table>
+{% endif -%}
+{% set revenue = parts.revenue | default(value=[]) | group_by(attribute="group") -%}
+{% if revenue %}
+<h2>Revenue</h2>
+{% if revenue.client -%}
+<table>
+<tr><th>Client and project</th><th class="number">Billed</th><th class="number">Amount</th></tr>
+{% for client in revenue.client -%}
+<tr><td>{{ client.name }}</td><td class="number">{{ client.billed }}{% if client.running %}*{% endif %}</td><td class="number">{{ client.amount }} {{ client.currency }}</td></tr>
+{% for row in revenue.project | default(value=[]) -%}
+{% if row.client == client.key and row.currency == client.currency -%}
+<tr><td>– {{ row.name | default(value=row.key) }}</td><td class="number">{{ row.billed }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.amount }} {{ row.currency }}</td></tr>
+{% endif -%}
+{% endfor -%}
+{% endfor -%}
+{% for row in revenue.total | default(value=[]) -%}
+<tr><th>Total</th><td></td><th class="number">{{ row.amount }} {{ row.currency }}</th></tr>
+{% endfor -%}
+</table>
+{% endif -%}
+{% for row in revenue.no_rate | default(value=[]) -%}
+<p>No rate on {{ row.date }} for {{ row.net }} of {{ row.name | default(value=row.key) }}; <code>pace client edit {{ row.client }}</code> gives it a rate.</p>
+{% endfor -%}
+{% endif -%}
+{% set holds = parts.interruptions | default(value=[]) | group_by(attribute="group") -%}
+{% if holds %}
+<h2>Interruptions</h2>
+{% for total in holds.total | default(value=[]) -%}
+<p>{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}:
+{%- for row in holds.source | default(value=[]) %} {{ row.key }} {{ row.count }}{% if row.count > 0 %} ({{ row.held }}){% endif %}{% if loop.last %}.{% else %},{% endif %}{% endfor %}</p>
+{% endfor -%}
+{% if holds.reason -%}
+<p>Most frequent reasons: {% for row in holds.reason %}{{ row.reason }} {{ row.count }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+{% endif -%}
+{% endif -%}
+{% set pauses = parts.pauses | default(value=[]) | group_by(attribute="group") -%}
+{% if pauses %}
+<h2>Pauses and catches</h2>
+{% if pauses.kind -%}
+<p>Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
+{% endif -%}
+{% if pauses.catch -%}
+<ul>
+{% for row in pauses.catch -%}
+<li>Catch on {{ row.start[:10] }} at {{ row.start[11:16] }}: {{ row.note }}</li>
+{% endfor -%}
+</ul>
+{% endif -%}
+{% endif -%}
+{% if parts.decided %}
+<h2>Who decided</h2>
+<table>
+<tr><th>Decided by</th><th class="number">Time</th><th class="number">Share</th></tr>
+{% for row in parts.decided -%}
+<tr><td>{% if row.key == "self" %}Me{% elif row.key == "other" %}Others{% else %}Unmarked{% endif %}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.percent }}%</td></tr>
+{% endfor -%}
+</table>
+{% endif -%}
+{% if parts.overlaps %}
+<h2>Overlaps</h2>
+<ul>
+{% for row in parts.overlaps -%}
+<li>{{ row.short }} and {{ row.other_short }} both cover {{ row.start[:10] }} {{ row.start[11:16] }} to {{ row.end[:10] }} {{ row.end[11:16] }}; change one with <code>pace adjust &lt;id&gt;</code>.</li>
+{% endfor -%}
+</ul>
+{% endif -%}
+{% if marked %}
+<p>* counts a running entry up to now.</p>
+{% endif -%}
+{% endif -%}
+</body>
+</html>

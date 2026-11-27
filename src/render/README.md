@@ -10,15 +10,22 @@ one place, the columns of each `SchemaKind`, and the writers `schema_json` and
 `schema_csv`. `report_rows.rs` turns the report into rows of that schema, one
 row per line of the report, each with its `part` and `group`.
 
+`report_template.rs` renders the report from a Tera template, for the formats
+`text`, `markdown` and `html`. The built-in templates live in `templates/` in
+pace's root, embedded with `include_str!`; a `ReportTemplate::File` is a
+template of the user's own. A template receives the JSON document of the schema,
+`SchemaDocument`.
+
 ## Files
 
 <!-- files -->
 
-| File                                 | What it holds                                                                                                                               |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`report_rows.rs`](report_rows.rs)   | The report of `reflect` as rows of the schema, for `--format json` and `--format csv`: one row per line of the report, each under its part. |
-| [`report_table.rs`](report_table.rs) | The report of `reflect` as a table for the terminal: its parts in the plan's order, with bars for the time per role, project and day.       |
-| [`schema.rs`](schema.rs)             | The schema of pace's JSON and CSV, version 1: the column names in one place, and the writers of both formats.                               |
+| File                                       | What it holds                                                                                                                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`report_rows.rs`](report_rows.rs)         | The report of `reflect` as rows of the schema, for `--format json` and `--format csv`: one row per line of the report, each under its part.         |
+| [`report_table.rs`](report_table.rs)       | The report of `reflect` as a table for the terminal: its parts in the plan's order, with bars for the time per role, project and day.               |
+| [`report_template.rs`](report_template.rs) | The report of `reflect` from a Tera template, for `--format text`, `markdown` and `html`: the built-in templates and the reader of a template file. |
+| [`schema.rs`](schema.rs)                   | The schema of pace's JSON and CSV, version 1: the column names in one place, and the writers of both formats.                                       |
 
 <!-- /files -->
 

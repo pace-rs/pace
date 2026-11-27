@@ -1,0 +1,82 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --format markdown   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+# Report from 2026-11-23 to 2026-11-29
+
+Tracked 7h 15m, untracked 79h 45m.
+
+## Time per role
+
+| Role | Time | Share |
+| ---- | ---: | ----: |
+| Work | 5h 15m | 72% |
+| Health | 1h | 14% |
+| No role | 1h* | 14% |
+
+## Time per project
+
+| Project | Time | Share |
+| ------- | ---: | ----: |
+| Webshop relaunch | 5h 15m | 72% |
+| No project | 2h* | 28% |
+
+## Time per day
+
+| Day | Time | Share |
+| --- | ---: | ----: |
+| 2026-11-23 | – |  |
+| 2026-11-24 | 1h | 14% |
+| 2026-11-25 | 2h | 28% |
+| 2026-11-26 | 4h 15m* | 59% |
+| 2026-11-27 | – |  |
+| 2026-11-28 | – |  |
+| 2026-11-29 | – |  |
+
+## Target vs. actual
+
+| Role | Time | Target | Share |
+| ---- | ---: | -----: | ----: |
+| Work | 5h 15m | 30h | 18% |
+
+## Budgets, used to date
+
+| Project | Used | Budget | Share |
+| ------- | ---: | -----: | ----: |
+| Webshop relaunch | 5h 15m | 10h | 53% |
+
+## Revenue
+
+| Client and project | Billed | Amount |
+| ------------------ | -----: | -----: |
+| ACME GmbH | 5h 15m | 498.75 EUR |
+| – Webshop relaunch | 5h 15m | 498.75 EUR |
+| **Total** | | **498.75 EUR** |
+
+## Interruptions
+
+1 hold, 15m: inner 0, outer 1 (15m), unknown 0.
+
+Most frequent reasons: phone call 1.
+
+## Pauses and catches
+
+Pauses: lunch 1 (30m).
+
+- Catch on 2026-11-26 at 14:30: call Bob back
+
+## Who decided
+
+| Decided by | Time | Share |
+| ---------- | ---: | ----: |
+| Me | 1h | 14% |
+| Others | 1h* | 14% |
+| Unmarked | 5h 15m | 72% |
+
+`*` counts a running entry up to now.
+
+----- stderr -----

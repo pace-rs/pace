@@ -1,4 +1,5 @@
-//! `pace reflect`: the report of a period, as a table, JSON or CSV.
+//! `pace reflect`: the report of a period, as a table, JSON, CSV, or text,
+//! Markdown and HTML from a template.
 
 use std::collections::BTreeSet;
 
@@ -14,11 +15,12 @@ use pace_time::{TimeFrame, TimeRange};
 use crate::clock::zone;
 use crate::commands::{client::unknown_client, role::known_role, tracking::tags};
 use crate::output::usage;
-use crate::print::print_lines;
+use crate::print::{print_bytes, print_lines};
 use crate::project::Reason;
 use crate::render::{
-    Canvas, ReportRows, ReportTable, nothing_tracked, report_rows, report_table,
-    schema::{SchemaKind, schema_csv, schema_json},
+    BuiltInTemplate, Canvas, ReportRows, ReportTable, ReportTemplate, nothing_tracked,
+    render_report_template, report_rows, report_table,
+    schema::{Row, SchemaKind, schema_csv, schema_document, schema_json},
 };
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
@@ -107,6 +109,24 @@ pub enum ReflectFormat {
     Json,
     /// CSV for spreadsheets, in the schema of version 1.
     Csv,
+    /// Plain text to paste into a mail, from a template.
+    Text,
+    /// Markdown, from a template.
+    Markdown,
+    /// HTML, from a template.
+    Html,
+}
+
+impl ReflectFormat {
+    /// The built-in template of a format that comes from one.
+    const fn template(self) -> Option<BuiltInTemplate> {
+        match self {
+            Self::Text => Some(BuiltInTemplate::Text),
+            Self::Markdown => Some(BuiltInTemplate::Markdown),
+            Self::Html => Some(BuiltInTemplate::Html),
+            Self::Table | Self::Json | Self::Csv => None,
+        }
+    }
 }
 
 impl Runnable for ReflectCmd {
@@ -148,13 +168,15 @@ impl ReflectCmd {
                 state: &state,
             })
         };
-        match self.format {
-            ReflectFormat::Table if report.roles.is_empty() => {
-                print_lines([nothing_tracked(&frame)])
+        let template = self.format.template().map(ReportTemplate::BuiltIn);
+        match (template, self.format) {
+            (Some(template), _) => print_from_template(&template, &rows()),
+            (None, ReflectFormat::Json) => {
+                print_lines([schema_json(SchemaKind::Reflect, &rows())?])
             }
-            ReflectFormat::Json => print_lines([schema_json(SchemaKind::Reflect, &rows())?]),
-            ReflectFormat::Csv => print_lines(schema_csv(SchemaKind::Reflect, &rows())),
-            ReflectFormat::Table => print_lines(report_table(
+            (None, ReflectFormat::Csv) => print_lines(schema_csv(SchemaKind::Reflect, &rows())),
+            (None, _) if report.roles.is_empty() => print_lines([nothing_tracked(&frame)]),
+            (None, _) => print_lines(report_table(
                 &ReportTable {
                     report: &report,
                     catalog,
@@ -209,6 +231,13 @@ impl ReflectCmd {
             devices,
         })
     }
+}
+
+/// The report's `rows`, rendered by `template` as the document of the
+/// schema.
+fn print_from_template(template: &ReportTemplate, rows: &[Row]) -> PaceResult<()> {
+    let document = schema_document(SchemaKind::Reflect, rows);
+    print_bytes(render_report_template(template, &document)?.as_bytes())
 }
 
 /// The projects of `--project`: a key of a record by its ID, else a key

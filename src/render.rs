@@ -1,8 +1,10 @@
 //! Output drawn by code: the canvas a table fits, bars and headings, the
-//! report's table, and the report's rows in the schema of JSON and CSV.
+//! report's table, the report's rows in the schema of JSON and CSV, and
+//! the report from a Tera template.
 
 mod report_rows;
 mod report_table;
+mod report_template;
 pub mod schema;
 
 use std::{ffi::OsString, io::IsTerminal as _};
@@ -10,6 +12,7 @@ use std::{ffi::OsString, io::IsTerminal as _};
 use jiff::SignedDuration;
 pub use report_rows::{ReportRows, report_rows};
 pub use report_table::{ReportTable, nothing_tracked, report_table};
+pub use report_template::{BuiltInTemplate, ReportTemplate, render_report_template};
 
 /// The width without a terminal, and on a terminal whose width pace can't
 /// learn.

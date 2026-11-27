@@ -660,3 +660,92 @@ fn json_without_any_entry_writes_rows() -> TestResult {
     assert!(!stdout.contains("Nothing tracked"), "{stdout}");
     Ok(())
 }
+
+#[test]
+fn reflect_shows_week_as_text() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--format", "text"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn reflect_shows_week_as_markdown() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--format", "markdown"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn reflect_shows_week_as_html() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--format", "html"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn text_has_no_box_drawing_and_no_colour() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = run(sandbox
+        .pace_at("15:00")
+        .env("CLICOLOR_FORCE", "1")
+        .args(["reflect", "--format", "text"]))?;
+
+    let drawn: Vec<char> = output
+        .chars()
+        .filter(|c| ('\u{2500}'..='\u{259f}').contains(c) || *c == '\x1b')
+        .collect();
+    assert!(drawn.is_empty(), "{drawn:?} in {output}");
+    Ok(())
+}
+
+#[test]
+fn html_escapes_note() -> TestResult {
+    let sandbox = catalog_sandbox()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
+    _ = run(sandbox
+        .pace_at("09:30")
+        .args(["catch", "<b>call Bob</b> & Alice"]))?;
+
+    let output = run(sandbox
+        .pace_at("10:00")
+        .args(["reflect", "today", "--format", "html"]))?;
+
+    assert!(
+        output.contains("&lt;b&gt;call Bob&lt;&#x2F;b&gt; &amp; Alice")
+            || output.contains("&lt;b&gt;call Bob&lt;/b&gt; &amp; Alice"),
+        "{output}"
+    );
+    Ok(())
+}
+
+#[test]
+fn text_of_empty_period_says_nothing_tracked() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = run(sandbox
+        .pace_at("15:00")
+        .args(["reflect", "last-week", "--format", "text"]))?;
+
+    assert!(output.contains("Nothing tracked"), "{output}");
+    Ok(())
+}
+
+#[test]
+fn templates_name_warnings_and_time_without_rate() -> TestResult {
+    let sandbox = busy_sandbox()?;
+    let day = ["reflect", "--from", "2026-11-24", "--to", "2026-11-24"];
+    let text = [&day[..], &["--format", "text"]].concat();
+    let markdown = [&day[..], &["--format", "markdown"]].concat();
+    let html = [&day[..], &["--format", "html"]].concat();
+
+    let output = sandbox.journey(&[("15:00", &text), ("15:00", &markdown), ("15:00", &html)])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

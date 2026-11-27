@@ -27,7 +27,7 @@ also refuses a changed key or ID.
 | [`now.rs`](now.rs)                   | `pace now`: what is open, and where new entries go.                                                                                 |
 | [`project.rs`](project.rs)           | `pace project`: make the working directory a project, and add, list, archive and edit the project records in `projects/<key>.toml`. |
 | [`project_init.rs`](project_init.rs) | `pace project init`: make the working directory a project, with the record and the manifest that links the directory to it.         |
-| [`reflect.rs`](reflect.rs)           | `pace reflect`: the report of a period, as a table, JSON or CSV.                                                                    |
+| [`reflect.rs`](reflect.rs)           | `pace reflect`: the report of a period, as a table, JSON, CSV, or text, Markdown and HTML from a template.                          |
 | [`role.rs`](role.rs)                 | `pace role`: add, list, archive and edit the roles in `roles.toml`.                                                                 |
 | [`setup.rs`](setup.rs)               | `pace setup`: the guided tour of the settings, the roles, the clients and this directory's project, which writes only what changed. |
 | [`store.rs`](store.rs)               | `pace store`: how pace keeps its data.                                                                                              |

@@ -350,12 +350,23 @@ impl Serialize for Row {
     }
 }
 
-/// The JSON document of `kind`.
-#[derive(Serialize)]
-struct Document<'rows> {
+/// The document of `kind`: what JSON writes, and what a template of the
+/// report receives.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct SchemaDocument<'rows> {
     version: u32,
     kind: &'static str,
     rows: &'rows [Row],
+}
+
+/// `rows` as the document of `kind`, in the schema's version.
+#[must_use]
+pub const fn schema_document(kind: SchemaKind, rows: &[Row]) -> SchemaDocument<'_> {
+    SchemaDocument {
+        version: SCHEMA_VERSION,
+        kind: kind.name(),
+        rows,
+    }
 }
 
 /// `rows` as the JSON document of `kind`, indented.
@@ -364,12 +375,7 @@ struct Document<'rows> {
 ///
 /// An internal error if serde can't write it, which is a bug.
 pub fn schema_json(kind: SchemaKind, rows: &[Row]) -> PaceResult<String> {
-    let document = Document {
-        version: SCHEMA_VERSION,
-        kind: kind.name(),
-        rows,
-    };
-    serde_json::to_string_pretty(&document).map_err(|error| {
+    serde_json::to_string_pretty(&schema_document(kind, rows)).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write JSON", error).ask_report()
     })
 }

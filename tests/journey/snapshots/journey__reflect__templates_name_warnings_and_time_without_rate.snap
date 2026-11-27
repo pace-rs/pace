@@ -1,0 +1,172 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --from 2026-11-24 --to 2026-11-24 --format text   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+Report for 2026-11-24
+Tracked 4h, untracked 20h.
+
+Time per role
+- Work: 2h (50%)
+- No role: 2h (50%)
+
+Time per project
+- Relaunch of the webshop for the spring collection: 2h (50%)
+- No project: 2h (50%)
+
+Time per day
+- 2026-11-24: 4h (100%)
+
+Target vs. actual
+The weekly targets add up to 180h, more than the 168h of a week.
+- Family: 0s of 11h 25m (0%)
+- Work: 2h of 14h 17m (14%)
+
+Revenue
+No rate on 2026-11-24 for 2h of Relaunch of the webshop for the spring collection; `pace client edit acme` gives it a rate.
+
+Interruptions
+0 holds, 0s: inner 0, outer 0, unknown 0.
+
+Who decided
+- By me: 0s (0%)
+- By others: 0s (0%)
+- Unmarked: 4h (100%)
+
+Overlaps
+- [ID-1] and [ID-2] both cover 2026-11-24 10:00 to 2026-11-24 11:00; change one with `pace adjust <id>`.
+
+----- stderr -----
+
+$ pace reflect --from 2026-11-24 --to 2026-11-24 --format markdown   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+# Report for 2026-11-24
+
+Tracked 4h, untracked 20h.
+
+## Time per role
+
+| Role | Time | Share |
+| ---- | ---: | ----: |
+| Work | 2h | 50% |
+| No role | 2h | 50% |
+
+## Time per project
+
+| Project | Time | Share |
+| ------- | ---: | ----: |
+| Relaunch of the webshop for the spring collection | 2h | 50% |
+| No project | 2h | 50% |
+
+## Time per day
+
+| Day | Time | Share |
+| --- | ---: | ----: |
+| 2026-11-24 | 4h | 100% |
+
+## Target vs. actual
+
+The weekly targets add up to 180h, more than the 168h of a week.
+
+| Role | Time | Target | Share |
+| ---- | ---: | -----: | ----: |
+| Family | 0s | 11h 25m | 0% |
+| Work | 2h | 14h 17m | 14% |
+
+## Revenue
+
+No rate on 2026-11-24 for 2h of Relaunch of the webshop for the spring collection; `pace client edit acme` gives it a rate.
+
+## Interruptions
+
+0 holds, 0s: inner 0, outer 0, unknown 0.
+
+## Who decided
+
+| Decided by | Time | Share |
+| ---------- | ---: | ----: |
+| Me | 0s | 0% |
+| Others | 0s | 0% |
+| Unmarked | 4h | 100% |
+
+## Overlaps
+
+- [ID-1] and [ID-2] both cover 2026-11-24 10:00 to 2026-11-24 11:00; change one with `pace adjust <id>`.
+
+----- stderr -----
+
+$ pace reflect --from 2026-11-24 --to 2026-11-24 --format html   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Report for 2026-11-24</title>
+<style>
+body { font-family: sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+table { border-collapse: collapse; margin-bottom: 1rem; }
+th, td { padding: 0.2rem 0.8rem; border-bottom: 1px solid #ddd; text-align: left; }
+td.number, th.number { text-align: right; }
+</style>
+</head>
+<body>
+<h1>Report for 2026-11-24</h1>
+<p>Tracked 4h, untracked 20h.</p>
+
+<h2>Time per role</h2>
+<table>
+<tr><th>Role</th><th class="number">Time</th><th class="number">Share</th></tr>
+<tr><td>Work</td><td class="number">2h</td><td class="number">50%</td></tr>
+<tr><td>No role</td><td class="number">2h</td><td class="number">50%</td></tr>
+</table>
+
+<h2>Time per project</h2>
+<table>
+<tr><th>Project</th><th class="number">Time</th><th class="number">Share</th></tr>
+<tr><td>Relaunch of the webshop for the spring collection</td><td class="number">2h</td><td class="number">50%</td></tr>
+<tr><td>No project</td><td class="number">2h</td><td class="number">50%</td></tr>
+</table>
+
+<h2>Time per day</h2>
+<table>
+<tr><th>Day</th><th class="number">Time</th><th class="number">Share</th></tr>
+<tr><td>2026-11-24</td><td class="number">4h</td><td class="number">100%</td></tr>
+</table>
+
+<h2>Target vs. actual</h2>
+<p>The weekly targets add up to 180h, more than the 168h of a week.</p>
+<table>
+<tr><th>Role</th><th class="number">Time</th><th class="number">Target</th><th class="number">Share</th></tr>
+<tr><td>Family</td><td class="number">0s</td><td class="number">11h 25m</td><td class="number">0%</td></tr>
+<tr><td>Work</td><td class="number">2h</td><td class="number">14h 17m</td><td class="number">14%</td></tr>
+</table>
+
+<h2>Revenue</h2>
+<p>No rate on 2026-11-24 for 2h of Relaunch of the webshop for the spring collection; <code>pace client edit acme</code> gives it a rate.</p>
+
+<h2>Interruptions</h2>
+<p>0 holds, 0s: inner 0, outer 0, unknown 0.</p>
+
+<h2>Who decided</h2>
+<table>
+<tr><th>Decided by</th><th class="number">Time</th><th class="number">Share</th></tr>
+<tr><td>Me</td><td class="number">0s</td><td class="number">0%</td></tr>
+<tr><td>Others</td><td class="number">0s</td><td class="number">0%</td></tr>
+<tr><td>Unmarked</td><td class="number">4h</td><td class="number">100%</td></tr>
+</table>
+
+<h2>Overlaps</h2>
+<ul>
+<li>[ID-1] and [ID-2] both cover 2026-11-24 10:00 to 2026-11-24 11:00; change one with <code>pace adjust &lt;id&gt;</code>.</li>
+</ul>
+</body>
+</html>
+
+----- stderr -----

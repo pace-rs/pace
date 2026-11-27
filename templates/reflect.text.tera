@@ -1,0 +1,106 @@
+{#- The report of `pace reflect --format text`: plain text to paste into a
+    mail. It receives the JSON document of the schema, version 1: `version`,
+    `kind` and `rows`. A `*` marks time that counts a running entry. -#}
+{%- set parts = rows | group_by(attribute="part") -%}
+{%- set time = parts.time | default(value=[]) | group_by(attribute="group") -%}
+{%- set tracked = time.tracked | default(value=[]) | first -%}
+{%- set untracked = time.untracked | default(value=[]) | first -%}
+{%- set days = time.day | default(value=[]) -%}
+{%- set_global marked = false -%}
+{%- for row in rows -%}{%- if row.running -%}{%- set_global marked = true -%}{%- endif -%}{%- endfor -%}
+{%- if days -%}
+{%- set first_day = days | first -%}
+{%- set last_day = days | last -%}
+{%- if first_day.date == last_day.date -%}
+Report for {{ first_day.date }}
+{% else -%}
+Report from {{ first_day.date }} to {{ last_day.date }}
+{% endif -%}
+{%- endif -%}
+{%- if not tracked or tracked.net_seconds == 0 %}
+Nothing tracked.
+{% else -%}
+Tracked {{ tracked.net }}, untracked {{ untracked.net }}.
+
+Time per role
+{% for row in time.role | default(value=[]) -%}
+- {{ row.name | default(value="No role") }}: {{ row.net }}{% if row.running %}*{% endif %} ({{ row.percent }}%)
+{% endfor %}
+Time per project
+{% for row in time.project | default(value=[]) -%}
+- {{ row.name | default(value=row.key | default(value="No project")) }}: {{ row.net }}{% if row.running %}*{% endif %} ({{ row.percent }}%)
+{% endfor %}
+Time per day
+{% for row in days -%}
+- {{ row.date }}: {% if row.net_seconds == 0 %}nothing{% else %}{{ row.net }}{% if row.running %}*{% endif %} ({{ row.percent }}%){% endif %}
+{% endfor -%}
+{%- set target = parts.target | default(value=[]) | group_by(attribute="group") -%}
+{%- if target %}
+Target vs. actual
+{% for row in target.targets_above_week | default(value=[]) -%}
+The weekly targets add up to {{ row.target }}, more than the 168h of a week.
+{% endfor -%}
+{%- for row in target.role | default(value=[]) -%}
+- {{ row.name | default(value=row.id) }}: {{ row.net }}{% if row.running %}*{% endif %} of {{ row.target }} ({{ row.percent }}%)
+{% endfor -%}
+{%- endif -%}
+{%- if parts.budget %}
+Budgets, used to date
+{% for row in parts.budget -%}
+- {{ row.name | default(value=row.key) }}: {{ row.net }}{% if row.running %}*{% endif %} of {{ row.budget }} ({{ row.percent }}%)
+{% endfor -%}
+{%- endif -%}
+{%- set revenue = parts.revenue | default(value=[]) | group_by(attribute="group") -%}
+{%- if revenue %}
+Revenue
+{% for client in revenue.client | default(value=[]) -%}
+- {{ client.name }}: {{ client.billed }}{% if client.running %}*{% endif %}, {{ client.amount }} {{ client.currency }}
+{% for row in revenue.project | default(value=[]) -%}
+{%- if row.client == client.key and row.currency == client.currency %}  - {{ row.name | default(value=row.key) }}: {{ row.billed }}{% if row.running %}*{% endif %}, {{ row.amount }} {{ row.currency }}
+{% endif -%}
+{%- endfor -%}
+{%- endfor -%}
+{%- for row in revenue.total | default(value=[]) -%}
+- Total: {{ row.amount }} {{ row.currency }}
+{% endfor -%}
+{%- for row in revenue.no_rate | default(value=[]) -%}
+No rate on {{ row.date }} for {{ row.net }} of {{ row.name | default(value=row.key) }}; `pace client edit {{ row.client }}` gives it a rate.
+{% endfor -%}
+{%- endif -%}
+{%- set holds = parts.interruptions | default(value=[]) | group_by(attribute="group") -%}
+{%- if holds %}
+Interruptions
+{% for total in holds.total | default(value=[]) -%}
+{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}:
+{%- for row in holds.source | default(value=[]) %} {{ row.key }} {{ row.count }}{% if row.count > 0 %} ({{ row.held }}){% endif %}{% if loop.last %}.{% else %},{% endif %}{% endfor %}
+{% endfor -%}
+{%- if holds.reason -%}
+Most frequent reasons: {% for row in holds.reason %}{{ row.reason }} {{ row.count }}{% if not loop.last %}, {% endif %}{% endfor %}.
+{% endif -%}
+{%- endif -%}
+{%- set pauses = parts.pauses | default(value=[]) | group_by(attribute="group") -%}
+{%- if pauses %}
+Pauses and catches
+{% if pauses.kind -%}
+Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}){% if not loop.last %}, {% endif %}{% endfor %}.
+{% endif -%}
+{%- for row in pauses.catch | default(value=[]) -%}
+- Catch on {{ row.start[:10] }} at {{ row.start[11:16] }}: {{ row.note }}
+{% endfor -%}
+{%- endif -%}
+{%- if parts.decided %}
+Who decided
+{% for row in parts.decided -%}
+- {% if row.key == "self" %}By me{% elif row.key == "other" %}By others{% else %}Unmarked{% endif %}: {{ row.net }}{% if row.running %}*{% endif %} ({{ row.percent }}%)
+{% endfor -%}
+{%- endif -%}
+{%- if parts.overlaps %}
+Overlaps
+{% for row in parts.overlaps -%}
+- {{ row.short }} and {{ row.other_short }} both cover {{ row.start[:10] }} {{ row.start[11:16] }} to {{ row.end[:10] }} {{ row.end[11:16] }}; change one with `pace adjust <id>`.
+{% endfor -%}
+{%- endif -%}
+{%- if marked %}
+* counts a running entry up to now.
+{% endif -%}
+{%- endif -%}
