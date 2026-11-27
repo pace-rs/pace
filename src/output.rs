@@ -144,7 +144,8 @@ pub fn describe_outcome(outcome: &Outcome) -> Vec<String> {
                         times(entry, now)
                     )
                 }
-                _ => return None,
+                // An undo's lines come from what it took back: `undid`.
+                EventKind::BatchUndone { .. } => return None,
             };
             Some(line)
         })
@@ -201,7 +202,8 @@ fn undid(outcome: &Outcome) -> Vec<String> {
                     "Took back the adjustment of {}.",
                     entry_name(before, before.entry(*entry)?)
                 ),
-                _ => return None,
+                // An undo and a forget can't be undone.
+                EventKind::EntryForgotten { .. } | EventKind::BatchUndone { .. } => return None,
             };
             Some(line)
         })

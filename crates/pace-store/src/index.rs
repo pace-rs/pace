@@ -92,7 +92,13 @@ pub fn summarize(events: &[RecordedEvent]) -> FileSummary {
             EventKind::EntryBegun { entry, .. } => _ = begun.insert(entry, millis),
             EventKind::EntryLogged { entry, .. } => _ = logged.insert(entry),
             EventKind::EntryEnded { entry } => _ = ended.insert(entry),
-            _ => {}
+            EventKind::EntryHeld { .. }
+            | EventKind::EntryPaused { .. }
+            | EventKind::EntryResumed { .. }
+            | EventKind::CatchNoted { .. }
+            | EventKind::EntryAdjusted { .. }
+            | EventKind::EntryForgotten { .. }
+            | EventKind::BatchUndone { .. } => {}
         }
     }
 
@@ -114,7 +120,15 @@ pub fn summarize(events: &[RecordedEvent]) -> FileSummary {
                         .map(|moment| moment.timestamp().as_millisecond()),
                 );
             }
-            _ => {}
+            // Their only moments are `at` and `about`.
+            EventKind::EntryBegun { .. }
+            | EventKind::EntryHeld { .. }
+            | EventKind::EntryPaused { .. }
+            | EventKind::EntryResumed { .. }
+            | EventKind::EntryEnded { .. }
+            | EventKind::CatchNoted { .. }
+            | EventKind::EntryForgotten { .. }
+            | EventKind::BatchUndone { .. } => {}
         }
     }
 

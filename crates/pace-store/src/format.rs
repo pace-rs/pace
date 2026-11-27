@@ -272,7 +272,7 @@ fn record(recorded: &RecordedEvent) -> Record {
     let event = &recorded.event;
     let mut record = Record {
         id: event.id,
-        kind: type_name(&event.kind).to_owned(),
+        kind: EventType::of(&event.kind).name().to_owned(),
         v: EVENT_VERSION,
         batch: recorded.batch,
         at: event.at.clone(),
@@ -348,7 +348,6 @@ fn record(recorded: &RecordedEvent) -> Record {
             adjusted_record(&mut record, changes);
         }
         EventKind::BatchUndone { batch } => record.undoes = Some(*batch),
-        _ => {}
     }
     record
 }
@@ -380,19 +379,97 @@ fn adjusted_record(record: &mut Record, changes: &EntryChanges) {
     record.cleared = (!cleared.is_empty()).then_some(cleared);
 }
 
-const fn type_name(kind: &EventKind) -> &'static str {
-    match kind {
-        EventKind::EntryBegun { .. } => "entry.begun",
-        EventKind::EntryHeld { .. } => "entry.held",
-        EventKind::EntryPaused { .. } => "entry.paused",
-        EventKind::EntryResumed { .. } => "entry.resumed",
-        EventKind::EntryEnded { .. } => "entry.ended",
-        EventKind::CatchNoted { .. } => "catch.noted",
-        EventKind::EntryLogged { .. } => "entry.logged",
-        EventKind::EntryAdjusted { .. } => "entry.adjusted",
-        EventKind::EntryForgotten { .. } => "entry.forgotten",
-        EventKind::BatchUndone { .. } => "batch.undone",
-        _ => "unknown",
+/// The type of an event as the log names it: one per [`EventKind`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EventType {
+    EntryBegun,
+    EntryHeld,
+    EntryPaused,
+    EntryResumed,
+    EntryEnded,
+    CatchNoted,
+    EntryLogged,
+    EntryAdjusted,
+    EntryForgotten,
+    BatchUndone,
+}
+
+impl EventType {
+    /// Every type, for [`EventType::parse`]. A type missing here can't be
+    /// read: the test `every_event_kind_reads_back_as_written` writes one
+    /// event of each kind and reads it back.
+    const ALL: [Self; 10] = [
+        Self::EntryBegun,
+        Self::EntryHeld,
+        Self::EntryPaused,
+        Self::EntryResumed,
+        Self::EntryEnded,
+        Self::CatchNoted,
+        Self::EntryLogged,
+        Self::EntryAdjusted,
+        Self::EntryForgotten,
+        Self::BatchUndone,
+    ];
+
+    const fn of(kind: &EventKind) -> Self {
+        match kind {
+            EventKind::EntryBegun { .. } => Self::EntryBegun,
+            EventKind::EntryHeld { .. } => Self::EntryHeld,
+            EventKind::EntryPaused { .. } => Self::EntryPaused,
+            EventKind::EntryResumed { .. } => Self::EntryResumed,
+            EventKind::EntryEnded { .. } => Self::EntryEnded,
+            EventKind::CatchNoted { .. } => Self::CatchNoted,
+            EventKind::EntryLogged { .. } => Self::EntryLogged,
+            EventKind::EntryAdjusted { .. } => Self::EntryAdjusted,
+            EventKind::EntryForgotten { .. } => Self::EntryForgotten,
+            EventKind::BatchUndone { .. } => Self::BatchUndone,
+        }
+    }
+
+    /// The value of `type` in the log.
+    const fn name(self) -> &'static str {
+        match self {
+            Self::EntryBegun => "entry.begun",
+            Self::EntryHeld => "entry.held",
+            Self::EntryPaused => "entry.paused",
+            Self::EntryResumed => "entry.resumed",
+            Self::EntryEnded => "entry.ended",
+            Self::CatchNoted => "catch.noted",
+            Self::EntryLogged => "entry.logged",
+            Self::EntryAdjusted => "entry.adjusted",
+            Self::EntryForgotten => "entry.forgotten",
+            Self::BatchUndone => "batch.undone",
+        }
+    }
+
+    /// The type that `type = "name"` names, if pace knows it.
+    fn parse(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|event_type| event_type.name() == name)
+    }
+
+    /// The fields the type allows besides the envelope.
+    const fn allowed(self) -> &'static [&'static str] {
+        match self {
+            Self::EntryBegun => &["entry", "project", "project-key", "note", "tags"],
+            Self::EntryHeld => &["entry", "source", "reason"],
+            Self::EntryPaused => &["entry", "kind", "reason"],
+            Self::EntryResumed | Self::EntryEnded | Self::EntryForgotten => &["entry"],
+            Self::CatchNoted => &["entry", "text"],
+            Self::EntryLogged => &["entry", "end", "project", "project-key", "note", "tags"],
+            Self::EntryAdjusted => &[
+                "entry",
+                "start",
+                "end",
+                "note",
+                "project",
+                "project-key",
+                "tags",
+                "cleared",
+            ],
+            Self::BatchUndone => &["undoes"],
+        }
     }
 }
 
@@ -418,35 +495,11 @@ fn present(record: &Record) -> Vec<&'static str> {
     .collect()
 }
 
-/// The fields each type allows besides the envelope.
-fn allowed(kind: &str) -> Option<&'static [&'static str]> {
-    Some(match kind {
-        "entry.begun" => &["entry", "project", "project-key", "note", "tags"],
-        "entry.held" => &["entry", "source", "reason"],
-        "entry.paused" => &["entry", "kind", "reason"],
-        "entry.resumed" | "entry.ended" | "entry.forgotten" => &["entry"],
-        "catch.noted" => &["entry", "text"],
-        "entry.logged" => &["entry", "end", "project", "project-key", "note", "tags"],
-        "entry.adjusted" => &[
-            "entry",
-            "start",
-            "end",
-            "note",
-            "project",
-            "project-key",
-            "tags",
-            "cleared",
-        ],
-        "batch.undone" => &["undoes"],
-        _ => return None,
-    })
-}
-
-/// The event a record holds: its type, version and fields checked
-/// ([`check_record`]), its HLC parsed and its fields turned into an
+/// The event a record holds: its type parsed and its version and fields
+/// checked ([`checked_type`]), its HLC parsed and its fields turned into an
 /// [`EventKind`] ([`event_kind`]).
 fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> {
-    check_record(&record)?;
+    let event_type = checked_type(&record)?;
     let hlc = parse_hlc(&record.hlc).ok_or_else(|| {
         Invalid::new(format!(
             "`{}` is no HLC like `2026-11-26T08:02:11.204Z/0`",
@@ -454,7 +507,7 @@ fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> 
         ))
     })?;
 
-    let event_kind = event_kind(&record)?;
+    let event_kind = event_kind(&record, event_type)?;
 
     Ok(RecordedEvent {
         device,
@@ -469,14 +522,15 @@ fn recorded(record: Record, device: DeviceId) -> Result<RecordedEvent, Invalid> 
     })
 }
 
-/// A record of a type and version pace knows, with only the fields of its
-/// type, and a project either by ID or by key.
-fn check_record(record: &Record) -> Result<(), Invalid> {
+/// The type of a record of a type and version pace knows, with only the
+/// fields of its type, and a project either by ID or by key.
+fn checked_type(record: &Record) -> Result<EventType, Invalid> {
     let kind = &record.kind;
-    let allowed = allowed(kind).ok_or_else(|| Invalid {
+    let event_type = EventType::parse(kind).ok_or_else(|| Invalid {
         message: format!("pace doesn't know the event type `{kind}`"),
         hint: "a newer pace may have written it on another device; update pace".to_owned(),
     })?;
+    let allowed = event_type.allowed();
     if record.v != EVENT_VERSION {
         return Err(Invalid {
             message: format!(
@@ -503,11 +557,12 @@ fn check_record(record: &Record) -> Result<(), Invalid> {
             "an `{kind}` event has `project` and `project-key`; it needs one"
         )));
     }
-    Ok(())
+    Ok(event_type)
 }
 
-/// The event of a checked record; a field its type needs is missing.
-fn event_kind(record: &Record) -> Result<EventKind, Invalid> {
+/// The event of a checked record of `event_type`, or the field its type
+/// needs and misses.
+fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Invalid> {
     let kind = &record.kind;
     let needs = |field: &str| Invalid::new(format!("an `{kind}` event needs `{field}`"));
     let entry = record.entry.ok_or_else(|| needs("entry"));
@@ -517,42 +572,42 @@ fn event_kind(record: &Record) -> Result<EventKind, Invalid> {
         .or_else(|| record.project_key.clone().map(ProjectRef::Key));
     let tags = record.tags.clone().unwrap_or_default();
 
-    Ok(match record.kind.as_str() {
-        "entry.begun" => EventKind::EntryBegun {
+    Ok(match event_type {
+        EventType::EntryBegun => EventKind::EntryBegun {
             entry: entry?,
             project,
             note: record.note.clone(),
             tags,
         },
-        "entry.held" => EventKind::EntryHeld {
+        EventType::EntryHeld => EventKind::EntryHeld {
             entry: entry?,
             source: record.source.ok_or_else(|| needs("source"))?,
             reason: record.reason.clone(),
         },
-        "entry.paused" => EventKind::EntryPaused {
+        EventType::EntryPaused => EventKind::EntryPaused {
             entry: entry?,
             kind: record.pause_kind.ok_or_else(|| needs("kind"))?,
             reason: record.reason.clone(),
         },
-        "entry.resumed" => EventKind::EntryResumed { entry: entry? },
-        "entry.ended" => EventKind::EntryEnded { entry: entry? },
-        "entry.forgotten" => EventKind::EntryForgotten { entry: entry? },
-        "catch.noted" => EventKind::CatchNoted {
+        EventType::EntryResumed => EventKind::EntryResumed { entry: entry? },
+        EventType::EntryEnded => EventKind::EntryEnded { entry: entry? },
+        EventType::EntryForgotten => EventKind::EntryForgotten { entry: entry? },
+        EventType::CatchNoted => EventKind::CatchNoted {
             entry: entry?,
             text: record.text.clone().ok_or_else(|| needs("text"))?,
         },
-        "entry.logged" => EventKind::EntryLogged {
+        EventType::EntryLogged => EventKind::EntryLogged {
             entry: entry?,
             end: record.end.clone().ok_or_else(|| needs("end"))?,
             project,
             note: record.note.clone(),
             tags,
         },
-        "entry.adjusted" => EventKind::EntryAdjusted {
+        EventType::EntryAdjusted => EventKind::EntryAdjusted {
             entry: entry?,
             changes: adjusted(record, project)?,
         },
-        _ => EventKind::BatchUndone {
+        EventType::BatchUndone => EventKind::BatchUndone {
             batch: record.undoes.ok_or_else(|| needs("undoes"))?,
         },
     })
@@ -585,5 +640,108 @@ fn change<T>(field: &str, value: Option<T>, cleared: &[String]) -> Result<Change
         (Some(value), false) => Ok(Change::Set(value)),
         (None, true) => Ok(Change::Clear),
         (None, false) => Ok(Change::Keep),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    fn id(prefix: u16, number: u32) -> String {
+        format!("0193a8d0-{prefix:04x}-7000-8000-{number:012x}")
+    }
+
+    /// One event of each kind, with every field it can have. A new kind
+    /// belongs here.
+    fn one_of_each() -> Result<Vec<EventKind>, Box<dyn std::error::Error>> {
+        let entry: EntryId = id(0xa, 1).parse()?;
+        let tags = BTreeSet::from(["dev".parse()?]);
+        let project = Some(ProjectRef::Key("acme-webshop".parse()?));
+        Ok(vec![
+            EventKind::EntryBegun {
+                entry,
+                project: project.clone(),
+                note: Some("Write offer".to_owned()),
+                tags: tags.clone(),
+            },
+            EventKind::EntryHeld {
+                entry,
+                source: HoldSource::Outer,
+                reason: Some("phone call".to_owned()),
+            },
+            EventKind::EntryPaused {
+                entry,
+                kind: PauseKind::Lunch,
+                reason: Some("hungry".to_owned()),
+            },
+            EventKind::EntryResumed { entry },
+            EventKind::EntryEnded { entry },
+            EventKind::CatchNoted {
+                entry,
+                text: "call the tax office".to_owned(),
+            },
+            EventKind::EntryLogged {
+                entry,
+                end: "2026-11-26T11:00[Europe/Berlin]".parse()?,
+                project,
+                note: Some("Review".to_owned()),
+                tags: tags.clone(),
+            },
+            EventKind::EntryAdjusted {
+                entry,
+                changes: EntryChanges {
+                    start: Some("2026-11-26T08:45[Europe/Berlin]".parse()?),
+                    end: Some("2026-11-26T11:15[Europe/Berlin]".parse()?),
+                    note: Change::Clear,
+                    project: Change::Set(ProjectRef::Id(id(0xc, 1).parse()?)),
+                    tags: Some(tags),
+                },
+            },
+            EventKind::EntryForgotten { entry },
+            EventKind::BatchUndone {
+                batch: id(0xb, 9).parse()?,
+            },
+        ])
+    }
+
+    #[test]
+    fn every_event_kind_reads_back_as_written() -> TestResult {
+        let device: DeviceId = id(0xd, 1).parse()?;
+        let at: ZonedDateTime = "2026-11-26T09:00[Europe/Berlin]".parse()?;
+        let written: Vec<RecordedEvent> = one_of_each()?
+            .into_iter()
+            .zip(1..)
+            .map(|(kind, number)| -> Result<_, Box<dyn std::error::Error>> {
+                Ok(RecordedEvent {
+                    device,
+                    batch: id(0xb, number).parse::<BatchId>()?,
+                    hlc: Hlc::new(at.timestamp(), number),
+                    event: Event {
+                        id: id(0xe, number).parse()?,
+                        at: at.clone(),
+                        about: at.clone(),
+                        kind,
+                    },
+                })
+            })
+            .collect::<Result<_, _>>()?;
+        let text = format!("{}{}", file_header(), serialize_events(&written)?);
+
+        let read = parse_events(Path::new("2026-11.toml"), &text, device)?;
+
+        assert_eq!(read, written);
+        Ok(())
+    }
+
+    #[test]
+    fn every_event_type_is_named_as_in_the_log() -> TestResult {
+        for kind in one_of_each()? {
+            let event_type = EventType::of(&kind);
+            assert_eq!(EventType::parse(event_type.name()), Some(event_type));
+        }
+        assert_eq!(EventType::parse("unknown"), None);
+        Ok(())
     }
 }

@@ -214,6 +214,6 @@ const fn mentioned_entry(kind: &EventKind) -> Option<EntryId> {
         | EventKind::EntryLogged { entry, .. }
         | EventKind::EntryAdjusted { entry, .. }
         | EventKind::EntryForgotten { entry } => Some(*entry),
-        _ => None,
+        EventKind::BatchUndone { .. } => None,
     }
 }

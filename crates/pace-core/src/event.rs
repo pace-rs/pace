@@ -27,8 +27,11 @@ pub struct Event {
 
 /// The event types of the tracking commands. Each variant names its type as
 /// written in the event log.
+///
+/// The list is closed: every match on it names each variant, so a new
+/// variant is a compile error wherever pace writes, reads or describes an
+/// event.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub enum EventKind {
     /// `entry.begun`; `at` is the start.
     EntryBegun {
