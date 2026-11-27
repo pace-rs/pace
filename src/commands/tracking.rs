@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Command as UseCase, Entry, HoldSource, PauseKind, Tag, Text,
+    Command as UseCase, Entry, HoldSource, PauseKind, State, Tag, Text,
     command::{Begin, Catch, End, Hold, Pause, Resume},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -222,7 +222,17 @@ fn refuse_project_flag(project: Option<&Project>) -> PaceResult<()> {
 fn again(session: &Session, asker: &dyn Ask, count: usize) -> PaceResult<Begin> {
     let now = session.now();
     let recent = TimeRange::new(Some(recent_range_start(&now)), Some(now.clone()))?;
-    let state = session.state(&recent)?;
+    again_from(&session.state(&recent)?, &now, asker, count)
+}
+
+/// Note, project and tags of one of the `count` most recent entries of
+/// `state` that differ in them: the only one, or the one the user picks.
+fn again_from(
+    state: &State,
+    now: &ZonedDateTime,
+    asker: &dyn Ask,
+    count: usize,
+) -> PaceResult<Begin> {
     let mut candidates: Vec<Begin> = Vec::new();
     let mut entries: Vec<&Entry> = state.entries().filter(|entry| !entry.is_open()).collect();
     entries.sort_by(|a, b| b.start.cmp(&a.start));
@@ -240,7 +250,7 @@ fn again(session: &Session, asker: &dyn Ask, count: usize) -> PaceResult<Begin> 
         if candidates.contains(&candidate) {
             continue;
         }
-        labels.push(label(entry, &now));
+        labels.push(label(entry, now));
         candidates.push(candidate);
         if candidates.len() == count {
             break;
@@ -521,5 +531,61 @@ mod tests {
         );
         assert_eq!(notes.len(), 1);
         assert_eq!(asker.questions(), Vec::<String>::new());
+    }
+
+    /// Entry `number`, begun at `start` with `note` and ended at `end`, on
+    /// 2026-11-26.
+    fn ended(number: u32, start: &str, end: &str, note: &str) -> Vec<pace_core::RecordedEvent> {
+        let id =
+            |prefix: u16, number: u32| format!("0193a8d0-{prefix:04x}-7000-8000-{number:012x}");
+        let at = |time: &str| -> ZonedDateTime {
+            format!("2026-11-26T{time}[Europe/Berlin]").parse().unwrap()
+        };
+        let entry: pace_core::EntryId = id(0xa, number).parse().unwrap();
+        let event = |sequence: u32, time: &str, kind| pace_core::RecordedEvent {
+            device: id(0xd, 1).parse().unwrap(),
+            batch: id(0xb, number * 2 + sequence).parse().unwrap(),
+            hlc: pace_core::Hlc::new(at(time).timestamp(), number * 2 + sequence),
+            event: pace_core::Event {
+                id: id(0xe, number * 2 + sequence).parse().unwrap(),
+                at: at(time),
+                about: at(time),
+                kind,
+            },
+        };
+        vec![
+            event(
+                0,
+                start,
+                pace_core::EventKind::EntryBegun {
+                    entry,
+                    project: None,
+                    note: Some(note.to_owned()),
+                    tags: BTreeSet::new(),
+                },
+            ),
+            event(1, end, pace_core::EventKind::EntryEnded { entry }),
+        ]
+    }
+
+    #[test]
+    fn begin_again_on_terminal_begins_entry_user_picked() {
+        let mut events = ended(1, "09:00", "10:00", "Write offer");
+        events.extend(ended(2, "10:00", "11:00", "Call ACME"));
+        let state = State::from_events(&events);
+        let now: ZonedDateTime = "2026-11-26T12:00[Europe/Berlin]".parse().unwrap();
+        let asker = Scripted::choosing([1]);
+
+        let begin = again_from(&state, &now, &asker, 5).unwrap();
+
+        assert_eq!(begin.note, Some("Write offer".parse().unwrap()));
+        assert_eq!(asker.questions(), ["Begin which entry again?"]);
+        assert_eq!(
+            asker.offered(),
+            [vec![
+                "\"Call ACME\", last 2 hours ago".to_owned(),
+                "\"Write offer\", last 3 hours ago".to_owned(),
+            ]]
+        );
     }
 }
