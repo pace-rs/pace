@@ -5,11 +5,12 @@ use std::collections::BTreeMap;
 
 use jiff::civil::Date;
 use pace_error::{ErrorKind, PaceError, PaceResult};
+use serde::Serialize;
 
 use crate::{ClientKey, Currency, Money, ProjectKey, Rounding};
 
 /// An hourly rate, valid from its day until the next rate's `from`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Rate {
     /// The amount per hour.
     pub hourly: Money,

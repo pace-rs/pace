@@ -14,22 +14,22 @@ use pace_time::TimeRange;
 
 use crate::TestResult;
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+pub(crate) type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
 
-fn berlin(time: &str) -> Fallible<ZonedDateTime> {
+pub(crate) fn berlin(time: &str) -> Fallible<ZonedDateTime> {
     Ok(format!("{time}[Europe/Berlin]").parse()?)
 }
 
-fn zone() -> Fallible<TimeZone> {
+pub(crate) fn zone() -> Fallible<TimeZone> {
     Ok(TimeZone::get("Europe/Berlin")?)
 }
 
-fn date(text: &str) -> Fallible<Date> {
+pub(crate) fn date(text: &str) -> Fallible<Date> {
     Ok(text.parse()?)
 }
 
 /// The days from `first` up to, not including, `after`, in Berlin.
-fn days(first: &str, after: &str) -> Fallible<TimeRange> {
+pub(crate) fn days(first: &str, after: &str) -> Fallible<TimeRange> {
     Ok(TimeRange::new(
         Some(berlin(&format!("{first}T00:00"))?),
         Some(berlin(&format!("{after}T00:00"))?),
@@ -45,11 +45,11 @@ fn role_id(id: &str) -> Fallible<RoleId> {
     Ok(id.parse()?)
 }
 
-fn project(id: &str) -> Fallible<ProjectRef> {
+pub(crate) fn project(id: &str) -> Fallible<ProjectRef> {
     Ok(ProjectRef::Id(id.parse::<ProjectId>()?))
 }
 
-fn role(id: &str, key: &str, weekly_hours: Option<i64>) -> Fallible<Role> {
+pub(crate) fn role(id: &str, key: &str, weekly_hours: Option<i64>) -> Fallible<Role> {
     Ok(Role {
         id: id.parse()?,
         key: key.parse()?,
@@ -61,7 +61,12 @@ fn role(id: &str, key: &str, weekly_hours: Option<i64>) -> Fallible<Role> {
     })
 }
 
-fn record(id: &str, key: &str, role: &str, client: Option<&str>) -> Fallible<ProjectRecord> {
+pub(crate) fn record(
+    id: &str,
+    key: &str,
+    role: &str,
+    client: Option<&str>,
+) -> Fallible<ProjectRecord> {
     Ok(ProjectRecord {
         id: id.parse()?,
         key: key.parse()?,
@@ -111,14 +116,14 @@ fn catalog_with(
 
 /// What an entry is begun or logged with.
 #[derive(Default)]
-struct Fields {
+pub(crate) struct Fields {
     project: Option<ProjectRef>,
     tags: BTreeSet<pace_core::Tag>,
     role: Option<RoleId>,
     determined_by: Option<DeterminedBy>,
 }
 
-fn on(project_id: &str) -> Fallible<Fields> {
+pub(crate) fn on(project_id: &str) -> Fallible<Fields> {
     Ok(Fields {
         project: Some(project(project_id)?),
         ..Fields::default()
@@ -126,7 +131,7 @@ fn on(project_id: &str) -> Fallible<Fields> {
 }
 
 /// The log of one device, one batch per event, IDs from `SequentialIds`.
-struct Log {
+pub(crate) struct Log {
     ids: SequentialIds,
     device: DeviceId,
     counter: i32,
@@ -134,7 +139,7 @@ struct Log {
 }
 
 impl Log {
-    fn new(seed: u16) -> Fallible<Self> {
+    pub(crate) fn new(seed: u16) -> Fallible<Self> {
         let ids = SequentialIds::starting_at(&berlin("2026-10-01T00:00")?, seed);
         let device = DeviceId::try_from(ids.next_id())?;
         Ok(Self {
@@ -162,7 +167,7 @@ impl Log {
         Ok(())
     }
 
-    fn begin(&mut self, start: &str, fields: Fields) -> Fallible<EntryId> {
+    pub(crate) fn begin(&mut self, start: &str, fields: Fields) -> Fallible<EntryId> {
         let entry = EntryId::try_from(self.ids.next_id())?;
         self.record(
             start,
@@ -180,7 +185,7 @@ impl Log {
         Ok(entry)
     }
 
-    fn log(&mut self, start: &str, end: &str, fields: Fields) -> Fallible<EntryId> {
+    pub(crate) fn log(&mut self, start: &str, end: &str, fields: Fields) -> Fallible<EntryId> {
         let entry = EntryId::try_from(self.ids.next_id())?;
         self.record(
             start,
@@ -199,7 +204,13 @@ impl Log {
         Ok(entry)
     }
 
-    fn hold(&mut self, entry: EntryId, from: &str, to: &str, source: HoldSource) -> Fallible<()> {
+    pub(crate) fn hold(
+        &mut self,
+        entry: EntryId,
+        from: &str,
+        to: &str,
+        source: HoldSource,
+    ) -> Fallible<()> {
         self.hold_for(entry, from, to, source, None)
     }
 
@@ -245,17 +256,17 @@ impl Log {
         )
     }
 
-    fn end(&mut self, entry: EntryId, at: &str) -> Fallible<()> {
+    pub(crate) fn end(&mut self, entry: EntryId, at: &str) -> Fallible<()> {
         self.record(at, EventKind::EntryEnded { entry })
     }
 
-    fn state(&self) -> State {
+    pub(crate) fn state(&self) -> State {
         State::from_events(&self.events)
     }
 }
 
 /// The report of `state` over `period`, seen at `now`, in Berlin.
-fn report(
+pub(crate) fn report(
     state: &State,
     catalog: &Catalog,
     period: &TimeRange,
@@ -270,7 +281,7 @@ fn report(
         now: &berlin(now)?,
         zone: &zone()?,
         all_time: None,
-    }))
+    })?)
 }
 
 /// The report of `log` over `period` at `now`, unfiltered, with `catalog()`.
@@ -288,15 +299,15 @@ fn day_times(report: &Report) -> Vec<(Date, SignedDuration)> {
     report.days.iter().map(|day| (day.date, day.net)).collect()
 }
 
-const fn hours(hours: i64) -> SignedDuration {
+pub(crate) const fn hours(hours: i64) -> SignedDuration {
     SignedDuration::from_hours(hours)
 }
 
-const fn mins(minutes: i64) -> SignedDuration {
+pub(crate) const fn mins(minutes: i64) -> SignedDuration {
     SignedDuration::from_mins(minutes)
 }
 
-const LATER: &str = "2026-12-31T00:00";
+pub(crate) const LATER: &str = "2026-12-31T00:00";
 
 #[test]
 fn entry_over_midnight_counts_one_hour_on_each_day() -> TestResult {
@@ -560,7 +571,7 @@ fn budget_counts_project_time_over_all_time() -> TestResult {
         now: &berlin(LATER)?,
         zone: &zone()?,
         all_time: Some(&all_time),
-    });
+    })?;
 
     assert!(needs_all);
     let budget = report.budgets.first().ok_or("the webshop's budget")?;
@@ -868,5 +879,213 @@ fn report_serializes_to_json() -> TestResult {
 
     assert_eq!(json["tracked"], "PT1H");
     assert_eq!(json["days"][0]["date"], "2026-11-24");
+    Ok(())
+}
+
+const PORTAL: &str = "0193a7c4-0000-7000-8000-000000000004";
+
+/// acme bills in EUR, 100 an hour and from 15 November 120, rounded up per
+/// entry to 15 minutes; globex bills in USD, 80 an hour from 1 November,
+/// without rounding. The webshop is acme's, the portal globex's, both
+/// billable; the garden is not billable.
+fn revenue_catalog() -> Fallible<Catalog> {
+    let eur = "EUR".parse()?;
+    let usd = "USD".parse()?;
+    let rate = |hourly: &str, currency, from: &str| -> Fallible<pace_core::Rate> {
+        Ok(pace_core::Rate {
+            hourly: pace_core::Money::parse_decimal(hourly, currency)?,
+            from: date(from)?,
+        })
+    };
+    let acme = Client {
+        key: "acme".parse()?,
+        name: "ACME GmbH".to_owned(),
+        currency: eur,
+        rounding: Rounding::new(
+            pace_core::RoundingPer::Entry,
+            mins(15),
+            pace_core::RoundingMode::Up,
+        )?,
+        rates: Rates::new(vec![
+            rate("100", eur, "2026-01-01")?,
+            rate("120", eur, "2026-11-15")?,
+        ])?,
+        project_rates: std::collections::BTreeMap::new(),
+    };
+    let globex = Client {
+        key: "globex".parse()?,
+        name: "Globex".to_owned(),
+        currency: usd,
+        rounding: Rounding::NONE,
+        rates: Rates::new(vec![rate("80", usd, "2026-11-01")?])?,
+        project_rates: std::collections::BTreeMap::new(),
+    };
+    let mut webshop = record(WEBSHOP, "acme-webshop", "work", Some("acme"))?;
+    webshop.billable = true;
+    let mut portal = record(PORTAL, "globex-portal", "work", Some("globex"))?;
+    portal.billable = true;
+    Ok(Catalog::new(
+        vec![role(WORK, "work", None)?, role(HEALTH, "health", None)?],
+        vec![acme, globex],
+        vec![webshop, portal, record(GARDEN, "garden", "health", None)?],
+    )?)
+}
+
+fn revenue_report(log: &Log, period: &TimeRange, now: &str) -> Fallible<Report> {
+    report(
+        &log.state(),
+        &revenue_catalog()?,
+        period,
+        &ReportFilter::default(),
+        now,
+    )
+}
+
+fn texts<T: ToString>(values: impl IntoIterator<Item = T>) -> Vec<String> {
+    values.into_iter().map(|value| value.to_string()).collect()
+}
+
+#[test]
+fn revenue_per_project_and_client_with_totals_per_currency() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.log("2026-11-14T09:00", "2026-11-14T09:50", on(WEBSHOP)?)?;
+    _ = log.log("2026-11-16T09:00", "2026-11-16T10:00", on(WEBSHOP)?)?;
+    _ = log.log("2026-11-16T10:00", "2026-11-16T11:30", on(PORTAL)?)?;
+    _ = log.log("2026-11-16T12:00", "2026-11-16T13:00", on(GARDEN)?)?;
+
+    let report = revenue_report(&log, &days("2026-11-01", "2026-12-01")?, LATER)?;
+
+    let revenue = &report.revenue;
+    let projects: Vec<(ProjectRef, SignedDuration, String)> = revenue
+        .projects
+        .iter()
+        .map(|share| {
+            (
+                share.project.clone(),
+                share.billed,
+                share.amount.to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        projects,
+        vec![
+            (project(WEBSHOP)?, mins(120), "220.00".to_owned()),
+            (project(PORTAL)?, mins(90), "120.00".to_owned()),
+        ]
+    );
+    let clients: Vec<(String, String)> = revenue
+        .clients
+        .iter()
+        .map(|share| (share.client.to_string(), share.amount.to_string()))
+        .collect();
+    assert_eq!(
+        clients,
+        vec![
+            ("acme".to_owned(), "220.00".to_owned()),
+            ("globex".to_owned(), "120.00".to_owned())
+        ]
+    );
+    let totals: Vec<(String, String)> = revenue
+        .totals
+        .iter()
+        .map(|total| (total.currency().to_string(), total.to_string()))
+        .collect();
+    assert_eq!(
+        totals,
+        vec![
+            ("EUR".to_owned(), "220.00".to_owned()),
+            ("USD".to_owned(), "120.00".to_owned())
+        ]
+    );
+    assert_eq!(revenue.no_rate, Vec::new());
+    Ok(())
+}
+
+#[test]
+fn billable_entry_before_first_rate_shows_as_no_rate_with_its_time() -> TestResult {
+    let mut log = Log::new(1)?;
+    let early = log.log("2026-10-30T09:00", "2026-10-30T10:00", on(PORTAL)?)?;
+    _ = log.log("2026-11-02T09:00", "2026-11-02T10:00", on(PORTAL)?)?;
+
+    let report = revenue_report(&log, &days("2026-10-01", "2026-12-01")?, LATER)?;
+
+    let no_rate = report
+        .revenue
+        .no_rate
+        .first()
+        .ok_or("one entry without a rate")?;
+    assert_eq!(report.revenue.no_rate.len(), 1);
+    assert_eq!(no_rate.entries, vec![early]);
+    assert_eq!(no_rate.billed, hours(1));
+    assert_eq!(no_rate.price, None);
+    assert_eq!(texts(report.revenue.totals.iter()), vec!["80.00"]);
+    Ok(())
+}
+
+#[test]
+fn revenue_counts_entry_whole_on_its_start_day() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.log("2026-11-23T23:00", "2026-11-24T01:00", on(PORTAL)?)?;
+
+    let start_day = revenue_report(&log, &days("2026-11-23", "2026-11-24")?, LATER)?;
+    let next_day = revenue_report(&log, &days("2026-11-24", "2026-11-25")?, LATER)?;
+
+    assert_eq!(start_day.tracked, hours(1));
+    assert_eq!(texts(start_day.revenue.totals.iter()), vec!["160.00"]);
+    assert_eq!(next_day.tracked, hours(1));
+    assert_eq!(next_day.revenue.totals, Vec::new());
+    Ok(())
+}
+
+#[test]
+fn running_billable_entry_earns_up_to_now() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.begin("2026-11-24T09:00", on(PORTAL)?)?;
+
+    let report = revenue_report(&log, &days("2026-11-24", "2026-11-25")?, "2026-11-24T10:30")?;
+
+    let portal = report.revenue.projects.first().ok_or("the portal")?;
+    assert_eq!(portal.amount.to_string(), "120.00");
+    assert!(portal.running);
+    assert!(report.revenue.clients.iter().all(|client| client.running));
+    Ok(())
+}
+
+#[test]
+fn client_filter_keeps_revenue_of_that_client() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.log("2026-11-16T09:00", "2026-11-16T10:00", on(WEBSHOP)?)?;
+    _ = log.log("2026-11-16T10:00", "2026-11-16T11:00", on(PORTAL)?)?;
+    let filter = ReportFilter {
+        clients: BTreeSet::from(["globex".parse()?]),
+        ..ReportFilter::default()
+    };
+
+    let report = report(
+        &log.state(),
+        &revenue_catalog()?,
+        &days("2026-11-16", "2026-11-17")?,
+        &filter,
+        LATER,
+    )?;
+
+    assert_eq!(texts(report.revenue.totals.iter()), vec!["80.00"]);
+    Ok(())
+}
+
+#[test]
+fn revenue_serializes_amount_as_exact_decimal_text() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.log("2026-11-16T10:00", "2026-11-16T11:00", on(PORTAL)?)?;
+
+    let report = revenue_report(&log, &days("2026-11-16", "2026-11-17")?, LATER)?;
+    let json = serde_json::to_value(&report)?;
+
+    assert_eq!(
+        json["revenue"]["totals"][0],
+        serde_json::json!({ "amount": "80.00", "currency": "USD" })
+    );
+    assert_eq!(json["revenue"]["projects"][0]["billed"], "PT1H");
     Ok(())
 }

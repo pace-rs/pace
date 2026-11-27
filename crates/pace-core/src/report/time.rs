@@ -272,7 +272,7 @@ impl TimeTally {
 }
 
 /// The key a report sorts a project by: its record's, else its own.
-fn project_key(project: &ProjectRef, catalog: &Catalog) -> String {
+pub(crate) fn project_key(project: &ProjectRef, catalog: &Catalog) -> String {
     match (catalog.resolve(project), project) {
         (Some(record), _) => record.key.to_string(),
         (None, ProjectRef::Key(key)) => key.to_string(),

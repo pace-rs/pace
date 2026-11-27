@@ -16,6 +16,8 @@
 //!
 //! [`Report::build`] computes the report of `reflect` from the [`State`] of
 //! a period's events and the [`Catalog`]; the app reads the events.
+//! [`billable_charges`] rounds and prices billable time, for the report's
+//! [`Revenue`] and for the bill.
 //!
 //! Every timestamp is a jiff [`ZonedDateTime`](jiff::ZonedDateTime), so
 //! entries keep the zone they were recorded in. All IDs are UUIDv7.
@@ -53,6 +55,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+mod billing;
 mod catalog;
 pub mod command;
 mod entry;
@@ -72,6 +75,7 @@ pub mod testing;
 mod text;
 mod tracking;
 
+pub use billing::{Charge, Price, billable_charges};
 pub use catalog::{
     ArchiveReason, Archived, Catalog, Client, Currency, Money, ProjectRecord, Rate, Rates, Role,
     RoleKind, Rounding, RoundingMode, RoundingPer, Totals,
@@ -86,9 +90,9 @@ pub use key::{ClientKey, ProjectKey, RoleKey, Tag};
 pub use open::EntryVerb;
 pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier};
 pub use report::{
-    BudgetUse, DayTime, DecidedShares, HoldReport, HoldShare, PauseShare, ProjectTime, ReasonCount,
-    Report, ReportCatch, ReportFilter, ReportInput, ReportPeriod, ReportWarning, RoleTarget,
-    RoleTime, TOP_REASONS, TimeShare,
+    BudgetUse, ClientRevenue, DayTime, DecidedShares, HoldReport, HoldShare, PauseShare,
+    ProjectRevenue, ProjectTime, ReasonCount, Report, ReportCatch, ReportFilter, ReportInput,
+    ReportPeriod, ReportWarning, Revenue, RoleTarget, RoleTime, TOP_REASONS, TimeShare,
 };
 pub use rules::{OVERLAP, Policy, Rules};
 pub use scope::ReadScope;

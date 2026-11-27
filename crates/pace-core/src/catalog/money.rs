@@ -10,6 +10,7 @@ use std::{collections::BTreeMap, fmt, str::FromStr};
 use iso_currency::IntoEnumIterator;
 use jiff::SignedDuration;
 use pace_error::{ErrorKind, PaceError, PaceResult, closest_name};
+use serde::{Serialize, Serializer, ser::SerializeStruct};
 
 const SECONDS_PER_HOUR: i128 = 3600;
 
@@ -196,6 +197,17 @@ impl Money {
             .attach_error_code("pace::core::amount-too-big")
         })?;
         Ok(Self::from_minor(minor, self.currency))
+    }
+}
+
+impl Serialize for Money {
+    /// The amount as its exact decimal text and the currency's code:
+    /// `{"amount": "95.50", "currency": "EUR"}`.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut money = serializer.serialize_struct("Money", 2)?;
+        money.serialize_field("amount", &self.to_string())?;
+        money.serialize_field("currency", self.currency.code())?;
+        money.end()
     }
 }
 

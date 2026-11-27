@@ -1,5 +1,6 @@
 //! The report of `reflect`, computed from values: time per role, project and
-//! day, targets, budgets, breaks, who decided and the overlaps of a period.
+//! day, targets, budgets, revenue, breaks, who decided and the overlaps of a
+//! period.
 //!
 //! The app reads the events of the period, builds their [`State`] and
 //! hands it to [`Report::build`] with the [`Catalog`], the period, the
@@ -9,18 +10,22 @@
 
 mod breaks;
 mod filter;
+mod revenue;
 mod split;
 mod time;
 
 pub use breaks::{HoldReport, HoldShare, PauseShare, ReasonCount, ReportCatch, TOP_REASONS};
 pub use filter::ReportFilter;
+pub(crate) use filter::canonical_project;
 use jiff::{SignedDuration, ZonedDateTime, tz::TimeZone};
+use pace_error::PaceResult;
 use pace_time::TimeRange;
+pub use revenue::{ClientRevenue, ProjectRevenue, Revenue};
 use serde::Serialize;
 pub use time::{BudgetUse, DayTime, DecidedShares, ProjectTime, RoleTarget, RoleTime, TimeShare};
 
 use crate::{
-    Catalog, Entry, EntryId, State,
+    Catalog, Entry, EntryId, State, billable_charges,
     report::{breaks::BreakTally, split::Stretch, time::TimeTally},
 };
 
@@ -132,6 +137,8 @@ pub struct Report {
     pub targets: Vec<RoleTarget>,
     /// The budgets of the projects in the report.
     pub budgets: Vec<BudgetUse>,
+    /// What the billable entries that begin in the period earn.
+    pub revenue: Revenue,
     /// The interruptions.
     pub holds: HoldReport,
     /// The pauses by kind, of the kinds that occur.
@@ -152,9 +159,13 @@ impl Report {
     ///
     /// Each entry counts the part of its net time inside the period, split
     /// exactly at midnight in the report's zone; a running entry counts up
-    /// to now.
-    #[must_use]
-    pub fn build(input: &ReportInput<'_>) -> Self {
+    /// to now. The revenue counts each billable entry that begins in the
+    /// period whole, on its start day, as `bill` does.
+    ///
+    /// # Errors
+    ///
+    /// If an amount of the revenue is too big to count in minor units.
+    pub fn build(input: &ReportInput<'_>) -> PaceResult<Self> {
         let ReportInput {
             state,
             catalog,
@@ -173,7 +184,14 @@ impl Report {
         let mut time = TimeTally::over(span, zone);
         let mut breaks = BreakTally::default();
         let mut running = Vec::new();
+        let mut begun = Vec::new();
         if let Some(span) = span {
+            begun.extend(
+                entries
+                    .iter()
+                    .copied()
+                    .filter(|entry| span.contains(entry.start.timestamp())),
+            );
             for entry in counted(&entries, span, now) {
                 time.add(entry, catalog, span, now, zone);
                 breaks.add(entry, span, now, zone);
@@ -187,7 +205,8 @@ impl Report {
         let (holds, pauses, catches) = breaks.finish();
         let mut warnings: Vec<ReportWarning> = targets_above_week(catalog).into_iter().collect();
         warnings.extend(overlaps(state, input, span));
-        Self {
+        let revenue = Revenue::of(billable_charges(&begun, catalog, zone, now)?, catalog)?;
+        Ok(Self {
             untracked: untracked(&period, now, tracked),
             tracked,
             roles: time.role_times(catalog),
@@ -196,6 +215,7 @@ impl Report {
             days: time.day_times(),
             targets: time.targets(catalog, filter, period.days),
             budgets: time.budgets(catalog, all_time.unwrap_or(state), now),
+            revenue,
             holds,
             pauses,
             catches,
@@ -203,7 +223,7 @@ impl Report {
             running,
             warnings,
             period,
-        }
+        })
     }
 
     /// Whether the report of `state` needs every event, not only the
