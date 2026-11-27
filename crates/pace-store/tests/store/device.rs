@@ -49,11 +49,23 @@ fn broken_device_file_says_how_to_get_new_id() -> TestResult {
 
     let error = device_id(&machine, &ids).err().ok_or("must fail")?;
 
-    assert!(
-        error
-            .hint()
-            .is_some_and(|hint| hint.contains("device.toml")),
-        "{error:?}"
+    let path = machine.join("device.toml");
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "the device file {} holds no valid device ID",
+            path.display()
+        )
+    );
+    assert_eq!(
+        error.hint(),
+        Some(
+            format!(
+                "remove {} and pace gives this machine a new device ID",
+                path.display()
+            )
+            .as_str()
+        )
     );
     Ok(())
 }
@@ -132,11 +144,15 @@ fn device_id_used_by_two_machines_stops_writing() -> TestResult {
         "another machine writes with this machine's device ID: the log of this ID reaches \
          2026-11-26T09:00:00.000Z/0, but this machine wrote up to 2026-11-26T08:00:00.000Z/0"
     );
-    assert!(
-        error
-            .hint()
-            .is_some_and(|hint| hint.contains("device.toml")),
-        "{error:?}"
+    assert_eq!(
+        error.hint(),
+        Some(
+            format!(
+                "if this machine was restored from a backup or copied, remove {} so it gets a new device ID",
+                dir.path().join("laptop").join("device.toml").display()
+            )
+            .as_str()
+        )
     );
     let state = pollster::block_on(laptop.state(&TimeRange::new(None, None)?))?;
     assert_eq!(state.entries().count(), 1, "nothing more was written");
@@ -223,6 +239,50 @@ fn store_file_of_newer_pace_stops_writing(#[case] file: &str) -> TestResult {
     assert_eq!(
         error.hint(),
         Some("a newer pace wrote this file; update pace")
+    );
+    Ok(())
+}
+
+#[rstest]
+#[case::cursors(
+    "machine/cursors.toml",
+    "version = 1\nown = 3\n",
+    "the cursors file {} is not valid"
+)]
+#[case::device_file(
+    "home/events/0193a8d0-000d-7000-8000-000000000001/device.toml",
+    "version = 1\nname = 3\n",
+    "the device file {} is not valid"
+)]
+#[case::stray_directory("home/events/notes/", "", "pace found no device ID in the name of {}")]
+fn store_errors_start_with_fixed_phrase(
+    #[case] file: &str,
+    #[case] text: &str,
+    #[case] message: &str,
+) -> TestResult {
+    let dir = scratch_dir()?;
+    let home = dir.path().join("home");
+    let machine_dir = dir.path().join("machine");
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
+    let tracker = machine(&home, &machine_dir, device, &clock, 1);
+    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    let path = dir.path().join(file);
+    if let Some(stray) = file.strip_suffix('/') {
+        std::fs::create_dir_all(dir.path().join(stray))?;
+    } else {
+        std::fs::write(&path, text)?;
+    }
+    clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
+
+    let error = pollster::block_on(tracker.run(&Command::End(End::default())))
+        .err()
+        .ok_or("a broken store file must stop pace")?;
+
+    let shown = dir.path().join(file.trim_end_matches('/'));
+    assert_eq!(
+        error.to_string(),
+        message.replace("{}", &shown.display().to_string())
     );
     Ok(())
 }

@@ -11,7 +11,7 @@ use pace_error::PaceResult;
 
 use crate::Split;
 use crate::disk::{
-    DEVICE_FILE, create_dir, event_files, io_error, lock, prepare, relative_name,
+    DEVICE_FILE, FileOp, create_dir, event_files, io_error, lock, prepare, relative_name,
     remove_empty_dirs, write_atomically,
 };
 use crate::files::{FilesStore, Resplit, read_device_file, write_device_file};
@@ -80,7 +80,7 @@ impl FilesStore {
         for (temporary, path) in written {
             _ = temporary
                 .persist(&path)
-                .map_err(|error| io_error("write", &path, error.error))?;
+                .map_err(|error| io_error(FileOp::Write, &path, error.error))?;
         }
         let mut device_file = self.device_file(&dir, &self.clock.now())?;
         if device_file.split != split {
@@ -88,7 +88,7 @@ impl FilesStore {
             write_device_file(&device_path, &device_file)?;
         }
         for path in old_files.iter().filter(|path| !new_files.contains(*path)) {
-            std::fs::remove_file(path).map_err(|error| io_error("remove", path, error))?;
+            std::fs::remove_file(path).map_err(|error| io_error(FileOp::Remove, path, error))?;
         }
         remove_empty_dirs(&dir)?;
         Ok(Resplit {
@@ -144,8 +144,8 @@ impl Layout {
         let mut seen = BTreeSet::new();
         let mut in_place = true;
         for path in files {
-            let text =
-                std::fs::read_to_string(path).map_err(|error| io_error("read", path, error))?;
+            let text = std::fs::read_to_string(path)
+                .map_err(|error| io_error(FileOp::Read, path, error))?;
             let name = relative_name(dir, path);
             for recorded in parse_events(path, &text, device)? {
                 if !seen.insert(recorded.event.id) {
@@ -175,7 +175,7 @@ fn forget_in_file(path: &Path, device: DeviceId, entry: EntryId) -> PaceResult<(
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(io_error("read", path, error)),
+        Err(error) => return Err(io_error(FileOp::Read, path, error)),
     };
     let events = parse_events(path, &text, device)?;
     let kept: Vec<RecordedEvent> = events
@@ -190,7 +190,7 @@ fn forget_in_file(path: &Path, device: DeviceId, entry: EntryId) -> PaceResult<(
         return Ok(());
     }
     if kept.is_empty() {
-        return std::fs::remove_file(path).map_err(|error| io_error("remove", path, error));
+        return std::fs::remove_file(path).map_err(|error| io_error(FileOp::Remove, path, error));
     }
     let mut text = file_header();
     text.push('\n');

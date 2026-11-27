@@ -7,7 +7,7 @@ use pace_core::{DeviceId, EntryId, Hlc, Ids};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
 
-use crate::disk::{DEVICE_FILE, check_version, io_error, prepare, write_atomically};
+use crate::disk::{DEVICE_FILE, FileOp, check_version, io_error, prepare, write_atomically};
 use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts, hlc_text};
 
 const CURSORS_FILE: &str = "cursors.toml";
@@ -63,11 +63,12 @@ pub fn device_id(machine: &Path, ids: &dyn Ids) -> PaceResult<DeviceIdentity> {
     match temporary.persist_noclobber(&path) {
         Ok(_) => Ok(DeviceIdentity { id, created: true }),
         Err(error) if error.error.kind() == std::io::ErrorKind::AlreadyExists => {
-            let id = existing_device_id(machine)?
-                .ok_or_else(|| io_error("read", &path, std::io::ErrorKind::NotFound.into()))?;
+            let id = existing_device_id(machine)?.ok_or_else(|| {
+                io_error(FileOp::Read, &path, std::io::ErrorKind::NotFound.into())
+            })?;
             Ok(DeviceIdentity { id, created: false })
         }
-        Err(error) => Err(io_error("write", &path, error.error)),
+        Err(error) => Err(io_error(FileOp::Write, &path, error.error)),
     }
 }
 
@@ -82,7 +83,7 @@ pub fn existing_device_id(machine: &Path) -> PaceResult<Option<DeviceId>> {
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(io_error("read", &path, error)),
+        Err(error) => return Err(io_error(FileOp::Read, &path, error)),
     };
     let new_id = format!(
         "remove {} and pace gives this machine a new device ID",
@@ -92,7 +93,7 @@ pub fn existing_device_id(machine: &Path) -> PaceResult<Option<DeviceId>> {
     let file: DeviceFile = toml::from_str(&text).map_err(|error| {
         PaceError::with_source(
             ErrorKind::InputOutput,
-            "{path} holds no valid device ID",
+            "the device file {path} holds no valid device ID",
             error,
         )
         .attach_context("path", path.display().to_string())
@@ -139,14 +140,14 @@ impl Cursors {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 return Ok(Self::default());
             }
-            Err(error) => return Err(io_error("read", &path, error)),
+            Err(error) => return Err(io_error(FileOp::Read, &path, error)),
         };
         let rewrite = format!("remove {}; pace writes it again", path.display());
         check_version(&path, &text, CURSORS_VERSION, &rewrite)?;
         let file: CursorsFile = toml::from_str(&text).map_err(|error| {
             PaceError::with_source(
                 ErrorKind::InputOutput,
-                "{path} is no valid cursors file",
+                "the cursors file {path} is not valid",
                 error,
             )
             .attach_context("path", path.display().to_string())
@@ -187,8 +188,8 @@ pub fn clone_detected(machine: &Path, own_last: Hlc, remembered: Hlc) -> Box<Pac
     .attach_context("own_last", hlc_text(own_last))
     .attach_context("remembered", hlc_text(remembered))
     .attach_hint(format!(
-        "pace stopped writing. If this machine was restored from a backup or \
-         copied, remove {} so it gets a new device ID",
+        "if this machine was restored from a backup or copied, remove {} so it \
+         gets a new device ID",
         machine.join(DEVICE_FILE).display()
     ))
     .attach_error_code("pace::store::device-cloned")

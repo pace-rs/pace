@@ -564,12 +564,12 @@ fn checked_type(record: &Record) -> Result<EventType, Invalid> {
         .find(|field| !allowed.contains(field))
     {
         return Err(Invalid::new(format!(
-            "an `{kind}` event has no `{foreign}`"
+            "an event of type `{kind}` has no `{foreign}`"
         )));
     }
     if record.project.is_some() && record.project_key.is_some() {
         return Err(Invalid::new(format!(
-            "an `{kind}` event has `project` and `project-key`; it needs one"
+            "an event of type `{kind}` has `project` and `project-key`; it needs one"
         )));
     }
     Ok(event_type)
@@ -579,7 +579,7 @@ fn checked_type(record: &Record) -> Result<EventType, Invalid> {
 /// needs and misses.
 fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Invalid> {
     let kind = &record.kind;
-    let needs = |field: &str| Invalid::new(format!("an `{kind}` event needs `{field}`"));
+    let needs = |field: &str| Invalid::new(format!("an event of type `{kind}` needs `{field}`"));
     let entry = record.entry.ok_or_else(|| needs("entry"));
     let project = record
         .project

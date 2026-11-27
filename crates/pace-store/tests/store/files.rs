@@ -302,7 +302,10 @@ fn an_event_missing_field_is_named() -> TestResult {
         .err()
         .ok_or("the broken file must fail")?;
 
-    assert_eq!(error.to_string(), "an `entry.begun` event needs `entry`");
+    assert_eq!(
+        error.to_string(),
+        "an event of type `entry.begun` needs `entry`"
+    );
     Ok(())
 }
 
@@ -379,7 +382,10 @@ fn an_invalid_event_is_blamed_on_its_own_line() -> TestResult {
         .err()
         .ok_or("the broken event must fail")?;
 
-    assert_eq!(error.to_string(), "an `entry.ended` event needs `entry`");
+    assert_eq!(
+        error.to_string(),
+        "an event of type `entry.ended` needs `entry`"
+    );
     assert_eq!(
         blamed_line(&error, &broken),
         Some(first.matches('\n').count() + 1),

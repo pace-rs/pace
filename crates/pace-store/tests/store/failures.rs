@@ -83,7 +83,15 @@ fn failed_cursor_save_records_nothing_and_next_command_works() -> TestResult {
     let held = pollster::block_on(laptop.run(&Command::Hold(Hold::default())));
     writable(&machine)?;
 
-    assert!(held.is_err(), "the cursors can't be saved");
+    let error = held.err().ok_or("the cursors can't be saved")?;
+    assert_eq!(
+        error.to_string(),
+        format!("cannot create a temporary file in {}", machine.display())
+    );
+    assert_eq!(
+        error.hint(),
+        Some("check that the directory exists and that pace may write there")
+    );
     assert!(
         !text_below(&home.join("events"))?.contains("entry.held"),
         "a failed append records nothing"

@@ -30,8 +30,8 @@ use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
 
 use crate::disk::{
-    DEVICE_FILE, check_version, create_dir, event_files, io_error, lock, prepare, relative_name,
-    write_atomically,
+    DEVICE_FILE, FileOp, check_version, create_dir, event_files, io_error, lock, prepare,
+    relative_name, write_atomically,
 };
 use crate::format::{file_header, parse_events, serialize_events};
 use crate::machine::clone_detected;
@@ -187,7 +187,7 @@ impl FilesStore {
             let mut text = match std::fs::read_to_string(&path) {
                 Ok(text) => text,
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => file_header(),
-                Err(error) => return Err(io_error("read", &path, error)),
+                Err(error) => return Err(io_error(FileOp::Read, &path, error)),
             };
             text.push('\n');
             text.push_str(&serialize_events(&events)?);
@@ -205,7 +205,7 @@ impl FilesStore {
         for (temporary, path) in written {
             _ = temporary
                 .persist(&path)
-                .map_err(|error| io_error("write", &path, error.error))?;
+                .map_err(|error| io_error(FileOp::Write, &path, error.error))?;
         }
         // The batch is in the log: what follows can fail without failing it.
         self.clean_own_log(&dir, &index, &recorded, cursors);
@@ -347,8 +347,8 @@ impl FilesStore {
         for (device, dir) in self.device_dirs()? {
             for path in event_files(&dir)? {
                 let name = relative_name(&self.events_dir(), &path);
-                let metadata =
-                    std::fs::metadata(&path).map_err(|error| io_error("read", &path, error))?;
+                let metadata = std::fs::metadata(&path)
+                    .map_err(|error| io_error(FileOp::Read, &path, error))?;
                 let modified = metadata
                     .modified()
                     .ok()
@@ -397,11 +397,13 @@ impl FilesStore {
         let entries = match std::fs::read_dir(&dir) {
             Ok(entries) => entries,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-            Err(error) => return Err(io_error("read", &dir, error)),
+            Err(error) => return Err(io_error(FileOp::Read, &dir, error)),
         };
         let mut dirs = Vec::new();
         for entry in entries {
-            let path = entry.map_err(|error| io_error("read", &dir, error))?.path();
+            let path = entry
+                .map_err(|error| io_error(FileOp::Read, &dir, error))?
+                .path();
             let name = path
                 .file_name()
                 .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
@@ -409,7 +411,7 @@ impl FilesStore {
                 continue;
             }
             let device = name.parse::<DeviceId>().map_err(|_| {
-                PaceError::new(ErrorKind::InputOutput, "{path} is no device directory")
+                PaceError::new(ErrorKind::InputOutput, "pace found no device ID in the name of {path}")
                     .attach_context("path", path.display().to_string())
                     .attach_hint("`events/` holds one directory per device, named by its ID; move other files elsewhere")
             })?;
@@ -439,8 +441,8 @@ impl FilesStore {
         for (device, dir) in self.device_dirs()? {
             device.hash(&mut hasher);
             for path in event_files(&dir)? {
-                let metadata =
-                    std::fs::metadata(&path).map_err(|error| io_error("read", &path, error))?;
+                let metadata = std::fs::metadata(&path)
+                    .map_err(|error| io_error(FileOp::Read, &path, error))?;
                 path.hash(&mut hasher);
                 metadata.len().hash(&mut hasher);
                 metadata
@@ -497,12 +499,14 @@ fn write_device_file(path: &Path, file: &DeviceFile) -> PaceResult<()> {
 
 /// The events of the event file `path` of `device`.
 fn read_events(path: &Path, device: DeviceId) -> PaceResult<Vec<RecordedEvent>> {
-    let text = std::fs::read_to_string(path).map_err(|error| io_error("read", path, error))?;
+    let text =
+        std::fs::read_to_string(path).map_err(|error| io_error(FileOp::Read, path, error))?;
     parse_events(path, &text, device)
 }
 
 fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {
-    let text = std::fs::read_to_string(path).map_err(|error| io_error("read", path, error))?;
+    let text =
+        std::fs::read_to_string(path).map_err(|error| io_error(FileOp::Read, path, error))?;
     check_version(
         path,
         &text,
@@ -512,7 +516,7 @@ fn read_device_file(path: &Path) -> PaceResult<DeviceFile> {
     toml::from_str(&text).map_err(|error| {
         PaceError::with_source(
             ErrorKind::InputOutput,
-            "{path} is no valid device file",
+            "the device file {path} is not valid",
             error,
         )
         .attach_context("path", path.display().to_string())
