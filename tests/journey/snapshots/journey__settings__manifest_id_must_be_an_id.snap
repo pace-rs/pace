@@ -19,4 +19,4 @@ pace::project::invalid-value
    ·         ╰── this ID
  3 │ key = "acme-webshop"
    ╰────
-  help: `pace project init` writes the ID; remove the line to go by the key
+  help: write the project's ID, or remove the line to go by the key

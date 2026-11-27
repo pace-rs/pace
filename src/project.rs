@@ -27,7 +27,7 @@ const MANIFEST_VERSION: i64 = 1;
 /// The project the working directory belongs to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Project {
-    /// Its ID, once `project init` wrote it into the manifest.
+    /// Its ID, if the manifest gives one.
     pub id: Option<ProjectId>,
     /// Its key.
     pub key: ProjectKey,
@@ -215,17 +215,13 @@ fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Opti
                 })?);
             }
             "id" => {
-                let text = file.string(
-                    "id",
-                    value,
-                    "the project's ID, written by `pace project init`",
-                )?;
+                let text = file.string("id", value, "the project's ID, a UUIDv7")?;
                 id = Some(text.parse::<ProjectId>().map_err(|error| {
                     file.error_at(
                         value.span(),
                         "`{id}` is no project ID",
                         [("id", text.to_owned())],
-                        "`pace project init` writes the ID; remove the line to go by the key",
+                        "write the project's ID, or remove the line to go by the key",
                         "this ID",
                     )
                     .attach_source(error)

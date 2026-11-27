@@ -102,6 +102,22 @@ fn manifest_id_must_be_an_id() -> TestResult {
     )?;
 
     let output = run(sandbox.pace().args(["config", "show"]))?;
+    assert!(!output.contains("pace project"), "{output}");
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn manifest_id_that_is_no_text_names_no_missing_command() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "work/.pace.toml",
+        "[project]\nid = 7\nkey = \"acme-webshop\"\n",
+    )?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+
+    assert!(output.contains("`id` takes the project's ID"), "{output}");
+    assert!(!output.contains("pace project"), "{output}");
     Ok(())
 }
