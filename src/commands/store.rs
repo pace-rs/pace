@@ -45,7 +45,7 @@ impl SplitCmd {
         };
         let session = Session::open(context)?;
         let resplit = session.resplit(split)?;
-        if resplit.from == resplit.to {
+        if resplit.from == resplit.to && resplit.events == 0 {
             return Err(PaceError::new(
                 ErrorKind::InvalidInput,
                 "this device's events are already split by {split}",
@@ -57,6 +57,12 @@ impl SplitCmd {
         if resplit.events == 0 {
             println!(
                 "This device has no events yet; it splits them by {split} from the first one."
+            );
+        } else if resplit.from == resplit.to {
+            println!(
+                "Finished splitting this device's {} by {split}, into {}.",
+                counted(resplit.events, "event"),
+                counted(resplit.files_after, "file")
             );
         } else {
             println!(

@@ -1,0 +1,20 @@
+---
+source: tests/journey/store.rs
+expression: output
+---
+$ pace store split --by month   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Finished splitting this device's 2 events by month, into 2 files.
+
+----- stderr -----
+
+$ pace store split --by month   # at 09:31
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × this device's events are already split by month
+  help: name another period with `--by`

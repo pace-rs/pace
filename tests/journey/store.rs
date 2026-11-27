@@ -62,3 +62,33 @@ fn split_without_by_follows_the_setting() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn split_again_finishes_split_that_stopped() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox
+        .pace_at("2026-10-30T09:00[Europe/Berlin]")
+        .args(["log", "October", "--from", "08:00", "--to", "09:00"]))?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "November"]))?;
+    // What a stop in the middle of a split to weeks leaves.
+    let device = std::fs::read_dir(sandbox.path("home/events"))?
+        .next()
+        .ok_or("a device directory")??
+        .path();
+    _ = std::fs::copy(
+        device.join("2026/2026-10.toml"),
+        device.join("2026/2026-W44.toml"),
+    )?;
+
+    let output = sandbox.journey(&[
+        ("09:30", &["store", "split", "--by", "month"]),
+        ("09:31", &["store", "split", "--by", "month"]),
+    ])?;
+
+    assert_eq!(
+        files(&sandbox)?,
+        ["2026/2026-10.toml", "2026/2026-11.toml", "device.toml"]
+    );
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

@@ -7,7 +7,7 @@ use jiff::ZonedDateTime;
 use pace_core::testing::contract::run_store_contract;
 use pace_core::{
     Clock, Command, DeviceId, EventStore, Policy, SequentialIds, Tracker,
-    command::{Adjust, Begin, Catch, End, Hold, Log, Pause},
+    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause},
     testing::{Raced, TestClock},
 };
 use pace_store::{FilesStore, Split, testing::scratch_dir};
@@ -479,6 +479,88 @@ fn an_event_in_two_files_is_read_once() -> TestResult {
     let events = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
 
     assert_eq!(events.len(), 3);
+    Ok(())
+}
+
+/// What a stop in the middle of a split to weeks leaves: the October events
+/// under the week's file name too, and `device.toml` still on months.
+fn interrupted_split_to_weeks(setup: &Setup) -> TestResult {
+    two_months(setup)?;
+    _ = std::fs::copy(
+        setup.device_dir().join("2026/2026-10.toml"),
+        setup.device_dir().join("2026/2026-W44.toml"),
+    )?;
+    Ok(())
+}
+
+/// The text of this device's event files, `device.toml` left out.
+fn event_text(setup: &Setup) -> Result<String, Box<dyn std::error::Error>> {
+    let mut text = String::new();
+    for file in setup.files()? {
+        if file != "device.toml" {
+            text.push_str(&std::fs::read_to_string(setup.device_dir().join(file))?);
+        }
+    }
+    Ok(text)
+}
+
+#[test]
+fn resplitting_after_stop_keeps_each_event_once() -> TestResult {
+    let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
+    interrupted_split_to_weeks(&setup)?;
+
+    let resplit = setup.store(Split::Month).resplit(Split::Week)?;
+
+    assert_eq!(resplit.events, 3);
+    assert_eq!(
+        setup.files()?,
+        ["2026/2026-W44.toml", "2026/2026-W48.toml", "device.toml"]
+    );
+    assert_eq!(event_text(&setup)?.matches("[[event]]").count(), 3);
+    Ok(())
+}
+
+#[test]
+fn resplitting_to_same_split_removes_what_stop_left() -> TestResult {
+    let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
+    interrupted_split_to_weeks(&setup)?;
+
+    let resplit = setup.store(Split::Month).resplit(Split::Month)?;
+
+    assert_eq!(
+        (resplit.from, resplit.to, resplit.events),
+        (Split::Month, Split::Month, 3)
+    );
+    assert_eq!(
+        setup.files()?,
+        ["2026/2026-10.toml", "2026/2026-11.toml", "device.toml"]
+    );
+    assert_eq!(event_text(&setup)?.matches("[[event]]").count(), 3);
+    Ok(())
+}
+
+#[test]
+fn forgotten_entry_leaves_every_own_file_that_holds_it() -> TestResult {
+    let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
+    interrupted_split_to_weeks(&setup)?;
+    let tracker = setup.tracker(Split::Month);
+    let state = pollster::block_on(tracker.state(&everything()?))?;
+    let october = state
+        .entries()
+        .find(|entry| state.open().all(|open| open.id != entry.id))
+        .map(|entry| entry.id)
+        .ok_or("the October entry")?;
+
+    _ = pollster::block_on(tracker.run(&Command::Forget(Forget { entry: october })))?;
+
+    assert_eq!(
+        setup.files()?,
+        ["2026/2026-10.toml", "2026/2026-11.toml", "device.toml"],
+        "the left-over week file held only the forgotten entry"
+    );
+    let text = event_text(&setup)?;
+    assert!(text.contains("entry.forgotten"), "the tombstone stays");
+    assert_eq!(text.matches(&format!("entry = \"{october}\"")).count(), 1);
     Ok(())
 }
 

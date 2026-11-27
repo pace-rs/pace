@@ -18,6 +18,6 @@ records about each file.
 <!-- uses -->
 
 - Uses: no other module.
-- Used by: [`files`](../files.rs).
+- Used by: [`files`](../files/).
 
 <!-- /uses -->

@@ -30,8 +30,7 @@ use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
 
 use crate::disk::{
-    DEVICE_FILE, create_dir, event_files, io_error, lock, prepare, relative_name,
-    remove_empty_dirs, write_atomically,
+    DEVICE_FILE, create_dir, event_files, io_error, lock, prepare, relative_name, write_atomically,
 };
 use crate::format::{file_header, parse_events, serialize_events};
 use crate::machine::clone_detected;
@@ -40,6 +39,8 @@ use crate::{
     index::{FileSummary, INDEX_VERSION, Index, select, summarize},
     machine::Cursors,
 };
+
+mod own_log;
 
 /// The files backend for one device.
 pub struct FilesStore {
@@ -62,7 +63,7 @@ pub struct Resplit {
     pub files_before: usize,
     /// How many it has now.
     pub files_after: usize,
-    /// How many events were rewritten; none if the split stayed.
+    /// How many events were rewritten; none if the files already lay so.
     pub events: usize,
 }
 
@@ -195,7 +196,7 @@ impl FilesStore {
                 .map_err(|error| io_error("write", &path, error.error))?;
         }
         // The batch is in the log: what follows can fail without failing it.
-        self.clean_own_log(&dir, device_file.split, &index, &recorded, cursors);
+        self.clean_own_log(&dir, &index, &recorded, cursors);
         Ok(Appended::Recorded(recorded))
     }
 
@@ -206,7 +207,6 @@ impl FilesStore {
     fn clean_own_log(
         &self,
         dir: &Path,
-        split: Split,
         index: &Index,
         recorded: &[RecordedEvent],
         mut cursors: Cursors,
@@ -231,7 +231,7 @@ impl FilesStore {
             if cursors.cleaned.contains(&entry) {
                 continue;
             }
-            match self.forget_in_own_log(dir, split, entry, &about) {
+            match self.forget_in_own_log(dir, index, entry, &about) {
                 Ok(()) => {
                     cleaned |= cursors.cleaned.insert(entry);
                 }
@@ -269,120 +269,6 @@ impl FilesStore {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(*problem);
-    }
-
-    /// Rewrite this device's event files split by `split`, and record the
-    /// split in its `device.toml`. Other devices' files stay as they are;
-    /// pace reads each device with its own split.
-    ///
-    /// The new files are written before the old ones are removed; if pace
-    /// stops in between, both hold the same events, and reading counts each
-    /// event once.
-    ///
-    /// # Errors
-    ///
-    /// If a file can't be read, written or removed.
-    pub fn resplit(&self, split: Split) -> PaceResult<Resplit> {
-        let now = self.clock.now();
-        let dir = self.device_dir(self.device);
-        create_dir(&dir)?;
-        create_dir(&self.machine)?;
-        let _lock = lock(&self.machine.join("lock"))?;
-
-        let mut device_file = self.device_file(&dir, &now)?;
-        let from = device_file.split;
-        let old_files = event_files(&dir)?;
-        if from == split {
-            return Ok(Resplit {
-                from,
-                to: split,
-                files_before: old_files.len(),
-                files_after: old_files.len(),
-                events: 0,
-            });
-        }
-
-        let mut by_file: BTreeMap<String, Vec<RecordedEvent>> = BTreeMap::new();
-        let mut count = 0;
-        for path in &old_files {
-            let text =
-                std::fs::read_to_string(path).map_err(|error| io_error("read", path, error))?;
-            for recorded in parse_events(path, &text, self.device)? {
-                count += 1;
-                by_file
-                    .entry(split.file(&recorded.event.about))
-                    .or_default()
-                    .push(recorded);
-            }
-        }
-        let mut written = Vec::new();
-        for (relative, events) in &mut by_file {
-            events.sort_by_key(|recorded| recorded.hlc);
-            let mut text = file_header();
-            text.push('\n');
-            text.push_str(&serialize_events(events)?);
-            written.push(prepare(&dir.join(relative), &text)?);
-        }
-        let new_files: BTreeSet<PathBuf> = written.iter().map(|(_, path)| path.clone()).collect();
-        for (temporary, path) in written {
-            _ = temporary
-                .persist(&path)
-                .map_err(|error| io_error("write", &path, error.error))?;
-        }
-
-        device_file.split = split;
-        write_device_file(&dir.join(DEVICE_FILE), &device_file)?;
-        for path in old_files.iter().filter(|path| !new_files.contains(*path)) {
-            std::fs::remove_file(path).map_err(|error| io_error("remove", path, error))?;
-        }
-        remove_empty_dirs(&dir)?;
-        Ok(Resplit {
-            from,
-            to: split,
-            files_before: old_files.len(),
-            files_after: new_files.len(),
-            events: count,
-        })
-    }
-
-    /// Remove the events of a forgotten entry from this device's own file of
-    /// the entry's period; the tombstone stays. Other devices' files are
-    /// theirs to clean.
-    fn forget_in_own_log(
-        &self,
-        dir: &Path,
-        split: Split,
-        entry: EntryId,
-        about: &str,
-    ) -> PaceResult<()> {
-        let Ok(about) = about.parse::<ZonedDateTime>() else {
-            return Ok(());
-        };
-        let path = dir.join(split.file(&about));
-        let text = match std::fs::read_to_string(&path) {
-            Ok(text) => text,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-            Err(error) => return Err(io_error("read", &path, error)),
-        };
-        let events = parse_events(&path, &text, self.device)?;
-        let kept: Vec<RecordedEvent> = events
-            .iter()
-            .filter(|recorded| {
-                matches!(recorded.event.kind, EventKind::EntryForgotten { .. })
-                    || mentioned_entry(&recorded.event.kind) != Some(entry)
-            })
-            .cloned()
-            .collect();
-        if kept.len() == events.len() {
-            return Ok(());
-        }
-        if kept.is_empty() {
-            return std::fs::remove_file(&path).map_err(|error| io_error("remove", &path, error));
-        }
-        let mut text = file_header();
-        text.push('\n');
-        text.push_str(&serialize_events(&kept)?);
-        write_atomically(&path, &text)
     }
 
     /// This device's `device.toml`, written with its split on first use.
@@ -622,20 +508,4 @@ fn max_hlc<'index>(
         latest = latest.max(summary.max_hlc(index_path)?);
     }
     Ok(latest)
-}
-
-/// The entry an event is about, if any.
-const fn mentioned_entry(kind: &EventKind) -> Option<EntryId> {
-    match kind {
-        EventKind::EntryBegun { entry, .. }
-        | EventKind::EntryHeld { entry, .. }
-        | EventKind::EntryPaused { entry, .. }
-        | EventKind::EntryResumed { entry }
-        | EventKind::EntryEnded { entry }
-        | EventKind::CatchNoted { entry, .. }
-        | EventKind::EntryLogged { entry, .. }
-        | EventKind::EntryAdjusted { entry, .. }
-        | EventKind::EntryForgotten { entry } => Some(*entry),
-        _ => None,
-    }
 }

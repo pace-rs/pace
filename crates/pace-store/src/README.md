@@ -25,6 +25,7 @@ memory.
 | [`split.rs`](split.rs)         | How a device's event log is split into files: by year, month, week or day.                                                             |
 | [`testing.rs`](testing.rs)     | A scratch directory for tests, where the `files` backend's syncs cost nothing.                                                         |
 | [`toml_file.rs`](toml_file.rs) | pace's TOML files, read with spans so every error can point at its line.                                                               |
+| [`files/`](files/)             | The `files` backend: TOML event files in `PACE_HOME`.                                                                                  |
 | [`index/`](index/)             | The machine-local index of the event files.                                                                                            |
 
 <!-- /files -->
