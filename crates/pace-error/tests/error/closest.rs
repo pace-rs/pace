@@ -19,11 +19,25 @@ fn name_far_from_every_known_one_names_none() {
 }
 
 #[test]
-fn best_score_wins_over_order() {
+fn best_score_wins_wherever_it_stands() {
+    assert_eq!(
+        closest_name("today", ["today", "todays"].into_iter()),
+        Some("today")
+    );
     assert_eq!(
         closest_name("today", ["todays", "today"].into_iter()),
         Some("today")
     );
+}
+
+#[test]
+fn name_must_score_above_threshold() {
+    // Jaro-Winkler scores 0.822 for "client" and 0.797 for "clients".
+    assert_eq!(
+        closest_name("clxxnt", ["client"].into_iter()),
+        Some("client")
+    );
+    assert_eq!(closest_name("clxxnt", ["clients"].into_iter()), None);
 }
 
 #[test]
