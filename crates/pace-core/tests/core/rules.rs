@@ -2254,3 +2254,115 @@ fn adjust_compares_role_and_billable_with_new_project() -> TestResult {
     assert_eq!(changes.billable, Change::Keep);
     Ok(())
 }
+
+fn garden_key() -> Result<ProjectRef, Box<dyn std::error::Error>> {
+    Ok(ProjectRef::Key("garden".parse()?))
+}
+
+/// A world whose catalog holds the roles `work` and `family`, the
+/// project `acme-webshop` and the project `garden` with the role
+/// `family`, not billable.
+fn world_with_webshop_and_garden() -> Result<World, Box<dyn std::error::Error>> {
+    let mut world = World::new()?;
+    let garden = ProjectRecord {
+        id: "0193a8d0-000c-7000-8000-000000000002".parse()?,
+        key: "garden".parse()?,
+        name: "Garden".to_owned(),
+        role: Some("family".parse()?),
+        billable: false,
+        ..webshop(false)?
+    };
+    world.catalog = Catalog::new(
+        vec![role(WORK_ID, "work")?, role(FAMILY_ID, "family")?],
+        Vec::new(),
+        vec![webshop(false)?, garden],
+    )?;
+    Ok(world)
+}
+
+/// A begin in `acme-webshop` with the entry's own role `family`, not
+/// billable.
+fn begin_in_webshop_as_family() -> Result<Command, Box<dyn std::error::Error>> {
+    Ok(Command::Begin(Begin {
+        project: Some(webshop_key()?),
+        role: Some(role_id(FAMILY_ID)?),
+        billable: Some(false),
+        ..Begin::default()
+    }))
+}
+
+#[test]
+fn adjust_into_project_of_entry_own_values_clears_them() -> TestResult {
+    let mut world = world_with_webshop_and_garden()?;
+    _ = world.run("09:00", &begin_in_webshop_as_family()?)?;
+
+    let batch = world.run(
+        "09:10",
+        &Command::Adjust(Adjust {
+            project: Change::Set(garden_key()?),
+            role: Change::Set(role_id(FAMILY_ID)?),
+            billable: Change::Set(false),
+            ..Adjust::default()
+        }),
+    )?;
+
+    let changes = adjusted_changes(&batch)?;
+    assert_eq!(changes.project, Change::Set(garden_key()?));
+    assert_eq!(changes.role, Change::Clear);
+    assert_eq!(changes.billable, Change::Clear);
+    Ok(())
+}
+
+#[test]
+fn project_move_clears_own_values_equal_to_new_project() -> TestResult {
+    let mut world = world_with_webshop_and_garden()?;
+    _ = world.run("09:00", &begin_in_webshop_as_family()?)?;
+
+    let batch = world.run(
+        "09:10",
+        &Command::Adjust(Adjust {
+            project: Change::Set(garden_key()?),
+            ..Adjust::default()
+        }),
+    )?;
+
+    let changes = adjusted_changes(&batch)?;
+    assert_eq!(changes.role, Change::Clear);
+    assert_eq!(changes.billable, Change::Clear);
+    Ok(())
+}
+
+#[test]
+fn project_move_keeps_own_values_that_differ_from_new_project() -> TestResult {
+    let mut world = world_with_webshop_and_garden()?;
+    _ = world.run("09:00", &begin_in_webshop_as_family()?)?;
+    _ = world.run(
+        "09:05",
+        &Command::Adjust(Adjust {
+            project: Change::Set(garden_key()?),
+            ..Adjust::default()
+        }),
+    )?;
+    _ = world.run(
+        "09:06",
+        &Command::Adjust(Adjust {
+            role: Change::Set(role_id(WORK_ID)?),
+            billable: Change::Set(true),
+            ..Adjust::default()
+        }),
+    )?;
+
+    let batch = world.run(
+        "09:10",
+        &Command::Adjust(Adjust {
+            project: Change::Clear,
+            ..Adjust::default()
+        }),
+    )?;
+
+    let changes = adjusted_changes(&batch)?;
+    assert_eq!(changes.project, Change::Clear);
+    assert_eq!(changes.role, Change::Keep);
+    assert_eq!(changes.billable, Change::Keep);
+    Ok(())
+}

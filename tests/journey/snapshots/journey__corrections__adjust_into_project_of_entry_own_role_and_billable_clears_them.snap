@@ -1,0 +1,93 @@
+---
+source: tests/journey/corrections.rs
+expression: output
+---
+$ pace role add work --name Work   # at 08:50
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `work` (Work, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace role add health --name Health   # at 08:51
+success: true
+exit_code: 0
+----- stdout -----
+Added the role `health` (Health, area).
+pace took these defaults: kind `area`, no purpose and no weekly target; `pace role edit` changes them.
+
+----- stderr -----
+
+$ pace client add acme --currency EUR   # at 08:52
+success: true
+exit_code: 0
+----- stdout -----
+Added the client `acme` (acme) in EUR.
+pace took these defaults: name `acme` from the key, no rate and no rounding; `pace client edit acme` changes them.
+
+----- stderr -----
+
+$ pace project add webshop --client acme --role work   # at 08:53
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `webshop` (webshop) for the client `acme` in the role `work`, billable.
+pace took these defaults: name `webshop` from the key and billable, as it has a client; `pace project edit webshop` changes them.
+
+----- stderr -----
+
+$ pace project add garden --role health   # at 08:54
+success: true
+exit_code: 0
+----- stdout -----
+Added the project `garden` (garden) in the role `health`, not billable.
+pace took these defaults: name `garden` from the key, no client and not billable, as it has no client; `pace project edit garden` changes them.
+
+----- stderr -----
+
+$ pace --project webshop begin Write offer --role health --not-billable   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" in the role Health at 09:00.
+Project: webshop (from --project).
+
+----- stderr -----
+
+$ pace --project garden adjust --role health --not-billable   # at 09:10
+success: true
+exit_code: 0
+----- stdout -----
+Adjusted [ID-1] "Write offer": project garden (was webshop), role as its project (was Health), billable as its project.
+
+----- stderr -----
+
+--- home/events ---
+version = 1
+
+[[event]]
+id = "[ID-1]"
+type = "entry.begun"
+v = 1
+batch = "[ID-2]"
+at = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:00:00.000Z/0"
+entry = "[ID-3]"
+project = "[ID-4]"
+note = "Write offer"
+role = "[ID-5]"
+billable = false
+
+[[event]]
+id = "[ID-6]"
+type = "entry.adjusted"
+v = 1
+batch = "[ID-7]"
+at = "2026-11-26T09:10:00+01:00[Europe/Berlin]"
+about = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:10:00.000Z/0"
+entry = "[ID-3]"
+project = "[ID-8]"
+cleared = ["role", "billable"]

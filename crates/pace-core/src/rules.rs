@@ -283,7 +283,7 @@ impl Rules<'_> {
 
         let start = adjust.start.clone().unwrap_or_else(|| entry.start.clone());
         let end = adjust.end.clone().or_else(|| entry.end.clone());
-        let changes = self.without_project_values(adjust.changes(entry), entry);
+        let changes = self.without_project_values(adjust, adjust.changes(entry), entry);
         if changes.is_empty() {
             return Err(nothing_to_do(
                 "nothing to change",
@@ -419,21 +419,33 @@ impl Rules<'_> {
 
     /// `changes` without a role or billable flag equal to that of the
     /// project the entry has after them: the entry takes its project's
-    /// again, so a changed project role applies to it.
-    fn without_project_values(&self, mut changes: EntryChanges, entry: &Entry) -> EntryChanges {
+    /// again, so a changed project role applies to it. A requested value
+    /// is compared, and on a project move the entry's own value too.
+    fn without_project_values(
+        &self,
+        adjust: &Adjust,
+        mut changes: EntryChanges,
+        entry: &Entry,
+    ) -> EntryChanges {
+        let project_moves = changes.project != Change::Keep;
         let project = project_after(entry, &changes).cloned();
-        if let Change::Set(role) = changes.role
-            && self.role_exception(Some(role), project.as_ref()).is_none()
-        {
-            changes.role = own_value_cleared(entry.role.as_ref());
-        }
-        if let Change::Set(billable) = changes.billable
-            && self
-                .billable_exception(Some(billable), project.as_ref())
-                .is_none()
-        {
-            changes.billable = own_value_cleared(entry.billable.as_ref());
-        }
+        changes.role = without_project_value(
+            changes.role,
+            &adjust.role,
+            entry.role.as_ref(),
+            project_moves,
+            |role| self.role_exception(Some(*role), project.as_ref()).is_some(),
+        );
+        changes.billable = without_project_value(
+            changes.billable,
+            &adjust.billable,
+            entry.billable.as_ref(),
+            project_moves,
+            |billable| {
+                self.billable_exception(Some(*billable), project.as_ref())
+                    .is_some()
+            },
+        );
         changes
     }
 
@@ -561,6 +573,29 @@ const fn project_after<'a>(entry: &'a Entry, changes: &'a EntryChanges) -> Optio
         Change::Keep => entry.project.as_ref(),
         Change::Set(project) => Some(project),
         Change::Clear => None,
+    }
+}
+
+/// `changed`, unless the own value the entry has after `requested`
+/// equals its project's (`is_exception` says no): then the change that
+/// clears the entry's own value. Without a request, the own value is
+/// compared only when the project moves.
+fn without_project_value<T: Clone>(
+    changed: Change<T>,
+    requested: &Change<T>,
+    own: Option<&T>,
+    project_moves: bool,
+    is_exception: impl Fn(&T) -> bool,
+) -> Change<T> {
+    let own_after = match requested {
+        Change::Set(value) => Some(value),
+        Change::Keep if project_moves => own,
+        Change::Keep | Change::Clear => None,
+    };
+    if own_after.is_some_and(|value| !is_exception(value)) {
+        own_value_cleared(own)
+    } else {
+        changed
     }
 }
 

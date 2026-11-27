@@ -509,3 +509,49 @@ fn adjust_to_project_role_and_billable_writes_no_exception() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn adjust_into_project_of_entry_own_role_and_billable_clears_them() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = journey_and_events(
+        &sandbox,
+        &[
+            ("08:50", &["role", "add", "work", "--name", "Work"]),
+            ("08:51", &["role", "add", "health", "--name", "Health"]),
+            ("08:52", &["client", "add", "acme", "--currency", "EUR"]),
+            (
+                "08:53",
+                &[
+                    "project", "add", "webshop", "--client", "acme", "--role", "work",
+                ],
+            ),
+            ("08:54", &["project", "add", "garden", "--role", "health"]),
+            (
+                "09:00",
+                &[
+                    "--project",
+                    "webshop",
+                    "begin",
+                    "Write offer",
+                    "--role",
+                    "health",
+                    "--not-billable",
+                ],
+            ),
+            (
+                "09:10",
+                &[
+                    "--project",
+                    "garden",
+                    "adjust",
+                    "--role",
+                    "health",
+                    "--not-billable",
+                ],
+            ),
+        ],
+    )?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
