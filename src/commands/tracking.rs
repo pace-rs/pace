@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Command as UseCase, Entry, HoldSource, PauseKind, ProjectRef, Tag,
+    Command as UseCase, Entry, HoldSource, PauseKind, ProjectRef, Tag, Text,
     command::{Begin, Catch, End, Hold, Pause, Resume},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -86,9 +86,31 @@ pub(super) fn moment(
     }
 }
 
-pub(super) fn text(words: &[String]) -> Option<String> {
-    let text = words.join(" ");
-    (!text.trim().is_empty()).then_some(text)
+/// The words of a note; without words, no note.
+pub(super) fn text(words: &[String]) -> Option<Text> {
+    Text::try_from(words.join(" ")).ok()
+}
+
+/// The text of `--reason`, refused without words.
+pub(super) fn reason(value: Option<&str>) -> PaceResult<Option<Text>> {
+    value
+        .map(|value| {
+            value.parse().map_err(|error: Box<PaceError>| {
+                error
+                    .attach_hint("say why, like `--reason \"phone call\"`, or leave out `--reason`")
+                    .attach_exit_code(ExitCode::Usage)
+            })
+        })
+        .transpose()
+}
+
+/// The words of a caught thought, refused without words.
+fn thought(words: &[String]) -> PaceResult<Text> {
+    Text::try_from(words.join(" ")).map_err(|error| {
+        error
+            .attach_hint("write the thought down, like `pace catch call the bank`")
+            .attach_exit_code(ExitCode::Usage)
+    })
 }
 
 pub(super) fn tags(values: &[String]) -> PaceResult<BTreeSet<Tag>> {
@@ -173,7 +195,10 @@ fn again(session: &Session, asker: &dyn Ask, count: usize) -> PaceResult<Begin> 
     let mut labels = Vec::new();
     for entry in entries {
         let candidate = Begin {
-            note: entry.note.clone(),
+            note: entry
+                .note
+                .clone()
+                .and_then(|note| Text::try_from(note).ok()),
             project: entry.project.clone(),
             tags: entry.tags.clone(),
             ..Begin::default()
@@ -267,7 +292,7 @@ impl Runnable for HoldCmd {
             Ok(UseCase::Hold(Hold {
                 at: at(self.at.as_deref(), &session.now(), &context.terminal, notes)?,
                 source,
-                reason: self.reason.clone(),
+                reason: reason(self.reason.as_deref())?,
             }))
         }));
     }
@@ -301,7 +326,7 @@ impl Runnable for PauseCmd {
                 } else {
                     PauseKind::Break
                 },
-                reason: self.reason.clone(),
+                reason: reason(self.reason.as_deref())?,
             }))
         }));
     }
@@ -351,7 +376,7 @@ impl Runnable for CatchCmd {
     fn run(&self) {
         exit_on_error(track(|_, _, _| {
             Ok(UseCase::Catch(Catch {
-                text: text(&self.thought).unwrap_or_default(),
+                text: thought(&self.thought)?,
             }))
         }));
     }

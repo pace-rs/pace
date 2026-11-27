@@ -208,3 +208,19 @@ fn new_reason_for_open_break_says_reason_is_now() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn text_without_words_is_usage_error() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("09:10", &["catch", ""]),
+        ("09:10", &["catch", " ", " "]),
+        ("09:10", &["hold", "--reason", ""]),
+        ("09:10", &["pause", "--reason", "  "]),
+        ("09:10", &["now"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

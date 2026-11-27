@@ -71,7 +71,7 @@ fn tracking_commands_without_entry_read_now_to_now() -> TestResult {
         Command::Hold(Hold::default()),
         Command::Pause(Pause::default()),
         Command::Catch(Catch {
-            text: "call the bank".into(),
+            text: "call the bank".parse()?,
         }),
         Command::End(End::default()),
         Command::Resume(Resume::default()),

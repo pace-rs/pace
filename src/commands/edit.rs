@@ -7,7 +7,7 @@ use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
     Change, Command as UseCase, DeviceId, Entry, EntryOrigin, ProjectId, ProjectKey, ProjectRef,
-    Tag, command::Adjust,
+    Tag, Text, command::Adjust,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Snippet};
 use pace_time::parse_at;
@@ -267,13 +267,17 @@ fn read(text: &str, entry: &Entry, now: &ZonedDateTime) -> PaceResult<Adjust> {
         (None, Some(key)) => Some(ProjectRef::Key(key)),
         (None, None) => None,
     };
-    let note = edited.note.filter(|note| !note.trim().is_empty());
+    let note = edited.note.and_then(|note| Text::try_from(note).ok());
+    let current_note = entry
+        .note
+        .clone()
+        .and_then(|note| Text::try_from(note).ok());
 
     let adjust = Adjust {
         entry: Some(entry.id),
         start: (start != entry.start).then_some(start),
         end: end.filter(|end| entry.end.as_ref() != Some(end)),
-        note: change(note, entry.note.as_ref()),
+        note: change(note, current_note.as_ref()),
         project: change(project, entry.project.as_ref()),
         tag: edited.tags.difference(&entry.tags).cloned().collect(),
         untag: entry.tags.difference(&edited.tags).cloned().collect(),
@@ -405,7 +409,10 @@ mod tests {
             ],
         );
 
-        assert_eq!(result.unwrap().note, Change::Set("Write offer".to_owned()));
+        assert_eq!(
+            result.unwrap().note,
+            Change::Set("Write offer".parse().unwrap())
+        );
         assert_eq!(reported, 1);
     }
 

@@ -25,6 +25,7 @@ feature adds `testing.rs`, a settable clock for the tests of other crates.
 | [`state.rs`](state.rs)       | The state of the entries, built from the events in merged order.                                                             |
 | [`steps.rs`](steps.rs)       | The step machine of a command: what to read, the batch to append, and what the append means, without I/O.                    |
 | [`testing.rs`](testing.rs)   | For tests of pace and of store backends: a settable clock, and the lock that the test doubles share.                         |
+| [`text.rs`](text.rs)         | Text that people write: the note of an entry, the reason of a hold or a pause, a caught thought.                             |
 | [`tracking.rs`](tracking.rs) | Where a hold came from, and what kind of break a pause is.                                                                   |
 | [`rules/`](rules/)           | What each command turns into: the events of one batch, or an error that says how to fix it.                                  |
 | [`testing/`](testing/)       | For tests of pace and of store backends: a settable clock, and the lock that the test doubles share.                         |

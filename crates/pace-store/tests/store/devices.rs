@@ -195,7 +195,7 @@ fn changes_made_apart_merge_by_the_later_change_per_field() -> TestResult {
         "10:00",
         &Command::Adjust(Adjust {
             entry: Some(entry),
-            note: Change::Set("from the desktop".to_owned()),
+            note: Change::Set("from the desktop".parse()?),
             tag: std::collections::BTreeSet::from(["review".parse()?]),
             ..Adjust::default()
         }),
@@ -204,7 +204,7 @@ fn changes_made_apart_merge_by_the_later_change_per_field() -> TestResult {
         "10:05",
         &Command::Adjust(Adjust {
             entry: Some(entry),
-            note: Change::Set("from the laptop".to_owned()),
+            note: Change::Set("from the laptop".parse()?),
             ..Adjust::default()
         }),
     )?;
@@ -281,7 +281,7 @@ fn forgotten_entry_leaves_the_own_files_of_every_device() -> TestResult {
     laptop.run(
         "09:00",
         &Command::Begin(Begin {
-            note: Some("secret".to_owned()),
+            note: Some("secret".parse()?),
             ..Begin::default()
         }),
     )?;

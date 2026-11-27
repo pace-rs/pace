@@ -2,7 +2,7 @@
 
 use abscissa_core::{Command, Runnable};
 use pace_core::{
-    Change, Command as UseCase, ProjectRef,
+    Change, Command as UseCase, ProjectRef, Text,
     command::{Adjust, Forget, Log},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -68,11 +68,9 @@ impl Runnable for AdjustCmd {
         exit_on_error(track(|session, context, notes| {
             let now = session.now();
             let project = moved_project(context.project.as_ref());
-            let note = match self.note.as_deref() {
-                None => Change::Keep,
-                Some(note) if note.trim().is_empty() => Change::Clear,
-                Some(note) => Change::Set(note.to_owned()),
-            };
+            let note = self.note.clone().map_or(Change::Keep, |note| {
+                Text::try_from(note).map_or(Change::Clear, Change::Set)
+            });
             Ok(UseCase::Adjust(Adjust {
                 entry: target_entry(session, &context.terminal, self.entry.as_deref(), self.last)?,
                 start: at(self.start.as_deref(), &now, &context.terminal, notes)?,

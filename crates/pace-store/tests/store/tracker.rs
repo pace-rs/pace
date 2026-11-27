@@ -110,7 +110,7 @@ fn per_field_the_later_change_wins_between_devices() -> TestResult {
     let note = |text: &str| {
         Command::Adjust(Adjust {
             entry: Some(entry),
-            note: pace_core::Change::Set(text.to_owned()),
+            note: pace_core::Change::Set(text.parse().unwrap()),
             ..Adjust::default()
         })
     };
@@ -214,13 +214,13 @@ fn begin_raced_by_another_begin_decides_again_and_switches_from_it() -> TestResu
     let rival_clock = Arc::new(TestClock::new(at("2026-11-26T08:59[Europe/Berlin]")?));
     let store = MemoryStore::new(device(1)?, clock.clone());
     let rival = Command::Begin(Begin {
-        note: Some("B".to_owned()),
+        note: Some("B".parse()?),
         ..Begin::default()
     });
     let tracker = raced(&store, &clock, &rival_clock, rival, 1)?;
 
     let outcome = tracker.run(&Command::Begin(Begin {
-        note: Some("A".to_owned()),
+        note: Some("A".parse()?),
         ..Begin::default()
     }))?;
 

@@ -1,0 +1,61 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace catch    # at 09:10
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × the text "" has no words
+  help: write the thought down, like `pace catch call the bank`
+
+
+$ pace catch       # at 09:10
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × the text "   " has no words
+  help: write the thought down, like `pace catch call the bank`
+
+
+$ pace hold --reason    # at 09:10
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × the text "" has no words
+  help: say why, like `--reason "phone call"`, or leave out `--reason`
+
+
+$ pace pause --reason      # at 09:10
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × the text "  " has no words
+  help: say why, like `--reason "phone call"`, or leave out `--reason`
+
+
+$ pace now   # at 09:10
+success: true
+exit_code: 0
+----- stdout -----
+Running: [ID-1] "Write offer", since 09:00 (10 minutes ago).
+  10m net so far.
+
+----- stderr -----

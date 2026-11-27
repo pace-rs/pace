@@ -25,6 +25,7 @@ mod state;
 mod steps;
 #[cfg(feature = "testing")]
 pub mod testing;
+mod text;
 mod tracking;
 
 pub use command::Command;
@@ -38,4 +39,5 @@ pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier, SequentialIds
 pub use rules::{Policy, Rules};
 pub use state::{State, UndoTarget};
 pub use steps::{AfterAppend, Appending, Decided, Outcome, Reading};
+pub use text::Text;
 pub use tracking::{HoldSource, PauseKind};

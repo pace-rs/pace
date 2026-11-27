@@ -155,7 +155,7 @@ mod tests {
                 device,
             );
             _ = tracker.run(&Command::Begin(Begin {
-                note: Some("Write offer".to_owned()),
+                note: Some("Write offer".parse()?),
                 ..Begin::default()
             }))?;
             clock.set("2026-11-27T09:00[Europe/Berlin]".parse()?);
@@ -187,7 +187,7 @@ mod tests {
                 policy: &Policy::default(),
             }
             .decide(&Command::Begin(Begin {
-                note: Some("Review".to_owned()),
+                note: Some("Review".parse()?),
                 ..Begin::default()
             }))?;
             Ok((batch, marker))

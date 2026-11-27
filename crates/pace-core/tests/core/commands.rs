@@ -21,7 +21,7 @@ fn round_trip(command: &Command) -> Result<String, Box<dyn std::error::Error>> {
 fn begin_carries_what_was_typed() -> TestResult {
     let command = Command::Begin(Begin {
         at: Some("2026-11-26T09:00:00+01:00[Europe/Berlin]".parse()?),
-        note: Some("Write offer".to_owned()),
+        note: Some("Write offer".parse()?),
         project: Some(ProjectRef::Key("acme-webshop".parse()?)),
         tags: BTreeSet::from(["dev".parse()?, "offer".parse()?]),
         allow_overlap: true,
@@ -52,7 +52,7 @@ fn hold_says_where_the_interruption_came_from() -> TestResult {
     let command = Command::Hold(Hold {
         at: None,
         source: Some(HoldSource::Outer),
-        reason: Some("phone call".to_owned()),
+        reason: Some("phone call".parse()?),
     });
 
     assert_eq!(
@@ -80,7 +80,7 @@ fn pause_names_its_kind() -> TestResult {
 #[test]
 fn catch_carries_the_thought() -> TestResult {
     let command = Command::Catch(Catch {
-        text: "call the tax office".to_owned(),
+        text: "call the tax office".parse()?,
     });
 
     assert_eq!(
@@ -123,7 +123,7 @@ fn log_carries_start_and_end() -> TestResult {
 #[test]
 fn adjust_sets_with_value_and_clears_with_null() -> TestResult {
     let command = Command::Adjust(Adjust {
-        note: Change::Set("Write offer".to_owned()),
+        note: Change::Set("Write offer".parse()?),
         project: Change::Clear,
         tag: BTreeSet::from(["dev".parse()?]),
         ..Adjust::default()
@@ -154,6 +154,12 @@ fn forget_names_the_entry() -> TestResult {
 #[case::unknown_command(r#"{"command":"stop"}"#)]
 #[case::invalid_key(r#"{"command":"begin","project":"Acme Webshop"}"#)]
 #[case::catch_without_text(r#"{"command":"catch"}"#)]
+#[case::catch_with_empty_text(r#"{"command":"catch","text":""}"#)]
+#[case::hold_with_blank_reason(r#"{"command":"hold","reason":"  "}"#)]
+#[case::pause_with_empty_reason(r#"{"command":"pause","reason":""}"#)]
+#[case::begin_with_empty_note(r#"{"command":"begin","note":""}"#)]
+#[case::log_with_blank_note(r#"{"command":"log","start":"2026-11-25T14:00:00+01:00[Europe/Berlin]","end":"2026-11-25T15:00:00+01:00[Europe/Berlin]","note":" "}"#)]
+#[case::adjust_with_empty_note(r#"{"command":"adjust","note":""}"#)]
 fn malformed_commands_are_rejected(#[case] json: &str) {
     assert!(serde_json::from_str::<Command>(json).is_err());
 }

@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use jiff::ZonedDateTime;
 use serde::{Deserialize, Serialize};
 
-use crate::{Change, EntryId, HoldSource, PauseKind, ProjectRef, Tag};
+use crate::{Change, EntryId, HoldSource, PauseKind, ProjectRef, Tag, Text};
 
 /// A use case, as data.
 ///
@@ -49,7 +49,7 @@ pub struct Begin {
     pub at: Option<ZonedDateTime>,
     /// What the entry is about.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
+    pub note: Option<Text>,
     /// The project, from `--project` or the project discovery.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project: Option<ProjectRef>,
@@ -73,7 +73,7 @@ pub struct Hold {
     pub source: Option<HoldSource>,
     /// Why, for example "phone call".
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
+    pub reason: Option<Text>,
 }
 
 /// `pace pause`
@@ -88,7 +88,7 @@ pub struct Pause {
     pub kind: PauseKind,
     /// Why.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
+    pub reason: Option<Text>,
 }
 
 /// `pace resume`
@@ -108,7 +108,7 @@ pub struct Resume {
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Catch {
     /// The thought, as written down.
-    pub text: String,
+    pub text: Text,
 }
 
 /// `pace end`
@@ -133,7 +133,7 @@ pub struct Log {
     pub end: ZonedDateTime,
     /// What it was about.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
+    pub note: Option<Text>,
     /// Its project.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project: Option<ProjectRef>,
@@ -175,7 +175,7 @@ pub struct Adjust {
     pub end: Option<ZonedDateTime>,
     /// A new note; `null` empties it.
     #[serde(default, skip_serializing_if = "Change::is_keep", with = "change")]
-    pub note: Change<String>,
+    pub note: Change<Text>,
     /// A new project; `null` takes it away.
     #[serde(default, skip_serializing_if = "Change::is_keep", with = "change")]
     pub project: Change<ProjectRef>,

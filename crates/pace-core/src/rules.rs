@@ -119,7 +119,7 @@ impl Rules<'_> {
             EventKind::EntryBegun {
                 entry,
                 project: begin.project.clone(),
-                note: begin.note.clone(),
+                note: begin.note.clone().map(String::from),
                 tags: begin.tags.clone(),
             },
         )?);
@@ -147,7 +147,7 @@ impl Rules<'_> {
             EventKind::EntryHeld {
                 entry: entry.id,
                 source: hold.source.unwrap_or(self.policy.default_hold_source),
-                reason: hold.reason.clone(),
+                reason: hold.reason.clone().map(String::from),
             },
         )?])
     }
@@ -173,7 +173,7 @@ impl Rules<'_> {
             EventKind::EntryPaused {
                 entry: entry.id,
                 kind: pause.kind,
-                reason: pause.reason.clone(),
+                reason: pause.reason.clone().map(String::from),
             },
         )?])
     }
@@ -214,7 +214,7 @@ impl Rules<'_> {
             &entry.filed,
             EventKind::CatchNoted {
                 entry: entry.id,
-                text: catch.text.clone(),
+                text: catch.text.to_string(),
             },
         )?])
     }
@@ -248,7 +248,7 @@ impl Rules<'_> {
                 entry: self.new_id()?,
                 end: log.end.clone(),
                 project: log.project.clone(),
-                note: log.note.clone(),
+                note: log.note.clone().map(String::from),
                 tags: log.tags.clone(),
             },
         )?])
@@ -512,7 +512,7 @@ fn changes(
     EntryChanges {
         start: (*start != entry.start).then(|| start.clone()),
         end: end.filter(|end| entry.end.as_ref() != Some(*end)).cloned(),
-        note: real_change(&adjust.note, entry.note.as_ref()),
+        note: real_change(&adjust.note.clone().map(String::from), entry.note.as_ref()),
         project: real_change(&adjust.project, entry.project.as_ref()),
         tags: (tags != entry.tags).then_some(tags),
     }

@@ -150,6 +150,16 @@ impl<T> Change<T> {
     pub const fn is_keep(&self) -> bool {
         matches!(self, Self::Keep)
     }
+
+    /// The same change with the value turned by `f`.
+    #[must_use]
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Change<U> {
+        match self {
+            Self::Keep => Change::Keep,
+            Self::Set(value) => Change::Set(f(value)),
+            Self::Clear => Change::Clear,
+        }
+    }
 }
 
 /// The fields an `entry.adjusted` event changes; the others stay.

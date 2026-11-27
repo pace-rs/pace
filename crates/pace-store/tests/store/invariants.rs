@@ -96,7 +96,7 @@ fn command(step: &Step, now: &ZonedDateTime, state: &State) -> Result<Command, T
         .back
         .map(|back| minutes_before(now, back))
         .transpose()?;
-    let reason = |given: bool| given.then(|| "why".to_owned());
+    let reason = |given: bool| given.then(|| "why".parse()).transpose();
     Ok(match &step.verb {
         Verb::Begin { allow_overlap } => Command::Begin(Begin {
             at,
@@ -105,12 +105,12 @@ fn command(step: &Step, now: &ZonedDateTime, state: &State) -> Result<Command, T
         }),
         Verb::Hold { reason: given } => Command::Hold(Hold {
             at,
-            reason: reason(*given),
+            reason: reason(*given)?,
             ..Hold::default()
         }),
         Verb::Pause { reason: given } => Command::Pause(Pause {
             at,
-            reason: reason(*given),
+            reason: reason(*given)?,
             ..Pause::default()
         }),
         Verb::Resume => Command::Resume(Resume { at, entry: None }),

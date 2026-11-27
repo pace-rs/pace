@@ -168,7 +168,7 @@ fn the_event_file_reads_like_the_plan() -> TestResult {
     run(
         "2026-11-26T09:02:11[Europe/Berlin]",
         Command::Begin(Begin {
-            note: Some("Checkout flow".to_owned()),
+            note: Some("Checkout flow".parse()?),
             project: Some(pace_core::ProjectRef::Key("acme-webshop".parse()?)),
             tags: std::collections::BTreeSet::from(["dev".parse()?]),
             ..Begin::default()
@@ -178,7 +178,7 @@ fn the_event_file_reads_like_the_plan() -> TestResult {
         "2026-11-26T10:15:40[Europe/Berlin]",
         Command::Hold(Hold {
             source: Some(pace_core::HoldSource::Outer),
-            reason: Some("phone call".to_owned()),
+            reason: Some("phone call".parse()?),
             ..Hold::default()
         }),
     )?;
@@ -192,7 +192,7 @@ fn the_event_file_reads_like_the_plan() -> TestResult {
     run(
         "2026-11-26T11:00:00[Europe/Berlin]",
         Command::Catch(Catch {
-            text: "call the tax office".to_owned(),
+            text: "call the tax office".parse()?,
         }),
     )?;
     run(
@@ -226,7 +226,7 @@ fn what_was_written_reads_back_the_same() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
     let tracker = setup.tracker(Split::Month);
     let written = tracker.run(&Command::Begin(Begin {
-        note: Some("a \"quoted\" note\nwith two lines".to_owned()),
+        note: Some("a \"quoted\" note\nwith two lines".parse()?),
         ..Begin::default()
     }))?;
 
@@ -365,7 +365,7 @@ fn an_invalid_event_is_blamed_on_its_own_line() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
     let tracker = setup.tracker(Split::Month);
     _ = tracker.run(&Command::Begin(Begin {
-        note: Some("agenda\n[[event]]\nminutes".to_owned()),
+        note: Some("agenda\n[[event]]\nminutes".parse()?),
         ..Begin::default()
     }))?;
     setup.clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
@@ -678,7 +678,7 @@ fn begin_raced_by_another_process_decides_again_and_switches_from_it() -> TestRe
             setup.store(Split::Month),
             rival,
             Command::Begin(Begin {
-                note: Some("B".to_owned()),
+                note: Some("B".parse()?),
                 ..Begin::default()
             }),
             1,
@@ -690,7 +690,7 @@ fn begin_raced_by_another_process_decides_again_and_switches_from_it() -> TestRe
     );
 
     _ = tracker.run(&Command::Begin(Begin {
-        note: Some("A".to_owned()),
+        note: Some("A".parse()?),
         ..Begin::default()
     }))?;
 
@@ -739,7 +739,9 @@ mod expensive {
                     for round in 0..10 {
                         let adjust = Command::Adjust(Adjust {
                             entry: Some(entry),
-                            note: pace_core::Change::Set(format!("{writer}/{round}")),
+                            note: pace_core::Change::Set(
+                                format!("{writer}/{round}").parse().unwrap(),
+                            ),
                             ..Adjust::default()
                         });
                         // A command that the others outran is run again, as

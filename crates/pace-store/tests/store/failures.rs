@@ -115,7 +115,7 @@ fn failed_cleaning_keeps_the_append_and_is_retried() -> TestResult {
         at("2026-10-30T09:00[Europe/Berlin]")?,
         at("2026-10-30T10:00[Europe/Berlin]")?,
     );
-    secret.note = Some("secret".to_owned());
+    secret.note = Some("secret".parse()?);
     _ = laptop.run(&Command::Log(secret))?;
     let entry = laptop
         .state(&TimeRange::new(None, None)?)?

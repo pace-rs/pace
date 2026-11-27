@@ -120,15 +120,15 @@ impl World {
 
 fn begin(note: &str) -> Command {
     Command::Begin(Begin {
-        note: Some(note.to_owned()),
+        note: note.parse().ok(),
         ..Begin::default()
     })
 }
 
-fn begin_at(note: &str, time: &str) -> Result<Command, jiff::Error> {
+fn begin_at(note: &str, time: &str) -> Result<Command, Box<dyn std::error::Error>> {
     Ok(Command::Begin(Begin {
         at: Some(berlin(time)?),
-        note: Some(note.to_owned()),
+        note: Some(note.parse()?),
         ..Begin::default()
     }))
 }
@@ -376,7 +376,7 @@ fn hold_interrupts_the_running_entry() -> TestResult {
         "10:00",
         &Command::Hold(Hold {
             source: Some(HoldSource::Outer),
-            reason: Some("phone call".to_owned()),
+            reason: Some("phone call".parse()?),
             ..Hold::default()
         }),
     )?;
@@ -437,7 +437,7 @@ fn second_hold_with_reason_updates_it() -> TestResult {
     _ = world.run(
         "10:05",
         &Command::Hold(Hold {
-            reason: Some("Slack".to_owned()),
+            reason: Some("Slack".parse()?),
             ..Hold::default()
         }),
     )?;
@@ -648,7 +648,7 @@ fn catch_notes_thought_on_the_running_entry() -> TestResult {
     let batch = world.run(
         "09:30",
         &Command::Catch(Catch {
-            text: "call the tax office".to_owned(),
+            text: "call the tax office".parse()?,
         }),
     )?;
 
@@ -664,7 +664,7 @@ fn catch_while_nothing_runs_is_refused() -> TestResult {
     let error = failure(world.run(
         "09:30",
         &Command::Catch(Catch {
-            text: "call the tax office".to_owned(),
+            text: "call the tax office".parse()?,
         }),
     ))?;
 
@@ -839,7 +839,7 @@ fn log_enters_an_ended_entry_afterwards() -> TestResult {
     let batch = world.run(
         "18:00",
         &Command::Log(Log {
-            note: Some("Call with ACME".to_owned()),
+            note: Some("Call with ACME".parse()?),
             ..Log::new(berlin("14:00")?, berlin("15:30")?)
         }),
     )?;
@@ -935,7 +935,7 @@ fn adjust_changes_the_open_entry() -> TestResult {
         "09:30",
         &Command::Adjust(Adjust {
             start: Some(berlin("08:45")?),
-            note: Change::Set("Write offer".to_owned()),
+            note: Change::Set("Write offer".parse()?),
             tag: BTreeSet::from(["offer".parse()?]),
             untag: BTreeSet::from(["draft".parse()?]),
             ..Adjust::default()
@@ -1053,7 +1053,7 @@ fn adjust_of_note_leaves_break_past_end_alone() -> TestResult {
         "11:00",
         &Command::Adjust(Adjust {
             entry: Some(entry),
-            note: Change::Set("Write offer".to_owned()),
+            note: Change::Set("Write offer".parse()?),
             ..Adjust::default()
         }),
     )?;
