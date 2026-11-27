@@ -1,5 +1,5 @@
 ---
-source: tests/journey/now.rs
+source: tests/journey/tracking.rs
 expression: output
 ---
 $ pace begin --again   # at 08:00

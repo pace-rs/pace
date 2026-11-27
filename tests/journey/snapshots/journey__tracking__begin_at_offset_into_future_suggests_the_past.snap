@@ -1,0 +1,12 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace begin --at +15m   # at 09:30
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `+15m` lies in the future
+  help: did you mean `-15m`?

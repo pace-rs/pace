@@ -1,12 +1,12 @@
 ---
-source: tests/journey/now.rs
+source: tests/journey/corrections.rs
 expression: output
 ---
-$ pace forget   # at 10:00
+$ pace adjust --note Call   # at 10:00
 success: false
 exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
   × several entries are open: [ID-1] "on this machine" (since 09:00); [ID-2] "on the other machine" (since 09:30)
-  help: name one with `pace forget <id>`
+  help: name one with `pace adjust <id>`

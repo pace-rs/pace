@@ -41,6 +41,22 @@ pub fn short_id_after(output: &str, prefix: &str) -> Result<String, String> {
         .ok_or_else(|| format!("no line starts with {prefix:?} and a short ID"))
 }
 
+/// An entry begun on another machine, apart: it has its own data
+/// directory, which is then synced into this one.
+pub fn begin_apart(
+    sandbox: &Sandbox,
+    time: &str,
+    note: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    _ = run(sandbox
+        .pace_at(time)
+        .env("PACE_HOME", sandbox.path("other-home"))
+        .env("PACE_MACHINE_DIR", sandbox.path("other-machine"))
+        .args(["begin", note]))?;
+    sandbox.sync_events_from("other-home")?;
+    Ok(())
+}
+
 /// A temporary directory with a working directory `work/` and an empty
 /// `config/pace.global.toml` inside, and `PACE_CONFIG`, `PACE_HOME` and
 /// `PACE_MACHINE_DIR` pointing into it.

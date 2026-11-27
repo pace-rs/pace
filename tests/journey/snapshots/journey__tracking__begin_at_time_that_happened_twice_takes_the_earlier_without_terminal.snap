@@ -1,5 +1,5 @@
 ---
-source: tests/journey/now.rs
+source: tests/journey/tracking.rs
 expression: output
 ---
 $ pace begin --at 02:30   # at 2026-10-25T12:00[Europe/Berlin]

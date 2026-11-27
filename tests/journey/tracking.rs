@@ -87,15 +87,37 @@ fn begin_and_end_in_different_time_zones() -> TestResult {
 }
 
 #[test]
-fn at_takes_the_grammar_and_refuses_the_future() -> TestResult {
+fn begin_at_unknown_word_shows_the_grammar() -> TestResult {
     let sandbox = Sandbox::new()?;
 
-    let output = sandbox.journey(&[
-        ("09:30", &["begin", "--at", "soon"]),
-        ("09:30", &["begin", "--at", "10:00"]),
-        ("09:30", &["begin", "--at", "+15m"]),
-        ("09:30", &["begin", "--at", "-15m"]),
-    ])?;
+    let output = sandbox.journey(&[("09:30", &["begin", "--at", "soon"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn begin_at_later_clock_time_takes_yesterday() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[("09:30", &["begin", "--at", "10:00"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn begin_at_offset_into_future_suggests_the_past() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[("09:30", &["begin", "--at", "+15m"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn begin_at_offset_back_begins_earlier() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[("09:30", &["begin", "--at", "-15m"])])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
@@ -116,17 +138,6 @@ fn begin_names_the_project_and_why() -> TestResult {
 
     let output = sandbox.journey(&[("09:00", &["begin", "Checkout flow"])])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
-    Ok(())
-}
-
-#[test]
-fn config_show_does_not_create_anything() -> TestResult {
-    let sandbox = Sandbox::new()?;
-
-    _ = run(sandbox.pace_at("09:00").args(["config", "show"]))?;
-
-    assert!(!sandbox.path("home").exists());
-    assert!(!sandbox.path("machine").exists());
     Ok(())
 }
 
@@ -236,6 +247,35 @@ fn begin_again_names_project_and_refuses_another() -> TestResult {
         ("11:00", &["begin", "--again", "--project", "gamma"]),
         ("11:00", &["--project", "gamma", "begin", "--again"]),
     ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn begin_again_without_terminal_lists_the_choices() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("08:00", &["begin", "--again"]),
+        ("09:00", &["begin", "Write offer", "--tag", "offer"]),
+        ("10:00", &["end"]),
+        ("10:30", &["begin", "--again"]),
+        ("11:00", &["begin", "Call ACME"]),
+        ("11:20", &["end"]),
+        ("11:30", &["begin", "--again"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn begin_at_time_that_happened_twice_takes_the_earlier_without_terminal() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[(
+        "2026-10-25T12:00[Europe/Berlin]",
+        &["begin", "--at", "02:30"],
+    )])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

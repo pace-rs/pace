@@ -266,3 +266,14 @@ fn setting_values_ignore_case() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn config_show_does_not_create_anything() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    _ = run(sandbox.pace_at("09:00").args(["config", "show"]))?;
+
+    assert!(!sandbox.path("home").exists());
+    assert!(!sandbox.path("machine").exists());
+    Ok(())
+}

@@ -1,0 +1,21 @@
+---
+source: tests/journey/now.rs
+expression: output
+---
+$ pace end [ID-1]   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Ended [ID-1] "on this machine" at 10:00 after 1h.
+
+----- stderr -----
+
+$ pace now   # at 10:01
+success: true
+exit_code: 0
+----- stdout -----
+Running: [ID-2] "on the other machine", since 09:30 (31 minutes ago).
+  31m net so far; on another device.
+Overlap: [ID-1] and [ID-2] both cover 09:30–10:00; change one with `pace adjust <id>`.
+
+----- stderr -----

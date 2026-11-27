@@ -1,6 +1,6 @@
 //! Correcting the log: adjust, log, edit, undo and forget.
 
-use crate::support::{Sandbox, run, short_id_after};
+use crate::support::{Sandbox, begin_apart, run, short_id_after};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -282,6 +282,28 @@ fn forget_without_entry_and_nothing_running_names_the_flags() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = sandbox.journey(&[("09:00", &["forget"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn forget_without_entry_lists_the_open_ones_without_terminal() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "on this machine"]))?;
+    begin_apart(&sandbox, "09:30", "on the other machine")?;
+
+    let output = sandbox.journey(&[("10:00", &["forget"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn adjust_without_entry_names_one_of_open_ones_as_forget_does() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    _ = run(sandbox.pace_at("09:00").args(["begin", "on this machine"]))?;
+    begin_apart(&sandbox, "09:30", "on the other machine")?;
+
+    let output = sandbox.journey(&[("10:00", &["adjust", "--note", "Call"])])?;
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

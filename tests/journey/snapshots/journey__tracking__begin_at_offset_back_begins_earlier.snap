@@ -1,0 +1,12 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace begin --at -15m   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] at 09:15.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
