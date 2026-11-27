@@ -453,6 +453,20 @@ fn second_hold_with_reason_updates_it() -> TestResult {
 }
 
 #[test]
+fn second_pause_without_reason_has_nothing_to_do() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("12:00", &Command::Pause(Pause::default()))?;
+
+    let error = failure(world.run("12:05", &Command::Pause(Pause::default())))?;
+
+    assert_eq!(error.to_string(), "the entry is paused since 12:00");
+    assert_eq!(error.hint(), Some("`pace resume` goes on with it"));
+    assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
 fn hold_before_the_entry_began_is_refused() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;
@@ -636,6 +650,35 @@ fn resume_while_running_has_nothing_to_do() -> TestResult {
         "the entry is running, not held or paused"
     );
     assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
+fn resume_before_hold_began_is_refused() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::Hold(Hold::default()))?;
+
+    let error = failure(world.run(
+        "10:20",
+        &Command::Resume(Resume {
+            at: Some(berlin("09:50")?),
+            ..Resume::default()
+        }),
+    ))?;
+
+    assert_eq!(error.to_string(), "the break began at 10:00, after 09:50");
+    assert_eq!(error.hint(), Some("give a time after 10:00"));
+    Ok(())
+}
+
+#[test]
+fn resume_names_entry_when_two_are_open() -> TestResult {
+    let mut world = two_open()?;
+
+    let error = failure(world.run("10:00", &Command::Resume(Resume::default())))?;
+
+    assert_eq!(error.hint(), Some("name one with `pace resume <id>`"));
     Ok(())
 }
 
@@ -852,6 +895,27 @@ fn end_names_the_entry_when_two_are_open() -> TestResult {
     )?;
 
     assert_eq!(laptop.state().open().count(), 1);
+    Ok(())
+}
+
+#[test]
+fn end_of_ended_entry_has_nothing_to_do() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::End(End::default()))?;
+    let entry = world.only_entry(EntryState::Ended)?;
+
+    let error = failure(world.run(
+        "11:00",
+        &Command::End(End {
+            entry: Some(entry),
+            ..End::default()
+        }),
+    ))?;
+
+    assert_eq!(error.to_string(), "the entry ended at 10:00");
+    assert_eq!(error.hint(), Some("`pace adjust --end` moves its end"));
+    assert_eq!(error.exit_code(), ExitCode::NothingToDo);
     Ok(())
 }
 
@@ -1147,6 +1211,65 @@ fn adjust_into_the_future_is_refused() -> TestResult {
         error.to_string(),
         "the entry would end at 11:30, in the future"
     );
+    Ok(())
+}
+
+/// A device with "Write offer" from 09:00 to 10:00 and "Call" from 10:00 to
+/// 11:00, and the ID of the call.
+fn offer_then_call() -> Result<(World, EntryId), Box<dyn std::error::Error>> {
+    let mut world = World::new()?;
+    _ = world.run("18:00", &log("Write offer", "09:00", "10:00")?)?;
+    _ = world.run("18:00", &log("Call", "10:00", "11:00")?)?;
+    let call = world
+        .state()
+        .entries()
+        .find(|entry| entry.note.as_deref() == Some("Call"))
+        .map(|entry| entry.id)
+        .ok_or("the call")?;
+    Ok((world, call))
+}
+
+fn log(note: &str, start: &str, end: &str) -> Result<Command, Box<dyn std::error::Error>> {
+    Ok(Command::Log(Log {
+        note: Some(note.parse()?),
+        ..Log::new(berlin(start)?, berlin(end)?)
+    }))
+}
+
+fn call_moved_to(entry: EntryId, start: &str, allow_overlap: bool) -> Result<Command, jiff::Error> {
+    Ok(Command::Adjust(Adjust {
+        entry: Some(entry),
+        start: Some(berlin(start)?),
+        allow_overlap,
+        ..Adjust::default()
+    }))
+}
+
+#[test]
+fn adjust_into_another_entry_is_an_overlap() -> TestResult {
+    let (mut world, call) = offer_then_call()?;
+
+    let error = failure(world.run("18:05", &call_moved_to(call, "09:30", false)?))?;
+
+    assert!(
+        error.to_string().starts_with("the entry would overlap "),
+        "{error}"
+    );
+    assert!(error.to_string().ends_with(" (09:00–10:00)"), "{error}");
+    assert_eq!(
+        error.hint(),
+        Some("move it, or allow it with `pace adjust --allow-overlap`")
+    );
+    Ok(())
+}
+
+#[test]
+fn adjust_into_another_entry_can_be_allowed() -> TestResult {
+    let (mut world, call) = offer_then_call()?;
+
+    let batch = world.run("18:05", &call_moved_to(call, "09:30", true)?)?;
+
+    assert_eq!(kinds(&batch), ["entry.adjusted"]);
     Ok(())
 }
 
