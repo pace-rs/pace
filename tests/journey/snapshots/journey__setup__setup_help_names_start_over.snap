@@ -1,0 +1,20 @@
+---
+source: tests/journey/setup.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+Walk through the settings, roles, clients and this directory's project
+
+Usage: pace setup [OPTIONS]
+
+Options:
+      --start-over     Start over without asking, even if an interrupted setup was saved
+      --config <FILE>  Read the global configuration from FILE [env: PACE_CONFIG]
+      --home <DIR>     Keep pace's data in DIR [env: PACE_HOME]
+      --project <KEY>  The project to work on, instead of discovering it [env: PACE_PROJECT]
+      --plain          Plain output: no colour, no symbols
+  -h, --help           Print help
+
+----- stderr -----

@@ -94,8 +94,14 @@ pub(crate) fn relative_name(events: &Path, path: &Path) -> String {
         .join("/")
 }
 
-/// Write `text` to `path` through a temporary file next to it.
-pub(crate) fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
+/// Write `text` to `path` through a temporary file next to it, which is
+/// renamed over `path`: a reader sees the old text or the new, never a
+/// part. Creates the directory of `path` if it is missing.
+///
+/// # Errors
+///
+/// If the directory, the temporary file or the rename fails.
+pub fn write_atomically(path: &Path, text: &str) -> PaceResult<()> {
     let (temporary, path) = prepare_temporary_file(path, text)?;
     _ = temporary
         .persist(&path)

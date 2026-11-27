@@ -26,6 +26,20 @@ pub enum SetupStep {
     Ended,
 }
 
+impl SetupStep {
+    /// The step as the offer to continue names it: "the roles".
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Settings => "the settings",
+            Self::Roles => "the roles",
+            Self::Clients => "the clients",
+            Self::Directory => "this directory",
+            Self::Summary | Self::Ended => "the summary",
+        }
+    }
+}
+
 /// An answer that setup took, with the question it answered.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

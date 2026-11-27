@@ -23,3 +23,12 @@ fn first_use_note_names_pace_setup() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn setup_help_names_start_over() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = run(sandbox.pace().args(["setup", "--help"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

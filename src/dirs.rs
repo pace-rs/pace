@@ -33,7 +33,8 @@ pub struct Dirs {
     pub config_file: Located,
     /// The data directory, `PACE_HOME`.
     pub data: Located,
-    /// The machine directory, never synced.
+    /// The machine directory, never synced: it holds this device's ID and,
+    /// while a `pace setup` is interrupted, its `setup.toml`.
     pub machine: Located,
 }
 

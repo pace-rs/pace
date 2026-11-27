@@ -69,6 +69,7 @@ pub mod testing;
 pub mod toml_file;
 mod tracker;
 
+pub use disk::write_atomically;
 pub use files::{FilesStore, Resplit};
 pub use machine::{DeviceIdentity, device_id, existing_device_id};
 pub use port::EventStore;

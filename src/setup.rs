@@ -21,6 +21,7 @@
 pub mod rate;
 pub mod record;
 mod saved;
+pub mod setup_file;
 mod step_questions;
 pub mod summary;
 
