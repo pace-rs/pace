@@ -23,7 +23,7 @@ use toml::{
     de::{DeString, DeValue},
 };
 
-use pace_store::toml_file::{TomlFile, closest, in_file_order};
+use pace_store::toml_file::{TomlFile, closest, in_file_order, read_hint};
 
 use crate::{dirs::Located, origin::Origin};
 
@@ -458,13 +458,16 @@ fn read_config_file(config_file: &Located) -> PaceResult<Option<String>> {
             .attach_error_code("pace::config::missing-file")),
             _ => Ok(None),
         },
-        Err(error) => Err(PaceError::with_source(
-            ErrorKind::Configuration,
-            "cannot read the config file {path}",
-            error,
-        )
-        .attach_context("path", config_file.path.display().to_string())
-        .attach_hint("check that pace may read the file")),
+        Err(error) => {
+            let hint = read_hint(&error);
+            Err(PaceError::with_source(
+                ErrorKind::Configuration,
+                "cannot read the config file {path}",
+                error,
+            )
+            .attach_context("path", config_file.path.display().to_string())
+            .attach_hint(hint))
+        }
     }
 }
 

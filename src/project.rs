@@ -14,7 +14,7 @@ use std::{
 use pace_core::{ProjectId, ProjectKey, ProjectRef};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 
-use pace_store::toml_file::{TomlFile, in_file_order};
+use pace_store::toml_file::{TomlFile, in_file_order, read_hint};
 use toml::{Spanned, de::DeValue};
 
 use crate::config::ProjectPath;
@@ -179,9 +179,10 @@ fn nearest_manifest(cwd: &Path) -> PaceResult<Option<PathBuf>> {
 
 fn read_manifest(path: &Path) -> PaceResult<(Option<ProjectId>, ProjectKey, Option<String>)> {
     let text = std::fs::read_to_string(path).map_err(|error| {
+        let hint = read_hint(&error);
         PaceError::with_source(ErrorKind::Project, "cannot read the manifest {path}", error)
             .attach_context("path", path.display().to_string())
-            .attach_hint("check that pace may read the file")
+            .attach_hint(hint)
     })?;
     let file = TomlFile {
         path,

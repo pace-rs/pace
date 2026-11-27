@@ -286,6 +286,17 @@ fn with_article(noun: &str) -> String {
     format!("{article} {noun}")
 }
 
+/// How to go on when pace cannot read a TOML file: a file that is no UTF-8
+/// needs another encoding, any other failure points at the permissions.
+#[must_use]
+pub fn read_hint(error: &std::io::Error) -> &'static str {
+    if error.kind() == std::io::ErrorKind::InvalidData {
+        "save the file as UTF-8"
+    } else {
+        "check that pace may read the file"
+    }
+}
+
 /// The known name closest to `input`, if any is close enough (Jaro-Winkler
 /// similarity above 0.8).
 pub fn closest<'a>(input: &str, names: impl Iterator<Item = &'a str>) -> Option<&'a str> {
@@ -312,6 +323,15 @@ mod tests {
             kind: ErrorKind::Project,
             version: 1,
         }
+    }
+
+    #[test]
+    fn text_that_is_no_utf8_asks_for_utf8_and_other_read_errors_for_permission() {
+        let encoding = std::io::Error::new(std::io::ErrorKind::InvalidData, "not UTF-8");
+        let permission = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+
+        assert_eq!(read_hint(&encoding), "save the file as UTF-8");
+        assert_eq!(read_hint(&permission), "check that pace may read the file");
     }
 
     #[test]

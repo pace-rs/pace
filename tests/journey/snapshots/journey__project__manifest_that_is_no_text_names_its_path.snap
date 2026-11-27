@@ -9,4 +9,4 @@ exit_code: 1
 ----- stderr -----
   × cannot read the manifest [SANDBOX]/work/.pace.toml
   ╰─▶ stream did not contain valid UTF-8
-  help: check that pace may read the file
+  help: save the file as UTF-8
