@@ -157,21 +157,21 @@ fn details(entry: &Entry, session: &Session, now: &ZonedDateTime) -> Vec<String>
 }
 
 #[derive(Serialize)]
-struct NowJson<'a> {
+struct NowJson<'state> {
     version: u32,
     now: String,
-    open: Vec<OpenJson<'a>>,
+    open: Vec<OpenJson<'state>>,
     project: Option<ProjectJson>,
 }
 
 #[derive(Serialize)]
-struct OpenJson<'a> {
+struct OpenJson<'state> {
     id: String,
     short: String,
     state: &'static str,
-    note: Option<&'a str>,
-    project: Option<&'a ProjectRef>,
-    tags: Vec<&'a str>,
+    note: Option<&'state str>,
+    project: Option<&'state ProjectRef>,
+    tags: Vec<&'state str>,
     start: String,
     since: String,
     net_seconds: i64,

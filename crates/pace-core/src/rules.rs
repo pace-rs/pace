@@ -52,17 +52,17 @@ impl Default for Policy {
 
 /// Decides commands against a state.
 #[derive(Debug)]
-pub struct Rules<'a> {
+pub struct Rules<'context> {
     /// The current state.
-    pub state: &'a State,
+    pub state: &'context State,
     /// Now, from the clock.
-    pub now: &'a ZonedDateTime,
+    pub now: &'context ZonedDateTime,
     /// The device the command runs on.
     pub device: DeviceId,
     /// Where new IDs come from.
-    pub ids: &'a dyn Ids,
+    pub ids: &'context dyn Ids,
     /// The settings the rules depend on.
-    pub policy: &'a Policy,
+    pub policy: &'context Policy,
 }
 
 impl Rules<'_> {

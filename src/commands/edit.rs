@@ -155,18 +155,18 @@ fn next_step(error: &PaceError, asker: &dyn Ask) -> PaceResult<Next> {
 /// The entry's fields as the user edits them.
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
-struct Written<'a> {
+struct Written<'entry> {
     start: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     end: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    note: Option<&'a str>,
+    note: Option<&'entry str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    project: Option<&'a ProjectId>,
+    project: Option<&'entry ProjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    project_key: Option<&'a ProjectKey>,
+    project_key: Option<&'entry ProjectKey>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    tags: Vec<&'a str>,
+    tags: Vec<&'entry str>,
 }
 
 /// The fields as the user saved them, with spans for errors.

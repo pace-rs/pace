@@ -62,12 +62,12 @@ struct BatchRecord {
 
 /// Two entries whose time overlaps, and the time they share.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Overlap<'s> {
+pub struct Overlap<'state> {
     /// The entry that starts first; of two with one start, the one with
     /// the lower ID.
-    pub first: &'s Entry,
+    pub first: &'state Entry,
     /// The other entry.
-    pub second: &'s Entry,
+    pub second: &'state Entry,
     /// When the shared time begins.
     pub start: ZonedDateTime,
     /// When the shared time ends.
@@ -169,7 +169,11 @@ impl State {
     /// Take back the batch `undone`: its events count as never written, so
     /// the entries they concern are built again from the `events` that
     /// still count, up to the last one applied.
-    fn undo<'e>(&mut self, undone: BatchId, events: impl Iterator<Item = &'e RecordedEvent>) {
+    fn undo<'events>(
+        &mut self,
+        undone: BatchId,
+        events: impl Iterator<Item = &'events RecordedEvent>,
+    ) {
         let Some(record) = self
             .batch_positions
             .get(&undone)
@@ -266,13 +270,13 @@ impl State {
 
     /// The entries other than `except` whose time overlaps `[start, end)`;
     /// an open entry lasts until `now`.
-    pub fn overlapping<'s>(
-        &'s self,
+    pub fn overlapping<'state>(
+        &'state self,
         start: &ZonedDateTime,
         end: &ZonedDateTime,
         except: &[EntryId],
         now: &ZonedDateTime,
-    ) -> impl Iterator<Item = &'s Entry> {
+    ) -> impl Iterator<Item = &'state Entry> {
         let (start, end, now) = (start.clone(), end.clone(), now.clone());
         let except = except.to_vec();
         self.entries().filter(move |entry| {

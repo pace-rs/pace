@@ -112,7 +112,7 @@ pub fn edit_in_editor(editor: &str, text: &str, suffix: &str) -> PaceResult<Stri
 mod tests {
     use super::*;
 
-    fn env<'a>(vars: &'a [(&str, &str)]) -> impl Fn(&str) -> Option<OsString> + 'a {
+    fn env<'vars>(vars: &'vars [(&str, &str)]) -> impl Fn(&str) -> Option<OsString> + 'vars {
         move |name| {
             vars.iter()
                 .find(|(key, _)| *key == name)

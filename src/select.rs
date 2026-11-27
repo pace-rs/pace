@@ -25,19 +25,19 @@ pub struct Chosen {
 
 /// How the user names the entry a command acts on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Target<'t> {
+pub enum Target<'arg> {
     /// `[ENTRY]`: its ID or short ID.
-    Id(&'t str),
+    Id(&'arg str),
     /// `--last`: the entry that ended last.
     Last,
     /// Neither: the open entry.
     Open,
 }
 
-impl<'t> Target<'t> {
+impl<'arg> Target<'arg> {
     /// The target of `[ENTRY]` and `--last`, which clap keeps apart.
     #[must_use]
-    pub const fn new(entry: Option<&'t str>, last: bool) -> Self {
+    pub const fn new(entry: Option<&'arg str>, last: bool) -> Self {
         match (entry, last) {
             (Some(text), _) => Self::Id(text),
             (None, true) => Self::Last,
@@ -47,7 +47,7 @@ impl<'t> Target<'t> {
 
     /// The target of `[ENTRY]` for a command without `--last`.
     #[must_use]
-    pub const fn id_or_open(entry: Option<&'t str>) -> Self {
+    pub const fn id_or_open(entry: Option<&'arg str>) -> Self {
         Self::new(entry, false)
     }
 }
@@ -100,12 +100,12 @@ pub fn chosen_entry(
 }
 
 /// The open entry; of several, the one the user picks on a terminal.
-fn open_entry<'s>(
-    state: &'s State,
+fn open_entry<'state>(
+    state: &'state State,
     verb: EntryVerb,
     now: &ZonedDateTime,
     asker: &dyn Ask,
-) -> PaceResult<&'s Entry> {
+) -> PaceResult<&'state Entry> {
     if asker.can_ask()
         && let Some(entry) = picked_open(state, now, asker)?
     {
@@ -115,11 +115,11 @@ fn open_entry<'s>(
 }
 
 /// The open entry the user picks, if several are open.
-fn picked_open<'s>(
-    state: &'s State,
+fn picked_open<'state>(
+    state: &'state State,
     now: &ZonedDateTime,
     asker: &dyn Ask,
-) -> PaceResult<Option<&'s Entry>> {
+) -> PaceResult<Option<&'state Entry>> {
     let open: Vec<&Entry> = state.open().collect();
     if open.len() < 2 {
         return Ok(None);
@@ -157,7 +157,11 @@ fn named(session: &Session, asker: &dyn Ask, text: &str) -> PaceResult<Chosen> {
 
 /// The entries of `state` with the ID `full`, or whose ID ends with
 /// `suffix`.
-fn fitting<'s>(state: &'s State, full: Option<EntryId>, suffix: &str) -> Vec<&'s Entry> {
+fn fitting<'state>(
+    state: &'state State,
+    full: Option<EntryId>,
+    suffix: &str,
+) -> Vec<&'state Entry> {
     state
         .entries()
         .filter(|entry| {
@@ -224,13 +228,13 @@ fn last_ended(session: &Session) -> PaceResult<Chosen> {
 }
 
 /// Let the user pick one of `entries` by its label.
-fn pick<'s>(
-    state: &'s State,
-    entries: &[&'s Entry],
+fn pick<'state>(
+    state: &'state State,
+    entries: &[&'state Entry],
     question: &str,
     now: &ZonedDateTime,
     asker: &dyn Ask,
-) -> PaceResult<&'s Entry> {
+) -> PaceResult<&'state Entry> {
     let labels: Vec<String> = entries
         .iter()
         .map(|entry| state.entry_label(entry, now))

@@ -56,39 +56,39 @@ pub struct Outcome {
 
 /// The command and what its rules need, through all its attempts.
 #[derive(Debug)]
-struct CommandRun<'a> {
-    command: &'a Command,
+struct CommandRun<'run> {
+    command: &'run Command,
     device: DeviceId,
-    ids: &'a dyn Ids,
-    policy: &'a Policy,
+    ids: &'run dyn Ids,
+    policy: &'run Policy,
     /// The attempt under way, from 1 to [`ATTEMPTS`].
     attempt: usize,
 }
 
 /// A command that waits for the events of its [`scope`](Self::scope).
 #[derive(Debug)]
-pub struct Reading<'a> {
-    run: CommandRun<'a>,
+pub struct Reading<'run> {
+    run: CommandRun<'run>,
     now: ZonedDateTime,
     scope: ReadScope,
 }
 
 /// A decided read: the batch to append, and what the append means.
 #[derive(Debug)]
-pub struct Decided<'a> {
+pub struct Decided<'run> {
     /// The events of the command.
     pub batch: Batch,
     /// The marker of the read the batch was decided on, for the store's
     /// append.
     pub read: ChangeMarker,
     /// The step that takes what the append did.
-    pub appending: Appending<'a>,
+    pub appending: Appending<'run>,
 }
 
 /// A batch on its way into the store.
 #[derive(Debug)]
-pub struct Appending<'a> {
-    run: CommandRun<'a>,
+pub struct Appending<'run> {
+    run: CommandRun<'run>,
     now: ZonedDateTime,
     events: Vec<RecordedEvent>,
     before: State,
@@ -96,25 +96,25 @@ pub struct Appending<'a> {
 
 /// What comes after a read.
 #[derive(Debug)]
-pub enum AfterRead<'a> {
+pub enum AfterRead<'run> {
     /// The rules decided on the read; boxed, since it holds the state.
-    Decided(Box<Decided<'a>>),
+    Decided(Box<Decided<'run>>),
     /// The read was too narrow for the rules: read everything, and decide
     /// on that.
-    ReadEverything(Box<Reading<'a>>),
+    ReadEverything(Box<Reading<'run>>),
 }
 
 /// What comes after an append.
 #[derive(Debug)]
-pub enum AfterAppend<'a> {
+pub enum AfterAppend<'run> {
     /// The batch is in the store; boxed, since an outcome holds two states.
     Done(Box<Outcome>),
     /// Another command wrote since the read: read and decide again; boxed,
     /// since a reading holds its scope.
-    ReadAgain(Box<Reading<'a>>),
+    ReadAgain(Box<Reading<'run>>),
 }
 
-impl<'a> Reading<'a> {
+impl<'run> Reading<'run> {
     /// The first read of `command` at `now`, on `device`, with new IDs from
     /// `ids` and the settings in `policy`.
     ///
@@ -123,11 +123,11 @@ impl<'a> Reading<'a> {
     /// If the command's time makes no range, which [`TimeRange::new`]
     /// refuses.
     pub fn start(
-        command: &'a Command,
+        command: &'run Command,
         now: ZonedDateTime,
         device: DeviceId,
-        ids: &'a dyn Ids,
-        policy: &'a Policy,
+        ids: &'run dyn Ids,
+        policy: &'run Policy,
     ) -> PaceResult<Self> {
         Self::at(
             CommandRun {
@@ -141,7 +141,7 @@ impl<'a> Reading<'a> {
         )
     }
 
-    fn at(run: CommandRun<'a>, now: ZonedDateTime) -> PaceResult<Self> {
+    fn at(run: CommandRun<'run>, now: ZonedDateTime) -> PaceResult<Self> {
         let scope = scope(run.command, &now)?;
         Ok(Self { run, now, scope })
     }
@@ -164,7 +164,7 @@ impl<'a> Reading<'a> {
         self,
         marker: ChangeMarker,
         events: Vec<RecordedEvent>,
-    ) -> PaceResult<AfterRead<'a>> {
+    ) -> PaceResult<AfterRead<'run>> {
         let before = State::from_events(&events);
         if !self.scope.is_everything()
             && !suffices(self.run.command, &before, &self.scope, self.run.device)
@@ -195,14 +195,14 @@ impl<'a> Reading<'a> {
     }
 }
 
-impl<'a> Appending<'a> {
+impl<'run> Appending<'run> {
     /// What the store's `appended` means, with `now` for the next read.
     ///
     /// # Errors
     ///
     /// If the append was stale for the fifth time: other commands wrote
     /// between each read and append.
-    pub fn appended(self, appended: Appended, now: ZonedDateTime) -> PaceResult<AfterAppend<'a>> {
+    pub fn appended(self, appended: Appended, now: ZonedDateTime) -> PaceResult<AfterAppend<'run>> {
         match appended {
             Appended::Recorded {
                 events: recorded,
@@ -355,7 +355,7 @@ fn suffices(command: &Command, state: &State, scope: &ReadScope, device: DeviceI
 }
 
 /// The entry `adjust` names, or the only open one.
-fn adjusted_entry<'s>(state: &'s State, adjust: &Adjust) -> Option<&'s Entry> {
+fn adjusted_entry<'state>(state: &'state State, adjust: &Adjust) -> Option<&'state Entry> {
     adjust.entry.map_or_else(
         || {
             let mut open = state.open();

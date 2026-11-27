@@ -266,7 +266,7 @@ fn project_name(file: &TomlFile<'_>, value: TomlValue<'_>) -> PaceResult<String>
 }
 
 /// The mapping with the longest directory that contains `cwd`.
-fn mapped<'p>(cwd: &Path, project_paths: &'p [ProjectPath]) -> Option<&'p ProjectPath> {
+fn mapped<'paths>(cwd: &Path, project_paths: &'paths [ProjectPath]) -> Option<&'paths ProjectPath> {
     let canonical =
         |path: &Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
     let cwd = canonical(cwd);

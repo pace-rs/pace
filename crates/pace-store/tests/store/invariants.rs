@@ -144,7 +144,11 @@ fn command(step: &Step, now: &ZonedDateTime, state: &State) -> Result<Command, T
 }
 
 /// A break of the entry: when it began and, once closed, when it ended.
-type Break<'a> = (&'a str, &'a ZonedDateTime, Option<&'a ZonedDateTime>);
+type Break<'entry> = (
+    &'entry str,
+    &'entry ZonedDateTime,
+    Option<&'entry ZonedDateTime>,
+);
 
 fn breaks(entry: &Entry) -> Vec<Break<'_>> {
     let mut breaks: Vec<Break<'_>> = entry

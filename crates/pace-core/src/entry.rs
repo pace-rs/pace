@@ -130,7 +130,10 @@ impl Entry {
     }
 
     /// The end, or `now` for an open entry.
-    pub(crate) fn until<'a>(&'a self, now: &'a ZonedDateTime) -> &'a ZonedDateTime {
+    pub(crate) fn until<'moment>(
+        &'moment self,
+        now: &'moment ZonedDateTime,
+    ) -> &'moment ZonedDateTime {
         self.end.as_ref().unwrap_or(now)
     }
 

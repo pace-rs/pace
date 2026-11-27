@@ -16,11 +16,11 @@ use toml::{
 
 /// A TOML file and how to talk about it in errors.
 #[derive(Debug)]
-pub struct TomlFile<'a> {
+pub struct TomlFile<'file> {
     /// The file, for messages and snippets.
-    pub path: &'a Path,
+    pub path: &'file Path,
     /// Its content.
-    pub text: &'a str,
+    pub text: &'file str,
     /// For messages: `the global config file`, `the project manifest`.
     pub what: &'static str,
     /// What its keys are called: `setting`, `key`.
@@ -132,14 +132,14 @@ impl<'file> TomlValue<'file> {
     }
 }
 
-impl<'a> TomlFile<'a> {
+impl<'file> TomlFile<'file> {
     /// The file as a table with spans.
     ///
     /// # Errors
     ///
     /// If it is no valid TOML; the snippet points at the spot, and the TOML
     /// error is the cause.
-    pub fn parse(&self) -> PaceResult<TomlDocument<'a>> {
+    pub fn parse(&self) -> PaceResult<TomlDocument<'file>> {
         DeTable::parse(self.text)
             .map(TomlDocument)
             .map_err(|error| {
@@ -370,7 +370,10 @@ pub fn read_hint(error: &std::io::Error) -> &'static str {
 
 /// The known name closest to `input`, if any is close enough (Jaro-Winkler
 /// similarity above 0.8).
-pub fn closest_name<'a>(input: &str, names: impl Iterator<Item = &'a str>) -> Option<&'a str> {
+pub fn closest_name<'file>(
+    input: &str,
+    names: impl Iterator<Item = &'file str>,
+) -> Option<&'file str> {
     names
         .map(|name| (strsim::jaro_winkler(input, name), name))
         .filter(|(score, _)| *score > 0.8)

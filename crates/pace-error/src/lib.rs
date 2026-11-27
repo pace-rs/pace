@@ -382,17 +382,17 @@ impl Error for PaceError {
 }
 
 impl Diagnostic for PaceError {
-    fn code<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+    fn code<'error>(&'error self) -> Option<Box<dyn Display + 'error>> {
         self.error_code
             .as_ref()
-            .map(|code| -> Box<dyn Display + 'a> { Box::new(code) })
+            .map(|code| -> Box<dyn Display + 'error> { Box::new(code) })
     }
 
     fn severity(&self) -> Option<miette::Severity> {
         self.severity.map(Into::into)
     }
 
-    fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+    fn help<'error>(&'error self) -> Option<Box<dyn Display + 'error>> {
         let mut sections = Vec::new();
 
         if let Some(hint) = &self.hint {
@@ -415,7 +415,8 @@ impl Diagnostic for PaceError {
             ));
         }
 
-        (!sections.is_empty()).then(|| -> Box<dyn Display + 'a> { Box::new(sections.join("\n\n")) })
+        (!sections.is_empty())
+            .then(|| -> Box<dyn Display + 'error> { Box::new(sections.join("\n\n")) })
     }
 
     fn source_code(&self) -> Option<&dyn SourceCode> {

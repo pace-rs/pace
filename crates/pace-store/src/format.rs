@@ -103,8 +103,8 @@ struct File {
 }
 
 #[derive(Debug, Serialize)]
-struct Chunk<'a> {
-    event: &'a [Record],
+struct Chunk<'file> {
+    event: &'file [Record],
 }
 
 /// The header of a new event file.
@@ -162,7 +162,7 @@ pub(crate) fn parse_events(
         .collect()
 }
 
-fn event_file<'a>(path: &'a Path, text: &'a str) -> TomlFile<'a> {
+fn event_file<'file>(path: &'file Path, text: &'file str) -> TomlFile<'file> {
     TomlFile {
         path,
         text,

@@ -210,10 +210,10 @@ pub(crate) fn select_event_files(
 /// no file comes along: a file that came along can bring an entry whose
 /// other events lie in a file that meets none of the first ones, when
 /// devices split their logs differently.
-fn with_same_entries<'a>(
-    files: &'a BTreeMap<String, FileSummary>,
-    mut chosen: BTreeSet<&'a str>,
-) -> BTreeSet<&'a str> {
+fn with_same_entries<'files>(
+    files: &'files BTreeMap<String, FileSummary>,
+    mut chosen: BTreeSet<&'files str>,
+) -> BTreeSet<&'files str> {
     let abouts = |name: &str| files.get(name).and_then(|summary| summary.abouts);
     let mut frontier: Vec<(i64, i64)> = chosen.iter().filter_map(|name| abouts(name)).collect();
     while !frontier.is_empty() {
