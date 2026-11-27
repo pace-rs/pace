@@ -35,6 +35,18 @@ fn tick_in_the_same_millisecond_counts_up() -> TestResult {
 }
 
 #[test]
+fn tick_with_full_counter_moves_to_next_millisecond() -> TestResult {
+    let now: Timestamp = "2026-11-26T08:02:11.204Z".parse()?;
+    let full = Hlc::new(now, u32::MAX);
+
+    assert_eq!(
+        Hlc::tick(Some(full), now),
+        Hlc::new("2026-11-26T08:02:11.205Z".parse()?, 0)
+    );
+    Ok(())
+}
+
+#[test]
 fn property_tests_draw_same_cases_on_every_run() -> TestResult {
     let draw = || -> Result<Vec<u64>, String> {
         let mut runner = TestRunner::new(fixed_seed());
