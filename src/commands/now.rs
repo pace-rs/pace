@@ -11,6 +11,7 @@ use crate::output::project_name;
 use crate::print::print_lines;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
+    project::{Project, Reason},
     session::Session,
 };
 
@@ -23,29 +24,42 @@ pub struct NowCmd {
 
 impl Runnable for NowCmd {
     fn run(&self) {
-        exit_on_error(show(self.json));
+        let format = if self.json {
+            NowFormat::Json
+        } else {
+            NowFormat::Text
+        };
+        exit_on_error(show(format));
     }
 }
 
-/// Show what is open; as JSON with `json`.
+/// How `pace now` answers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NowFormat {
+    /// Sentences for people.
+    Text,
+    /// JSON for scripts and status bars: `--json`.
+    Json,
+}
+
+/// Show what is open, in `format`.
 ///
 /// # Errors
 ///
 /// If the store can't be read.
-pub fn show(json: bool) -> PaceResult<()> {
+pub fn show(format: NowFormat) -> PaceResult<()> {
     let context = PACE_APP.context()?;
     let session = Session::open_existing(context)?;
     let now = session.now();
     let today = TimeFrame::Today.resolve(&now, context.settings.settings.week_start)?;
     let state = session.state(&today)?;
-    if json {
-        print_lines([as_json(context, &session, &state, &now)?])
-    } else {
-        print_lines(as_text(context, &session, &state, &now))
+    match format {
+        NowFormat::Json => print_lines([render_json(context, &session, &state, &now)?]),
+        NowFormat::Text => print_lines(render_text(context, &session, &state, &now)),
     }
 }
 
-fn as_text(
+fn render_text(
     context: &Context,
     session: &Session,
     state: &State,
@@ -168,10 +182,42 @@ struct ProjectJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<String>,
     key: String,
+    kind: ReasonKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    path: Option<String>,
     reason: String,
 }
 
-fn as_json(
+/// Why the project was picked, for scripts: [`Reason`] without its
+/// sentence.
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum ReasonKind {
+    Flag,
+    Variable,
+    Manifest,
+    Mapping,
+}
+
+impl ProjectJson {
+    fn new(project: &Project) -> Self {
+        let (kind, path) = match &project.reason {
+            Reason::Flag => (ReasonKind::Flag, None),
+            Reason::Variable => (ReasonKind::Variable, None),
+            Reason::Manifest(path) => (ReasonKind::Manifest, Some(path)),
+            Reason::Mapping { file, .. } => (ReasonKind::Mapping, Some(file)),
+        };
+        Self {
+            id: project.id.map(|id| id.to_string()),
+            key: project.key.to_string(),
+            kind,
+            path: path.map(|path| path.display().to_string()),
+            reason: project.reason.to_string(),
+        }
+    }
+}
+
+fn render_json(
     context: &Context,
     session: &Session,
     state: &State,
@@ -208,11 +254,7 @@ fn as_json(
         version: 1,
         now: now.to_string(),
         open,
-        project: context.project.as_ref().map(|project| ProjectJson {
-            id: project.id.map(|id| id.to_string()),
-            key: project.key.to_string(),
-            reason: project.reason.to_string(),
-        }),
+        project: context.project.as_ref().map(ProjectJson::new),
     };
     serde_json::to_string_pretty(&json).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write JSON", error).ask_report()

@@ -17,7 +17,7 @@ use self::{
     config::ConfigCmd,
     corrections::{AdjustCmd, ForgetCmd, LogCmd, UndoCmd},
     edit::EditCmd,
-    now::NowCmd,
+    now::{NowCmd, NowFormat},
     store::StoreCmd,
     tracking::{BeginCmd, CatchCmd, EndCmd, HoldCmd, PauseCmd, ResumeCmd},
 };
@@ -124,7 +124,7 @@ impl Runnable for EntryPoint {
         match &self.cmd {
             Some(cmd) => cmd.run(),
             None => exit_on_error(
-                now::show(false)
+                now::show(NowFormat::Text)
                     .and_then(|()| print_lines(["Run `pace help` to see all commands."])),
             ),
         }

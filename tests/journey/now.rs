@@ -57,6 +57,31 @@ fn now_speaks_json_for_scripts() -> TestResult {
 }
 
 #[test]
+fn now_json_names_kind_and_file_of_path_mapping() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.mkdir("work/repo")?;
+    sandbox.write_config(&format!(
+        "[project-paths]\n'{}' = \"client-repo\"\n",
+        sandbox.path("work/repo").display()
+    ))?;
+
+    let output = sandbox.pace_in("repo").args(["now", "--json"]).output()?;
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+
+    let project = &json["project"];
+    assert_eq!(project["key"], "client-repo");
+    assert_eq!(project["kind"], "mapping");
+    assert_eq!(
+        project["path"],
+        sandbox
+            .path("config/pace.global.toml")
+            .display()
+            .to_string()
+    );
+    Ok(())
+}
+
+#[test]
 fn pace_without_arguments_shows_now_and_how_to_get_help() -> TestResult {
     let sandbox = Sandbox::new()?;
 

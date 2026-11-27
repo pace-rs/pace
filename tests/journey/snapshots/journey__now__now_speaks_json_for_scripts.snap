@@ -51,6 +51,8 @@ exit_code: 0
   ],
   "project": {
     "key": "acme-webshop",
+    "kind": "manifest",
+    "path": "[SANDBOX]/work/.pace.toml",
     "reason": "from [SANDBOX]/work/.pace.toml, the nearest manifest"
   }
 }
