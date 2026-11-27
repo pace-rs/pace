@@ -204,7 +204,7 @@ fn edit_turns_the_changes_into_an_adjustment() -> TestResult {
         .pace_at("10:05")
         .env(
             "VISUAL",
-            "sed -i -e 's/^note = .*/note = \"Write offer\"/' -e '/^tags/d'",
+            "sed -i.bak -e 's/^note = .*/note = \"Write offer\"/' -e '/^tags/d'",
         )
         .args(["edit", "--last"]))?;
     let untouched = run(sandbox
@@ -213,7 +213,7 @@ fn edit_turns_the_changes_into_an_adjustment() -> TestResult {
         .args(["edit", "--last"]))?;
     let broken = run(sandbox
         .pace_at("10:07")
-        .env("VISUAL", "sed -i -e 's/^note/notes/'")
+        .env("VISUAL", "sed -i.bak -e 's/^note/notes/'")
         .args(["edit", "--last"]))?;
 
     let transcript = sandbox.redact_ids(&format!("{edited}\n{untouched}\n{broken}"))?;
@@ -231,7 +231,10 @@ fn edit_without_entry_takes_the_open_one() -> TestResult {
 
     let edited = run(sandbox
         .pace_at("09:30")
-        .env("VISUAL", "sed -i -e 's/^note = .*/note = \"Write offer\"/'")
+        .env(
+            "VISUAL",
+            "sed -i.bak -e 's/^note = .*/note = \"Write offer\"/'",
+        )
         .arg("edit"))?;
     let now = run(sandbox.pace_at("09:31").arg("now"))?;
 
@@ -402,7 +405,7 @@ fn edit_into_another_entry_needs_allow_overlap() -> TestResult {
     let sandbox = Sandbox::new()?;
     _ = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
     _ = run(sandbox.pace_at("10:00").args(["begin", "Call ACME"]))?;
-    let earlier = "sed -i -e 's/^start = .*/start = \"2026-11-26 09:30\"/'";
+    let earlier = "sed -i.bak -e 's/^start = .*/start = \"2026-11-26 09:30\"/'";
 
     let refused = run(sandbox.pace_at("10:30").env("VISUAL", earlier).arg("edit"))?;
     let allowed = run(sandbox
@@ -557,7 +560,7 @@ fn adjust_into_project_of_entry_own_role_and_billable_clears_them() -> TestResul
 }
 
 /// An editor that keeps a copy of the file pace wrote as `<name>.toml` in
-/// the sandbox, then runs `sed -i` with `expressions` on it; without
+/// the sandbox, then runs `sed -i.bak` with `expressions` on it; without
 /// expressions it saves the file as it was.
 #[cfg(unix)]
 fn copying_editor(
@@ -574,7 +577,7 @@ fn copying_editor(
     let change = if expressions.is_empty() {
         String::new()
     } else {
-        format!("sed -i {} \"$1\"\n", expressions.join(" "))
+        format!("sed -i.bak {} \"$1\"\n", expressions.join(" "))
     };
     std::fs::write(&script, format!("cp \"$1\" '{}'\n{change}", copy.display()))?;
     Ok(format!("sh '{}'", script.display()))
@@ -642,7 +645,7 @@ fn edit_without_role_line_clears_role() -> TestResult {
 
     let cleared = run(sandbox
         .pace_at("09:30")
-        .env("VISUAL", "sed -i -e '/^role = /d'")
+        .env("VISUAL", "sed -i.bak -e '/^role = /d'")
         .arg("edit"))?;
 
     let transcript = sandbox.redact_ids(&format!(
@@ -666,7 +669,7 @@ fn edit_with_unknown_role_key_names_its_line_and_closest_key() -> TestResult {
 
     let refused = run(sandbox
         .pace_at("09:30")
-        .env("VISUAL", r#"sed -i -e 's/^# role = .*/role = "wrok"/'"#)
+        .env("VISUAL", r#"sed -i.bak -e 's/^# role = .*/role = "wrok"/'"#)
         .arg("edit"))?;
 
     let transcript = sandbox.redact_ids(&format!(
@@ -700,12 +703,12 @@ fn edit_to_project_role_and_billable_leaves_entry_unchanged() -> TestResult {
         .pace_at("09:30")
         .env(
             "VISUAL",
-            "sed -i -e 's/^# billable = true/billable = true/'",
+            "sed -i.bak -e 's/^# billable = true/billable = true/'",
         )
         .arg("edit"))?;
     let role = run(sandbox
         .pace_at("09:31")
-        .env("VISUAL", r#"sed -i -e 's/^# role = .*/role = "work"/'"#)
+        .env("VISUAL", r#"sed -i.bak -e 's/^# role = .*/role = "work"/'"#)
         .arg("edit"))?;
 
     let transcript = sandbox.redact_ids(&format!(
@@ -746,7 +749,10 @@ fn edit_keeps_own_role_and_billable_equal_to_later_project() -> TestResult {
     let unchanged = run(sandbox.pace_at("09:30").env("VISUAL", "true").arg("edit"))?;
     let note = run(sandbox
         .pace_at("09:31")
-        .env("VISUAL", r#"sed -i -e 's/^note = .*/note = "Send offer"/'"#)
+        .env(
+            "VISUAL",
+            r#"sed -i.bak -e 's/^note = .*/note = "Send offer"/'"#,
+        )
         .arg("edit"))?;
 
     let transcript = sandbox.redact_ids(&format!(

@@ -365,12 +365,15 @@ fn client_edit_writes_edited_table_in_its_place() -> TestResult {
         .pace_at("09:00")
         .env(
             "VISUAL",
-            "sed -i -e 's/^name = \"ACME GmbH\"/name = \"ACME AG\"/' -e 's/^hourly = 105$/hourly = 110/'",
+            "sed -i.bak -e 's/^name = \"ACME GmbH\"/name = \"ACME AG\"/' -e 's/^hourly = 105$/hourly = 110/'",
         )
         .args(["client", "edit", "acme"]))?;
     let broken = run(sandbox
         .pace_at("09:01")
-        .env("VISUAL", "sed -i -e 's/^hourly = 95.50$/hourly = 95.555/'")
+        .env(
+            "VISUAL",
+            "sed -i.bak -e 's/^hourly = 95.50$/hourly = 95.555/'",
+        )
         .args(["client", "edit", "acme"]))?;
     let unknown = run(sandbox
         .pace_at("09:02")
@@ -414,7 +417,7 @@ fn broken_clients_file_reaches_client_edit_that_writes_fixed_table() -> TestResu
         .pace_at("09:01")
         .env(
             "VISUAL",
-            "sed -i -e 's/^currency = \"EURO\"/currency = \"EUR\"/'",
+            "sed -i.bak -e 's/^currency = \"EURO\"/currency = \"EUR\"/'",
         )
         .args(["client", "edit", "acme"]))?;
     let clients = std::fs::read_to_string(sandbox.path("home/clients.toml"))?;
@@ -627,20 +630,23 @@ fn project_edit_refuses_changed_key_and_id_and_writes_other_changes() -> TestRes
 
     let key = run(sandbox
         .pace_at("09:01")
-        .env("VISUAL", "sed -i -e 's/^key = \"webshop\"/key = \"shop\"/'")
+        .env(
+            "VISUAL",
+            "sed -i.bak -e 's/^key = \"webshop\"/key = \"shop\"/'",
+        )
         .args(["project", "edit", "webshop"]))?;
     let id = run(sandbox
         .pace_at("09:02")
         .env(
             "VISUAL",
-            "sed -i -e 's/^id = \".*\"/id = \"0193a7c4-0000-7000-8000-0000000000ff\"/'",
+            "sed -i.bak -e 's/^id = \".*\"/id = \"0193a7c4-0000-7000-8000-0000000000ff\"/'",
         )
         .args(["project", "edit", "webshop"]))?;
     let name = run(sandbox
         .pace_at("09:03")
         .env(
             "VISUAL",
-            "sed -i -e 's/^name = \"webshop\"/name = \"Web shop\"/'",
+            "sed -i.bak -e 's/^name = \"webshop\"/name = \"Web shop\"/'",
         )
         .args(["project", "edit", "webshop"]))?;
     let unknown = run(sandbox
@@ -701,14 +707,14 @@ fn broken_project_record_reaches_project_edit_that_keeps_its_id() -> TestResult 
         .pace_at("09:01")
         .env(
             "VISUAL",
-            "sed -i -e 's/^id = \".*\"/id = \"0193a7c4-0000-7000-8000-0000000000ff\"/'",
+            "sed -i.bak -e 's/^id = \".*\"/id = \"0193a7c4-0000-7000-8000-0000000000ff\"/'",
         )
         .args(["project", "edit", "webshop"]))?;
     let fixed = run(sandbox
         .pace_at("09:02")
         .env(
             "VISUAL",
-            "sed -i -e 's/^billable = \"yes\"/billable = true/'",
+            "sed -i.bak -e 's/^billable = \"yes\"/billable = true/'",
         )
         .args(["project", "edit", "webshop"]))?;
     let record = std::fs::read_to_string(sandbox.path("home/projects/webshop.toml"))?;
@@ -719,12 +725,15 @@ fn broken_project_record_reaches_project_edit_that_keeps_its_id() -> TestResult 
 }
 
 /// The editor that sets `billable = true` in a record.
-const FIX_BILLABLE: &str = "sed -i -e 's/^billable = \"yes\"/billable = true/'";
+#[cfg(unix)]
+const FIX_BILLABLE: &str = "sed -i.bak -e 's/^billable = \"yes\"/billable = true/'";
 
 /// The editor that sets `currency = "EUR"` in a client's table.
-const FIX_CURRENCY: &str = "sed -i -e 's/^currency = \"EURO\"/currency = \"EUR\"/'";
+#[cfg(unix)]
+const FIX_CURRENCY: &str = "sed -i.bak -e 's/^currency = \"EURO\"/currency = \"EUR\"/'";
 
 /// A sandbox whose clients file and record of `webshop` have a mistake.
+#[cfg(unix)]
 fn sandbox_with_broken_clients_file_and_record() -> Result<Sandbox, Box<dyn std::error::Error>> {
     let sandbox = Sandbox::new()?;
     sandbox.write(
@@ -737,6 +746,7 @@ fn sandbox_with_broken_clients_file_and_record() -> Result<Sandbox, Box<dyn std:
 
 /// The transcripts of `client edit acme`, `project edit webshop` in the
 /// given order, each fixing its file, and of `project list` after them.
+#[cfg(unix)]
 fn mend_clients_file_and_record(
     sandbox: &Sandbox,
     client_first: bool,
@@ -813,7 +823,8 @@ fn two_broken_records_are_mended_one_after_other() -> TestResult {
 }
 
 /// The editor that sets `client = "acme"` in a record.
-const FIX_CLIENT: &str = "sed -i -e 's/^client = \"acmee\"/client = \"acme\"/'";
+#[cfg(unix)]
+const FIX_CLIENT: &str = "sed -i.bak -e 's/^client = \"acmee\"/client = \"acme\"/'";
 
 #[cfg(unix)]
 #[test]

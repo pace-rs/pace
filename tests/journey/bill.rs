@@ -684,7 +684,7 @@ fn edit_of_billed_entry_is_refused_before_editor_opens() -> TestResult {
         .pace_at("15:06")
         .env(
             "VISUAL",
-            "sed -i -e 's/^note = .*/note = \"Write the blog post\"/'",
+            "sed -i.bak -e 's/^note = .*/note = \"Write the blog post\"/'",
         )
         .args(["edit", "--last", "--change-billed"]))?;
 

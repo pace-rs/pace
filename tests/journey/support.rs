@@ -108,9 +108,10 @@ fn refuse_manifest_above(root: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// A temporary directory with a working directory `work/` and an empty
-/// `config/pace.global.toml` inside, and `PACE_CONFIG`, `PACE_HOME` and
-/// `PACE_MACHINE_DIR` pointing into it.
+/// A temporary directory with a working directory `work/`, an empty
+/// `config/pace.global.toml` and the temporary directory `tmp/` inside, and
+/// `PACE_CONFIG`, `PACE_HOME`, `PACE_MACHINE_DIR` and `TMPDIR` pointing into
+/// it.
 pub(crate) struct Sandbox {
     root: TempDir,
 }
@@ -121,6 +122,7 @@ impl Sandbox {
         refuse_manifest_above(root.path())?;
         std::fs::create_dir(root.path().join("work"))?;
         std::fs::create_dir(root.path().join("config"))?;
+        std::fs::create_dir(root.path().join("tmp"))?;
         std::fs::write(root.path().join("config/pace.global.toml"), "")?;
         Ok(Self { root })
     }
@@ -325,6 +327,12 @@ impl Sandbox {
         }
         for key in HOST_OUTPUT_VARIABLES {
             _ = command.env_remove(key);
+        }
+        // The editor's file and what a scripted editor leaves beside it, such
+        // as the backup of `sed -i.bak`, go into the sandbox, not the
+        // system's temporary directory.
+        for key in ["TMPDIR", "TMP", "TEMP"] {
+            _ = command.env(key, self.path("tmp"));
         }
         // Wide enough that long temporary paths never wrap, so snapshots are
         // the same on every OS.

@@ -29,3 +29,9 @@
 13. A test that writes through a store backend, or a `Sandbox`, takes its
     temporary directory from `pace_store::testing::scratch_dir`: in memory, a
     sync costs nothing, so the slow-tests gate does not time the disk.
+14. CI runs the tests on Linux, macOS and Windows; the sandbox here is Linux
+    only. A scripted editor (`VISUAL`) runs `sed -i.bak`, since BSD sed on macOS
+    reads the word after a bare `-i` as the backup suffix. The `Sandbox` points
+    `TMPDIR` into itself, so the backup goes with it. A test that needs `sed` or
+    `sh` is `#[cfg(unix)]`, and so is every helper only such tests use;
+    otherwise Windows fails on dead code.

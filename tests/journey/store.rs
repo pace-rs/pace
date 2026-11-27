@@ -1,6 +1,8 @@
 //! `pace store split`: this device's event files, split by another period.
 
-use crate::support::{Sandbox, run, short_id_after};
+#[cfg(unix)]
+use crate::support::short_id_after;
+use crate::support::{Sandbox, run};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 

@@ -99,6 +99,7 @@ fn entry_recorded_under_key_shows_under_project_once_its_record_exists() -> Test
 }
 
 /// The ID of the record of `gamma`.
+#[cfg(unix)]
 const GAMMA_ID: &str = "0193a7c4-0000-7000-8000-000000000002";
 
 /// `adjust` names the project it moved the entry from and the one it moved
