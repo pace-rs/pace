@@ -87,7 +87,7 @@ fn begin_and_end_in_different_time_zones() -> TestResult {
 }
 
 #[test]
-fn begin_at_unknown_word_shows_the_grammar() -> TestResult {
+fn begin_at_unknown_word_shows_grammar() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = sandbox.journey(&[("09:30", &["begin", "--at", "soon"])])?;
@@ -105,7 +105,7 @@ fn begin_at_later_clock_time_takes_yesterday() -> TestResult {
 }
 
 #[test]
-fn begin_at_offset_into_future_suggests_the_past() -> TestResult {
+fn begin_at_offset_into_future_suggests_past() -> TestResult {
     let sandbox = Sandbox::new()?;
 
     let output = sandbox.journey(&[("09:30", &["begin", "--at", "+15m"])])?;
