@@ -77,7 +77,7 @@ fn event_file_with_two_invalid_events_lists_both_with_their_lines() -> TestResul
 }
 
 #[test]
-fn findings_as_json_in_schema() -> TestResult {
+fn findings_print_as_json_in_schema() -> TestResult {
     let sandbox = sandbox_with_two_invalid_events()?;
     sandbox.write("machine/setup.toml", "version = 1\nstep = \"roles\"\n")?;
 

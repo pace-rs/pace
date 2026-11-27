@@ -168,17 +168,6 @@ impl PaceApp {
     }
 }
 
-/// The catalog in `home`. A command that mends the catalog file `mended`,
-/// a path in `home`, gets an empty catalog when a mistake in any file
-/// keeps the catalog from reading, so long as `mended` reads alone or has
-/// the mistake itself: it reads the file it mends itself. So each file
-/// that reads alone can be mended while another file has a mistake.
-///
-/// # Errors
-///
-/// If a file can't be read, or every file reads and [`Catalog::new`]
-/// refuses the records for a mistake in another file: the error points at
-/// the line.
 /// What a command reads from pace's files before it runs.
 struct LoadedFiles {
     settings: Loaded,
@@ -237,6 +226,17 @@ impl PaceApp {
     }
 }
 
+/// The catalog in `home`. A command that mends the catalog file `mended`,
+/// a path in `home`, gets an empty catalog when a mistake in any file
+/// keeps the catalog from reading, so long as `mended` reads alone or has
+/// the mistake itself: it reads the file it mends itself. So each file
+/// that reads alone can be mended while another file has a mistake.
+///
+/// # Errors
+///
+/// If a file can't be read, or every file reads and [`Catalog::new`]
+/// refuses the records for a mistake in another file: the error points at
+/// the line.
 fn catalog_for(home: &Path, mended: Option<&Path>) -> PaceResult<Catalog> {
     let Some(mended) = mended else {
         return read_catalog(home);
