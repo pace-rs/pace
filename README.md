@@ -40,13 +40,13 @@ Ended ad5e "Write offer" at 12:00 after 2h 40m (3h in all, held 20m).
 
 ## Crates
 
-| Crate        | Directory           | Content                                                                             |
-| ------------ | ------------------- | ----------------------------------------------------------------------------------- |
-| `pace-rs`    | `src/`              | the `pace` binary: Abscissa app, commands, directories, settings, project discovery |
-| `pace_store` | `crates/pace-store` | the `files` backend: event files, index, device ID; the TOML reader                 |
-| `pace_core`  | `crates/pace-core`  | the domain: commands, entries, rules, the tracker and its ports; no I/O             |
-| `pace_time`  | `crates/pace-time`  | time frames, the `--at` grammar and durations on jiff                               |
-| `pace_error` | `crates/pace-error` | errors with fix hints and exit codes                                                |
+| Crate        | Directory           | Content                                                                                                                                                  |
+| ------------ | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pace-rs`    | `src/`              | the `pace` binary: Abscissa app, commands, directories, settings, project discovery                                                                      |
+| `pace_store` | `crates/pace-store` | the event store: its port, the `Tracker` that drives the core's step machine, the `files` backend with event files, index and device ID; the TOML reader |
+| `pace_core`  | `crates/pace-core`  | the domain: commands, entries, rules, the tracking step machine, the clock and ID traits; no I/O                                                         |
+| `pace_time`  | `crates/pace-time`  | time frames, the `--at` grammar and durations on jiff                                                                                                    |
+| `pace_error` | `crates/pace-error` | errors with fix hints and exit codes                                                                                                                     |
 
 ## Development
 
