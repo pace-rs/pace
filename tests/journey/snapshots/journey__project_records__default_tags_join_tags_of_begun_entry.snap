@@ -1,0 +1,23 @@
+---
+source: tests/journey/project_records.rs
+expression: output
+---
+$ pace begin Write offer --tag offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" at 09:00.
+Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace now   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Running: [ID-1] "Write offer", since 09:00 (30 minutes ago).
+  30m net so far; project acme-webshop; tags dev, offer.
+New entries here go to acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+
+----- stderr -----

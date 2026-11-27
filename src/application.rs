@@ -12,7 +12,9 @@ use abscissa_core::{
     config::{CfgCell, Reader},
 };
 use miette::{MietteHandler, MietteHandlerOpts, ReportHandler};
+use pace_core::Catalog;
 use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_store::catalog::read_catalog;
 
 use crate::clock::TEST_NOW;
 use crate::config::load_settings;
@@ -25,7 +27,7 @@ use crate::{
     commands::EntryPoint,
     config::Loaded,
     dirs::{Dirs, Inputs, Platform},
-    project::Project,
+    project::{Project, Records},
 };
 
 /// The application state.
@@ -47,6 +49,8 @@ pub struct Context {
     pub dirs: Dirs,
     /// The settings and where each comes from.
     pub settings: Loaded,
+    /// The roles, clients and project records in `PACE_HOME`, read once.
+    pub catalog: Catalog,
     /// The project of the working directory, if any.
     pub project: Option<Project>,
     /// The terminal pace asks on, if one is attached.
@@ -112,15 +116,21 @@ impl PaceApp {
         for warning in &settings.warnings {
             eprint!("{}", render(warning, self.style));
         }
+        let catalog = read_catalog(&dirs.data.path)?;
         let project = discover_project(
             command.project.as_deref(),
             std::env::var_os("PACE_PROJECT"),
             &cwd,
             &settings.project_paths,
+            Records {
+                catalog: &catalog,
+                home: &dirs.data.path,
+            },
         )?;
         self.context = Some(Context {
             dirs,
             settings,
+            catalog,
             project,
             terminal: Terminal::detect(),
             editor: editor_variable(|name: &str| -> Option<OsString> { std::env::var_os(name) }),

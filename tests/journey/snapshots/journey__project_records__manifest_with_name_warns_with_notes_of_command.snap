@@ -1,0 +1,14 @@
+---
+source: tests/journey/project_records.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" at 09:00.
+Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+The manifest [SANDBOX]/work/.pace.toml still holds the project's name; `pace project init` moves it into the project's record.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----

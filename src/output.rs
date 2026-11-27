@@ -2,8 +2,8 @@
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Change, Entry, EntryChanges, EntryId, EventKind, HoldSource, Outcome, PauseKind, ProjectRef,
-    RecordedEvent, State, Tag,
+    Catalog, Change, Entry, EntryChanges, EntryId, EventKind, HoldSource, Outcome, PauseKind,
+    ProjectRef, RecordedEvent, State, Tag,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::{format_duration, format_moment};
@@ -25,6 +25,15 @@ pub fn project_name(project: &ProjectRef) -> String {
         ProjectRef::Key(key) => key.to_string(),
         ProjectRef::Id(id) => id.to_string(),
     }
+}
+
+/// A project as the user knows it: the name of its record in `catalog`,
+/// else its key or its ID.
+#[must_use]
+pub fn project_label(project: &ProjectRef, catalog: &Catalog) -> String {
+    catalog
+        .resolve(project)
+        .map_or_else(|| project_name(project), |record| record.name.clone())
 }
 
 /// One line per event the command appended; for an undo, what it took

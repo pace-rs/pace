@@ -3,7 +3,7 @@
 
 use std::{ffi::OsStr, path::PathBuf, sync::Arc};
 
-use pace_core::{Catalog, Command, DeviceId, Ids, Outcome, Policy};
+use pace_core::{Command, DeviceId, Ids, Outcome, Policy};
 use pace_error::PaceResult;
 use pace_store::{FilesStore, Resplit, Split, Tracker, device_id, existing_device_id};
 use pace_time::TimeRange;
@@ -85,7 +85,7 @@ impl Session {
             default_hold_source: settings.default_hold_source,
         };
         Ok(Self {
-            tracker: Tracker::new(store, clock, ids, policy, Catalog::default(), device),
+            tracker: Tracker::new(store, clock, ids, policy, context.catalog.clone(), device),
             device,
             data_existed: data.exists(),
             data,

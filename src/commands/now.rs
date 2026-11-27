@@ -2,12 +2,12 @@
 
 use abscissa_core::{Command, Runnable};
 use jiff::{ToSpan, ZonedDateTime};
-use pace_core::{Entry, EntryState, ProjectRef, State};
+use pace_core::{Catalog, Entry, EntryState, ProjectRef, State};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::{TimeFrame, format_duration, format_moment, relative_time};
 use serde::Serialize;
 
-use crate::output::project_name;
+use crate::output::project_label;
 use crate::print::print_lines;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
@@ -72,7 +72,8 @@ fn render_text(
     }
     for entry in &open {
         lines.push(headline(state, entry, now));
-        lines.push(format!("  {}.", details(entry, session, now).join("; ")));
+        let details = details(entry, session, &context.catalog, now);
+        lines.push(format!("  {}.", details.join("; ")));
     }
     if open.len() > 1 {
         lines.push(format!(
@@ -95,10 +96,12 @@ fn render_text(
         ));
     }
     if let Some(project) = &context.project {
-        lines.push(format!(
-            "New entries here go to {} ({}).",
-            project.key, project.reason
-        ));
+        let target = project.name.as_ref().map_or_else(
+            || format!("{} ({})", project.key, project.reason),
+            |name| format!("{name} ({}, {})", project.key, project.reason),
+        );
+        lines.push(format!("New entries here go to {target}."));
+        lines.extend(project.warnings.iter().cloned());
     }
     lines
 }
@@ -131,7 +134,12 @@ fn headline(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
     }
 }
 
-fn details(entry: &Entry, session: &Session, now: &ZonedDateTime) -> Vec<String> {
+fn details(
+    entry: &Entry,
+    session: &Session,
+    catalog: &Catalog,
+    now: &ZonedDateTime,
+) -> Vec<String> {
     let mut details = vec![format!("{} net so far", format_duration(entry.net(now)))];
     if entry.state() != EntryState::Running {
         details.push(format!("begun at {}", format_moment(&entry.start, now)));
@@ -144,7 +152,7 @@ fn details(entry: &Entry, session: &Session, now: &ZonedDateTime) -> Vec<String>
         details.push(format!("paused {}", format_duration(paused)));
     }
     if let Some(project) = &entry.project {
-        details.push(format!("project {}", project_name(project)));
+        details.push(format!("project {}", project_label(project, catalog)));
     }
     if !entry.tags.is_empty() {
         let tags: Vec<&str> = entry.tags.iter().map(pace_core::Tag::as_str).collect();
@@ -187,6 +195,8 @@ struct ProjectJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<String>,
     key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
     kind: ReasonKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     path: Option<String>,
@@ -215,6 +225,7 @@ impl ProjectJson {
         Self {
             id: project.id.map(|id| id.to_string()),
             key: project.key.to_string(),
+            name: project.name.clone(),
             kind,
             path: path.map(|path| path.display().to_string()),
             reason: project.reason.to_string(),

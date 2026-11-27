@@ -1,0 +1,52 @@
+---
+source: tests/journey/project_records.rs
+expression: output
+---
+$ pace now   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Running: [ID-1] "Write offer", since 09:00 (30 minutes ago).
+  30m net so far; project Webshop relaunch.
+New entries here go to Webshop relaunch (acme-webshop, from [SANDBOX]/work/.pace.toml, the nearest manifest).
+
+----- stderr -----
+
+$ pace now --json   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+{
+  "version": 1,
+  "now": "2026-11-26T09:30:00+01:00[Europe/Berlin]",
+  "open": [
+    {
+      "id": "[ID-1]",
+      "short": "[ID-1]",
+      "state": "running",
+      "note": "Write offer",
+      "project": {
+        "id": "0193a7c4-0000-7000-8000-000000000001"
+      },
+      "tags": [],
+      "start": "2026-11-26T09:00:00+01:00[Europe/Berlin]",
+      "since": "2026-11-26T09:00:00+01:00[Europe/Berlin]",
+      "net_seconds": 1800,
+      "net": "30m",
+      "gross_seconds": 1800,
+      "held_seconds": 0,
+      "paused_seconds": 0,
+      "this_device": true
+    }
+  ],
+  "project": {
+    "id": "0193a7c4-0000-7000-8000-000000000001",
+    "key": "acme-webshop",
+    "name": "Webshop relaunch",
+    "kind": "manifest",
+    "path": "[SANDBOX]/work/.pace.toml",
+    "reason": "from [SANDBOX]/work/.pace.toml, the nearest manifest"
+  }
+}
+
+----- stderr -----

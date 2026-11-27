@@ -5,14 +5,14 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Command as UseCase, Entry, HoldSource, Outcome, PauseKind, State, Tag, Text,
+    Catalog, Command as UseCase, Entry, HoldSource, Outcome, PauseKind, State, Tag, Text,
     command::{Begin, Catch, End, Hold, Pause, Resume},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{At, TimeRange, parse_at, relative_time};
 
 use crate::commands::now::recent_range_start;
-use crate::output::{describe_outcome, project_name};
+use crate::output::{describe_outcome, project_label};
 use crate::print::print_lines;
 use crate::prompt::Ask;
 use crate::select::{Target, target_entry};
@@ -39,10 +39,15 @@ pub(super) fn track_run(
     let session = Session::open(context)?;
     let mut notes = Vec::new();
     let outcome = run(&session, context, &mut notes)?;
+    let warnings = context
+        .project
+        .iter()
+        .flat_map(|project| project.warnings.iter().cloned());
     print_lines(
         describe_outcome(&outcome)?
             .into_iter()
             .chain(notes)
+            .chain(warnings)
             .chain(session.first_use_note()),
     )
 }
@@ -132,6 +137,21 @@ fn thought(words: &[String]) -> PaceResult<Text> {
     })
 }
 
+/// The tags of a new entry: those of `--tag`, and the `default-tags` of
+/// the manifest that links the directory to `project`.
+pub(super) fn entry_tags(
+    values: &[String],
+    project: Option<&Project>,
+) -> PaceResult<BTreeSet<Tag>> {
+    let mut tags = tags(values)?;
+    tags.extend(
+        project
+            .into_iter()
+            .flat_map(|project| project.default_tags.iter().cloned()),
+    );
+    Ok(tags)
+}
+
 pub(super) fn tags(values: &[String]) -> PaceResult<BTreeSet<Tag>> {
     values
         .iter()
@@ -182,11 +202,11 @@ impl Runnable for BeginCmd {
             if self.again {
                 refuse_project_flag(context.project.as_ref())?;
                 let count = context.settings.settings.most_recent_count;
-                let again = again(session, &context.terminal, count)?;
+                let again = again(session, context, count)?;
                 if let Some(project) = &again.project {
                     notes.push(format!(
                         "Project: {} (from the earlier entry).",
-                        project_name(project)
+                        project_label(project, &context.catalog)
                     ));
                 }
                 return Ok(UseCase::Begin(Begin {
@@ -203,7 +223,7 @@ impl Runnable for BeginCmd {
                 at,
                 note: text(&self.note),
                 project,
-                tags: tags(&self.tags)?,
+                tags: entry_tags(&self.tags, context.project.as_ref())?,
                 allow_overlap: self.allow_overlap,
             }))
         }));
@@ -226,19 +246,27 @@ fn refuse_project_flag(project: Option<&Project>) -> PaceResult<()> {
 }
 
 /// Note, project and tags of a recent entry, picked by the user.
-fn again(session: &Session, asker: &dyn Ask, count: usize) -> PaceResult<Begin> {
+fn again(session: &Session, context: &Context, count: usize) -> PaceResult<Begin> {
     let now = session.now();
     let recent = TimeRange::new(Some(recent_range_start(&now)), Some(now.clone()))?;
-    again_from(&session.state(&recent)?, &now, asker, count)
+    again_from(
+        &session.state(&recent)?,
+        &now,
+        &context.terminal,
+        count,
+        &context.catalog,
+    )
 }
 
 /// Note, project and tags of one of the `count` most recent entries of
 /// `state` that differ in them: the only one, or the one the user picks.
+/// A project with a record in `catalog` shows its name.
 fn again_from(
     state: &State,
     now: &ZonedDateTime,
     asker: &dyn Ask,
     count: usize,
+    catalog: &Catalog,
 ) -> PaceResult<Begin> {
     let mut candidates: Vec<Begin> = Vec::new();
     let mut entries: Vec<&Entry> = state.entries().filter(|entry| !entry.is_open()).collect();
@@ -257,7 +285,7 @@ fn again_from(
         if candidates.contains(&candidate) {
             continue;
         }
-        labels.push(label(entry, now));
+        labels.push(label(entry, now, catalog));
         candidates.push(candidate);
         if candidates.len() == count {
             break;
@@ -286,7 +314,7 @@ fn again_from(
     }
 }
 
-fn label(entry: &Entry, now: &ZonedDateTime) -> String {
+fn label(entry: &Entry, now: &ZonedDateTime, catalog: &Catalog) -> String {
     let mut parts = vec![
         entry
             .note
@@ -294,7 +322,7 @@ fn label(entry: &Entry, now: &ZonedDateTime) -> String {
             .map_or_else(|| "(no note)".to_owned(), |note| format!("\"{note}\"")),
     ];
     if let Some(project) = &entry.project {
-        parts.push(format!("project {}", project_name(project)));
+        parts.push(format!("project {}", project_label(project, catalog)));
     }
     if !entry.tags.is_empty() {
         let tags: Vec<&str> = entry.tags.iter().map(Tag::as_str).collect();
@@ -466,7 +494,7 @@ impl Runnable for EndCmd {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pace_core::ProjectRef;
+    use pace_core::{ProjectRecord, ProjectRef};
 
     use crate::prompt::Scripted;
 
@@ -476,7 +504,7 @@ mod tests {
     }
 
     #[test]
-    fn label_names_project_by_key_or_by_id() {
+    fn label_names_project_by_record_name_else_key_or_id() {
         let now: ZonedDateTime = "2026-11-26T12:00[Europe/Berlin]".parse().unwrap();
         let entry = |project| Entry {
             id: "0193a8d0-000a-7000-8000-000000000001".parse().unwrap(),
@@ -495,12 +523,39 @@ mod tests {
         let id = "0193a7c4-6c1e-7f3a-9b2d-4e5f60718293";
 
         assert_eq!(
-            label(&entry(ProjectRef::Key("gamma".parse().unwrap())), &now),
+            label(
+                &entry(ProjectRef::Key("gamma".parse().unwrap())),
+                &now,
+                &Catalog::default()
+            ),
             "\"Standup\", project gamma, last 3 hours ago"
         );
         assert_eq!(
-            label(&entry(ProjectRef::Id(id.parse().unwrap())), &now),
+            label(
+                &entry(ProjectRef::Id(id.parse().unwrap())),
+                &now,
+                &Catalog::default()
+            ),
             format!("\"Standup\", project {id}, last 3 hours ago")
+        );
+        let record = ProjectRecord {
+            id: id.parse().unwrap(),
+            key: "gamma".parse().unwrap(),
+            name: "Gamma relaunch".to_owned(),
+            client: None,
+            role: None,
+            billable: false,
+            budget: None,
+            starts_on: None,
+            ends_on: None,
+            done_when: None,
+            allow_overlap: false,
+            archived: None,
+        };
+        let catalog = Catalog::new(Vec::new(), Vec::new(), vec![record]).unwrap();
+        assert_eq!(
+            label(&entry(ProjectRef::Id(id.parse().unwrap())), &now, &catalog),
+            "\"Standup\", project Gamma relaunch, last 3 hours ago"
         );
     }
 
@@ -583,7 +638,7 @@ mod tests {
         let now: ZonedDateTime = "2026-11-26T12:00[Europe/Berlin]".parse().unwrap();
         let asker = Scripted::choosing([1]);
 
-        let begin = again_from(&state, &now, &asker, 5).unwrap();
+        let begin = again_from(&state, &now, &asker, 5, &Catalog::default()).unwrap();
 
         assert_eq!(begin.note, Some("Write offer".parse().unwrap()));
         assert_eq!(asker.questions(), ["Begin which entry again?"]);

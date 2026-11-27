@@ -9,7 +9,7 @@ use pace_core::{
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::parse_duration;
 
-use crate::commands::tracking::{at, parse_moment, tags, text, track};
+use crate::commands::tracking::{at, entry_tags, parse_moment, tags, text, track};
 use crate::prompt::Ask;
 use crate::select::{Target, chosen_entry, target_entry};
 use crate::{
@@ -157,7 +157,7 @@ impl Runnable for LogCmd {
             Ok(UseCase::Log(Log {
                 note: text(&self.note),
                 project,
-                tags: tags(&self.tags)?,
+                tags: entry_tags(&self.tags, context.project.as_ref())?,
                 allow_overlap: self.allow_overlap,
                 ..Log::new(start, end)
             }))
@@ -265,7 +265,9 @@ mod tests {
             id: None,
             key: "offer".parse().unwrap(),
             name: None,
+            default_tags: std::collections::BTreeSet::new(),
             reason,
+            warnings: Vec::new(),
         }
     }
 

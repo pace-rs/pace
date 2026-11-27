@@ -1,0 +1,32 @@
+---
+source: tests/journey/project_records.rs
+expression: output
+---
+$ pace log Standup --from 08:45 --to 09:00   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Logged [ID-1] "Standup" from 08:45 to 09:00 (15m).
+Project: acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace begin --again   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-2] "Standup" at 09:00.
+Project: acme-webshop (from the earlier entry).
+
+----- stderr -----
+
+$ pace now   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Running: [ID-2] "Standup", since 09:00 (30 minutes ago).
+  30m net so far; project acme-webshop; tags dev.
+New entries here go to acme-webshop (from [SANDBOX]/work/.pace.toml, the nearest manifest).
+
+----- stderr -----

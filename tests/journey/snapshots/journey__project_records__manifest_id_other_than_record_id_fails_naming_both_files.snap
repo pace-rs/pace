@@ -1,0 +1,21 @@
+---
+source: tests/journey/project_records.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project::id-mismatch
+
+  × the manifest [SANDBOX]/work/.pace.toml gives the project `acme-webshop` the ID 0193a7c4-0000-7000-8000-0000000000ff, but its record [SANDBOX]/home/projects/acme-webshop.toml has the ID 0193a7c4-0000-7000-8000-000000000001
+   ╭─[[SANDBOX]/work/.pace.toml:2:6]
+ 1 │ [project]
+ 2 │ id = "0193a7c4-0000-7000-8000-0000000000ff"
+   ·      ───────────────────┬──────────────────
+   ·                         ╰── this ID
+ 3 │ key = "acme-webshop"
+   ╰────
+  help: write the record's ID into the manifest, or remove the manifest's `id` line to go by the key

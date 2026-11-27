@@ -7,6 +7,7 @@ mod corrections;
 mod directories;
 mod now;
 mod project;
+mod project_records;
 mod settings;
 mod store;
 mod support;

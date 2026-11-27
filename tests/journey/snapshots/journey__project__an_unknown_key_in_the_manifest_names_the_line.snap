@@ -16,4 +16,4 @@ pace::project::unknown-key
    · ───┬──
    ·    ╰── unknown key
    ╰────
-  help: pace knows these keys here: id, key, name
+  help: pace knows these keys here: id, key, default-tags
