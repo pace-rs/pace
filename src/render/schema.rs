@@ -84,6 +84,25 @@ pub enum Column {
     OtherShort,
     /// Whether the time counts a running entry up to now.
     Running,
+    /// The change of a count from the previous period.
+    ChangeCount,
+    /// The change of net time from the previous period, in seconds.
+    ChangeNetSeconds,
+    /// The change of net time, readable with its sign.
+    ChangeNet,
+    /// The change of hold time from the previous period, in seconds.
+    ChangeHeldSeconds,
+    /// The change of hold time, readable with its sign.
+    ChangeHeld,
+    /// The change of pause time from the previous period, in seconds.
+    ChangePausedSeconds,
+    /// The change of pause time, readable with its sign.
+    ChangePaused,
+    /// The change of an amount from the previous period, with its sign.
+    ChangeAmount,
+    /// The change of the row's time, amount, or else count, in whole
+    /// percent of the previous value; none when that is zero.
+    ChangePercent,
 }
 
 impl Column {
@@ -95,7 +114,7 @@ impl Column {
 }
 
 /// The name of each column, in the order of [`Column`].
-const COLUMN_NAMES: [(Column, &str); 31] = [
+const COLUMN_NAMES: [(Column, &str); 40] = [
     (Column::Part, "part"),
     (Column::Group, "group"),
     (Column::Key, "key"),
@@ -127,6 +146,15 @@ const COLUMN_NAMES: [(Column, &str); 31] = [
     (Column::OtherId, "other_id"),
     (Column::OtherShort, "other_short"),
     (Column::Running, "running"),
+    (Column::ChangeCount, "change_count"),
+    (Column::ChangeNetSeconds, "change_net_seconds"),
+    (Column::ChangeNet, "change_net"),
+    (Column::ChangeHeldSeconds, "change_held_seconds"),
+    (Column::ChangeHeld, "change_held"),
+    (Column::ChangePausedSeconds, "change_paused_seconds"),
+    (Column::ChangePaused, "change_paused"),
+    (Column::ChangeAmount, "change_amount"),
+    (Column::ChangePercent, "change_percent"),
 ];
 
 /// A duration of the schema: two columns, `<name>_seconds` and a
@@ -160,6 +188,18 @@ impl Length {
             Self::Paused => (Column::PausedSeconds, Column::Paused),
         }
     }
+
+    /// The columns of its change from the previous period, the seconds and
+    /// the readable change; only net, hold and pause time change.
+    #[must_use]
+    pub const fn change_columns(self) -> Option<(Column, Column)> {
+        match self {
+            Self::Net => Some((Column::ChangeNetSeconds, Column::ChangeNet)),
+            Self::Held => Some((Column::ChangeHeldSeconds, Column::ChangeHeld)),
+            Self::Paused => Some((Column::ChangePausedSeconds, Column::ChangePaused)),
+            Self::Target | Self::Budget | Self::Billed => None,
+        }
+    }
 }
 
 /// What a document of the schema holds.
@@ -178,14 +218,64 @@ impl SchemaKind {
         }
     }
 
-    /// The columns of the kind's CSV, in their order.
+    /// The columns of the kind's CSV, in their order; the columns of the
+    /// previous period follow them, then the change columns.
     #[must_use]
     pub const fn columns(self) -> &'static [Column] {
         match self {
             Self::Reflect => REFLECT_COLUMNS,
         }
     }
+
+    /// The columns of the previous period in the kind's CSV, each named
+    /// `previous_<column>`, in their order.
+    #[must_use]
+    pub const fn previous_columns(self) -> &'static [Column] {
+        match self {
+            Self::Reflect => REFLECT_PREVIOUS_COLUMNS,
+        }
+    }
+
+    /// The change columns of the kind's CSV, after the previous ones.
+    #[must_use]
+    pub const fn change_columns(self) -> &'static [Column] {
+        match self {
+            Self::Reflect => REFLECT_CHANGE_COLUMNS,
+        }
+    }
 }
+
+/// The columns of `reflect` that its rows set for the previous period.
+const REFLECT_PREVIOUS_COLUMNS: &[Column] = &[
+    Column::Key,
+    Column::Id,
+    Column::Name,
+    Column::Date,
+    Column::Start,
+    Column::End,
+    Column::Count,
+    Column::NetSeconds,
+    Column::Net,
+    Column::HeldSeconds,
+    Column::Held,
+    Column::PausedSeconds,
+    Column::Paused,
+    Column::Amount,
+    Column::Currency,
+];
+
+/// The change columns of `reflect`.
+const REFLECT_CHANGE_COLUMNS: &[Column] = &[
+    Column::ChangeCount,
+    Column::ChangeNetSeconds,
+    Column::ChangeNet,
+    Column::ChangeHeldSeconds,
+    Column::ChangeHeld,
+    Column::ChangePausedSeconds,
+    Column::ChangePaused,
+    Column::ChangeAmount,
+    Column::ChangePercent,
+];
 
 /// The columns of `reflect`.
 const REFLECT_COLUMNS: &[Column] = &[
@@ -254,10 +344,12 @@ impl Serialize for Cell {
     }
 }
 
-/// A row of the schema: its cells by column.
+/// A row of the schema: its cells by column, and with `--compare` the
+/// cells of the previous period.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Row {
     cells: BTreeMap<Column, Cell>,
+    previous: BTreeMap<Column, Cell>,
 }
 
 impl Row {
@@ -273,6 +365,28 @@ impl Row {
     #[must_use]
     pub fn get(&self, column: Column) -> Option<&Cell> {
         self.cells.get(&column)
+    }
+
+    /// The cell of `column` in the previous period.
+    #[must_use]
+    pub fn get_previous(&self, column: Column) -> Option<&Cell> {
+        self.previous.get(&column)
+    }
+
+    /// The row with the cells of `previous` as the cells of the previous
+    /// period: `Row::default().duration(Length::Net, earlier)`.
+    #[must_use]
+    pub fn with_previous(mut self, previous: Self) -> Self {
+        self.previous.extend(previous.cells);
+        self
+    }
+
+    /// The row without its running mark: the previous period has no
+    /// running entry to mark.
+    #[must_use]
+    pub fn without_running(mut self) -> Self {
+        _ = self.cells.remove(&Column::Running);
+        self
     }
 
     /// The columns the row has cells for, in their order.
@@ -341,9 +455,34 @@ impl Row {
 }
 
 impl Serialize for Row {
+    /// The cells by their names, the object `previous` after `running`
+    /// when the row has cells of the previous period, then the changes.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut map = serializer.serialize_map(Some(self.cells.len()))?;
-        for (column, cell) in &self.cells {
+        let mut map = serializer.serialize_map(None)?;
+        let (own, changes): (Vec<_>, Vec<_>) = self
+            .cells
+            .iter()
+            .partition(|(column, _)| **column <= Column::Running);
+        for (column, cell) in own {
+            map.serialize_entry(column.name(), cell)?;
+        }
+        if !self.previous.is_empty() {
+            map.serialize_entry("previous", &PreviousCells(&self.previous))?;
+        }
+        for (column, cell) in changes {
+            map.serialize_entry(column.name(), cell)?;
+        }
+        map.end()
+    }
+}
+
+/// The cells of the previous period, as the object `previous`.
+struct PreviousCells<'row>(&'row BTreeMap<Column, Cell>);
+
+impl Serialize for PreviousCells<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (column, cell) in self.0 {
             map.serialize_entry(column.name(), cell)?;
         }
         map.end()
@@ -381,19 +520,34 @@ pub fn schema_json(kind: SchemaKind, rows: &[Row]) -> PaceResult<String> {
 }
 
 /// `rows` as the lines of the CSV of `kind`: the column names, then one
-/// line per row, quoted as RFC 4180 says.
+/// line per row, quoted as RFC 4180 says. The columns of the previous
+/// period, `previous_<column>`, follow the kind's own, then the changes.
 #[must_use]
 pub fn schema_csv(kind: SchemaKind, rows: &[Row]) -> Vec<String> {
-    let columns = kind.columns();
-    let header = columns
+    let own = kind.columns();
+    let previous = kind.previous_columns();
+    let changes = kind.change_columns();
+    let header = own
         .iter()
-        .map(|column| column.name())
+        .map(|column| column.name().to_owned())
+        .chain(
+            previous
+                .iter()
+                .map(|column| format!("previous_{}", column.name())),
+        )
+        .chain(changes.iter().map(|column| column.name().to_owned()))
         .collect::<Vec<_>>()
         .join(",");
+    let field = |cell: Option<&Cell>| cell.map_or_else(String::new, Cell::csv_field);
     let lines = rows.iter().map(|row| {
-        columns
-            .iter()
-            .map(|column| row.get(*column).map_or_else(String::new, Cell::csv_field))
+        own.iter()
+            .map(|column| field(row.get(*column)))
+            .chain(
+                previous
+                    .iter()
+                    .map(|column| field(row.get_previous(*column))),
+            )
+            .chain(changes.iter().map(|column| field(row.get(*column))))
             .collect::<Vec<_>>()
             .join(",")
     });
@@ -431,12 +585,16 @@ mod tests {
         let lines = schema_csv(SchemaKind::Reflect, &rows);
 
         assert!(lines[0].starts_with("part,group,key,id,"), "{}", lines[0]);
-        assert!(lines[0].ends_with(",running"), "{}", lines[0]);
+        assert!(lines[0].contains(",running,previous_key,"), "{}", lines[0]);
+        assert!(lines[0].ends_with(",change_percent"), "{}", lines[0]);
         let cells: Vec<&str> = lines[1].split(',').collect();
-        assert_eq!(cells.len(), REFLECT_COLUMNS.len());
+        assert_eq!(
+            cells.len(),
+            REFLECT_COLUMNS.len() + REFLECT_PREVIOUS_COLUMNS.len() + REFLECT_CHANGE_COLUMNS.len()
+        );
         assert_eq!(cells[..3], ["time", "tracked", ""]);
         assert!(lines[1].contains(",5400,1h 30m,"), "{}", lines[1]);
-        assert!(lines[1].ends_with(",false"), "{}", lines[1]);
+        assert!(lines[1].contains(",false,"), "{}", lines[1]);
     }
 
     #[test]
@@ -454,6 +612,38 @@ mod tests {
     }
 
     #[test]
+    fn json_row_sets_previous_object_before_changes() {
+        let row = Row::of("time", "tracked")
+            .duration(Length::Net, SignedDuration::from_hours(2))
+            .number(Column::ChangeNetSeconds, 3600)
+            .with_previous(Row::default().duration(Length::Net, SignedDuration::from_hours(1)));
+
+        let json = serde_json::to_string(&row).unwrap();
+
+        assert_eq!(
+            json,
+            r#"{"part":"time","group":"tracked","net_seconds":7200,"net":"2h","previous":{"net_seconds":3600,"net":"1h"},"change_net_seconds":3600}"#
+        );
+    }
+
+    #[test]
+    fn csv_writes_previous_cells_under_previous_columns() {
+        let row = Row::of("time", "tracked")
+            .with_previous(Row::default().duration(Length::Net, SignedDuration::from_hours(1)));
+
+        let lines = schema_csv(SchemaKind::Reflect, &[row]);
+
+        let header: Vec<&str> = lines[0].split(',').collect();
+        let cells: Vec<&str> = lines[1].split(',').collect();
+        let previous = header
+            .iter()
+            .position(|name| *name == "previous_net")
+            .unwrap();
+        assert_eq!(cells[previous], "1h");
+        assert_eq!(cells[previous - 1], "3600");
+    }
+
+    #[test]
     fn json_document_names_version_and_kind() {
         let json = schema_json(SchemaKind::Reflect, &[]).unwrap();
 
@@ -465,7 +655,7 @@ mod tests {
 
     #[test]
     fn column_names_list_every_column_once_in_order() {
-        assert_eq!(COLUMN_NAMES.len(), Column::Running as usize + 1);
+        assert_eq!(COLUMN_NAMES.len(), Column::ChangePercent as usize + 1);
         for (index, (column, _)) in COLUMN_NAMES.iter().enumerate() {
             assert_eq!(*column as usize, index, "{column:?}");
         }

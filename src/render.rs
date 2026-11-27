@@ -2,6 +2,7 @@
 //! report's table, the report's rows in the schema of JSON and CSV, and
 //! the report from a Tera template.
 
+mod report_compare;
 mod report_rows;
 mod report_table;
 mod report_template;

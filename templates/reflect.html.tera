@@ -2,6 +2,14 @@
     part. It receives the JSON document of the schema, version 1: `version`,
     `kind` and `rows`. Tera escapes every value, as the name ends in
     `.html.tera`. A `*` marks time that counts a running entry. -#}
+{%- component change(row, kind) -%}
+{%- if row.previous %} (was {{ row.previous[kind] | default(value="none") }}{% if kind == "amount" %} {{ row.previous.currency }}{% endif %}, {% if kind == "net" %}{{ row.change_net }}{% elif kind == "held" %}{{ row.change_held }}{% elif kind == "paused" %}{{ row.change_paused }}{% else %}{{ row.change_amount }}{% endif %}{% if row.change_percent is defined %}, {% if row.change_percent > 0 %}+{% endif %}{{ row.change_percent }}%{% endif %}){% endif -%}
+{%- endcomponent change -%}
+{%- component highlight(row) -%}
+{%- if row.group == "busiest_day" %}Busiest day: {{ row.date | default(value="none") }}{% if row.net %}, {{ row.net }}{% if row.running %}*{% endif %}{% endif %}; in the previous period {{ row.previous.date | default(value="none") }}{% if row.previous.net %}, {{ row.previous.net }}{% endif %}
+{%- else %}Top project: {{ row.name | default(value=row.key | default(value="none")) }}{% if row.net %}, {{ row.net }}{% if row.running %}*{% endif %}{% endif %}; in the previous period {{ row.previous.name | default(value=row.previous.key | default(value="none")) }}{% if row.previous.net %}, {{ row.previous.net }}{% endif %}
+{%- endif -%}
+{%- endcomponent highlight -%}
 {%- set parts = rows | group_by(attribute="part") -%}
 {%- set time = parts.time | default(value=[]) | group_by(attribute="group") -%}
 {%- set tracked = time.tracked | default(value=[]) | first -%}
@@ -36,13 +44,20 @@ td.number, th.number { text-align: right; }
 {% if not tracked or tracked.net_seconds == 0 -%}
 <p>Nothing tracked.</p>
 {% else -%}
-<p>Tracked {{ tracked.net }}, untracked {{ untracked.net }}.</p>
-
+<p>Tracked {{ tracked.net }}{{ <change row={tracked} kind="net"/> }}, untracked {{ untracked.net }}{{ <change row={untracked} kind="net"/> }}.</p>
+{% if parts.highlights %}
+<h2>Highlights</h2>
+<ul>
+{% for row in parts.highlights -%}
+<li>{{ <highlight row={row}/> }}.</li>
+{% endfor -%}
+</ul>
+{% endif %}
 <h2>Time per role</h2>
 <table>
 <tr><th>Role</th><th class="number">Time</th><th class="number">Share</th></tr>
 {% for row in time.role | default(value=[]) -%}
-<tr><td>{{ row.name | default(value="No role") }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.percent }}%</td></tr>
+<tr><td>{{ row.name | default(value="No role") }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}{{ <change row={row} kind="net"/> }}</td><td class="number">{{ row.percent }}%</td></tr>
 {% endfor -%}
 </table>
 
@@ -50,7 +65,7 @@ td.number, th.number { text-align: right; }
 <table>
 <tr><th>Project</th><th class="number">Time</th><th class="number">Share</th></tr>
 {% for row in time.project | default(value=[]) -%}
-<tr><td>{{ row.name | default(value=row.key | default(value="No project")) }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.percent }}%</td></tr>
+<tr><td>{{ row.name | default(value=row.key | default(value="No project")) }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}{{ <change row={row} kind="net"/> }}</td><td class="number">{{ row.percent }}%</td></tr>
 {% endfor -%}
 </table>
 
@@ -71,7 +86,7 @@ td.number, th.number { text-align: right; }
 <table>
 <tr><th>Role</th><th class="number">Time</th><th class="number">Target</th><th class="number">Share</th></tr>
 {% for row in target.role -%}
-<tr><td>{{ row.name | default(value=row.id) }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.target }}</td><td class="number">{{ row.percent }}%</td></tr>
+<tr><td>{{ row.name | default(value=row.id) }}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}{{ <change row={row} kind="net"/> }}</td><td class="number">{{ row.target }}</td><td class="number">{{ row.percent }}%</td></tr>
 {% endfor -%}
 </table>
 {% endif -%}
@@ -92,15 +107,15 @@ td.number, th.number { text-align: right; }
 <table>
 <tr><th>Client and project</th><th class="number">Billed</th><th class="number">Amount</th></tr>
 {% for client in revenue.client -%}
-<tr><td>{{ client.name }}</td><td class="number">{{ client.billed }}{% if client.running %}*{% endif %}</td><td class="number">{{ client.amount }} {{ client.currency }}</td></tr>
+<tr><td>{{ client.name }}</td><td class="number">{{ client.billed }}{% if client.running %}*{% endif %}</td><td class="number">{{ client.amount }} {{ client.currency }}{{ <change row={client} kind="amount"/> }}</td></tr>
 {% for row in revenue.project | default(value=[]) -%}
 {% if row.client == client.key and row.currency == client.currency -%}
-<tr><td>– {{ row.name | default(value=row.key) }}</td><td class="number">{{ row.billed }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.amount }} {{ row.currency }}</td></tr>
+<tr><td>– {{ row.name | default(value=row.key) }}</td><td class="number">{{ row.billed }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.amount }} {{ row.currency }}{{ <change row={row} kind="amount"/> }}</td></tr>
 {% endif -%}
 {% endfor -%}
 {% endfor -%}
 {% for row in revenue.total | default(value=[]) -%}
-<tr><th>Total</th><td></td><th class="number">{{ row.amount }} {{ row.currency }}</th></tr>
+<tr><th>Total</th><td></td><th class="number">{{ row.amount }} {{ row.currency }}{{ <change row={row} kind="amount"/> }}</th></tr>
 {% endfor -%}
 </table>
 {% endif -%}
@@ -112,7 +127,7 @@ td.number, th.number { text-align: right; }
 {% if holds %}
 <h2>Interruptions</h2>
 {% for total in holds.total | default(value=[]) -%}
-<p>{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}:
+<p>{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}{{ <change row={total} kind="held"/> }}:
 {%- for row in holds.source | default(value=[]) %} {{ row.key }} {{ row.count }}{% if row.count > 0 %} ({{ row.held }}){% endif %}{% if loop.last %}.{% else %},{% endif %}{% endfor %}</p>
 {% endfor -%}
 {% if holds.reason -%}
@@ -123,7 +138,7 @@ td.number, th.number { text-align: right; }
 {% if pauses %}
 <h2>Pauses and catches</h2>
 {% if pauses.kind -%}
-<p>Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
+<p>Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}{% if row.previous %}, was {{ row.previous.count }} ({{ row.previous.paused }}){% endif %}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
 {% endif -%}
 {% if pauses.catch -%}
 <ul>
@@ -138,7 +153,7 @@ td.number, th.number { text-align: right; }
 <table>
 <tr><th>Decided by</th><th class="number">Time</th><th class="number">Share</th></tr>
 {% for row in parts.decided -%}
-<tr><td>{% if row.key == "self" %}Me{% elif row.key == "other" %}Others{% else %}Unmarked{% endif %}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}</td><td class="number">{{ row.percent }}%</td></tr>
+<tr><td>{% if row.key == "self" %}Me{% elif row.key == "other" %}Others{% else %}Unmarked{% endif %}</td><td class="number">{{ row.net }}{% if row.running %}*{% endif %}{{ <change row={row} kind="net"/> }}</td><td class="number">{{ row.percent }}%</td></tr>
 {% endfor -%}
 </table>
 {% endif -%}

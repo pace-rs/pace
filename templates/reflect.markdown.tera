@@ -1,6 +1,14 @@
 {#- The report of `pace reflect --format markdown`: a table per part. It
     receives the JSON document of the schema, version 1: `version`, `kind`
     and `rows`. A `*` marks time that counts a running entry. -#}
+{%- component change(row, kind) -%}
+{%- if row.previous %} (was {{ row.previous[kind] | default(value="none") }}{% if kind == "amount" %} {{ row.previous.currency }}{% endif %}, {% if kind == "net" %}{{ row.change_net }}{% elif kind == "held" %}{{ row.change_held }}{% elif kind == "paused" %}{{ row.change_paused }}{% else %}{{ row.change_amount }}{% endif %}{% if row.change_percent is defined %}, {% if row.change_percent > 0 %}+{% endif %}{{ row.change_percent }}%{% endif %}){% endif -%}
+{%- endcomponent change -%}
+{%- component highlight(row) -%}
+{%- if row.group == "busiest_day" %}Busiest day: {{ row.date | default(value="none") }}{% if row.net %}, {{ row.net }}{% if row.running %}*{% endif %}{% endif %}; in the previous period {{ row.previous.date | default(value="none") }}{% if row.previous.net %}, {{ row.previous.net }}{% endif %}
+{%- else %}Top project: {{ row.name | default(value=row.key | default(value="none")) }}{% if row.net %}, {{ row.net }}{% if row.running %}*{% endif %}{% endif %}; in the previous period {{ row.previous.name | default(value=row.previous.key | default(value="none")) }}{% if row.previous.net %}, {{ row.previous.net }}{% endif %}
+{%- endif -%}
+{%- endcomponent highlight -%}
 {%- set parts = rows | group_by(attribute="part") -%}
 {%- set time = parts.time | default(value=[]) | group_by(attribute="group") -%}
 {%- set tracked = time.tracked | default(value=[]) | first -%}
@@ -22,21 +30,27 @@
 {%- if not tracked or tracked.net_seconds == 0 %}
 Nothing tracked.
 {% else %}
-Tracked {{ tracked.net }}, untracked {{ untracked.net }}.
+Tracked {{ tracked.net }}{{ <change row={tracked} kind="net"/> }}, untracked {{ untracked.net }}{{ <change row={untracked} kind="net"/> }}.
+{% if parts.highlights %}
+## Highlights
 
+{% for row in parts.highlights -%}
+- {{ <highlight row={row}/> }}.
+{% endfor -%}
+{% endif %}
 ## Time per role
 
 | Role | Time | Share |
 | ---- | ---: | ----: |
 {% for row in time.role | default(value=[]) -%}
-| {{ row.name | default(value="No role") | replace(from="|", to="&#124;") }} | {{ row.net }}{% if row.running %}*{% endif %} | {{ row.percent }}% |
+| {{ row.name | default(value="No role") | replace(from="|", to="&#124;") }} | {{ row.net }}{% if row.running %}*{% endif %}{{ <change row={row} kind="net"/> }} | {{ row.percent }}% |
 {% endfor %}
 ## Time per project
 
 | Project | Time | Share |
 | ------- | ---: | ----: |
 {% for row in time.project | default(value=[]) -%}
-| {{ row.name | default(value=row.key | default(value="No project")) | replace(from="|", to="&#124;") }} | {{ row.net }}{% if row.running %}*{% endif %} | {{ row.percent }}% |
+| {{ row.name | default(value=row.key | default(value="No project")) | replace(from="|", to="&#124;") }} | {{ row.net }}{% if row.running %}*{% endif %}{{ <change row={row} kind="net"/> }} | {{ row.percent }}% |
 {% endfor %}
 ## Time per day
 
@@ -55,7 +69,7 @@ The weekly targets add up to {{ row.target }}, more than the 168h of a week.
 | Role | Time | Target | Share |
 | ---- | ---: | -----: | ----: |
 {% for row in target.role -%}
-| {{ row.name | default(value=row.id) | replace(from="|", to="&#124;") }} | {{ row.net }}{% if row.running %}*{% endif %} | {{ row.target }} | {{ row.percent }}% |
+| {{ row.name | default(value=row.id) | replace(from="|", to="&#124;") }} | {{ row.net }}{% if row.running %}*{% endif %}{{ <change row={row} kind="net"/> }} | {{ row.target }} | {{ row.percent }}% |
 {% endfor -%}
 {%- endif -%}
 {%- endif -%}
@@ -75,14 +89,14 @@ The weekly targets add up to {{ row.target }}, more than the 168h of a week.
 | Client and project | Billed | Amount |
 | ------------------ | -----: | -----: |
 {% for client in revenue.client -%}
-| {{ client.name | replace(from="|", to="&#124;") }} | {{ client.billed }}{% if client.running %}*{% endif %} | {{ client.amount }} {{ client.currency }} |
+| {{ client.name | replace(from="|", to="&#124;") }} | {{ client.billed }}{% if client.running %}*{% endif %} | {{ client.amount }} {{ client.currency }}{{ <change row={client} kind="amount"/> }} |
 {% for row in revenue.project | default(value=[]) -%}
-{%- if row.client == client.key and row.currency == client.currency %}| – {{ row.name | default(value=row.key) | replace(from="|", to="&#124;") }} | {{ row.billed }}{% if row.running %}*{% endif %} | {{ row.amount }} {{ row.currency }} |
+{%- if row.client == client.key and row.currency == client.currency %}| – {{ row.name | default(value=row.key) | replace(from="|", to="&#124;") }} | {{ row.billed }}{% if row.running %}*{% endif %} | {{ row.amount }} {{ row.currency }}{{ <change row={row} kind="amount"/> }} |
 {% endif -%}
 {%- endfor -%}
 {%- endfor -%}
 {%- for row in revenue.total | default(value=[]) -%}
-| **Total** | | **{{ row.amount }} {{ row.currency }}** |
+| **Total** | | **{{ row.amount }} {{ row.currency }}{{ <change row={row} kind="amount"/> }}** |
 {% endfor -%}
 {%- endif -%}
 {%- for row in revenue.no_rate | default(value=[]) %}
@@ -93,7 +107,7 @@ No rate on {{ row.date }} for {{ row.net }} of {{ row.name | default(value=row.k
 {%- if holds %}
 ## Interruptions
 {% for total in holds.total | default(value=[]) %}
-{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}:
+{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}{{ <change row={total} kind="held"/> }}:
 {%- for row in holds.source | default(value=[]) %} {{ row.key }} {{ row.count }}{% if row.count > 0 %} ({{ row.held }}){% endif %}{% if loop.last %}.{% else %},{% endif %}{% endfor %}
 {% endfor -%}
 {%- if holds.reason %}
@@ -104,7 +118,7 @@ Most frequent reasons: {% for row in holds.reason %}{{ row.reason }} {{ row.coun
 {%- if pauses %}
 ## Pauses and catches
 {% if pauses.kind %}
-Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}){% if not loop.last %}, {% endif %}{% endfor %}.
+Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}{% if row.previous %}, was {{ row.previous.count }} ({{ row.previous.paused }}){% endif %}){% if not loop.last %}, {% endif %}{% endfor %}.
 {% endif -%}
 {%- if pauses.catch %}
 {% for row in pauses.catch -%}
@@ -118,7 +132,7 @@ Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused
 | Decided by | Time | Share |
 | ---------- | ---: | ----: |
 {% for row in parts.decided -%}
-| {% if row.key == "self" %}Me{% elif row.key == "other" %}Others{% else %}Unmarked{% endif %} | {{ row.net }}{% if row.running %}*{% endif %} | {{ row.percent }}% |
+| {% if row.key == "self" %}Me{% elif row.key == "other" %}Others{% else %}Unmarked{% endif %} | {{ row.net }}{% if row.running %}*{% endif %}{{ <change row={row} kind="net"/> }} | {{ row.percent }}% |
 {% endfor -%}
 {%- endif -%}
 {%- if parts.overlaps %}

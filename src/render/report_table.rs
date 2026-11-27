@@ -3,14 +3,20 @@
 
 use jiff::{SignedDuration, ZonedDateTime, civil::Date, tz::TimeZone};
 use pace_core::{
-    BudgetUse, Catalog, Charge, ClientRevenue, PauseKind, ProjectRevenue, Report, ReportWarning,
-    RoleTarget, State,
+    BudgetUse, Catalog, Charge, ClientRevenue, Compared, Money, PauseKind, ProjectRevenue, Report,
+    ReportComparison, ReportPeriod, ReportWarning, RoleTarget, State,
 };
 use pace_time::{TimeFrame, format_duration, format_moment};
 
 use crate::config::hold_source_name;
 use crate::output::{counted, project_label, role_label};
-use crate::render::{Canvas, percent};
+use crate::render::{
+    Canvas, percent,
+    report_compare::{
+        compared_holds, compared_pauses, compared_summary, compared_with, highlights_part,
+        money_change_cells, time_change_cells,
+    },
+};
 
 /// The widest label a row shows; a longer one is cut.
 const LABEL_WIDTH: usize = 24;
@@ -32,6 +38,8 @@ const RUNNING: &str = "*";
 pub struct ReportTable<'report> {
     /// The report.
     pub report: &'report Report,
+    /// The report beside the previous period's, for `--compare`.
+    pub comparison: Option<&'report ReportComparison>,
     /// The roles, clients and project records, for their names.
     pub catalog: &'report Catalog,
     /// The state of the period, for the short IDs of entries.
@@ -69,6 +77,9 @@ fn period_words(frame: &TimeFrame) -> String {
 #[must_use]
 pub fn report_table(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
     let parts = [
+        table.comparison.map_or_else(Vec::new, |comparison| {
+            highlights_part(comparison, table.catalog, canvas)
+        }),
         time_part(table, canvas),
         targets_part(table, canvas),
         budgets_part(table, canvas),
@@ -79,7 +90,16 @@ pub fn report_table(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         overlaps_part(table, canvas),
     ];
     let mut lines = canvas.wrap(&title(table), "");
-    lines.push(summary(table.report));
+    match table.comparison {
+        Some(comparison) => {
+            lines.extend(canvas.wrap(&compared_with(&comparison.period), ""));
+            lines.extend(canvas.wrap(
+                &compared_summary(table.report.tracked, table.report.untracked, comparison),
+                "",
+            ));
+        }
+        None => lines.push(summary(table.report)),
+    }
     for part in parts.into_iter().filter(|part| !part.is_empty()) {
         lines.push(String::new());
         lines.extend(part);
@@ -94,22 +114,27 @@ pub fn report_table(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
 /// `This week: Mon 2026-11-23 to Sun 2026-11-29, Europe/Berlin`.
 fn title(table: &ReportTable<'_>) -> String {
     let period = &table.report.period;
+    let days = period_days(period);
+    let zone = table.zone.iana_name().unwrap_or("the system's time zone");
+    match table.frame {
+        TimeFrame::Between { .. } => format!("{days}, {zone}"),
+        TimeFrame::All => format!("All time: {days}, {zone}"),
+        named => format!("{}: {days}, {zone}", capitalised(&period_words(named))),
+    }
+}
+
+/// The days of `period`: `Mon 2026-11-23 to Sun 2026-11-29`, or one day.
+pub(crate) fn period_days(period: &ReportPeriod) -> String {
     let first = period.start.date();
     let last = period
         .end
         .checked_sub(SignedDuration::from_nanos(1))
         .map_or(first, |end| end.date())
         .max(first);
-    let days = if first == last {
+    if first == last {
         day(first)
     } else {
         format!("{} to {}", day(first), day(last))
-    };
-    let zone = table.zone.iana_name().unwrap_or("the system's time zone");
-    match table.frame {
-        TimeFrame::Between { .. } => format!("{days}, {zone}"),
-        TimeFrame::All => format!("All time: {days}, {zone}"),
-        named => format!("{}: {days}, {zone}", capitalised(&period_words(named))),
     }
 }
 
@@ -140,6 +165,7 @@ struct BarRow {
     label: String,
     net: SignedDuration,
     running: bool,
+    change: Option<Compared<SignedDuration>>,
 }
 
 impl BarRow {
@@ -148,7 +174,14 @@ impl BarRow {
             label: label.into(),
             net,
             running,
+            change: None,
         }
+    }
+
+    /// The row with `change` beside its time, for `--compare`.
+    const fn compared(mut self, change: Option<Compared<SignedDuration>>) -> Self {
+        self.change = change;
+        self
     }
 }
 
@@ -176,7 +209,28 @@ fn bar_part(heading: &str, rows: &[BarRow], whole: SignedDuration, canvas: Canva
         .map(|time| time.chars().count())
         .max()
         .unwrap_or(0);
-    let columns = 2 + 2 + time_width + 2 + "100%".len() + 2;
+    let changes: Vec<Vec<String>> = rows
+        .iter()
+        .map(|row| row.change.as_ref().map_or_else(Vec::new, time_change_cells))
+        .collect();
+    let change_widths: Vec<usize> = (0..3)
+        .map(|column| {
+            changes
+                .iter()
+                .filter_map(|cells| cells.get(column))
+                .map(|cell| cell.chars().count())
+                .max()
+                .unwrap_or(0)
+        })
+        .filter(|width| *width > 0)
+        .collect();
+    let columns = 2
+        + 2
+        + time_width
+        + 2
+        + "100%".len()
+        + 2
+        + change_widths.iter().map(|width| width + 2).sum::<usize>();
     // a narrow canvas cuts the labels, down to the shortest a label keeps
     let room = canvas.width.saturating_sub(columns).max(SHORTEST_LABEL);
     let label_width = longest.min(LABEL_WIDTH).min(room);
@@ -185,13 +239,23 @@ fn bar_part(heading: &str, rows: &[BarRow], whole: SignedDuration, canvas: Canva
     let largest = rows.iter().map(|row| row.net.as_secs()).max().unwrap_or(0);
 
     let mut lines = vec![canvas.heading(heading)];
-    for (row, time) in rows.iter().zip(&times) {
+    for ((row, time), cells) in rows.iter().zip(&times).zip(&changes) {
         let label = canvas.fit(&row.label, label_width);
         let share = percent(row.net, whole)
             .filter(|_| !row.net.is_zero())
             .map_or_else(String::new, |share| format!("{share}%"));
+        let change: Vec<String> = change_widths
+            .iter()
+            .enumerate()
+            .map(|(column, width)| {
+                let cell = cells.get(column).map_or("", String::as_str);
+                format!("  {cell:>width$}")
+            })
+            .collect();
+        let change = change.concat();
         let bar = canvas.bar(row.net.as_secs(), largest, bar_width);
-        let line = format!("  {label:<label_width$}  {time:>time_width$}  {share:>4}  {bar}");
+        let line =
+            format!("  {label:<label_width$}  {time:>time_width$}  {share:>4}{change}  {bar}");
         lines.push(line.trim_end().to_owned());
     }
     lines
@@ -200,32 +264,42 @@ fn bar_part(heading: &str, rows: &[BarRow], whole: SignedDuration, canvas: Canva
 /// Time per role, per project with the back-flow, and per day.
 fn time_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
     let ReportTable {
-        report, catalog, ..
+        report,
+        comparison,
+        catalog,
+        ..
     } = *table;
     let roles: Vec<BarRow> = report
         .roles
         .iter()
-        .map(|role| {
+        .enumerate()
+        .map(|(index, role)| {
             let label = role
                 .role
                 .map_or_else(|| "No role".to_owned(), |id| role_label(id, catalog));
             BarRow::new(label, role.net, role.running)
+                .compared(comparison.and_then(|compared| compared.roles.get(index).copied()))
         })
         .collect();
     let mut projects: Vec<BarRow> = report
         .projects
         .iter()
-        .map(|project| {
+        .enumerate()
+        .map(|(index, project)| {
             BarRow::new(
                 project_label(&project.project, catalog),
                 project.net,
                 project.running,
             )
+            .compared(comparison.and_then(|compared| compared.projects.get(index).copied()))
         })
         .collect();
     let back_flow = &report.back_flow;
     if !back_flow.net.is_zero() || back_flow.running {
-        projects.push(BarRow::new("No project", back_flow.net, back_flow.running));
+        projects.push(
+            BarRow::new("No project", back_flow.net, back_flow.running)
+                .compared(comparison.map(|compared| compared.back_flow)),
+        );
     }
 
     let mut lines = bar_part("Time per role", &roles, report.tracked, canvas);
@@ -312,7 +386,17 @@ fn targets_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
     let rows: Vec<Vec<String>> = report
         .targets
         .iter()
-        .map(|target| target_row(target, table.catalog, canvas))
+        .enumerate()
+        .map(|(index, target)| {
+            let mut row = target_row(target, table.catalog, canvas);
+            if let Some(change) = table
+                .comparison
+                .and_then(|comparison| comparison.targets.get(index))
+            {
+                row.extend(time_change_cells(change));
+            }
+            row
+        })
         .collect();
     let mut lines = vec![canvas.heading("Target vs. actual")];
     lines.extend(columns(&rows, canvas));
@@ -379,23 +463,42 @@ fn revenue_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
     if revenue.clients.is_empty() && revenue.no_rate.is_empty() {
         return Vec::new();
     }
+    let changes = table.comparison.map(|comparison| &comparison.revenue);
+    let beside = |mut row: Vec<String>, change: Option<Option<&Compared<Money>>>| {
+        if let Some(change) = change {
+            row.extend(money_change_cells(change));
+        }
+        row
+    };
     let mut rows = Vec::new();
-    for client in &revenue.clients {
-        rows.push(client_row(client, table.catalog, canvas));
+    for (index, client) in revenue.clients.iter().enumerate() {
+        rows.push(beside(
+            client_row(client, table.catalog, canvas),
+            changes.map(|changes| changes.clients.get(index).and_then(Option::as_ref)),
+        ));
         rows.extend(
             revenue
                 .projects
                 .iter()
-                .filter(|project| project.client == client.client)
-                .map(|project| project_row(project, table.catalog, canvas)),
+                .enumerate()
+                .filter(|(_, project)| project.client == client.client)
+                .map(|(index, project)| {
+                    beside(
+                        project_row(project, table.catalog, canvas),
+                        changes.map(|changes| changes.projects.get(index).and_then(Option::as_ref)),
+                    )
+                }),
         );
     }
-    for total in &revenue.totals {
-        rows.push(vec![
-            "Total".to_owned(),
-            String::new(),
-            format!("{total} {}", total.currency().code()),
-        ]);
+    for (index, total) in revenue.totals.iter().enumerate() {
+        rows.push(beside(
+            vec![
+                "Total".to_owned(),
+                String::new(),
+                format!("{total} {}", total.currency().code()),
+            ],
+            changes.map(|changes| changes.totals.get(index)),
+        ));
     }
     let mut lines = vec![canvas.heading("Revenue")];
     lines.extend(columns(&rows, canvas));
@@ -428,7 +531,7 @@ fn project_row(project: &ProjectRevenue, catalog: &Catalog, canvas: Canvas) -> V
 }
 
 /// A duration with the running mark when it counts a running entry.
-fn marked(duration: SignedDuration, running: bool) -> String {
+pub(crate) fn marked(duration: SignedDuration, running: bool) -> String {
     let mark = if running { RUNNING } else { "" };
     format!("{}{mark}", format_duration(duration))
 }
@@ -491,6 +594,12 @@ fn holds_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
             canvas,
         ));
     }
+    if let Some(comparison) = table.comparison {
+        lines.extend(sentence(
+            &compared_holds(comparison, &holds.by_source),
+            canvas,
+        ));
+    }
     lines
 }
 
@@ -502,20 +611,28 @@ fn pauses_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
     }
     let mut lines = vec![canvas.heading("Pauses and catches")];
     if !report.pauses.is_empty() {
+        let kinds: Vec<&str> = report
+            .pauses
+            .iter()
+            .map(|share| match share.kind {
+                PauseKind::Break => "break",
+                PauseKind::Lunch => "lunch",
+                PauseKind::Pomodoro => "Pomodoro",
+                PauseKind::Recovery => "recovery",
+            })
+            .collect();
         let pauses: Vec<String> = report
             .pauses
             .iter()
-            .map(|share| {
-                let kind = match share.kind {
-                    PauseKind::Break => "break",
-                    PauseKind::Lunch => "lunch",
-                    PauseKind::Pomodoro => "Pomodoro",
-                    PauseKind::Recovery => "recovery",
-                };
+            .zip(&kinds)
+            .map(|(share, kind)| {
                 format!("{kind} {} ({})", share.count, format_duration(share.time))
             })
             .collect();
         lines.extend(sentence(&format!("Pauses: {}.", pauses.join(", ")), canvas));
+        if let Some(comparison) = table.comparison {
+            lines.extend(sentence(&compared_pauses(comparison, &kinds), canvas));
+        }
     }
     if !report.catches.is_empty() {
         lines.extend(sentence(
@@ -530,14 +647,18 @@ fn pauses_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
 fn decided_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
     let report = table.report;
     let decided = &report.decided;
+    let changes = table.comparison.map(|comparison| comparison.decided);
     let rows = [
-        BarRow::new("By me", decided.by_me.net, decided.by_me.running),
+        BarRow::new("By me", decided.by_me.net, decided.by_me.running)
+            .compared(changes.map(|changes| changes.by_me)),
         BarRow::new(
             "By others",
             decided.by_others.net,
             decided.by_others.running,
-        ),
-        BarRow::new("Unmarked", decided.unmarked.net, decided.unmarked.running),
+        )
+        .compared(changes.map(|changes| changes.by_others)),
+        BarRow::new("Unmarked", decided.unmarked.net, decided.unmarked.running)
+            .compared(changes.map(|changes| changes.unmarked)),
     ];
     bar_part("Who decided", &rows, report.tracked, canvas)
 }

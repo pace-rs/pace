@@ -1,0 +1,66 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --compare   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+This week: Mon 2026-11-23 to Sun 2026-11-29, Europe/Berlin
+Compared with Mon 2026-11-16 to Sun 2026-11-22.
+Tracked 7h 15m (was 3h 30m, +3h 45m, +107%), untracked 79h 45m (was 164h 30m,
+-84h 45m, -52%).
+
+Highlights
+  Busiest day: Thu 2026-11-26, 4h 15m*; in the previous period Tue 2026-11-17,
+  3h.
+  Top project: Webshop relaunch, 5h 15m; in the previous period Webshop
+  relaunch, 3h.
+
+Time per role
+  Work     5h 15m   72%   was 3h  +2h 15m   +75%  ██████████████████████████████
+  Health       1h   14%  was 30m     +30m  +100%  █████▋
+  No role     1h*   14%   was 0s      +1h         █████▋
+
+Time per project
+  Webshop relaunch  5h 15m   72%   was 3h  +2h 15m   +75%  █████████████████████
+  No project           2h*   28%  was 30m  +1h 30m  +300%  ████████
+
+Time per day
+  Mon 2026-11-23        –
+  Tue 2026-11-24       1h   14%  █████████▍
+  Wed 2026-11-25       2h   28%  ██████████████████▊
+  Thu 2026-11-26  4h 15m*   59%  ████████████████████████████████████████
+  Fri 2026-11-27        –
+  Sat 2026-11-28        –
+  Sun 2026-11-29        –
+
+Target vs. actual
+  Work  5h 15m  of 30h  18%  was 3h  +2h 15m  +75%
+
+Budgets, used to date
+  Webshop relaunch  8h 15m  of 10h  83%
+
+Revenue
+  ACME GmbH           5h 15m  498.75 EUR  was 285.00 EUR  +213.75  +75%
+    Webshop relaunch  5h 15m  498.75 EUR  was 285.00 EUR  +213.75  +75%
+  Total                       498.75 EUR  was 285.00 EUR  +213.75  +75%
+
+Interruptions
+  1 hold, 15m: inner 0, outer 1 (15m), unknown 0.
+  Most frequent reasons: phone call 1.
+  Previous period: 0 holds, 0s: inner 0, outer 0, unknown 0.
+
+Pauses and catches
+  Pauses: lunch 1 (30m).
+  Previous period: lunch 0 (0s).
+  1 catch.
+
+Who decided
+  By me          1h   14%  was 30m     +30m  +100%  █████▎
+  By others     1h*   14%   was 0s      +1h         █████▎
+  Unmarked   5h 15m   72%   was 3h  +2h 15m   +75%  ████████████████████████████
+
+* counts a running entry up to now.
+
+----- stderr -----

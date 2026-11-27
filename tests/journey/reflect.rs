@@ -892,3 +892,108 @@ fn broken_template_in_templates_directory_names_its_file_and_line() -> TestResul
     assert!(!stderr.contains("This is a bug in pace"), "{stderr}");
     Ok(())
 }
+
+/// The sandbox of [`week_sandbox`] with last week's entries: three hours
+/// on the webshop on Tuesday with a hold, and a run on Wednesday.
+fn two_weeks_sandbox() -> Result<Sandbox, Box<dyn std::error::Error>> {
+    let sandbox = week_sandbox()?;
+    let last_week: [&[&str]; 2] = [
+        &[
+            "log",
+            "Plan release",
+            "--project",
+            "acme-webshop",
+            "--from",
+            "2026-11-17 09:00",
+            "--to",
+            "2026-11-17 12:00",
+        ],
+        &[
+            "log",
+            "Run",
+            "--role",
+            "health",
+            "--by-me",
+            "--from",
+            "2026-11-18 07:00",
+            "--to",
+            "2026-11-18 07:30",
+        ],
+    ];
+    for args in last_week {
+        _ = run(sandbox.pace_at("15:00").args(args))?;
+    }
+    Ok(sandbox)
+}
+
+#[test]
+fn compare_sets_last_week_beside_this_week() -> TestResult {
+    let sandbox = two_weeks_sandbox()?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--compare"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn compare_as_json_gives_rows_previous_and_change() -> TestResult {
+    let sandbox = two_weeks_sandbox()?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--compare", "--format", "json"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn compare_as_csv_adds_previous_and_change_columns() -> TestResult {
+    let sandbox = two_weeks_sandbox()?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--compare", "--format", "csv"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn compare_as_text_names_previous_values() -> TestResult {
+    let sandbox = two_weeks_sandbox()?;
+
+    let output = sandbox.journey(&[("15:00", &["reflect", "--compare", "--format", "text"])])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn compare_of_all_is_usage_error() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    let output = sandbox
+        .pace_at("15:00")
+        .args(["reflect", "all", "--compare"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("`all` has no previous period to compare with"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn compare_as_markdown_and_html_names_highlights() -> TestResult {
+    let sandbox = two_weeks_sandbox()?;
+
+    for format in ["markdown", "html"] {
+        let output = sandbox
+            .pace_at("15:00")
+            .args(["reflect", "--compare", "--format", format])
+            .output()?;
+
+        assert!(output.status.success(), "{format}: {output:?}");
+        let stdout = String::from_utf8(output.stdout)?;
+        assert!(stdout.contains("Highlights"), "{stdout}");
+        assert!(stdout.contains("(was 3h, +2h 15m, +75%)"), "{stdout}");
+    }
+    Ok(())
+}

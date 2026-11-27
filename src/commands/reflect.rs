@@ -6,8 +6,8 @@ use std::{collections::BTreeSet, path::PathBuf};
 use abscissa_core::{Command, Runnable};
 use jiff::civil::Date;
 use pace_core::{
-    Catalog, ClientKey, Device, DeviceId, ProjectKey, ProjectRef, Report, ReportFilter,
-    ReportInput, RoleKey, State,
+    Catalog, ClientKey, Device, DeviceId, ProjectKey, ProjectRef, Report, ReportComparison,
+    ReportFilter, ReportInput, RoleKey, State,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult, closest_name};
 use pace_time::{TimeFrame, TimeRange};
@@ -106,6 +106,13 @@ pub struct ReflectCmd {
         help = "Render the report with this Tera template; it receives the rows of --format json"
     )]
     template: Option<PathBuf>,
+
+    #[arg(
+        long,
+        help = "Set the previous period of the same length beside each number, with the change, \
+                and name the busiest day and the top project"
+    )]
+    compare: bool,
 }
 
 /// How `pace reflect` shows the report.
@@ -148,10 +155,13 @@ impl ReflectCmd {
         let session = Session::open_existing(context)?;
         let zone = zone(&context.settings.settings.reports_time_zone)?;
         let now = session.now().with_time_zone(zone.clone());
+        let week_start = context.settings.settings.week_start;
         let frame = self.frame()?;
-        let range = frame
-            .resolve(&now, context.settings.settings.week_start)
-            .map_err(usage)?;
+        let range = frame.resolve(&now, week_start).map_err(usage)?;
+        let previous_range = self
+            .compare
+            .then(|| frame.resolve_previous(&now, week_start).map_err(usage))
+            .transpose()?;
         let state = session.state(&range)?;
         let filter = self.filter(context, &session, &state)?;
         let catalog = &context.catalog;
@@ -160,7 +170,7 @@ impl ReflectCmd {
         } else {
             None
         };
-        let report = Report::build(&ReportInput {
+        let input = ReportInput {
             state: &state,
             catalog,
             period: &range,
@@ -168,10 +178,23 @@ impl ReflectCmd {
             now: &now,
             zone: &zone,
             all_time: all_time.as_ref(),
-        })?;
+        };
+        let report = Report::build(&input)?;
+        let comparison = previous_range
+            .map(|period| -> PaceResult<ReportComparison> {
+                let state = session.state(&period)?;
+                let previous = Report::build(&ReportInput {
+                    state: &state,
+                    period: &period,
+                    ..input
+                })?;
+                Ok(ReportComparison::of(&report, &previous))
+            })
+            .transpose()?;
         let rows = || {
             report_rows(&ReportRows {
                 report: &report,
+                comparison: comparison.as_ref(),
                 catalog,
                 state: &state,
             })
@@ -186,6 +209,7 @@ impl ReflectCmd {
             (None, _) => print_lines(report_table(
                 &ReportTable {
                     report: &report,
+                    comparison: comparison.as_ref(),
                     catalog,
                     state: &state,
                     frame: &frame,

@@ -1,0 +1,448 @@
+---
+source: tests/journey/reflect.rs
+expression: output
+---
+$ pace reflect --compare --format json   # at 15:00
+success: true
+exit_code: 0
+----- stdout -----
+{
+  "version": 1,
+  "kind": "reflect",
+  "rows": [
+    {
+      "part": "highlights",
+      "group": "busiest_day",
+      "date": "2026-11-26",
+      "net_seconds": 15300,
+      "net": "4h 15m",
+      "running": true,
+      "previous": {
+        "date": "2026-11-17",
+        "net_seconds": 10800,
+        "net": "3h"
+      }
+    },
+    {
+      "part": "highlights",
+      "group": "top_project",
+      "key": "acme-webshop",
+      "id": "[ID-1]",
+      "name": "Webshop relaunch",
+      "net_seconds": 18900,
+      "net": "5h 15m",
+      "running": false,
+      "previous": {
+        "key": "acme-webshop",
+        "id": "[ID-1]",
+        "name": "Webshop relaunch",
+        "net_seconds": 10800,
+        "net": "3h"
+      }
+    },
+    {
+      "part": "time",
+      "group": "tracked",
+      "start": "2026-11-23T00:00:00+01:00[Europe/Berlin]",
+      "end": "2026-11-30T00:00:00+01:00[Europe/Berlin]",
+      "net_seconds": 26100,
+      "net": "7h 15m",
+      "running": true,
+      "previous": {
+        "start": "2026-11-16T00:00:00+01:00[Europe/Berlin]",
+        "end": "2026-11-23T00:00:00+01:00[Europe/Berlin]",
+        "net_seconds": 12600,
+        "net": "3h 30m"
+      },
+      "change_net_seconds": 13500,
+      "change_net": "+3h 45m",
+      "change_percent": 107
+    },
+    {
+      "part": "time",
+      "group": "untracked",
+      "net_seconds": 287100,
+      "net": "79h 45m",
+      "previous": {
+        "net_seconds": 592200,
+        "net": "164h 30m"
+      },
+      "change_net_seconds": -305100,
+      "change_net": "-84h 45m",
+      "change_percent": -52
+    },
+    {
+      "part": "time",
+      "group": "role",
+      "key": "work",
+      "id": "[ID-2]",
+      "name": "Work",
+      "net_seconds": 18900,
+      "net": "5h 15m",
+      "percent": 72,
+      "running": false,
+      "previous": {
+        "net_seconds": 10800,
+        "net": "3h"
+      },
+      "change_net_seconds": 8100,
+      "change_net": "+2h 15m",
+      "change_percent": 75
+    },
+    {
+      "part": "time",
+      "group": "role",
+      "key": "health",
+      "id": "[ID-3]",
+      "name": "Health",
+      "net_seconds": 3600,
+      "net": "1h",
+      "percent": 14,
+      "running": false,
+      "previous": {
+        "net_seconds": 1800,
+        "net": "30m"
+      },
+      "change_net_seconds": 1800,
+      "change_net": "+30m",
+      "change_percent": 100
+    },
+    {
+      "part": "time",
+      "group": "role",
+      "net_seconds": 3600,
+      "net": "1h",
+      "percent": 14,
+      "running": true,
+      "previous": {
+        "net_seconds": 0,
+        "net": "0s"
+      },
+      "change_net_seconds": 3600,
+      "change_net": "+1h"
+    },
+    {
+      "part": "time",
+      "group": "project",
+      "key": "acme-webshop",
+      "id": "[ID-1]",
+      "name": "Webshop relaunch",
+      "net_seconds": 18900,
+      "net": "5h 15m",
+      "percent": 72,
+      "running": false,
+      "previous": {
+        "net_seconds": 10800,
+        "net": "3h"
+      },
+      "change_net_seconds": 8100,
+      "change_net": "+2h 15m",
+      "change_percent": 75
+    },
+    {
+      "part": "time",
+      "group": "project",
+      "net_seconds": 7200,
+      "net": "2h",
+      "percent": 28,
+      "running": true,
+      "previous": {
+        "net_seconds": 1800,
+        "net": "30m"
+      },
+      "change_net_seconds": 5400,
+      "change_net": "+1h 30m",
+      "change_percent": 300
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-23",
+      "net_seconds": 0,
+      "net": "0s",
+      "percent": 0,
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-24",
+      "net_seconds": 3600,
+      "net": "1h",
+      "percent": 14,
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-25",
+      "net_seconds": 7200,
+      "net": "2h",
+      "percent": 28,
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-26",
+      "net_seconds": 15300,
+      "net": "4h 15m",
+      "percent": 59,
+      "running": true
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-27",
+      "net_seconds": 0,
+      "net": "0s",
+      "percent": 0,
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-28",
+      "net_seconds": 0,
+      "net": "0s",
+      "percent": 0,
+      "running": false
+    },
+    {
+      "part": "time",
+      "group": "day",
+      "date": "2026-11-29",
+      "net_seconds": 0,
+      "net": "0s",
+      "percent": 0,
+      "running": false
+    },
+    {
+      "part": "target",
+      "group": "role",
+      "key": "work",
+      "id": "[ID-2]",
+      "name": "Work",
+      "net_seconds": 18900,
+      "net": "5h 15m",
+      "percent": 18,
+      "target_seconds": 108000,
+      "target": "30h",
+      "running": false,
+      "previous": {
+        "net_seconds": 10800,
+        "net": "3h"
+      },
+      "change_net_seconds": 8100,
+      "change_net": "+2h 15m",
+      "change_percent": 75
+    },
+    {
+      "part": "budget",
+      "group": "project",
+      "key": "acme-webshop",
+      "id": "[ID-1]",
+      "name": "Webshop relaunch",
+      "net_seconds": 29700,
+      "net": "8h 15m",
+      "percent": 83,
+      "budget_seconds": 36000,
+      "budget": "10h",
+      "running": false
+    },
+    {
+      "part": "revenue",
+      "group": "client",
+      "key": "acme",
+      "name": "ACME GmbH",
+      "billed_seconds": 18900,
+      "billed": "5h 15m",
+      "amount": "498.75",
+      "currency": "EUR",
+      "running": false,
+      "previous": {
+        "amount": "285.00",
+        "currency": "EUR"
+      },
+      "change_amount": "+213.75",
+      "change_percent": 75
+    },
+    {
+      "part": "revenue",
+      "group": "project",
+      "key": "acme-webshop",
+      "id": "[ID-1]",
+      "name": "Webshop relaunch",
+      "client": "acme",
+      "billed_seconds": 18900,
+      "billed": "5h 15m",
+      "amount": "498.75",
+      "currency": "EUR",
+      "running": false,
+      "previous": {
+        "amount": "285.00",
+        "currency": "EUR"
+      },
+      "change_amount": "+213.75",
+      "change_percent": 75
+    },
+    {
+      "part": "revenue",
+      "group": "total",
+      "amount": "498.75",
+      "currency": "EUR",
+      "previous": {
+        "amount": "285.00",
+        "currency": "EUR"
+      },
+      "change_amount": "+213.75",
+      "change_percent": 75
+    },
+    {
+      "part": "interruptions",
+      "group": "total",
+      "count": 1,
+      "held_seconds": 900,
+      "held": "15m",
+      "previous": {
+        "count": 0,
+        "held_seconds": 0,
+        "held": "0s"
+      },
+      "change_count": 1,
+      "change_held_seconds": 900,
+      "change_held": "+15m"
+    },
+    {
+      "part": "interruptions",
+      "group": "source",
+      "key": "inner",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s",
+      "previous": {
+        "count": 0,
+        "held_seconds": 0,
+        "held": "0s"
+      },
+      "change_count": 0,
+      "change_held_seconds": 0,
+      "change_held": "0s"
+    },
+    {
+      "part": "interruptions",
+      "group": "source",
+      "key": "outer",
+      "count": 1,
+      "held_seconds": 900,
+      "held": "15m",
+      "previous": {
+        "count": 0,
+        "held_seconds": 0,
+        "held": "0s"
+      },
+      "change_count": 1,
+      "change_held_seconds": 900,
+      "change_held": "+15m"
+    },
+    {
+      "part": "interruptions",
+      "group": "source",
+      "key": "unknown",
+      "count": 0,
+      "held_seconds": 0,
+      "held": "0s",
+      "previous": {
+        "count": 0,
+        "held_seconds": 0,
+        "held": "0s"
+      },
+      "change_count": 0,
+      "change_held_seconds": 0,
+      "change_held": "0s"
+    },
+    {
+      "part": "interruptions",
+      "group": "reason",
+      "count": 1,
+      "reason": "phone call",
+      "previous": {
+        "count": 0
+      },
+      "change_count": 1
+    },
+    {
+      "part": "pauses",
+      "group": "kind",
+      "key": "lunch",
+      "count": 1,
+      "paused_seconds": 1800,
+      "paused": "30m",
+      "previous": {
+        "count": 0,
+        "paused_seconds": 0,
+        "paused": "0s"
+      },
+      "change_count": 1,
+      "change_paused_seconds": 1800,
+      "change_paused": "+30m"
+    },
+    {
+      "part": "pauses",
+      "group": "catch",
+      "id": "[ID-4]",
+      "short": "[ID-4]",
+      "start": "2026-11-26T14:30:00+01:00[Europe/Berlin]",
+      "note": "call Bob back"
+    },
+    {
+      "part": "decided",
+      "group": "determined_by",
+      "key": "self",
+      "net_seconds": 3600,
+      "net": "1h",
+      "percent": 14,
+      "running": false,
+      "previous": {
+        "net_seconds": 1800,
+        "net": "30m"
+      },
+      "change_net_seconds": 1800,
+      "change_net": "+30m",
+      "change_percent": 100
+    },
+    {
+      "part": "decided",
+      "group": "determined_by",
+      "key": "other",
+      "net_seconds": 3600,
+      "net": "1h",
+      "percent": 14,
+      "running": true,
+      "previous": {
+        "net_seconds": 0,
+        "net": "0s"
+      },
+      "change_net_seconds": 3600,
+      "change_net": "+1h"
+    },
+    {
+      "part": "decided",
+      "group": "determined_by",
+      "key": "unmarked",
+      "net_seconds": 18900,
+      "net": "5h 15m",
+      "percent": 72,
+      "running": false,
+      "previous": {
+        "net_seconds": 10800,
+        "net": "3h"
+      },
+      "change_net_seconds": 8100,
+      "change_net": "+2h 15m",
+      "change_percent": 75
+    }
+  ]
+}
+
+----- stderr -----

@@ -16,12 +16,19 @@ pace's root, embedded with `include_str!`; a `ReportTemplate::File` is a
 template of the user's own. A template receives the JSON document of the schema,
 `SchemaDocument`.
 
+With `--compare`, `report_compare.rs` words the `ReportComparison` of the core:
+the cells `was 3h`, `+2h 15m` and `+75%` beside a number of the table, the
+signed changes of the rows, and the highlights. A row of the schema holds the
+cells of the previous period apart; JSON writes them as the object `previous`,
+CSV under the columns `previous_<column>`.
+
 ## Files
 
 <!-- files -->
 
 | File                                       | What it holds                                                                                                                                       |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`report_compare.rs`](report_compare.rs)   | The comparison of `reflect --compare` in words: the previous value and the change beside a number, for the table and the rows, and the highlights.  |
 | [`report_rows.rs`](report_rows.rs)         | The report of `reflect` as rows of the schema, for `--format json` and `--format csv`: one row per line of the report, each under its part.         |
 | [`report_table.rs`](report_table.rs)       | The report of `reflect` as a table for the terminal: its parts in the plan's order, with bars for the time per role, project and day.               |
 | [`report_template.rs`](report_template.rs) | The report of `reflect` from a Tera template, for `--format text`, `markdown` and `html`: the built-in templates and the reader of a template file. |
