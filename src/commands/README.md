@@ -35,10 +35,10 @@ it; `project edit` also refuses a changed key or ID.
 <!-- uses -->
 
 - Uses: [`application`](../application.rs), [`clock`](../clock.rs),
-  [`dirs`](../dirs/), [`editor`](../editor.rs), [`output`](../output.rs),
-  [`print`](../print.rs), [`project`](../project.rs), [`prompt`](../prompt.rs),
-  [`questions`](../questions/), [`select`](../select.rs),
-  [`session`](../session.rs).
+  [`config`](../config/), [`dirs`](../dirs/), [`editor`](../editor.rs),
+  [`output`](../output.rs), [`print`](../print.rs), [`project`](../project.rs),
+  [`prompt`](../prompt.rs), [`questions`](../questions/),
+  [`select`](../select.rs), [`session`](../session.rs).
 - Used by: [`application`](../application.rs), [`editor`](../editor.rs).
 
 <!-- /uses -->

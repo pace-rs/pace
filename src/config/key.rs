@@ -1,6 +1,8 @@
 //! The settings pace knows: their keys, their variables and the values
 //! that fit.
 
+use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, closest_name};
+
 /// A setting pace knows. A key in a table is written `table.key`.
 ///
 /// Only [`Key::ALL`] builds a key, so a key left out of it is dead code,
@@ -32,6 +34,32 @@ impl Key {
         Self::StorageSplit,
         Self::ReportsTimeZone,
     ];
+
+    /// The setting written `name`, as `config get` and `config set` take
+    /// it: `time-zone`, `holds.default-source`.
+    ///
+    /// # Errors
+    ///
+    /// If pace knows no setting `name`: the error names the closest key
+    /// and exits with 2.
+    pub(crate) fn named(name: &str) -> PaceResult<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|key| key.name() == name)
+            .ok_or_else(|| {
+                let hint = closest_name(name, Self::ALL.into_iter().map(Self::name)).map_or_else(
+                    || "`pace config show` lists the settings".to_owned(),
+                    |closest| format!("did you mean `{closest}`?"),
+                );
+                PaceError::new(
+                    ErrorKind::InvalidInput,
+                    "pace doesn't know the setting `{key}`",
+                )
+                .attach_context("key", name)
+                .attach_hint(hint)
+                .attach_exit_code(ExitCode::Usage)
+            })
+    }
 
     /// The key as written in the file.
     pub(crate) const fn name(self) -> &'static str {

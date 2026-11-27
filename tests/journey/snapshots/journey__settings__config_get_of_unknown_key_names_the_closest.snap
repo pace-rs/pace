@@ -1,0 +1,22 @@
+---
+source: tests/journey/settings.rs
+expression: output
+---
+$ pace config get time-zon   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace doesn't know the setting `time-zon`
+  help: did you mean `time-zone`?
+
+
+$ pace config get project-paths   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `project-paths` is a table of directories, not one setting
+  help: `pace config show` shows it

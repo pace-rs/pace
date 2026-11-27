@@ -131,3 +131,46 @@ fn config_show_lists_reports_time_zone() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn config_get_prints_effective_value_and_with_origin_where_it_comes_from() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("version = 1\nweek-start = \"Sunday\"\n")?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["config", "get", "week-start"]),
+        ("09:00", &["config", "get", "week-start", "--origin"]),
+        ("09:00", &["config", "get", "most-recent-count", "--origin"]),
+        ("09:00", &["config", "get", "reports.time-zone"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn config_get_names_variable_that_sets_the_value() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = run(sandbox
+        .pace()
+        .env("PACE_HOLDS__DEFAULT_SOURCE", "outer")
+        .args(["config", "get", "holds.default-source", "--origin"]))?;
+
+    assert!(
+        output.contains("outer  # from PACE_HOLDS__DEFAULT_SOURCE"),
+        "{output}"
+    );
+    Ok(())
+}
+
+#[test]
+fn config_get_of_unknown_key_names_the_closest() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["config", "get", "time-zon"]),
+        ("09:00", &["config", "get", "project-paths"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

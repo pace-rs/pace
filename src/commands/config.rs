@@ -1,20 +1,85 @@
 //! `pace config`
 
 use abscissa_core::{Command, Runnable};
-use pace_error::PaceResult;
+use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 
 use crate::{
-    application::{PACE_APP, exit_on_error},
+    application::{Context, PACE_APP, exit_on_error},
+    config::{Key, PROJECT_PATHS},
     dirs::Located,
     print::print_lines,
     project::Project,
 };
 
-/// Look at pace's configuration.
+/// Look at pace's configuration, and change a setting.
 #[derive(clap::Subcommand, Command, Debug, Runnable)]
 pub enum ConfigCmd {
     /// Show where pace keeps its files, the project and the settings in effect.
     Show(ShowCmd),
+    /// Print the value of one setting.
+    Get(GetCmd),
+}
+
+/// `pace config get`
+#[derive(clap::Args, Command, Debug)]
+pub struct GetCmd {
+    #[arg(
+        value_name = "KEY",
+        help = "The setting, such as `time-zone` or `holds.default-source`"
+    )]
+    key: String,
+
+    /// Say where the value comes from.
+    #[arg(long)]
+    origin: bool,
+}
+
+impl Runnable for GetCmd {
+    fn run(&self) {
+        exit_on_error(PACE_APP.context().and_then(|context| self.execute(context)));
+    }
+}
+
+impl GetCmd {
+    fn execute(&self, context: &Context) -> PaceResult<()> {
+        let key = setting_key(&self.key, "`pace config show` shows it")?;
+        let (value, origin) = context.settings.entry(key);
+        let shown = plain_value(&value);
+        let line = if self.origin {
+            format!("{shown}  # {origin}")
+        } else {
+            shown
+        };
+        print_lines([line])
+    }
+}
+
+/// The setting `name` of the command line; `table_hint` says where to go
+/// for `[project-paths]`, which is a table, not one setting.
+///
+/// # Errors
+///
+/// If `name` is `project-paths` or no setting pace knows: the error exits
+/// with 2.
+fn setting_key(name: &str, table_hint: &str) -> PaceResult<Key> {
+    if name == PROJECT_PATHS {
+        return Err(PaceError::new(
+            ErrorKind::InvalidInput,
+            "`{key}` is a table of directories, not one setting",
+        )
+        .attach_context("key", name)
+        .attach_hint(table_hint)
+        .attach_exit_code(ExitCode::Usage));
+    }
+    Key::named(name)
+}
+
+/// A setting's value as a script wants it: text without quotes.
+fn plain_value(value: &toml::Value) -> String {
+    match value {
+        toml::Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
 }
 
 /// `pace config show`

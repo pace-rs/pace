@@ -22,9 +22,10 @@ use pace_store::Split;
 
 use pace_store::toml_file::{TomlFile, TomlKey, TomlValue, read_hint};
 
+pub(crate) use self::key::Key;
 pub use self::values::TimeZoneSetting;
 use self::{
-    key::{Key, Kind},
+    key::Kind,
     values::{
         Value, hold_source_name, parse_count, parse_hold_source, parse_time_zone, parse_weekday,
         weekday_name,
@@ -33,7 +34,7 @@ use self::{
 use crate::{dirs::Located, origin::Origin};
 
 /// The table that maps directories to projects.
-const PROJECT_PATHS: &str = "project-paths";
+pub(crate) const PROJECT_PATHS: &str = "project-paths";
 
 /// The start of every variable pace reads.
 const PREFIX: &str = "PACE_";
@@ -159,6 +160,16 @@ impl Loaded {
             .iter()
             .map(|(key, origin)| (key.name(), self.settings.get(*key), origin))
             .collect()
+    }
+
+    /// The value of the setting `key` and where it comes from.
+    pub(crate) fn entry(&self, key: Key) -> (toml::Value, Origin) {
+        let origin = self
+            .origins
+            .iter()
+            .find(|(known, _)| *known == key)
+            .map_or(Origin::Default, |(_, origin)| origin.clone());
+        (self.settings.get(key), origin)
     }
 }
 

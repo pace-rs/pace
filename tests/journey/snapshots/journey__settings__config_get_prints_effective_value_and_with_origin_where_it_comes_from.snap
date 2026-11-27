@@ -1,0 +1,35 @@
+---
+source: tests/journey/settings.rs
+expression: output
+---
+$ pace config get week-start   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+sunday
+
+----- stderr -----
+
+$ pace config get week-start --origin   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+sunday  # from [SANDBOX]/config/pace.global.toml:2
+
+----- stderr -----
+
+$ pace config get most-recent-count --origin   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+9  # default
+
+----- stderr -----
+
+$ pace config get reports.time-zone   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+system
+
+----- stderr -----
