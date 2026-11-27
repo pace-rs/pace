@@ -204,3 +204,30 @@ fn count_is_whole_number_from_one() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn count_in_hex_octal_or_binary_is_read_as_its_number() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    for written in ["0x10", "0o20", "0b1_0000", "1_6"] {
+        sandbox.write_config(&format!("most-recent-count = {written}\n"))?;
+        let output = run(sandbox.pace().args(["config", "show"]))?;
+
+        assert!(
+            output.contains("most-recent-count = 16\n"),
+            "{written}: {output}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn version_in_hex_is_read_as_its_number() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("version = 0x10\n")?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+
+    assert!(output.contains(", not 16"), "{output}");
+    Ok(())
+}

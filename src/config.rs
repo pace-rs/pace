@@ -7,6 +7,7 @@
 //! closest known key; an unknown `PACE_*` variable only warns.
 
 use std::{
+    borrow::Cow,
     ffi::OsString,
     fmt,
     ops::Range,
@@ -137,6 +138,23 @@ impl Default for Settings {
     }
 }
 
+/// A setting's value as read: text, or a whole number from a file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Value {
+    Text(String),
+    Number(i64),
+}
+
+impl Value {
+    /// The value as text; a number in decimal digits.
+    fn text(&self) -> Cow<'_, str> {
+        match self {
+            Self::Text(text) => Cow::Borrowed(text),
+            Self::Number(number) => Cow::Owned(number.to_string()),
+        }
+    }
+}
+
 /// Why a value doesn't fit a key; becomes a [`PaceError`] with the place
 /// the value came from.
 struct Invalid {
@@ -145,11 +163,16 @@ struct Invalid {
 }
 
 impl Settings {
-    fn set(&mut self, key: &str, value: &str) -> Result<(), Invalid> {
+    fn set(&mut self, key: &str, value: &Value) -> Result<(), Invalid> {
+        if key == "most-recent-count" {
+            self.most_recent_count = parse_count(value)?;
+            return Ok(());
+        }
+        let value = value.text();
+        let value = value.as_ref();
         match key {
             "time-zone" => self.time_zone = parse_time_zone(value)?,
             "week-start" => self.week_start = parse_weekday(value)?,
-            "most-recent-count" => self.most_recent_count = parse_count(value)?,
             "holds.default-source" => self.default_hold_source = parse_hold_source(value)?,
             "storage.split" => {
                 self.split = value.parse().map_err(|error: Box<PaceError>| Invalid {
@@ -184,15 +207,16 @@ impl Settings {
     }
 }
 
-fn parse_count(value: &str) -> Result<usize, Invalid> {
-    value
-        .parse::<usize>()
-        .ok()
-        .filter(|count| *count > 0)
-        .ok_or_else(|| Invalid {
-            message: format!("`{value}` is not a whole number from 1"),
-            hint: "write a number like `9`".to_owned(),
-        })
+fn parse_count(value: &Value) -> Result<usize, Invalid> {
+    match value {
+        Value::Number(number) => usize::try_from(*number).ok(),
+        Value::Text(text) => text.parse::<usize>().ok(),
+    }
+    .filter(|count| *count > 0)
+    .ok_or_else(|| Invalid {
+        message: format!("`{}` is not a whole number from 1", value.text()),
+        hint: "write a number like `9`".to_owned(),
+    })
 }
 
 const HOLD_SOURCES: [(&str, HoldSource); 3] = [
@@ -360,7 +384,7 @@ pub fn load_settings(
         let Some(value) = env(key.variable).filter(|value| !value.is_empty()) else {
             continue;
         };
-        let value = value.to_string_lossy();
+        let value = Value::Text(value.to_string_lossy().into_owned());
         settings.set(key.name, &value).map_err(|invalid| {
             PaceError::new(ErrorKind::Configuration, "{variable}: {message}")
                 .attach_context("variable", key.variable)
@@ -416,7 +440,7 @@ fn file_values(
     file: &TomlFile<'_>,
     home: Option<&Path>,
     project_paths: &mut Vec<ProjectPath>,
-) -> PaceResult<Vec<(&'static str, String, Range<usize>)>> {
+) -> PaceResult<Vec<(&'static str, Value, Range<usize>)>> {
     let table = file.parse()?;
     let mut known: Vec<&str> = Vec::new();
     for key in &KEYS {
@@ -479,19 +503,18 @@ fn table_keys(table: &str) -> Option<Vec<&'static str>> {
     (!keys.is_empty()).then_some(keys)
 }
 
-/// A setting's value as text, checked for its TOML type; `name` is the key
-/// as written.
+/// A setting's value, checked for its TOML type; `name` is the key as
+/// written.
 fn scalar(
     file: &TomlFile<'_>,
     name: &str,
     setting: &Key,
     value: &Spanned<DeValue<'_>>,
-) -> PaceResult<String> {
-    let text = match setting.kind {
-        Kind::Text => file.string(name, value, setting.expects)?,
-        Kind::Number => file.integer(name, value, setting.expects)?,
-    };
-    Ok(text.to_owned())
+) -> PaceResult<Value> {
+    Ok(match setting.kind {
+        Kind::Text => Value::Text(file.string(name, value, setting.expects)?.to_owned()),
+        Kind::Number => Value::Number(file.integer(name, value, setting.expects)?),
+    })
 }
 
 fn project_path(

@@ -7,7 +7,7 @@ use std::{ops::Range, path::Path};
 use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
 use toml::{
     Spanned,
-    de::{DeString, DeTable, DeValue},
+    de::{DeInteger, DeString, DeTable, DeValue},
 };
 
 /// A TOML file and how to talk about it in errors.
@@ -93,10 +93,7 @@ impl<'a> TomlFile<'a> {
     ///
     /// If it is not the version this pace reads; a newer one asks to update.
     pub fn check_version(&self, value: &Spanned<DeValue<'_>>) -> PaceResult<()> {
-        let version = value
-            .get_ref()
-            .as_integer()
-            .and_then(|integer| integer.as_str().parse::<i64>().ok());
+        let version = value.get_ref().as_integer().and_then(number);
         if version == Some(self.version) {
             return Ok(());
         }
@@ -105,10 +102,15 @@ impl<'a> TomlFile<'a> {
         } else {
             format!("write `version = {}`", self.version)
         };
+        let found =
+            version.map_or_else(|| value.get_ref().type_str().to_owned(), |v| v.to_string());
         Err(self
             .error_at(
                 value.span(),
-                format!("this pace reads version {} of {}", self.version, self.what),
+                format!(
+                    "this pace reads version {} of {}, not {found}",
+                    self.version, self.what
+                ),
                 hint,
                 "this version",
             )
@@ -137,30 +139,34 @@ impl<'a> TomlFile<'a> {
         })
     }
 
-    /// The value as a whole number, as written.
+    /// The value as a whole number, in the base it is written in: `0x10`,
+    /// `0o20`, `0b1_0000` and `16` are all 16.
     ///
     /// # Errors
     ///
-    /// If it is no integer; the error says what `name` takes (`expects`).
-    pub fn integer<'v>(
+    /// If it is no integer, or one too large; the error says what `name`
+    /// takes (`expects`).
+    pub fn integer(
         &self,
         name: &str,
-        value: &'v Spanned<DeValue<'_>>,
+        value: &Spanned<DeValue<'_>>,
         expects: &str,
-    ) -> PaceResult<&'v str> {
-        value
-            .get_ref()
-            .as_integer()
-            .map(toml::de::DeInteger::as_str)
-            .ok_or_else(|| {
-                self.error_at(
-                    value.span(),
-                    format!("`{name}` takes {expects}"),
-                    format!("write it as a number, for example `{name} = 9`"),
-                    &with_article(value.get_ref().type_str()),
-                )
-                .attach_error_code(format!("{}::invalid-value", self.code))
-            })
+    ) -> PaceResult<i64> {
+        let integer = value.get_ref().as_integer();
+        integer.and_then(number).ok_or_else(|| {
+            let label = if integer.is_some() {
+                "too large a number".to_owned()
+            } else {
+                with_article(value.get_ref().type_str())
+            };
+            self.error_at(
+                value.span(),
+                format!("`{name}` takes {expects}"),
+                format!("write it as a number, for example `{name} = 9`"),
+                &label,
+            )
+            .attach_error_code(format!("{}::invalid-value", self.code))
+        })
     }
 
     /// The value as a table.
@@ -192,6 +198,11 @@ impl<'a> TomlFile<'a> {
             .map_or(0, |before| before.matches('\n').count())
             + 1
     }
+}
+
+/// The number a TOML integer stands for, if it fits an `i64`.
+fn number(integer: &DeInteger<'_>) -> Option<i64> {
+    i64::from_str_radix(integer.as_str(), integer.radix()).ok()
 }
 
 fn with_article(noun: &str) -> String {
