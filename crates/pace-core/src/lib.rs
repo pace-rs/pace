@@ -18,6 +18,7 @@ mod entry;
 mod event;
 mod id;
 mod key;
+mod open;
 mod port;
 mod rules;
 mod scope;
@@ -36,6 +37,7 @@ pub use event::{
 };
 pub use id::{BatchId, DeviceId, EntryId, EventId, ProjectId};
 pub use key::{ProjectKey, Tag};
+pub use open::EntryVerb;
 pub use port::{Appended, Clock, FixedClock, Ids, Notice, Notifier, SequentialIds};
 pub use rules::{Policy, Rules};
 pub use scope::ReadScope;

@@ -9,8 +9,8 @@ use pace_time::{clock, clock_against};
 use uuid::Uuid;
 
 use crate::{
-    Batch, Change, Command, DeviceId, Entry, EntryChanges, EntryId, Event, EventKind, HoldSource,
-    Ids, State,
+    Batch, Change, Command, DeviceId, Entry, EntryChanges, EntryId, EntryVerb, Event, EventKind,
+    HoldSource, Ids, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
 
@@ -92,19 +92,15 @@ impl Rules<'_> {
         let mut events = Vec::new();
         let mut ending = Vec::new();
 
-        match self.state.open().collect::<Vec<_>>().as_slice() {
-            [] => {}
-            [running] => {
-                self.check_switch_after_start(running, &start)?;
-                self.check_switch_after_breaks(running, &start)?;
-                events.push(self.event(
-                    &start,
-                    &running.filed,
-                    EventKind::EntryEnded { entry: running.id },
-                )?);
-                ending.push(running.id);
-            }
-            open => return Err(self.several_open(open)),
+        if let Some(running) = self.state.sole_open(EntryVerb::Begin, self.now)? {
+            self.check_switch_after_start(running, &start)?;
+            self.check_switch_after_breaks(running, &start)?;
+            events.push(self.event(
+                &start,
+                &running.filed,
+                EventKind::EntryEnded { entry: running.id },
+            )?);
+            ending.push(running.id);
         }
 
         if !begin.allow_overlap {
@@ -126,7 +122,7 @@ impl Rules<'_> {
     }
 
     fn hold(&self, hold: &Hold) -> PaceResult<Vec<Event>> {
-        let entry = self.open_entry(None)?;
+        let entry = self.open_entry(None, EntryVerb::Hold)?;
         let at = hold.at.clone().unwrap_or_else(|| self.now.clone());
         self.refuse_future("be held", &at, "leave out `--at` to hold it now")?;
         if let Some(open) = entry.open_hold() {
@@ -152,7 +148,7 @@ impl Rules<'_> {
     }
 
     fn pause(&self, pause: &Pause) -> PaceResult<Vec<Event>> {
-        let entry = self.open_entry(None)?;
+        let entry = self.open_entry(None, EntryVerb::Pause)?;
         let at = pause.at.clone().unwrap_or_else(|| self.now.clone());
         self.refuse_future("be paused", &at, "leave out `--at` to pause it now")?;
         if let Some(open) = entry.open_pause() {
@@ -178,7 +174,7 @@ impl Rules<'_> {
     }
 
     fn resume(&self, resume: &Resume) -> PaceResult<Vec<Event>> {
-        let entry = self.open_entry(resume.entry)?;
+        let entry = self.open_entry(resume.entry, EntryVerb::Resume)?;
         let at = resume.at.clone().unwrap_or_else(|| self.now.clone());
         self.refuse_future("resume", &at, "leave out `--at` to resume it now")?;
         let Some(open_since) = entry.open_break_start() else {
@@ -207,7 +203,7 @@ impl Rules<'_> {
                 "`pace begin` starts an entry; notes without an entry come with the inbox",
             ));
         }
-        let entry = self.open_entry(None)?;
+        let entry = self.open_entry(None, EntryVerb::Catch)?;
         Ok(vec![self.event(
             self.now,
             &entry.filed,
@@ -219,7 +215,7 @@ impl Rules<'_> {
     }
 
     fn end(&self, end: &End) -> PaceResult<Vec<Event>> {
-        let entry = self.open_entry(end.entry)?;
+        let entry = self.open_entry(end.entry, EntryVerb::End)?;
         let at = end.at.clone().unwrap_or_else(|| self.now.clone());
         self.refuse_future("end", &at, "leave out `--at` to end it now")?;
         if at < entry.start {
@@ -256,7 +252,7 @@ impl Rules<'_> {
     fn adjust(&self, adjust: &Adjust) -> PaceResult<Vec<Event>> {
         let entry = match adjust.entry {
             Some(id) => self.known_entry(id)?,
-            None => self.open_entry(None)?,
+            None => self.open_entry(None, EntryVerb::Adjust)?,
         };
         if let Some(end) = &adjust.end
             && entry.is_open()
@@ -350,27 +346,21 @@ impl Rules<'_> {
         })
     }
 
-    /// The open entry `id`, or the only open entry.
-    fn open_entry(&self, id: Option<EntryId>) -> PaceResult<&Entry> {
-        if let Some(id) = id {
-            let entry = self.known_entry(id)?;
-            if let Some(end) = &entry.end {
-                return Err(nothing_to_do(
-                    "the entry ended at {end}",
-                    "`pace adjust --end` moves its end",
-                )
-                .attach_context("end", self.clock(end)));
-            }
-            return Ok(entry);
+    /// The open entry `id`, or the only open entry; `verb` names the
+    /// command for the hint when none or several are open.
+    fn open_entry(&self, id: Option<EntryId>, verb: EntryVerb) -> PaceResult<&Entry> {
+        let Some(id) = id else {
+            return self.state.only_open(verb, self.now);
+        };
+        let entry = self.known_entry(id)?;
+        if let Some(end) = &entry.end {
+            return Err(nothing_to_do(
+                "the entry ended at {end}",
+                "`pace adjust --end` moves its end",
+            )
+            .attach_context("end", self.clock(end)));
         }
-        match self.state.open().collect::<Vec<_>>().as_slice() {
-            [] => Err(nothing_to_do(
-                "nothing is running",
-                "`pace begin` starts an entry",
-            )),
-            [entry] => Ok(entry),
-            open => Err(self.several_open(open)),
-        }
+        Ok(entry)
     }
 
     fn known_entry(&self, id: EntryId) -> PaceResult<&Entry> {
@@ -379,23 +369,6 @@ impl Rules<'_> {
                 .attach_context("id", id.to_string())
                 .attach_hint("`pace now` shows the IDs of the open entries")
         })
-    }
-
-    fn several_open(&self, open: &[&Entry]) -> Box<PaceError> {
-        let list: Vec<String> = open
-            .iter()
-            .map(|entry| {
-                format!(
-                    "{} since {}",
-                    self.state.short_id(entry.id),
-                    self.clock(&entry.start)
-                )
-            })
-            .collect();
-        PaceError::new(ErrorKind::InvalidInput, "{count} entries are open: {list}")
-            .attach_context("count", open.len().to_string())
-            .attach_context("list", list.join(", "))
-            .attach_hint("end one of them with `pace end <id>`")
     }
 
     fn refuse_overlap(

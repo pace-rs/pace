@@ -6,8 +6,9 @@ use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Batch, BatchId, Change, Command, DeviceId, EntryId, EntryState, Event, EventId, EventKind, Hlc,
-    HoldSource, Ids, PauseKind, Policy, ProjectRef, RecordedEvent, Rules, SequentialIds, State,
+    Batch, BatchId, Change, Command, DeviceId, EntryId, EntryState, EntryVerb, Event, EventId,
+    EventKind, Hlc, HoldSource, Ids, PauseKind, Policy, ProjectRef, RecordedEvent, Rules,
+    SequentialIds, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
 use pace_error::{ExitCode, PaceError};
@@ -332,7 +333,7 @@ fn begin_with_two_open_entries_asks_to_end_one() -> TestResult {
     let error = failure(laptop.run("10:00", &begin("Call")))?;
 
     assert!(
-        error.to_string().starts_with("2 entries are open"),
+        error.to_string().starts_with("several entries are open: "),
         "{error}"
     );
     assert_eq!(error.hint(), Some("end one of them with `pace end <id>`"));
@@ -813,11 +814,12 @@ fn end_names_the_entry_when_two_are_open() -> TestResult {
         .map(|entry| entry.id)
         .ok_or("desktop entry")?;
 
+    let error = failure(laptop.run("10:00", &Command::End(End::default())))?;
     assert!(
-        failure(laptop.run("10:00", &Command::End(End::default())))?
-            .to_string()
-            .starts_with("2 entries are open")
+        error.to_string().starts_with("several entries are open: "),
+        "{error}"
     );
+    assert_eq!(error.hint(), Some("name one with `pace end <id>`"));
     _ = laptop.run(
         "10:00",
         &Command::End(End {
@@ -1484,5 +1486,101 @@ fn sequential_ids_are_uuidv7_and_distinct() -> TestResult {
 
     assert_ne!(first, second);
     assert_eq!(first.get_version_num(), 7);
+    Ok(())
+}
+
+// the open entry
+
+/// Two devices with an entry open on each, merged on the laptop.
+fn two_open() -> Result<World, Box<dyn std::error::Error>> {
+    let mut laptop = World::new()?;
+    let mut desktop = World::on_device(2)?;
+    _ = laptop.run("09:00", &begin("on the laptop"))?;
+    _ = desktop.run("09:30", &begin("on the desktop"))?;
+    laptop.log.extend(desktop.log);
+    Ok(laptop)
+}
+
+#[test]
+fn several_open_entries_are_listed_by_label() -> TestResult {
+    let world = two_open()?;
+    let state = world.state();
+    let open: Vec<String> = state.open().map(|entry| state.short_id(entry.id)).collect();
+
+    let error = state
+        .only_open(EntryVerb::Forget, &berlin("10:00")?)
+        .err()
+        .ok_or("two open entries are no only one")?;
+
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "several entries are open: {} \"on the laptop\" (since 09:00); {} \"on the desktop\" (since 09:30)",
+            open[0], open[1]
+        )
+    );
+    assert_eq!(error.exit_code(), ExitCode::Error);
+    Ok(())
+}
+
+#[test]
+fn adjust_and_forget_name_one_of_several_open_entries_alike() -> TestResult {
+    let mut world = two_open()?;
+    let state = world.state();
+
+    let forget = state
+        .only_open(EntryVerb::Forget, &berlin("10:00")?)
+        .err()
+        .ok_or("two open entries are no only one")?;
+    let adjust = failure(world.run(
+        "10:00",
+        &Command::Adjust(Adjust {
+            note: Change::Set("Call".parse()?),
+            ..Adjust::default()
+        }),
+    ))?;
+
+    assert_eq!(forget.hint(), Some("name one with `pace forget <id>`"));
+    assert_eq!(adjust.hint(), Some("name one with `pace adjust <id>`"));
+    assert_eq!(adjust.to_string(), forget.to_string());
+    Ok(())
+}
+
+#[test]
+fn nothing_running_names_flags_of_command_that_takes_them() -> TestResult {
+    let state = World::new()?.state();
+    let now = berlin("10:00")?;
+
+    let forget = state
+        .only_open(EntryVerb::Forget, &now)
+        .err()
+        .ok_or("nothing is open")?;
+    let hold = state
+        .only_open(EntryVerb::Hold, &now)
+        .err()
+        .ok_or("nothing is open")?;
+
+    assert_eq!(forget.to_string(), "nothing is running");
+    assert_eq!(
+        forget.hint(),
+        Some(
+            "name the entry with `pace forget <id>`, or take the last one with `pace forget --last`"
+        )
+    );
+    assert_eq!(forget.exit_code(), ExitCode::NothingToDo);
+    assert_eq!(hold.hint(), Some("`pace begin` starts an entry"));
+    assert_eq!(hold.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
+fn only_open_entry_is_the_one() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    let state = world.state();
+
+    let entry = state.only_open(EntryVerb::End, &berlin("10:00")?)?;
+
+    assert_eq!(entry.note.as_deref(), Some("Write offer"));
     Ok(())
 }

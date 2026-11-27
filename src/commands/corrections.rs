@@ -3,16 +3,15 @@
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Change, Command as UseCase, ProjectRef, Text,
+    Change, Command as UseCase, EntryVerb, ProjectRef, Text,
     command::{Adjust, Forget, Log},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::parse_duration;
 
 use crate::commands::tracking::{at, moment, tags, text, track};
-use crate::output::entry_label;
 use crate::prompt::Ask;
-use crate::select::{chosen_entry, target_entry};
+use crate::select::{Target, chosen_entry, target_entry};
 use crate::{
     application::exit_on_error,
     project::{Project, Reason},
@@ -73,7 +72,11 @@ impl Runnable for AdjustCmd {
                 Text::try_from(note).map_or(Change::Clear, Change::Set)
             });
             Ok(UseCase::Adjust(Adjust {
-                entry: target_entry(session, &context.terminal, self.entry.as_deref(), self.last)?,
+                entry: target_entry(
+                    session,
+                    &context.terminal,
+                    Target::new(self.entry.as_deref(), self.last),
+                )?,
                 start: at(self.start.as_deref(), &now, &context.terminal, notes)?,
                 end: at(self.end.as_deref(), &now, &context.terminal, notes)?,
                 note,
@@ -208,11 +211,16 @@ impl Runnable for ForgetCmd {
     fn run(&self) {
         exit_on_error(track(|session, context, _| {
             let asker = &context.terminal;
-            let chosen = chosen_entry(session, asker, self.entry.as_deref(), self.last, "forget")?;
+            let chosen = chosen_entry(
+                session,
+                asker,
+                Target::new(self.entry.as_deref(), self.last),
+                EntryVerb::Forget,
+            )?;
             if !self.for_good {
                 confirm_forget(
                     asker,
-                    &entry_label(&chosen.state, &chosen.entry, &session.now()),
+                    &chosen.state.entry_label(&chosen.entry, &session.now()),
                 )?;
             }
             Ok(UseCase::Forget(Forget {

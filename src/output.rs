@@ -18,31 +18,6 @@ pub fn counted(count: usize, noun: &str) -> String {
     }
 }
 
-/// The entry's short ID and its note, for a sentence.
-#[must_use]
-pub fn entry_name(state: &State, entry: &Entry) -> String {
-    let short = state.short_id(entry.id);
-    entry
-        .note
-        .as_ref()
-        .map_or_else(|| short.clone(), |note| format!("{short} \"{note}\""))
-}
-
-/// The entry for a list or a picker: short ID, note and times.
-#[must_use]
-pub fn entry_label(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
-    format!("{} ({})", entry_name(state, entry), times(entry, now))
-}
-
-/// `09:00–10:00`, or `since 09:00` for an open entry.
-#[must_use]
-pub fn times(entry: &Entry, now: &ZonedDateTime) -> String {
-    entry.end.as_ref().map_or_else(
-        || format!("since {}", clock(&entry.start, now)),
-        |end| format!("{}–{}", clock(&entry.start, now), clock(end, now)),
-    )
-}
-
 /// A project as the user knows it: its key, or its ID.
 #[must_use]
 pub fn project_name(project: &ProjectRef) -> String {
@@ -84,7 +59,7 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
     let line = match &recorded.event.kind {
         EventKind::EntryBegun { entry, .. } => format!(
             "Began {} at {}.",
-            entry_name(state, known(state, *entry)?),
+            state.entry_name(known(state, *entry)?),
             clock(at, now)
         ),
         EventKind::EntryEnded { entry } => ended(state, known(state, *entry)?, at, now),
@@ -112,7 +87,7 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
             let entry = known(state, *entry)?;
             format!(
                 "Logged {} from {} to {} ({}).",
-                entry_name(state, entry),
+                state.entry_name(entry),
                 clock(at, now),
                 clock(end, now),
                 format_duration(entry.net(now))
@@ -131,7 +106,7 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
                 "Forgot {} ({}) for good. Its events are gone from this device; other \
                  devices remove theirs when they see this.",
                 before.short_id(entry.id),
-                times(entry, now)
+                entry.clock_times(now)
             )
         }
         EventKind::BatchUndone { .. } => return Ok(None),
@@ -164,11 +139,11 @@ fn took_back(before: &State, recorded: &RecordedEvent, now: &ZonedDateTime) -> P
     Ok(match &recorded.event.kind {
         EventKind::EntryBegun { entry, .. } => format!(
             "Took back the start of {} at {at}.",
-            entry_name(before, known(before, *entry)?)
+            before.entry_name(known(before, *entry)?)
         ),
         EventKind::EntryEnded { entry } => format!(
             "Took back the end of {} at {at}; it is open again.",
-            entry_name(before, known(before, *entry)?)
+            before.entry_name(known(before, *entry)?)
         ),
         EventKind::EntryHeld { entry, .. } => {
             format!("Took back the hold of {} at {at}.", before.short_id(*entry))
@@ -189,13 +164,13 @@ fn took_back(before: &State, recorded: &RecordedEvent, now: &ZonedDateTime) -> P
             let entry = known(before, *entry)?;
             format!(
                 "Took back the logged entry {}, {}.",
-                entry_name(before, entry),
-                times(entry, now)
+                before.entry_name(entry),
+                entry.clock_times(now)
             )
         }
         EventKind::EntryAdjusted { entry, .. } => format!(
             "Took back the adjustment of {}.",
-            entry_name(before, known(before, *entry)?)
+            before.entry_name(known(before, *entry)?)
         ),
         // The state never offers an undo or a forget to undo.
         EventKind::EntryForgotten { .. } | EventKind::BatchUndone { .. } => {
@@ -273,7 +248,7 @@ fn adjusted(
     };
     format!(
         "Adjusted {}: {}{net}.",
-        entry_name(state, after),
+        state.entry_name(after),
         parts.join(", ")
     )
 }
@@ -312,7 +287,7 @@ fn ended(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime) 
     };
     format!(
         "Ended {} at {} after {}{details}.",
-        entry_name(state, entry),
+        state.entry_name(entry),
         clock(at, now),
         format_duration(entry.net(now))
     )

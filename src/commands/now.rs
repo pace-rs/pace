@@ -7,7 +7,7 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::{TimeFrame, clock, format_duration, relative_time};
 use serde::Serialize;
 
-use crate::output::{entry_name, project_name};
+use crate::output::project_name;
 use crate::print::print_lines;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
@@ -90,7 +90,7 @@ fn as_text(
 }
 
 fn headline(state: &State, entry: &Entry, now: &ZonedDateTime) -> String {
-    let name = entry_name(state, entry);
+    let name = state.entry_name(entry);
     let since =
         |moment: &ZonedDateTime| format!("{} ({})", clock(moment, now), relative_time(moment, now));
     match entry.state() {

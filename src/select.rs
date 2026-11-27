@@ -2,11 +2,10 @@
 //! or the open entry.
 
 use jiff::{ToSpan, ZonedDateTime};
-use pace_core::{Entry, EntryId, State};
+use pace_core::{Entry, EntryId, EntryVerb, State};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::TimeRange;
 
-use crate::output::entry_label;
 use crate::prompt::Ask;
 use crate::session::Session;
 
@@ -23,9 +22,38 @@ pub struct Chosen {
     pub entry: Entry,
 }
 
-/// The entry `[ENTRY]` or `--last` names. Without either, `None` leaves
-/// the choice to the core (the open entry); with several open entries and a
-/// terminal, the user picks one.
+/// How the user names the entry a command acts on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Target<'t> {
+    /// `[ENTRY]`: its ID or short ID.
+    Id(&'t str),
+    /// `--last`: the entry that ended last.
+    Last,
+    /// Neither: the open entry.
+    Open,
+}
+
+impl<'t> Target<'t> {
+    /// The target of `[ENTRY]` and `--last`, which clap keeps apart.
+    #[must_use]
+    pub const fn new(entry: Option<&'t str>, last: bool) -> Self {
+        match (entry, last) {
+            (Some(text), _) => Self::Id(text),
+            (None, true) => Self::Last,
+            (None, false) => Self::Open,
+        }
+    }
+
+    /// The target of `[ENTRY]` for a command without `--last`.
+    #[must_use]
+    pub const fn id_or_open(entry: Option<&'t str>) -> Self {
+        Self::new(entry, false)
+    }
+}
+
+/// The entry `target` names. The open entry is `None`, which leaves the
+/// choice to the core; with several open entries and a terminal, the user
+/// picks one.
 ///
 /// # Errors
 ///
@@ -33,25 +61,27 @@ pub struct Chosen {
 pub fn target_entry(
     session: &Session,
     asker: &dyn Ask,
-    text: Option<&str>,
-    last: bool,
+    target: Target<'_>,
 ) -> PaceResult<Option<EntryId>> {
-    if text.is_some() || last {
-        return chosen_entry(session, asker, text, last, "").map(|chosen| Some(chosen.entry.id));
-    }
-    if !asker.can_ask() {
-        return Ok(None);
-    }
-    let state = session.state(&at_now(session)?)?;
-    let open: Vec<&Entry> = state.open().collect();
-    if open.len() < 2 {
-        return Ok(None);
-    }
-    pick(&state, &open, "Which open entry?", &session.now(), asker).map(|entry| Some(entry.id))
+    let chosen = match target {
+        Target::Id(text) => named(session, asker, text)?,
+        Target::Last => last_ended(session)?,
+        Target::Open if asker.can_ask() => {
+            let state = session.state(&at_now(session)?)?;
+            let open: Vec<&Entry> = state.open().collect();
+            if open.len() < 2 {
+                return Ok(None);
+            }
+            return pick(&state, &open, "Which open entry?", &session.now(), asker)
+                .map(|entry| Some(entry.id));
+        }
+        Target::Open => return Ok(None),
+    };
+    Ok(Some(chosen.entry.id))
 }
 
-/// The entry `[ENTRY]` or `--last` names, else the open entry; `verb` is the
-/// command, for the hint.
+/// The entry `target` names, else the open entry; `verb` is the command,
+/// for the hint when none or several are open.
 ///
 /// # Errors
 ///
@@ -60,45 +90,23 @@ pub fn target_entry(
 pub fn chosen_entry(
     session: &Session,
     asker: &dyn Ask,
-    text: Option<&str>,
-    last: bool,
-    verb: &str,
+    target: Target<'_>,
+    verb: EntryVerb,
 ) -> PaceResult<Chosen> {
-    if let Some(text) = text {
-        return named(session, asker, text);
+    match target {
+        Target::Id(text) => return named(session, asker, text),
+        Target::Last => return last_ended(session),
+        Target::Open => {}
     }
-    if last {
-        return last_ended(session);
-    }
+    let now = session.now();
     let state = session.state(&at_now(session)?)?;
     let open: Vec<&Entry> = state.open().collect();
-    let entry = match open.as_slice() {
-        [] => {
-            return Err(PaceError::new(ErrorKind::InvalidInput, "nothing is running")
-                .attach_hint(format!(
-                    "name the entry with `pace {verb} <id>`, or take the last one with `pace {verb} --last`"
-                ))
-                .attach_exit_code(ExitCode::NothingToDo));
-        }
-        [entry] => (*entry).clone(),
-        several if asker.can_ask() => {
-            pick(&state, several, "Which open entry?", &session.now(), asker)?.clone()
-        }
-        several => {
-            let now = session.now();
-            let labels: Vec<String> = several
-                .iter()
-                .map(|entry| entry_label(&state, entry, &now))
-                .collect();
-            return Err(PaceError::new(
-                ErrorKind::InvalidInput,
-                "{count} entries are open: {list}",
-            )
-            .attach_context("count", several.len().to_string())
-            .attach_context("list", labels.join("; "))
-            .attach_hint(format!("name one with `pace {verb} <id>`")));
-        }
-    };
+    let entry = if open.len() > 1 && asker.can_ask() {
+        pick(&state, &open, "Which open entry?", &now, asker)?
+    } else {
+        state.only_open(verb, &now)?
+    }
+    .clone();
     Ok(Chosen { state, entry })
 }
 
@@ -138,7 +146,7 @@ fn named(session: &Session, asker: &dyn Ask, text: &str) -> PaceResult<Chosen> {
                 let now = session.now();
                 let labels: Vec<String> = several
                     .iter()
-                    .map(|entry| entry_label(&state, entry, &now))
+                    .map(|entry| state.entry_label(entry, &now))
                     .collect();
                 return Err(PaceError::new(
                     ErrorKind::InvalidInput,
@@ -189,7 +197,7 @@ fn pick<'s>(
 ) -> PaceResult<&'s Entry> {
     let labels: Vec<String> = entries
         .iter()
-        .map(|entry| entry_label(state, entry, now))
+        .map(|entry| state.entry_label(entry, now))
         .collect();
     let choice = asker.choose(question, &labels)?;
     entries.get(choice).copied().ok_or_else(|| {
@@ -274,8 +282,8 @@ mod tests {
         assert_eq!(
             asker.offered(),
             [vec![
-                entry_label(&state, open[0], &at("10:00")),
-                entry_label(&state, open[1], &at("10:00")),
+                state.entry_label(open[0], &at("10:00")),
+                state.entry_label(open[1], &at("10:00")),
             ]]
         );
     }

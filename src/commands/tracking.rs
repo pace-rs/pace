@@ -15,7 +15,7 @@ use crate::commands::now::recent_range_start;
 use crate::output::{describe_outcome, project_name};
 use crate::print::print_lines;
 use crate::prompt::Ask;
-use crate::select::target_entry;
+use crate::select::{Target, target_entry};
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
     project::{Project, Reason},
@@ -382,7 +382,11 @@ impl Runnable for ResumeCmd {
         exit_on_error(track(|session, context, notes| {
             Ok(UseCase::Resume(Resume {
                 at: at(self.at.as_deref(), &session.now(), &context.terminal, notes)?,
-                entry: target_entry(session, &context.terminal, self.entry.as_deref(), false)?,
+                entry: target_entry(
+                    session,
+                    &context.terminal,
+                    Target::id_or_open(self.entry.as_deref()),
+                )?,
             }))
         }));
     }
@@ -432,7 +436,11 @@ impl Runnable for EndCmd {
         exit_on_error(track(|session, context, notes| {
             Ok(UseCase::End(End {
                 at: at(self.at.as_deref(), &session.now(), &context.terminal, notes)?,
-                entry: target_entry(session, &context.terminal, self.entry.as_deref(), false)?,
+                entry: target_entry(
+                    session,
+                    &context.terminal,
+                    Target::id_or_open(self.entry.as_deref()),
+                )?,
             }))
         }));
     }

@@ -19,6 +19,7 @@ feature adds `testing.rs`, a settable clock for the tests of other crates.
 | [`id.rs`](id.rs)             | The IDs of events, batches, devices and entries, each a UUIDv7.                                                                        |
 | [`key.rs`](key.rs)           | The names people type: project keys such as `acme-webshop`, and tags.                                                                  |
 | [`lib.rs`](lib.rs)           | The domain of pace: its rules, its step machine and its commands.                                                                      |
+| [`open.rs`](open.rs)         | The open entry a command acts on, and how pace names entries in its texts: the short ID, the note and the times.                       |
 | [`port.rs`](port.rs)         | The ports of the core: the clock, the source of IDs and the notifier.                                                                  |
 | [`rules.rs`](rules.rs)       | What each command turns into: the events of one batch, or an error that says how to fix it.                                            |
 | [`scope.rs`](scope.rs)       | What a read of the event log must return: the entries of a time range, the open ones, and those with an event recorded since a moment. |

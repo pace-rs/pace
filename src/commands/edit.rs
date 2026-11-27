@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 use abscissa_core::{Command, Runnable};
 use jiff::ZonedDateTime;
 use pace_core::{
-    Change, Command as UseCase, DeviceId, Entry, EntryOrigin, ProjectId, ProjectKey, ProjectRef,
-    Tag, Text, command::Adjust,
+    Change, Command as UseCase, DeviceId, Entry, EntryOrigin, EntryVerb, ProjectId, ProjectKey,
+    ProjectRef, Tag, Text, command::Adjust,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Snippet};
 use pace_time::{NOT_UNDERSTOOD, clock, parse_at};
@@ -17,7 +17,7 @@ use toml::Spanned;
 use crate::commands::tracking::{chosen_moment, track};
 use crate::editor::{edit_in_editor, editor_command};
 use crate::prompt::Ask;
-use crate::select::chosen_entry;
+use crate::select::{Target, chosen_entry};
 use crate::{
     application::{exit_on_error, print_error},
     select::Chosen,
@@ -54,7 +54,12 @@ impl Runnable for EditCmd {
         exit_on_error(track(|session, context, notes| {
             let asker = &context.terminal;
             let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
-            let chosen = chosen_entry(session, asker, self.entry.as_deref(), self.last, "edit")?;
+            let chosen = chosen_entry(
+                session,
+                asker,
+                Target::new(self.entry.as_deref(), self.last),
+                EntryVerb::Edit,
+            )?;
             let now = session.now();
             let adjust = edit_until_read(
                 &write(&chosen, session.device(), &now)?,
