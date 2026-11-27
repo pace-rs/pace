@@ -242,9 +242,10 @@ fn confirm_forget(asker: &dyn Ask, label: &str) -> PaceResult<()> {
         .attach_hint("add `--for-good` to forget it without being asked")
         .attach_exit_code(ExitCode::Usage));
     }
-    if asker.confirm(&format!(
-        "Forget {label} for good? `pace undo` can't bring it back."
-    ))? {
+    if asker.confirm(
+        &format!("Forget {label} for good? `pace undo` can't bring it back."),
+        false,
+    )? {
         return Ok(());
     }
     Err(

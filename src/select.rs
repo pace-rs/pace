@@ -239,7 +239,7 @@ fn pick<'state>(
         .iter()
         .map(|entry| state.entry_label(entry, now))
         .collect();
-    let choice = asker.choose(question, &labels)?;
+    let choice = asker.choose(question, &labels, 0)?;
     entries.get(choice).copied().ok_or_else(|| {
         PaceError::new(ErrorKind::Internal, "the picker returned no entry").ask_report()
     })

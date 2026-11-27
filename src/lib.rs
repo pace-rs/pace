@@ -30,5 +30,6 @@ pub mod output;
 pub mod print;
 pub mod project;
 pub mod prompt;
+pub mod questions;
 pub mod select;
 pub mod session;

@@ -97,6 +97,7 @@ pub(super) fn chosen_moment(
                         format!("the first {}", label(&earlier)),
                         format!("the second {}", label(&later)),
                     ],
+                    0,
                 )?;
                 return Ok(if choice == 0 { earlier } else { later });
             }
@@ -302,7 +303,7 @@ fn again_from(
         .attach_exit_code(ExitCode::NothingToDo)),
         1 => Ok(candidates.remove(0)),
         _ if asker.can_ask() => {
-            let choice = asker.choose("Begin which entry again?", &labels)?;
+            let choice = asker.choose("Begin which entry again?", &labels, 0)?;
             Ok(candidates.swap_remove(choice))
         }
         count => Err(PaceError::new(

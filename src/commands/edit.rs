@@ -137,7 +137,7 @@ fn can_fix(error: &PaceError) -> bool {
 /// What the user does after `error`: an overlap may also be allowed.
 fn next_step(error: &PaceError, asker: &dyn Ask) -> PaceResult<Next> {
     if !error.is_code(OVERLAP) {
-        let again = asker.confirm("Open the entry again to fix it?")?;
+        let again = asker.confirm("Open the entry again to fix it?", false)?;
         return Ok(if again { Next::EditAgain } else { Next::Leave });
     }
     let steps = [Next::EditAgain, Next::AllowOverlap, Next::Leave];
@@ -148,6 +148,7 @@ fn next_step(error: &PaceError, asker: &dyn Ask) -> PaceResult<Next> {
             "allow the overlap".to_owned(),
             "leave the entry as it was".to_owned(),
         ],
+        0,
     )?;
     Ok(steps.get(choice).copied().unwrap_or(Next::Leave))
 }
