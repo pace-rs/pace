@@ -205,3 +205,51 @@ fn manifest_name_must_not_be_empty() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn path_mapping_to_no_project_key_is_refused() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("[project-paths]\n\"~/repo\" = \"Client Repo\"\n")?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn variable_that_is_no_project_key_is_error_not_usage() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = run(sandbox
+        .pace()
+        .env("PACE_PROJECT", "Acme Webshop")
+        .args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn manifest_that_is_no_text_names_its_path() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    std::fs::write(
+        sandbox.path("work/.pace.toml"),
+        b"[project]\nkey = \"\xff\"\n",
+    )?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn manifest_with_unknown_table_names_the_line() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "work/.pace.toml",
+        "version = 1\n\n[project]\nkey = \"acme-webshop\"\n\n[client]\nkey = \"acme\"\n",
+    )?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

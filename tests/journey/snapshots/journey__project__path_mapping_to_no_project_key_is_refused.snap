@@ -1,0 +1,19 @@
+---
+source: tests/journey/project.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::invalid-value
+
+  × `Client Repo` is not a project key
+   ╭─[[SANDBOX]/config/pace.global.toml:2:12]
+ 1 │ [project-paths]
+ 2 │ "~/repo" = "Client Repo"
+   ·            ──────┬──────
+   ·                  ╰── this key
+   ╰────
+  help: a key has lowercase letters, digits and single dashes, like `acme-webshop`

@@ -1,0 +1,20 @@
+---
+source: tests/journey/project.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project::unknown-key
+
+  × `client` is not a key pace knows
+   ╭─[[SANDBOX]/work/.pace.toml:6:2]
+ 5 │ 
+ 6 │ [client]
+   ·  ───┬──
+   ·     ╰── unknown key
+ 7 │ key = "acme"
+   ╰────
+  help: pace knows these keys here: version, project
