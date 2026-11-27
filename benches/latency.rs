@@ -47,6 +47,12 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
 
     let pace = |args: &[&str], at: &ZonedDateTime| {
         let mut command = Command::new(env!("CARGO_BIN_EXE_pace"));
+        // The caller's `PACE_*` variables would change what pace reads.
+        for (key, _) in std::env::vars_os() {
+            if key.to_string_lossy().starts_with("PACE_") {
+                _ = command.env_remove(key);
+            }
+        }
         _ = command
             .args(args)
             .current_dir(root.join("work/acme/src"))
