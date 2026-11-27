@@ -997,3 +997,62 @@ fn compare_as_markdown_and_html_names_highlights() -> TestResult {
     }
     Ok(())
 }
+
+/// Runs `reflect --compare` with each built-in template and returns its
+/// output, failing when a template fails.
+fn compare_with_templates(sandbox: &Sandbox) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut outputs = Vec::new();
+    for format in ["text", "markdown", "html"] {
+        let output = sandbox
+            .pace_at("15:00")
+            .args(["reflect", "--compare", "--format", format])
+            .output()?;
+        assert!(output.status.success(), "{format}: {output:?}");
+        outputs.push(String::from_utf8(output.stdout)?);
+    }
+    Ok(outputs)
+}
+
+#[test]
+fn compare_with_empty_previous_period_names_no_highlights_before() -> TestResult {
+    let sandbox = week_sandbox()?;
+
+    for stdout in compare_with_templates(&sandbox)? {
+        assert!(
+            stdout.contains("Busiest day: 2026-11-26, 4h 15m*; in the previous period none"),
+            "{stdout}"
+        );
+        assert!(
+            stdout.contains("Top project: Webshop relaunch, 5h 15m; in the previous period none"),
+            "{stdout}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn compare_with_previous_time_without_project_names_no_top_project_before() -> TestResult {
+    let sandbox = week_sandbox()?;
+    _ = run(sandbox.pace_at("15:00").args([
+        "log",
+        "Run",
+        "--role",
+        "health",
+        "--from",
+        "2026-11-18 07:00",
+        "--to",
+        "2026-11-18 07:30",
+    ]))?;
+
+    for stdout in compare_with_templates(&sandbox)? {
+        assert!(
+            stdout.contains("in the previous period 2026-11-18, 30m"),
+            "{stdout}"
+        );
+        assert!(
+            stdout.contains("Top project: Webshop relaunch, 5h 15m; in the previous period none"),
+            "{stdout}"
+        );
+    }
+    Ok(())
+}

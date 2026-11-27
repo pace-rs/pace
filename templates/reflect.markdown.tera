@@ -5,8 +5,8 @@
 {%- if row.previous %} (was {{ row.previous[kind] | default(value="none") }}{% if kind == "amount" %} {{ row.previous.currency }}{% endif %}, {% if kind == "net" %}{{ row.change_net }}{% elif kind == "held" %}{{ row.change_held }}{% elif kind == "paused" %}{{ row.change_paused }}{% else %}{{ row.change_amount }}{% endif %}{% if row.change_percent is defined %}, {% if row.change_percent > 0 %}+{% endif %}{{ row.change_percent }}%{% endif %}){% endif -%}
 {%- endcomponent change -%}
 {%- component highlight(row) -%}
-{%- if row.group == "busiest_day" %}Busiest day: {{ row.date | default(value="none") }}{% if row.net %}, {{ row.net }}{% if row.running %}*{% endif %}{% endif %}; in the previous period {{ row.previous.date | default(value="none") }}{% if row.previous.net %}, {{ row.previous.net }}{% endif %}
-{%- else %}Top project: {{ row.name | default(value=row.key | default(value="none")) }}{% if row.net %}, {{ row.net }}{% if row.running %}*{% endif %}{% endif %}; in the previous period {{ row.previous.name | default(value=row.previous.key | default(value="none")) }}{% if row.previous.net %}, {{ row.previous.net }}{% endif %}
+{%- if row.group == "busiest_day" %}Busiest day: {{ row.date | default(value="none") }}{% if row.net %}, {{ row.net }}{% if row.running %}*{% endif %}{% endif %}; in the previous period {% if row.previous %}{{ row.previous.date | default(value="none") }}{% if row.previous.net %}, {{ row.previous.net }}{% endif %}{% else %}none{% endif %}
+{%- else %}Top project: {{ row.name | default(value=row.key | default(value="none")) }}{% if row.net %}, {{ row.net }}{% if row.running %}*{% endif %}{% endif %}; in the previous period {% if row.previous %}{{ row.previous.name | default(value=row.previous.key | default(value="none")) }}{% if row.previous.net %}, {{ row.previous.net }}{% endif %}{% else %}none{% endif %}
 {%- endif -%}
 {%- endcomponent highlight -%}
 {%- set parts = rows | group_by(attribute="part") -%}
