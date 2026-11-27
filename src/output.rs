@@ -6,19 +6,7 @@ use pace_core::{
     RecordedEvent, State, Tag,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_time::format_duration;
-
-/// A moment as the user reads it: `HH:MM` on the day of `now`, else with the
-/// date; in the zone of `now`.
-#[must_use]
-pub fn clock(moment: &ZonedDateTime, now: &ZonedDateTime) -> String {
-    let local = moment.with_time_zone(now.time_zone().clone());
-    if local.date() == now.date() {
-        local.strftime("%H:%M").to_string()
-    } else {
-        local.strftime("%Y-%m-%d %H:%M").to_string()
-    }
-}
+use pace_time::{clock, format_duration};
 
 /// `1 event`, `2 events`.
 #[must_use]

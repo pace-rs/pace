@@ -4,14 +4,13 @@ use abscissa_core::{Command, Runnable};
 use jiff::{ToSpan, ZonedDateTime};
 use pace_core::{Entry, EntryState, ProjectRef, State};
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_time::{TimeFrame, format_duration, relative_time};
+use pace_time::{TimeFrame, clock, format_duration, relative_time};
 use serde::Serialize;
 
 use crate::output::{entry_name, project_name};
 use crate::print::print_lines;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
-    output::clock,
     session::Session,
 };
 

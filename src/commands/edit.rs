@@ -10,7 +10,7 @@ use pace_core::{
     Tag, Text, command::Adjust,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult, Snippet};
-use pace_time::{NOT_UNDERSTOOD, parse_at};
+use pace_time::{NOT_UNDERSTOOD, clock, parse_at};
 use serde::{Deserialize, Serialize};
 use toml::Spanned;
 
@@ -20,7 +20,6 @@ use crate::prompt::Ask;
 use crate::select::chosen_entry;
 use crate::{
     application::{exit_on_error, print_error},
-    output::clock,
     select::Chosen,
 };
 

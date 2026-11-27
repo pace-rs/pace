@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
+use pace_time::{clock, clock_against};
 use uuid::Uuid;
 
 use crate::{
@@ -467,31 +468,14 @@ impl Rules<'_> {
         .attach_hint(hint))
     }
 
-    /// A moment as the user reads it: `HH:MM` on the day of now, else with
-    /// the date; in the zone of now.
+    /// A moment as the user reads it, against now: [`clock`].
     fn clock(&self, moment: &ZonedDateTime) -> String {
-        self.clock_as(moment, "%H:%M")
+        clock(moment, self.now)
     }
 
-    /// `moment` as [`Rules::clock`] shows it, but `HH:MM:SS` when `other`
-    /// is another moment of the same minute: a message that names both
-    /// tells them apart, and its hint names a time the user can give.
+    /// `moment` told apart from `other`: [`clock_against`].
     fn clock_against(&self, moment: &ZonedDateTime, other: &ZonedDateTime) -> String {
-        let shown = self.clock(moment);
-        if moment.timestamp() != other.timestamp() && shown == self.clock(other) {
-            self.clock_as(moment, "%H:%M:%S")
-        } else {
-            shown
-        }
-    }
-
-    fn clock_as(&self, moment: &ZonedDateTime, time: &str) -> String {
-        let local = moment.with_time_zone(self.now.time_zone().clone());
-        if local.date() == self.now.date() {
-            local.strftime(time).to_string()
-        } else {
-            local.strftime(&format!("%Y-%m-%d {time}")).to_string()
-        }
+        clock_against(moment, other, self.now)
     }
 }
 
