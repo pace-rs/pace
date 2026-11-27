@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use pace_core::{
     Change, Command, DeterminedBy, HoldSource, PauseKind, ProjectRef,
-    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
+    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, MarkBilled, Pause, Resume},
 };
 use rstest::rstest;
 
@@ -165,6 +165,38 @@ fn forget_names_the_entry() -> TestResult {
     assert_eq!(
         round_trip(&command)?,
         r#"{"command":"forget","entry":"0193a8d0-6c1e-7f3a-9b2d-4e5f60718293"}"#
+    );
+    Ok(())
+}
+
+#[test]
+fn mark_billed_names_client_period_and_invoice() -> TestResult {
+    let command = Command::MarkBilled(MarkBilled {
+        client: "acme".parse()?,
+        start: Some("2026-10-01T00:00:00+02:00[Europe/Berlin]".parse()?),
+        end: Some("2026-11-01T00:00:00+01:00[Europe/Berlin]".parse()?),
+        invoice: "2026-0042".parse()?,
+    });
+
+    assert_eq!(
+        round_trip(&command)?,
+        r#"{"command":"mark-billed","client":"acme","start":"2026-10-01T00:00:00+02:00[Europe/Berlin]","end":"2026-11-01T00:00:00+01:00[Europe/Berlin]","invoice":"2026-0042"}"#
+    );
+    Ok(())
+}
+
+#[test]
+fn mark_billed_of_all_time_leaves_out_start_and_end() -> TestResult {
+    let command = Command::MarkBilled(MarkBilled {
+        client: "acme".parse()?,
+        start: None,
+        end: None,
+        invoice: "2026-0042".parse()?,
+    });
+
+    assert_eq!(
+        round_trip(&command)?,
+        r#"{"command":"mark-billed","client":"acme","invoice":"2026-0042"}"#
     );
     Ok(())
 }

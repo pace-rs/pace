@@ -7,6 +7,7 @@ mod commands;
 mod hlc;
 mod ids;
 mod keys;
+mod marking;
 mod money;
 mod report;
 mod rules;

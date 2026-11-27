@@ -18,21 +18,21 @@ use crate::{
 };
 
 const WORK: &str = "0193a7c4-0000-7000-8000-00000000000a";
-const WEBSHOP: &str = "0193a7c4-0000-7000-8000-000000000001";
+pub(crate) const WEBSHOP: &str = "0193a7c4-0000-7000-8000-000000000001";
 const SHOP_APP: &str = "0193a7c4-0000-7000-8000-000000000003";
-const SUPPORT: &str = "0193a7c4-0000-7000-8000-000000000004";
-const BETA_SITE: &str = "0193a7c4-0000-7000-8000-000000000005";
+pub(crate) const SUPPORT: &str = "0193a7c4-0000-7000-8000-000000000004";
+pub(crate) const BETA_SITE: &str = "0193a7c4-0000-7000-8000-000000000005";
 const GARDEN: &str = "0193a7c4-0000-7000-8000-000000000002";
 
 /// Now, after every entry of the tests.
-const LATER: &str = "2026-12-31T00:00";
+pub(crate) const LATER: &str = "2026-12-31T00:00";
 
-fn eur(amount: &str) -> Fallible<Money> {
+pub(crate) fn eur(amount: &str) -> Fallible<Money> {
     Ok(Money::parse_decimal(amount, "EUR".parse()?)?)
 }
 
 /// The billing of one hour at 100 EUR on `invoice`.
-fn one_hour_on(invoice: &str) -> Fallible<Billing> {
+pub(crate) fn one_hour_on(invoice: &str) -> Fallible<Billing> {
     Ok(Billing {
         invoice: invoice.parse()?,
         net: hours(1),
@@ -43,7 +43,12 @@ fn one_hour_on(invoice: &str) -> Fallible<Billing> {
 }
 
 /// Mark `entry` billed with `billing` at `at`, as a batch of its own.
-fn mark_billed(log: &mut Log, entry: EntryId, at: &str, billing: Billing) -> Fallible<()> {
+pub(crate) fn mark_billed(
+    log: &mut Log,
+    entry: EntryId,
+    at: &str,
+    billing: Billing,
+) -> Fallible<()> {
     log.record(at, EventKind::BillingMarked { entry, billing })
 }
 
@@ -217,7 +222,7 @@ fn clients(rounding: Rounding) -> Fallible<Vec<Client>> {
 
 /// The billable webshop, app and support of acme, whose support allows
 /// overlaps; the billable site of beta; the garden, without a client.
-fn catalog(rounding: Rounding) -> Fallible<Catalog> {
+pub(crate) fn catalog(rounding: Rounding) -> Fallible<Catalog> {
     let billable = |id, key, client| -> Fallible<_> {
         let mut project = record(id, key, "work", Some(client))?;
         project.billable = true;
@@ -238,7 +243,7 @@ fn catalog(rounding: Rounding) -> Fallible<Catalog> {
     )?)
 }
 
-fn quarter_hours(per: RoundingPer) -> Fallible<Rounding> {
+pub(crate) fn quarter_hours(per: RoundingPer) -> Fallible<Rounding> {
     Ok(Rounding::new(per, mins(15), RoundingMode::Up)?)
 }
 

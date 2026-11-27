@@ -411,6 +411,11 @@ impl State {
         self.entries.get(&id)
     }
 
+    /// Every billed entry with its billing, by entry ID.
+    pub fn billings(&self) -> impl Iterator<Item = (EntryId, &Billing)> {
+        self.billings.iter().map(|(id, billing)| (*id, billing))
+    }
+
     /// The billing of the entry `id`, if it is billed: the invoice and the
     /// values its `billing.marked` event froze. Of two markings, the first
     /// in merged order counts.

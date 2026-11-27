@@ -8,7 +8,7 @@ use pace_error::PaceResult;
 use pace_store::{EventStore, FilesStore, Resplit, Split, Tracker, device_id, existing_device_id};
 use pace_time::TimeRange;
 
-use crate::clock::clock_for_run;
+use crate::clock::{clock_for_run, zone};
 use crate::{
     application::{Context, print_error},
     clock::RandomIds,
@@ -83,6 +83,7 @@ impl Session {
         );
         let policy = Policy {
             default_hold_source: settings.default_hold_source,
+            reports_time_zone: zone(&settings.reports_time_zone)?,
         };
         Ok(Self {
             tracker: Tracker::new(store, clock, ids, policy, context.catalog.clone(), device),

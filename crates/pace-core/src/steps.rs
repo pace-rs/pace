@@ -11,7 +11,8 @@
 //! narrow for the rules, it gives a reading of everything instead. A
 //! command about an entry it names reads the last month first, and `undo`
 //! what was recorded in it: the likely targets, and much less to read than
-//! all of the history. With what the store did,
+//! all of the history; `bill --mark-billed` reads everything, for the
+//! bill and every invoice reference of the client. With what the store did,
 //! [`Appending::appended`] gives the [`Outcome`] or, after a stale read, a
 //! new [`Reading`] at the new time; after five stale reads, it fails.
 //!
@@ -319,6 +320,10 @@ fn scope(command: &Command, now: &ZonedDateTime) -> PaceResult<ReadScope> {
         | Command::Resume(_)
         | Command::Catch(_)
         | Command::End(_) => now_to_now()?.into(),
+        // The bill needs the entries of the period and every later one
+        // that may overlap them, and the check of the invoice reference
+        // every billing of the client, which may lie in any period.
+        Command::MarkBilled(_) => ReadScope::everything(),
         // The rules refuse a log that ends before it starts, with a better
         // message than the range would.
         Command::Log(log) => TimeRange::new(
@@ -370,7 +375,8 @@ fn suffices(command: &Command, state: &State, scope: &ReadScope, device: DeviceI
         | Command::Resume(_)
         | Command::Catch(_)
         | Command::End(_)
-        | Command::Log(_) => true,
+        | Command::Log(_)
+        | Command::MarkBilled(_) => true,
     }
 }
 

@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use jiff::ZonedDateTime;
+use jiff::{ZonedDateTime, tz::TimeZone};
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{format_moment, format_moment_against};
 use uuid::Uuid;
@@ -15,6 +15,9 @@ use crate::{
 };
 
 mod checks;
+mod marking;
+
+pub use marking::INVOICE_USED;
 
 const NOW_HINT: &str = "pace records what happened; `pace begin` starts an entry now";
 
@@ -40,12 +43,17 @@ pub struct Policy {
     /// `holds.default-source`: the source of a hold without `--inner` or
     /// `--outer`.
     pub default_hold_source: HoldSource,
+    /// `reports.time-zone`: the zone whose midnights give each entry of a
+    /// bill its start day, as `pace bill` shows it.
+    pub reports_time_zone: TimeZone,
 }
 
 impl Default for Policy {
+    /// An unknown hold source, and reports in UTC.
     fn default() -> Self {
         Self {
             default_hold_source: HoldSource::Unknown,
+            reports_time_zone: TimeZone::UTC,
         }
     }
 }
@@ -86,6 +94,7 @@ impl Rules<'_> {
             Command::Adjust(adjust) => self.adjust(adjust)?,
             Command::Undo => self.undo()?,
             Command::Forget(forget) => self.forget(forget)?,
+            Command::MarkBilled(mark) => self.mark_billed(mark)?,
         };
         Ok(Batch {
             id: self.new_id()?,

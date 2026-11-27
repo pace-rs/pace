@@ -284,6 +284,14 @@ impl Catalog {
         self.resolve(project).is_some_and(|record| record.billable)
     }
 
+    /// The client of the project an entry refers to; `None` without a
+    /// record or a client.
+    #[must_use]
+    pub fn project_client(&self, project: &ProjectRef) -> Option<&ClientKey> {
+        self.resolve(project)
+            .and_then(|record| record.client.as_ref())
+    }
+
     /// Whether the entries of the project an entry refers to may overlap
     /// others; no without a record.
     #[must_use]

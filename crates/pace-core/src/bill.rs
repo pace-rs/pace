@@ -15,8 +15,8 @@ use pace_time::TimeRange;
 use serde::Serialize;
 
 use crate::{
-    Catalog, Charge, Client, ClientKey, Entry, EntryId, Money, ProjectRef, State, Totals,
-    billable_charges,
+    Billing, Catalog, Charge, Client, ClientKey, Entry, EntryId, InvoiceRef, Money, ProjectRef,
+    State, Totals, billable_charges,
 };
 
 /// The error code of a bill refused for entries that overlap.
@@ -198,6 +198,96 @@ impl Bill {
     pub const fn is_empty(&self) -> bool {
         self.projects.is_empty()
     }
+
+    /// The billing of each entry of the bill on `invoice`, as
+    /// `billing.marked` freezes it, line by line: see
+    /// [`BillLine::billings`].
+    #[must_use]
+    pub fn billings(&self, invoice: &InvoiceRef) -> Vec<(EntryId, Billing)> {
+        self.projects
+            .iter()
+            .flat_map(|project| &project.lines)
+            .flat_map(|line| line.billings(invoice))
+            .collect()
+    }
+}
+
+impl BillLine {
+    /// The billing of each of its entries on `invoice`: the entry's own
+    /// net time, the line's rate, and a share of the line's billed time
+    /// and amount by net time. The shares add up to the line to the
+    /// second and to the minor unit, so the marked entries sum to the
+    /// bill; a remainder goes to the entries with the largest fractions,
+    /// the earlier first.
+    #[must_use]
+    pub fn billings(&self, invoice: &InvoiceRef) -> Vec<(EntryId, Billing)> {
+        let weights: Vec<i64> = self
+            .entries
+            .iter()
+            .map(|entry| entry.net.as_secs())
+            .collect();
+        let billed = shares_by_weight(self.billed.as_secs(), &weights);
+        let amounts = shares_by_weight(self.amount.minor(), &weights);
+        self.entries
+            .iter()
+            .zip(billed.into_iter().zip(amounts))
+            .map(|(entry, (billed, amount))| {
+                (
+                    entry.id,
+                    Billing {
+                        invoice: invoice.clone(),
+                        net: entry.net,
+                        billed: SignedDuration::from_secs(billed),
+                        rate: self.rate,
+                        amount: Money::from_minor(amount, self.amount.currency()),
+                    },
+                )
+            })
+            .collect()
+    }
+}
+
+/// `total` split by `weights`, in whole units, by the largest remainder:
+/// each share is the floor of its part, and the units left over go one
+/// each to the largest fractions, the earlier first. The shares add up
+/// to `total`. Without any positive weight, the first share takes it all.
+fn shares_by_weight(total: i64, weights: &[i64]) -> Vec<i64> {
+    let weights: Vec<i128> = weights
+        .iter()
+        .map(|weight| i128::from(*weight).max(0))
+        .collect();
+    let sum: i128 = weights.iter().sum();
+    if sum == 0 {
+        return (0..weights.len())
+            .map(|index| if index == 0 { total } else { 0 })
+            .collect();
+    }
+    let total = i128::from(total);
+    let mut shares: Vec<i128> = weights
+        .iter()
+        .map(|weight| (total * weight).div_euclid(sum))
+        .collect();
+    let mut by_fraction: Vec<usize> = (0..weights.len()).collect();
+    by_fraction.sort_by_key(|index| {
+        std::cmp::Reverse(
+            weights
+                .get(*index)
+                .map_or(0, |weight| (total * weight).rem_euclid(sum)),
+        )
+    });
+    let left_over = total - shares.iter().sum::<i128>();
+    for index in by_fraction
+        .into_iter()
+        .take(usize::try_from(left_over).unwrap_or(0))
+    {
+        if let Some(share) = shares.get_mut(index) {
+            *share += 1;
+        }
+    }
+    shares
+        .into_iter()
+        .map(|share| i64::try_from(share).unwrap_or(i64::MAX))
+        .collect()
 }
 
 impl ProjectBill {
@@ -244,8 +334,7 @@ fn to_bill(entry: &Entry, input: &BillInput<'_>) -> bool {
         && entry
             .project
             .as_ref()
-            .and_then(|project| input.catalog.resolve(project))
-            .and_then(|record| record.client.as_ref())
+            .and_then(|project| input.catalog.project_client(project))
             .is_some_and(|client| *client == input.client.key)
 }
 
@@ -373,4 +462,26 @@ fn bill_line(
         rate: price.rate.hourly,
         amount: price.amount,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shares_add_up_with_remainder_to_largest_fractions() {
+        assert_eq!(shares_by_weight(2500, &[240, 480]), vec![833, 1667]);
+        assert_eq!(shares_by_weight(2500, &[1, 1, 1]), vec![834, 833, 833]);
+    }
+
+    #[test]
+    fn shares_without_positive_weight_go_to_first() {
+        assert_eq!(shares_by_weight(900, &[0, 0]), vec![900, 0]);
+        assert_eq!(shares_by_weight(900, &[]), Vec::<i64>::new());
+    }
+
+    #[test]
+    fn negative_weight_counts_as_none() {
+        assert_eq!(shares_by_weight(900, &[-60, 60]), vec![0, 900]);
+    }
 }

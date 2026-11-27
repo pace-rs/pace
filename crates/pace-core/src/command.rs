@@ -8,7 +8,10 @@ use serde::{
     de::{Error as _, IgnoredAny, MapAccess, SeqAccess, Visitor},
 };
 
-use crate::{Change, DeterminedBy, EntryId, HoldSource, PauseKind, ProjectRef, RoleId, Tag, Text};
+use crate::{
+    Change, ClientKey, DeterminedBy, EntryId, HoldSource, InvoiceRef, PauseKind, ProjectRef,
+    RoleId, Tag, Text,
+};
 
 /// A use case, as data.
 ///
@@ -44,6 +47,8 @@ pub enum Command {
     Undo,
     /// Remove an entry for good.
     Forget(Forget),
+    /// Mark a client's bill over a period as billed on an invoice.
+    MarkBilled(MarkBilled),
 }
 
 /// `pace begin`
@@ -233,6 +238,24 @@ pub struct Adjust {
 pub struct Forget {
     /// The entry.
     pub entry: EntryId,
+}
+
+/// `pace bill --mark-billed`: the bill of `client` over the period from
+/// `start` to `end`, frozen on `invoice`. The rules decide the bill on the
+/// state they read, so what they mark is the bill as it is now.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct MarkBilled {
+    /// The client, by its key.
+    pub client: ClientKey,
+    /// The period's start; `None` means from the first entry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<ZonedDateTime>,
+    /// The period's end, which is not part of it; `None` means up to now.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end: Option<ZonedDateTime>,
+    /// The reference of the invoice the bill goes on.
+    pub invoice: InvoiceRef,
 }
 
 /// A [`Change`] in JSON: absent keeps, `null` clears, a value sets.

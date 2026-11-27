@@ -9,7 +9,7 @@ use pace_core::{
     AfterAppend, AfterRead, Appended, Batch, Catalog, Change, ChangeMarker, Command, Decided,
     DeviceId, EntryId, EventKind, Hlc, Policy, ProjectRecord, ProjectRef, ReadScope, Reading,
     RecordedEvent,
-    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
+    command::{Adjust, Begin, Catch, End, Forget, Hold, Log, MarkBilled, Pause, Resume},
     testing::SequentialIds,
 };
 use pace_error::{ErrorKind, ExitCode, PaceError};
@@ -292,6 +292,22 @@ fn undo_of_batch_recorded_before_read_makes_it_read_everything() -> TestResult {
         matches!(&after, AfterRead::ReadEverything(again) if again.scope().is_everything()),
         "{after:?}"
     );
+    Ok(())
+}
+
+#[test]
+fn mark_billed_reads_everything_for_every_invoice_of_client() -> TestResult {
+    let now = berlin("10:00")?;
+    let command = Command::MarkBilled(MarkBilled {
+        client: "acme".parse()?,
+        start: Some("2026-10-01T00:00[Europe/Berlin]".parse()?),
+        end: Some("2026-11-01T00:00[Europe/Berlin]".parse()?),
+        invoice: "2026-0042".parse()?,
+    });
+
+    let scope = scope_of(&command, &now)?;
+
+    assert_eq!(scope, ReadScope::everything());
     Ok(())
 }
 
