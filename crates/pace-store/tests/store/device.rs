@@ -97,6 +97,39 @@ fn device_id_of_newer_pace_asks_for_update() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn device_file_of_older_version_says_how_to_get_new_id() -> TestResult {
+    let dir = scratch_dir()?;
+    let machine = dir.path().join("machine");
+    std::fs::create_dir_all(&machine)?;
+    let path = machine.join("device.toml");
+    std::fs::write(
+        &path,
+        "version = 0\nid = \"0193a8d0-000d-7000-8000-000000000001\"\n",
+    )?;
+    let ids = SequentialIds::starting_at(&at("2026-11-26T09:00[Europe/Berlin]")?, 7);
+
+    let error = device_id(&machine, &ids)
+        .err()
+        .ok_or("an older version must stop pace")?;
+
+    assert_eq!(
+        error.to_string(),
+        format!("this pace reads version 1 of {}, not 0", path.display())
+    );
+    assert_eq!(
+        error.hint(),
+        Some(
+            format!(
+                "remove {} and pace gives this machine a new device ID",
+                path.display()
+            )
+            .as_str()
+        )
+    );
+    Ok(())
+}
+
 /// One machine: its own machine directory, a shared `PACE_HOME`.
 fn machine(
     home: &std::path::Path,
@@ -251,6 +284,11 @@ fn store_file_of_newer_pace_stops_writing(#[case] file: &str) -> TestResult {
 #[case::cursors(
     "machine/cursors.toml",
     "version = 1\nown = 3\n",
+    "the cursors file {} is not valid"
+)]
+#[case::cursors_without_version(
+    "machine/cursors.toml",
+    "[own]\ncleaned = []\n",
     "the cursors file {} is not valid"
 )]
 #[case::device_file(
