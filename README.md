@@ -38,6 +38,9 @@ Ended ad5e "Write offer" at 12:00 after 2h 40m (3h in all, held 20m).
   the settings, each with where it comes from; `pace config get` prints one
   setting, and `pace config set` changes one in place; `pace completions` prints
   shell completions.
+- `pace setup`, the guided tour of the settings, the roles, the clients and the
+  project of the working directory; it shows the changes per file and field, and
+  writes only what changed once you accept them.
 
 ## Crates
 
