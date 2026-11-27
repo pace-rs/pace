@@ -10,7 +10,10 @@ tracker over the `files` backend. The commands write what the user reads through
 asks the user. A command that adds something asks through the question machine
 in `questions.rs`: its flow gives the questions without I/O. `setup.rs` is the
 step machine of `pace setup`, which strings these flows into a guided tour and
-ends with a summary of the changes.
+ends with a summary of the changes. `render.rs` draws the tables of `reflect`
+and `bill`, and their rows in the schema of JSON and CSV. `doctor.rs` runs the
+checks of `pace doctor` on pace's files, then hands what they read to the data
+checks of `pace_core`.
 
 ## Files
 

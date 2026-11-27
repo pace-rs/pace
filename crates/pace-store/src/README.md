@@ -6,15 +6,16 @@ the `files` backend, one TOML event log per device in `PACE_HOME`. `files.rs`
 appends under a lock and reads without one, `format.rs` writes and reads the
 event files, `index.rs` keeps the machine-local index of them, and `machine.rs`
 the device ID and the cursors. `disk.rs` holds the file operations they share,
-`hlc.rs` the HLC as pace's files keep it, and `renames.rs` the renames that put
-the files of one write in place, all or none. `catalog.rs` reads the roles, the
-clients and the project records of `PACE_HOME` into pace_core's `Catalog`.
-`toml_file.rs` reads pace's TOML files with spans, so an error points at its
-line; `field_edit.rs` writes them field by field, so the comments and the order
-of a file edited by hand survive; `field_edit/table.rs` replaces a whole table
-in its place. `testing.rs`, behind the feature `testing`, gives tests a scratch
-directory in memory, the in-memory `MemoryStore` and `Raced`;
-`testing/contract.rs` holds the store contract every backend passes.
+`hlc.rs` the HLC as pace's files keep it, `split.rs` how a device's log is split
+into files, and `renames.rs` the renames that put the files of one write in
+place, all or none. `catalog.rs` reads the roles, the clients and the project
+records of `PACE_HOME` into pace_core's `Catalog`. `toml_file.rs` reads pace's
+TOML files with spans, so an error points at its line; `field_edit.rs` writes
+them field by field, so the comments and the order of a file edited by hand
+survive; `field_edit/table.rs` replaces a whole table in its place.
+`testing.rs`, behind the feature `testing`, gives tests a scratch directory in
+memory, the in-memory `MemoryStore` and `Raced`; `testing/contract.rs` holds the
+store contract every backend passes.
 
 ## Files
 
