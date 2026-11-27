@@ -330,8 +330,8 @@ fn store_contract_names_check_that_broken_store_fails() -> TestResult {
 
     assert_eq!(
         error.to_string(),
-        "the store breaks its contract: the HLC comes after what other devices wrote: \
-         nothing is running"
+        "the store breaks its contract: open entries are read whatever the range: \
+         an entry begun in October and still open is missing"
     );
     Ok(())
 }

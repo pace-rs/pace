@@ -26,17 +26,11 @@ where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
     S: EventStore,
 {
+    // The read checks come before the HLC checks: those run the tracker,
+    // which reads, so a broken read would fail them under the wrong name.
     within(
         COME_BACK,
         appended_events_come_back_with_their_device_and_batch(&new_storage()).await,
-    )?;
-    within(
-        HLC_NEVER_GOES_BACK,
-        the_hlc_never_goes_back_when_the_clock_does(&new_storage()).await,
-    )?;
-    within(
-        HLC_AFTER_OTHER_DEVICES,
-        the_hlc_comes_after_what_other_devices_wrote(&new_storage()).await,
     )?;
     within(
         OPEN_ENTRIES,
@@ -49,6 +43,14 @@ where
     within(
         UNDO_WITH_BATCH,
         an_undo_is_read_with_its_batch(&new_storage()).await,
+    )?;
+    within(
+        HLC_NEVER_GOES_BACK,
+        the_hlc_never_goes_back_when_the_clock_does(&new_storage()).await,
+    )?;
+    within(
+        HLC_AFTER_OTHER_DEVICES,
+        the_hlc_comes_after_what_other_devices_wrote(&new_storage()).await,
     )?;
     within(
         DEVICES,
@@ -67,11 +69,11 @@ where
 
 // The checks, by the promise each one keeps.
 const COME_BACK: &str = "appended events come back with their device and batch";
-const HLC_NEVER_GOES_BACK: &str = "the HLC never goes back when the clock does";
-const HLC_AFTER_OTHER_DEVICES: &str = "the HLC comes after what other devices wrote";
 const OPEN_ENTRIES: &str = "open entries are read whatever the range";
 const OVERLAPPING_ENTRIES: &str = "entries overlapping the range are read wherever they are filed";
 const UNDO_WITH_BATCH: &str = "an undo is read with its batch";
+const HLC_NEVER_GOES_BACK: &str = "the HLC never goes back when the clock does";
+const HLC_AFTER_OTHER_DEVICES: &str = "the HLC comes after what other devices wrote";
 const DEVICES: &str = "devices are the ones that wrote";
 const MARKER_CHANGES: &str = "the marker changes with the data";
 const STALE_APPEND: &str = "an append after a stale read is refused";
@@ -181,69 +183,6 @@ where
     )
 }
 
-async fn the_hlc_never_goes_back_when_the_clock_does<O, S>(open_store: &O) -> PaceResult<()>
-where
-    O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-    S: EventStore,
-{
-    let check = HLC_NEVER_GOES_BACK;
-    let laptop = open(open_store, 1, "2026-11-26T10:00[Europe/Berlin]")?;
-    let first = laptop
-        .tracker
-        .run(&Command::Begin(Begin::default()))
-        .await?;
-    laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
-    // The log lies before the jumped-back clock, and so before the begin's
-    // HLC; the store must still order it after the begin.
-    let second = laptop
-        .tracker
-        .run(&Command::Log(Log::new(
-            at("2026-11-26T08:00[Europe/Berlin]")?,
-            at("2026-11-26T08:30[Europe/Berlin]")?,
-        )))
-        .await?;
-    let (Some(first), Some(second)) = (first.recorded.first(), second.recorded.first()) else {
-        return Err(broken(check, "append returned nothing"));
-    };
-    ensure(
-        second.hlc > first.hlc,
-        check,
-        format!("{:?} after {:?}", second.hlc, first.hlc),
-    )
-}
-
-async fn the_hlc_comes_after_what_other_devices_wrote<O, S>(open_store: &O) -> PaceResult<()>
-where
-    O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-    S: EventStore,
-{
-    let check = HLC_AFTER_OTHER_DEVICES;
-    let laptop = open(open_store, 1, "2026-11-26T10:00[Europe/Berlin]")?;
-    let desktop = open(open_store, 2, "2026-11-26T09:00[Europe/Berlin]")?;
-    let began = laptop
-        .tracker
-        .run(&Command::Begin(Begin {
-            at: Some(at("2026-11-26T08:00[Europe/Berlin]")?),
-            ..Begin::default()
-        }))
-        .await?;
-    let ended = desktop
-        .tracker
-        .run(&Command::End(End {
-            at: Some(at("2026-11-26T08:30[Europe/Berlin]")?),
-            ..End::default()
-        }))
-        .await?;
-    let (Some(began), Some(ended)) = (began.recorded.first(), ended.recorded.first()) else {
-        return Err(broken(check, "append returned nothing"));
-    };
-    ensure(
-        ended.hlc > began.hlc,
-        check,
-        "the desktop's clock is behind, but its event must come later",
-    )
-}
-
 async fn open_entries_are_read_whatever_the_range<O, S>(open_store: &O) -> PaceResult<()>
 where
     O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
@@ -333,6 +272,69 @@ where
         entry.state() == EntryState::Running,
         check,
         "the end was undone in November, but reading October still shows it",
+    )
+}
+
+async fn the_hlc_never_goes_back_when_the_clock_does<O, S>(open_store: &O) -> PaceResult<()>
+where
+    O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
+    S: EventStore,
+{
+    let check = HLC_NEVER_GOES_BACK;
+    let laptop = open(open_store, 1, "2026-11-26T10:00[Europe/Berlin]")?;
+    let first = laptop
+        .tracker
+        .run(&Command::Begin(Begin::default()))
+        .await?;
+    laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
+    // The log lies before the jumped-back clock, and so before the begin's
+    // HLC; the store must still order it after the begin.
+    let second = laptop
+        .tracker
+        .run(&Command::Log(Log::new(
+            at("2026-11-26T08:00[Europe/Berlin]")?,
+            at("2026-11-26T08:30[Europe/Berlin]")?,
+        )))
+        .await?;
+    let (Some(first), Some(second)) = (first.recorded.first(), second.recorded.first()) else {
+        return Err(broken(check, "append returned nothing"));
+    };
+    ensure(
+        second.hlc > first.hlc,
+        check,
+        format!("{:?} after {:?}", second.hlc, first.hlc),
+    )
+}
+
+async fn the_hlc_comes_after_what_other_devices_wrote<O, S>(open_store: &O) -> PaceResult<()>
+where
+    O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
+    S: EventStore,
+{
+    let check = HLC_AFTER_OTHER_DEVICES;
+    let laptop = open(open_store, 1, "2026-11-26T10:00[Europe/Berlin]")?;
+    let desktop = open(open_store, 2, "2026-11-26T09:00[Europe/Berlin]")?;
+    let began = laptop
+        .tracker
+        .run(&Command::Begin(Begin {
+            at: Some(at("2026-11-26T08:00[Europe/Berlin]")?),
+            ..Begin::default()
+        }))
+        .await?;
+    let ended = desktop
+        .tracker
+        .run(&Command::End(End {
+            at: Some(at("2026-11-26T08:30[Europe/Berlin]")?),
+            ..End::default()
+        }))
+        .await?;
+    let (Some(began), Some(ended)) = (began.recorded.first(), ended.recorded.first()) else {
+        return Err(broken(check, "append returned nothing"));
+    };
+    ensure(
+        ended.hlc > began.hlc,
+        check,
+        "the desktop's clock is behind, but its event must come later",
     )
 }
 

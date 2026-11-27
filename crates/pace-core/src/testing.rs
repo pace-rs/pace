@@ -82,8 +82,10 @@ struct Storage {
 /// An event store in memory.
 ///
 /// Stores made with [`MemoryStore::for_device`] share one storage, like
-/// devices that sync `PACE_HOME`. `read` returns no more than the contract
-/// asks for, so a command that reads too little fails its tests.
+/// devices that sync `PACE_HOME`. `read` returns what the contract asks
+/// for, plus the events of undone or forgotten entries and of entries that
+/// only touch the range's ends, so a command that reads too little fails
+/// its tests.
 #[derive(Debug, Clone)]
 pub struct MemoryStore {
     storage: Arc<Mutex<Storage>>,
