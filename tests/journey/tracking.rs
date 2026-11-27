@@ -191,3 +191,20 @@ fn begin_into_full_disk_is_error_not_crash() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn new_reason_for_open_break_says_reason_is_now() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = sandbox.journey(&[
+        ("09:00", &["begin", "Write offer"]),
+        ("09:10", &["pause"]),
+        ("09:20", &["pause", "--lunch", "--reason", "food"]),
+        ("09:30", &["resume"]),
+        ("10:00", &["hold", "--outer"]),
+        ("10:00", &["hold", "--reason", "phone call"]),
+        ("10:05", &["now"]),
+    ])?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

@@ -1,0 +1,61 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace begin Write offer   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Began [ID-1] "Write offer" at 09:00.
+pace keeps its data in [SANDBOX]/home.
+
+----- stderr -----
+
+$ pace pause   # at 09:10
+success: true
+exit_code: 0
+----- stdout -----
+Paused [ID-1] at 09:10 for a break.
+
+----- stderr -----
+
+$ pace pause --lunch --reason food   # at 09:20
+success: true
+exit_code: 0
+----- stdout -----
+[ID-1] is paused since 09:10; the reason is now: food.
+
+----- stderr -----
+
+$ pace resume   # at 09:30
+success: true
+exit_code: 0
+----- stdout -----
+Resumed [ID-1] at 09:30 after 20m paused.
+
+----- stderr -----
+
+$ pace hold --outer   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+Held [ID-1] at 10:00, interrupted from outside.
+
+----- stderr -----
+
+$ pace hold --reason phone call   # at 10:00
+success: true
+exit_code: 0
+----- stdout -----
+[ID-1] is held since 10:00; the reason is now: phone call.
+
+----- stderr -----
+
+$ pace now   # at 10:05
+success: true
+exit_code: 0
+----- stdout -----
+Held: [ID-1] "Write offer", since 10:00 (5 minutes ago): phone call.
+  40m net so far; begun at 09:00; held 5m; paused 20m.
+
+----- stderr -----

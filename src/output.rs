@@ -114,19 +114,17 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
             source,
             reason,
         } => held(
-            state,
+            outcome,
             known(state, *entry)?,
             at,
             *source,
             reason.as_deref(),
-            now,
         ),
-        EventKind::EntryPaused { entry, kind, .. } => format!(
-            "Paused {} at {} {}.",
-            short_id(state, known(state, *entry)?.id),
-            clock(at, now),
-            pause_kind(*kind)
-        ),
+        EventKind::EntryPaused {
+            entry,
+            kind,
+            reason,
+        } => paused(outcome, known(state, *entry)?, at, *kind, reason.as_deref()),
         EventKind::EntryResumed { entry } => resumed(state, known(state, *entry)?, at, now),
         EventKind::CatchNoted { entry, text } => {
             format!("Caught \"{text}\" on {}.", short_id(state, *entry))
@@ -343,22 +341,21 @@ fn ended(state: &State, entry: &Entry, at: &ZonedDateTime, now: &ZonedDateTime) 
     )
 }
 
+/// A new hold, or a new reason for the hold that was open before.
 fn held(
-    state: &State,
+    outcome: &Outcome,
     entry: &Entry,
     at: &ZonedDateTime,
     source: HoldSource,
     reason: Option<&str>,
-    now: &ZonedDateTime,
 ) -> String {
-    let hold = entry.holds.iter().find(|hold| hold.end.is_none());
-    if let Some(hold) = hold.filter(|hold| hold.start < *at) {
-        return format!(
-            "{} is held since {}; the reason is now: {}.",
-            short_id(state, entry.id),
-            clock(&hold.start, now),
-            reason.unwrap_or_default()
-        );
+    let (state, now) = (&outcome.state, &outcome.now);
+    let open = outcome
+        .before
+        .entry(entry.id)
+        .and_then(|before| before.holds.iter().find(|hold| hold.end.is_none()));
+    if let Some(hold) = open {
+        return reason_is_now(outcome, entry, "held", &hold.start, reason);
     }
     let from = match source {
         HoldSource::Inner => ", interrupted from inside",
@@ -370,6 +367,45 @@ fn held(
         "Held {} at {}{from}{why}.",
         short_id(state, entry.id),
         clock(at, now)
+    )
+}
+
+/// A new pause, or a new reason for the pause that was open before.
+fn paused(
+    outcome: &Outcome,
+    entry: &Entry,
+    at: &ZonedDateTime,
+    kind: PauseKind,
+    reason: Option<&str>,
+) -> String {
+    let open = outcome
+        .before
+        .entry(entry.id)
+        .and_then(|before| before.pauses.iter().find(|pause| pause.end.is_none()));
+    if let Some(pause) = open {
+        return reason_is_now(outcome, entry, "paused", &pause.start, reason);
+    }
+    format!(
+        "Paused {} at {} {}.",
+        short_id(&outcome.state, entry.id),
+        clock(at, &outcome.now),
+        pause_kind(kind)
+    )
+}
+
+/// `ad5e is held since 10:00; the reason is now: phone call.`
+fn reason_is_now(
+    outcome: &Outcome,
+    entry: &Entry,
+    how: &str,
+    since: &ZonedDateTime,
+    reason: Option<&str>,
+) -> String {
+    format!(
+        "{} is {how} since {}; the reason is now: {}.",
+        short_id(&outcome.state, entry.id),
+        clock(since, &outcome.now),
+        reason.unwrap_or_default()
     )
 }
 
