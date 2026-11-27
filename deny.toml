@@ -23,12 +23,25 @@ allow = [
   "Unlicense",
   "Zlib",
 ]
+# The list holds the licenses pace accepts, not the ones its dependencies use
+# today. A license that no dependency uses stays allowed without a warning.
+unused-allowed-license = "allow"
 
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
 # The workspace crates depend on each other by path.
 allow-wildcard-paths = true
+# The known duplicates, each held by a dependency that hasn't moved on yet. A
+# skip that no longer matches warns, so remove it once its dependency updates.
+skip = [
+  { crate = "syn@2.0.119", reason = "abscissa_derive 0.9 and tracing-attributes 0.1 build on syn 2; the rest of the tree is on syn 3" },
+  { crate = "synstructure@0.13.2", reason = "abscissa_derive 0.9 builds on synstructure 0.13" },
+  { crate = "toml@0.9.12", reason = "abscissa_core 0.9 depends on toml 0.9; pace reads its files with toml 1" },
+  { crate = "toml_datetime@0.7.5", reason = "comes with toml 0.9 of abscissa_core 0.9" },
+  { crate = "winnow@0.7.15", reason = "comes with toml 0.9 of abscissa_core 0.9" },
+  { crate = "unicode-width@0.1.14", reason = "miette 7.6 depends on unicode-width 0.1; textwrap and console use 0.2" },
+]
 
 [sources]
 unknown-registry = "deny"
