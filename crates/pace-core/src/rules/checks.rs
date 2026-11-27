@@ -32,6 +32,33 @@ impl Rules<'_> {
     }
 
     /// The switch of `begin` ends the running entry at the new entry's
+    /// start, so the start comes after the running entry began.
+    pub(super) fn check_switch_after_start(
+        &self,
+        running: &Entry,
+        start: &ZonedDateTime,
+    ) -> PaceResult<()> {
+        let error = match running.start.cmp(start) {
+            Ordering::Less => return Ok(()),
+            Ordering::Equal => PaceError::new(
+                ErrorKind::InvalidInput,
+                "the running entry began at {began}, the same moment as the new entry",
+            ),
+            Ordering::Greater => PaceError::new(
+                ErrorKind::InvalidInput,
+                "the running entry began at {began}, after the new entry's start at {start}",
+            )
+            .attach_context("start", self.clock(start)),
+        };
+        Err(error
+            .attach_context("began", self.clock(&running.start))
+            .attach_hint(format!(
+                "begin after {}, or move the running entry with `pace adjust --start`",
+                self.clock(&running.start)
+            )))
+    }
+
+    /// The switch of `begin` ends the running entry at the new entry's
     /// start, so the start comes after the open break began and after the
     /// closed breaks.
     pub(super) fn check_switch_after_breaks(

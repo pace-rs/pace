@@ -233,6 +233,29 @@ fn begin_before_the_running_entry_began_is_refused() -> TestResult {
 }
 
 #[test]
+fn begin_at_running_entrys_own_start_is_refused_as_same_moment() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("10:00", &begin("Write offer"))?;
+
+    let error = failure(world.run("10:00", &begin("Call")))?;
+
+    assert_eq!(
+        error.to_string(),
+        "the running entry began at 10:00, the same moment as the new entry"
+    );
+    assert_eq!(
+        error.context_value("start"),
+        None,
+        "no detail repeats the time"
+    );
+    assert_eq!(
+        error.hint(),
+        Some("begin after 10:00, or move the running entry with `pace adjust --start`")
+    );
+    Ok(())
+}
+
+#[test]
 fn begin_inside_closed_break_of_running_entry_is_refused() -> TestResult {
     let mut world = World::new()?;
     _ = world.run("09:00", &begin("Write offer"))?;

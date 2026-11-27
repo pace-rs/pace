@@ -97,18 +97,7 @@ impl Rules<'_> {
         match self.state.open().collect::<Vec<_>>().as_slice() {
             [] => {}
             [running] => {
-                if running.start >= start {
-                    return Err(PaceError::new(
-                        ErrorKind::InvalidInput,
-                        "the running entry began at {began}, after the new entry's start at {start}",
-                    )
-                    .attach_context("began", self.clock(&running.start))
-                    .attach_context("start", self.clock(&start))
-                    .attach_hint(format!(
-                        "begin after {}, or move the running entry with `pace adjust --start`",
-                        self.clock(&running.start)
-                    )));
-                }
+                self.check_switch_after_start(running, &start)?;
                 self.check_switch_after_breaks(running, &start)?;
                 events.push(self.event(
                     &start,
