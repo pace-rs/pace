@@ -235,6 +235,19 @@ impl PaceError {
         self.snippet.as_ref().map(|snippet| snippet.source.name())
     }
 
+    /// The line the snippet points at, counted from 1, if the error has
+    /// one: the line of the start of its span.
+    #[must_use]
+    pub fn snippet_line(&self) -> Option<usize> {
+        self.snippet.as_ref().map(|snippet| {
+            let text = snippet.source.inner();
+            let start = snippet.span.start;
+            text.get(..start)
+                .map_or(0, |before| before.matches('\n').count())
+                + 1
+        })
+    }
+
     /// A context value by key, if present.
     #[must_use]
     pub fn context_value(&self, key: &str) -> Option<&str> {

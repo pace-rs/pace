@@ -71,6 +71,7 @@ mod tracker;
 
 pub use disk::write_atomically;
 pub use files::{FilesStore, Resplit};
+pub use format::{EventFileRead, parse_events_collecting};
 pub use machine::{DeviceIdentity, device_id, existing_device_id};
 pub use port::EventStore;
 pub use split::Split;

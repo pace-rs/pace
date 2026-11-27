@@ -458,3 +458,107 @@ fn billing_marked_with_blank_invoice_names_it() -> TestResult {
     assert_eq!(error.to_string(), "\" \" is no invoice reference");
     Ok(())
 }
+
+/// An event file with a valid event between two invalid ones: one of an
+/// unknown type, one with an unknown key.
+fn file_with_two_invalid_events() -> String {
+    let unknown_type = ended().replace("entry.ended", "entry.bogun");
+    let unknown_key = format!("{}\nwhereabouts = \"x\"", ended());
+    let event = |fields: &str| {
+        format!(
+            "[[event]]\nid = \"{id}\"\nbatch = \"{batch}\"\n\
+             at = \"2026-11-26T09:00:00+01:00[Europe/Berlin]\"\n{fields}\n\n",
+            id = id(0xe, 1),
+            batch = id(0xb, 1),
+        )
+    };
+    format!(
+        "version = 1\n\n{}{}{}",
+        event(&unknown_type),
+        event(&ended()),
+        event(&unknown_key)
+    )
+}
+
+#[test]
+fn collecting_reader_names_every_invalid_event_with_its_line() -> TestResult {
+    let device: DeviceId = id(0xd, 1).parse()?;
+
+    let read = parse_events_collecting(
+        Path::new("2026-11.toml"),
+        &file_with_two_invalid_events(),
+        device,
+    );
+
+    assert_eq!(read.events.len(), 1);
+    let found: Vec<(String, Option<usize>)> = read
+        .mistakes
+        .iter()
+        .map(|mistake| (mistake.to_string(), mistake.snippet_line()))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            (
+                "pace doesn't know the event type `entry.bogun`".to_owned(),
+                Some(3)
+            ),
+            (
+                "`whereabouts` is not a key pace knows in an event".to_owned(),
+                Some(29)
+            ),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn collecting_reader_of_broken_toml_names_one_mistake() -> TestResult {
+    let device: DeviceId = id(0xd, 1).parse()?;
+
+    let read = parse_events_collecting(Path::new("2026-11.toml"), "version = \n", device);
+
+    assert_eq!(read.events, []);
+    assert_eq!(read.mistakes.len(), 1);
+    assert!(read.mistakes[0].is_code("pace::store::syntax"));
+    Ok(())
+}
+
+#[test]
+fn collecting_reader_of_valid_file_finds_no_mistake() -> TestResult {
+    let device: DeviceId = id(0xd, 1).parse()?;
+
+    let read = parse_events_collecting(
+        Path::new("2026-11.toml"),
+        &event_file_with(&ended()),
+        device,
+    );
+
+    assert_eq!(read.events.len(), 1);
+    assert_eq!(read.mistakes.len(), 0);
+    Ok(())
+}
+
+#[test]
+fn collecting_reader_names_value_of_wrong_type_and_reads_the_rest() -> TestResult {
+    let device: DeviceId = id(0xd, 1).parse()?;
+    let wrong = event_file_with(&ended().replace("v = 1", "v = \"one\""));
+    let text = format!(
+        "{wrong}\n{}",
+        event_file_with(&ended()).replace("version = 1\n", "")
+    );
+
+    let read = parse_events_collecting(Path::new("2026-11.toml"), &text, device);
+
+    assert_eq!(read.events.len(), 1);
+    assert_eq!(read.mistakes.len(), 1);
+    assert!(
+        read.mistakes[0]
+            .to_string()
+            .starts_with("pace cannot read this event: "),
+        "{}",
+        read.mistakes[0]
+    );
+    assert_eq!(read.mistakes[0].snippet_line(), Some(3));
+    Ok(())
+}

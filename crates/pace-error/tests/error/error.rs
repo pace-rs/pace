@@ -198,3 +198,17 @@ fn snippet_name_is_the_file_it_points_at() {
         None
     );
 }
+
+#[test]
+fn snippet_line_counts_from_one_to_the_start_of_its_span() {
+    let text = "version = 1\n\n[work]\nkind = \"aera\"\n";
+    let start = text.find("kind").unwrap_or_default();
+    let error = PaceError::new(ErrorKind::Configuration, "unknown kind")
+        .attach_snippet(Snippet::new("roles.toml", text, start..start + 4, "here"));
+
+    assert_eq!(error.snippet_line(), Some(4));
+    assert_eq!(
+        PaceError::new(ErrorKind::Configuration, "unknown kind").snippet_line(),
+        None
+    );
+}

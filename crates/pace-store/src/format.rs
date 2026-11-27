@@ -23,7 +23,7 @@ mod reading;
 mod writing;
 
 use event_type::EventType;
-use reading::event_from_record;
+use reading::{InvalidRecord, event_from_record};
 use writing::record_from_event;
 
 /// The version of the event file format.
@@ -184,19 +184,123 @@ pub(crate) fn parse_events(
         .into_iter()
         .map(|record| {
             let span = record.span();
-            event_from_record(record.into_inner(), device).map_err(|invalid| {
-                event_file(path, text)
-                    .error_at(
-                        span,
-                        invalid.guidance,
-                        invalid.context,
-                        invalid.hint,
-                        "this event",
-                    )
-                    .attach_error_code("pace::store::invalid-event")
-            })
+            event_from_record(record.into_inner(), device)
+                .map_err(|invalid| invalid_event(path, text, span, invalid))
         })
         .collect()
+}
+
+/// What [`parse_events_collecting`] found in an event file: the events
+/// that read, and a mistake for each that doesn't.
+#[derive(Debug, Default)]
+pub struct EventFileRead {
+    /// The valid events, in the order of the file.
+    pub events: Vec<RecordedEvent>,
+    /// Each mistake, in the order of the file, with the file and the line.
+    pub mistakes: Vec<Box<PaceError>>,
+}
+
+/// An event file read without its events' types, so that one invalid event
+/// leaves the others.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LenientFile {
+    version: u32,
+    #[serde(default)]
+    event: Vec<Spanned<toml::Table>>,
+}
+
+/// The events of an event file of `device`, and a mistake for each
+/// invalid event.
+///
+/// `parse_events`, which commands use, stops at the first invalid event;
+/// this reader names every one, for `pace doctor`. A file that is no valid
+/// TOML, has another `version` or an unknown key outside its events has
+/// one mistake and no events.
+#[must_use]
+pub fn parse_events_collecting(path: &Path, text: &str, device: DeviceId) -> EventFileRead {
+    let only = |mistake| EventFileRead {
+        events: Vec::new(),
+        mistakes: vec![mistake],
+    };
+    let file: LenientFile = match toml::from_str(text) {
+        Ok(file) => file,
+        Err(error) => return only(explain(path, text, &error)),
+    };
+    if file.version != FILE_VERSION {
+        return only(newer_or_broken(path, text, "version", file.version));
+    }
+    let mut read = EventFileRead::default();
+    for (index, table) in file.event.into_iter().enumerate() {
+        let span = table.span();
+        let event = Record::deserialize(toml::Value::Table(table.into_inner()))
+            .map_err(|error| unreadable_event(path, text, index, span.clone(), &error))
+            .and_then(|record| {
+                event_from_record(record, device)
+                    .map_err(|invalid| invalid_event(path, text, span, invalid))
+            });
+        match event {
+            Ok(event) => read.events.push(event),
+            Err(mistake) => read.mistakes.push(mistake),
+        }
+    }
+    read
+}
+
+/// The error for the event at `span` that is no valid event, as
+/// `invalid` says.
+fn invalid_event(
+    path: &Path,
+    text: &str,
+    span: Range<usize>,
+    invalid: InvalidRecord,
+) -> Box<PaceError> {
+    event_file(path, text)
+        .error_at(
+            span,
+            invalid.guidance,
+            invalid.context,
+            invalid.hint,
+            "this event",
+        )
+        .attach_error_code("pace::store::invalid-event")
+}
+
+/// The error for the event number `index` at `span`, which serde refused
+/// as a record: its unknown key, or else the value at fault.
+fn unreadable_event(
+    path: &Path,
+    text: &str,
+    index: usize,
+    span: Range<usize>,
+    error: &toml::de::Error,
+) -> Box<PaceError> {
+    let file = event_file(path, text);
+    let document = file.parse().ok();
+    let unknown = document.as_ref().and_then(|document| {
+        let event = document
+            .table()
+            .get("event")?
+            .tables()
+            .into_iter()
+            .nth(index)?;
+        event
+            .entries()
+            .into_iter()
+            .map(|(key, _)| key)
+            .find(|key| !KEYS.contains(&key.name()))
+            .map(|key| unknown_key(&file, key.name(), key.span()))
+    });
+    unknown.unwrap_or_else(|| {
+        file.error_at(
+            span,
+            "pace cannot read this event: {reason}",
+            [("reason", error.message().trim().to_owned())],
+            REPAIR,
+            "this event",
+        )
+        .attach_error_code("pace::store::invalid-event")
+    })
 }
 
 fn event_file<'file>(path: &'file Path, text: &'file str) -> TomlFile<'file> {
