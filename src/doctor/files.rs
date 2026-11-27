@@ -36,8 +36,9 @@ pub struct FileChecks {
     pub events: Vec<RecordedEvent>,
     /// The catalog of the records, if every catalog file reads.
     pub catalog: Option<Catalog>,
-    /// A structure finding for each refusal of the catalog's records,
-    /// such as a project whose client doesn't exist.
+    /// If every catalog file reads, a structure finding for each refusal
+    /// of the catalog's records, such as a project whose client doesn't
+    /// exist.
     pub refusals: Vec<Finding>,
     /// The settings, if they load.
     pub settings: Option<Loaded>,
@@ -136,17 +137,20 @@ fn catalog_findings(home: &Path) -> FileChecks {
             .iter()
             .map(|mistake| with_mending_command(home, file_error(mistake))),
     );
+    // A file that can't be read leaves its records out of the catalog, so
+    // the catalog and its refusals would name false mistakes.
+    let every_file_reads = findings.is_empty();
+    let catalog = check.catalog.filter(|_| every_file_reads);
     let refusals = check
         .refusals
         .iter()
+        .filter(|_| every_file_reads)
         .map(|refusal| {
             let finding =
                 Finding::from_error(FindingSeverity::Error, FindingArea::Structure, refusal);
             with_mending_command(home, finding)
         })
         .collect();
-    // A file that can't be read leaves its records out of the catalog.
-    let catalog = check.catalog.filter(|_| findings.is_empty());
     FileChecks {
         findings,
         catalog,
@@ -266,6 +270,25 @@ mod tests {
             findings[0].message
         );
         assert_eq!(findings[0].file, Some(home.path().join("roles.toml")));
+        Ok(())
+    }
+
+    #[test]
+    fn unreadable_catalog_file_leaves_out_refusals_of_the_others() -> Result<(), io::Error> {
+        let home = scratch_dir()?;
+        std::fs::create_dir(home.path().join("clients.toml"))?;
+        std::fs::create_dir(home.path().join("projects"))?;
+        std::fs::write(
+            home.path().join("projects/acme-webshop.toml"),
+            "version = 1\nid = \"0193a7c4-0000-7000-8000-000000000002\"\n\
+             key = \"acme-webshop\"\nname = \"Webshop\"\nclient = \"acme\"\n",
+        )?;
+
+        let checks = catalog_findings(home.path());
+
+        assert_eq!(checks.findings.len(), 1, "{:?}", checks.findings);
+        assert!(checks.catalog.is_none());
+        assert_eq!(checks.refusals, []);
         Ok(())
     }
 

@@ -158,7 +158,7 @@ pub enum PaceCmd {
     #[command(subcommand)]
     Config(ConfigCmd),
 
-    /// Check pace's directories and files, and say how to fix each problem
+    /// Check pace's files, entries, structure and billing, and say how to fix each problem
     Doctor(DoctorCmd),
 
     /// Look after how pace keeps its data.

@@ -4,15 +4,16 @@
 use std::collections::BTreeMap;
 
 use pace_core::{
-    Billing, Catalog, Change, Client, DataArea, DataFinding, DoctorInput, EntryChanges, EventKind,
-    FindingSeverity, ProjectRef, Rate, Rates, RecordedEvent, Rounding, State, billing_findings,
-    data_findings, entry_findings, structure_findings,
+    Bill, BillInput, Billing, Catalog, Change, Client, DataArea, DataFinding, DoctorInput,
+    EntryChanges, EventKind, FindingSeverity, ProjectRef, Rate, Rates, RecordedEvent, Rounding,
+    RoundingMode, RoundingPer, State, billing_findings, data_findings, entry_findings,
+    structure_findings,
 };
 
 use crate::{
     TestResult,
     bill::eur,
-    report::{Fallible, Fields, LATER, Log, berlin, hours, on, record, role, zone},
+    report::{Fallible, Fields, LATER, Log, berlin, days, hours, mins, on, record, role, zone},
 };
 
 const WORK: &str = "0193a7c4-0000-7000-8000-00000000000a";
@@ -420,6 +421,53 @@ fn billed_entry_at_todays_rate_is_no_finding() -> TestResult {
         check(log.events(), &catalog_at(Some("100"))?, billing_findings)?,
         []
     );
+    Ok(())
+}
+
+#[test]
+fn share_of_day_line_billed_at_unchanged_rate_is_no_finding() -> TestResult {
+    let mut catalog_client = acme(Some("100"))?;
+    catalog_client.rounding = Rounding::new(RoundingPer::Day, mins(1), RoundingMode::Up)?;
+    let mut webshop = record(WEBSHOP, "acme-webshop", "work", Some("acme"))?;
+    webshop.billable = true;
+    let catalog = Catalog::new(
+        vec![role(WORK, "work", Some(35))?],
+        vec![catalog_client],
+        vec![webshop],
+    )?;
+    let mut log = Log::new(1)?;
+    for (start, end) in [
+        ("2026-11-24T09:00", "2026-11-24T09:07"),
+        ("2026-11-24T10:00", "2026-11-24T10:07"),
+        ("2026-11-24T11:00", "2026-11-24T11:07"),
+    ] {
+        _ = log.log(start, end, on(WEBSHOP)?)?;
+    }
+    let client = catalog.client(&"acme".parse()?).ok_or("acme")?;
+    let bill = Bill::build(&BillInput {
+        state: &log.state(),
+        catalog: &catalog,
+        client,
+        period: &days("2026-11-01", "2026-12-01")?,
+        zone: &zone()?,
+        now: &berlin(LATER)?,
+    })?;
+    let billings = bill.billings(&"2026-0042".parse()?);
+    // The day's 35.00 EUR split in three: one share is a cent short of
+    // 7 minutes at 100 EUR an hour.
+    let amounts: Vec<String> = billings
+        .iter()
+        .map(|(_, billing)| billing.amount.to_string())
+        .collect();
+    assert_eq!(amounts, ["11.67", "11.67", "11.66"]);
+    for (entry, billing) in billings {
+        log.record(
+            "2026-12-01T09:00",
+            EventKind::BillingMarked { entry, billing },
+        )?;
+    }
+
+    assert_eq!(check(log.events(), &catalog, billing_findings)?, []);
     Ok(())
 }
 

@@ -19,12 +19,13 @@ use crate::doctor::{FileChecks, Finding, FindingArea, FindingSeverity};
 /// catalog's refusals, the other structure checks, then billing.
 ///
 /// The checks need the catalog, so they run only if every catalog file
-/// reads; the file findings name the mistakes otherwise. An entry's day is
-/// its start day in the zone of `reports.time-zone`, as for `pace bill`.
+/// reads, and so do the catalog's refusals; the file findings name the
+/// mistakes otherwise. An entry's day is its start day in the zone of
+/// `reports.time-zone`, as for `pace bill`.
 #[must_use]
 pub fn data_check_findings(files: &FileChecks, test_now: Option<OsString>) -> Vec<Finding> {
     let Some(catalog) = &files.catalog else {
-        return files.refusals.clone();
+        return Vec::new();
     };
     let settings = files
         .settings
@@ -91,14 +92,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn without_catalog_only_refusals_are_named() {
+    fn without_catalog_no_data_check_runs() {
         let refusal = Finding::new(FindingSeverity::Error, FindingArea::Structure, "unknown");
         let files = FileChecks {
-            refusals: vec![refusal.clone()],
+            refusals: vec![refusal],
             ..FileChecks::default()
         };
 
-        assert_eq!(data_check_findings(&files, None), [refusal]);
+        assert_eq!(data_check_findings(&files, None), []);
     }
 
     #[test]

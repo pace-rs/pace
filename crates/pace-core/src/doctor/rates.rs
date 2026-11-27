@@ -47,7 +47,8 @@ fn record_of<'input>(input: &DoctorInput<'input>, entry: &Entry) -> Option<&'inp
 }
 
 /// The finding for the billed entry `id` if today's rate on its day
-/// would bill its billed time at another amount, or no rate holds.
+/// differs from its frozen rate and bills its billed time at another
+/// amount, or no rate holds.
 fn billed_at_other_amount(
     input: &DoctorInput<'_>,
     id: EntryId,
@@ -57,6 +58,10 @@ fn billed_at_other_amount(
     let day = day_of(input, entry);
     let record = record_of(input, entry);
     let today = match record.and_then(|record| input.catalog.rate_on(record, day)) {
+        // A bill line splits its amount among its entries, so a frozen
+        // amount can be a cent off its rate times its billed time: only a
+        // changed rate changes it.
+        Some(rate) if rate.hourly == billing.rate => return None,
         Some(rate) => {
             let amount = rate.hourly.amount_for(billing.billed).ok()?;
             if amount == billing.amount {
