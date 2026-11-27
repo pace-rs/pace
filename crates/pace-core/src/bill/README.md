@@ -20,6 +20,6 @@ client over a period and puts the lines of both together.
 <!-- uses -->
 
 - Uses: [`report`](../report/).
-- Used by: no other module.
+- Used by: [`doctor`](../doctor/).
 
 <!-- /uses -->

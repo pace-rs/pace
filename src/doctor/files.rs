@@ -12,7 +12,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pace_core::RecordedEvent;
+use pace_core::{Catalog, RecordedEvent};
 use pace_error::PaceError;
 use pace_store::{
     catalog::{catalog_file_paths, check_catalog_files, read_catalog},
@@ -21,19 +21,26 @@ use pace_store::{
 };
 
 use crate::commands::mending_command;
-use crate::config::load_settings;
+use crate::config::{Loaded, load_settings};
 use crate::dirs::{Dirs, Located};
 use crate::doctor::{Finding, FindingArea, FindingSeverity};
 use crate::project::{Records, discover_project};
 
-/// What the file checks found: the findings, and the events that read,
-/// for the checks that look at the events.
+/// What the file checks found: the findings, and what read, for the
+/// checks of the device, the entries, the structure and billing.
 #[derive(Debug, Default)]
 pub struct FileChecks {
     /// A finding for each mistake, in the order of the files.
     pub findings: Vec<Finding>,
     /// The valid events of every event file.
     pub events: Vec<RecordedEvent>,
+    /// The catalog of the records, if every catalog file reads.
+    pub catalog: Option<Catalog>,
+    /// A structure finding for each refusal of the catalog's records,
+    /// such as a project whose client doesn't exist.
+    pub refusals: Vec<Finding>,
+    /// The settings, if they load.
+    pub settings: Option<Loaded>,
 }
 
 /// The error finding of a file in `files`.
@@ -57,21 +64,26 @@ fn unreadable(path: &Path, error: &io::Error) -> Finding {
 #[must_use]
 pub fn file_findings(dirs: &Dirs, cwd: &Path) -> FileChecks {
     let home = &dirs.data.path;
-    let mut findings = settings_findings(&dirs.config_file);
-    findings.extend(catalog_findings(home));
+    let (mut findings, settings) = settings_findings(&dirs.config_file);
+    let catalog = catalog_findings(home);
+    findings.extend(catalog.findings);
     findings.extend(manifest_findings(home, cwd));
     let events = event_findings(home);
     findings.extend(events.findings);
     FileChecks {
         findings,
         events: events.events,
+        catalog: catalog.catalog,
+        refusals: catalog.refusals,
+        settings,
     }
 }
 
 /// The finding of the global config file and of the settings in the
 /// environment, if they don't load; else a warning for each problem that
-/// doesn't stop pace, such as an unknown `PACE_*` variable.
-fn settings_findings(config_file: &Located) -> Vec<Finding> {
+/// doesn't stop pace, such as an unknown `PACE_*` variable, and the
+/// settings.
+fn settings_findings(config_file: &Located) -> (Vec<Finding>, Option<Loaded>) {
     let user_home = directories::BaseDirs::new().map(|base| base.home_dir().to_path_buf());
     let loaded = load_settings(
         Some(config_file),
@@ -80,23 +92,33 @@ fn settings_findings(config_file: &Located) -> Vec<Finding> {
         std::env::vars_os().map(|(name, _)| name),
     );
     match loaded {
-        Ok(loaded) => loaded
-            .warnings
-            .iter()
-            .map(|warning| {
-                Finding::from_error(FindingSeverity::Warning, FindingArea::Files, warning)
-            })
-            .collect(),
-        Err(error) => vec![file_error(&error)],
+        Ok(loaded) => (
+            loaded
+                .warnings
+                .iter()
+                .map(|warning| {
+                    Finding::from_error(FindingSeverity::Warning, FindingArea::Files, warning)
+                })
+                .collect(),
+            Some(loaded),
+        ),
+        Err(error) => (vec![file_error(&error)], None),
     }
 }
 
-/// A finding for each mistake of the catalog's files in `home`; its fix
-/// names the command that opens the file, where there is one.
-fn catalog_findings(home: &Path) -> Vec<Finding> {
+/// A finding for each mistake of the catalog's files in `home`, and if
+/// they all read, the catalog and a structure finding for each of its
+/// refusals; a fix names the command that opens the file, where there is
+/// one.
+fn catalog_findings(home: &Path) -> FileChecks {
     let paths = match catalog_file_paths(home) {
         Ok(paths) => paths,
-        Err(error) => return vec![file_error(&error)],
+        Err(error) => {
+            return FileChecks {
+                findings: vec![file_error(&error)],
+                ..FileChecks::default()
+            };
+        }
     };
     let mut findings = Vec::new();
     let mut files: Vec<(PathBuf, String)> = Vec::new();
@@ -107,12 +129,30 @@ fn catalog_findings(home: &Path) -> Vec<Finding> {
             Err(error) => findings.push(unreadable(&path, &error)),
         }
     }
+    let check = check_catalog_files(home, files);
     findings.extend(
-        check_catalog_files(home, files)
+        check
+            .mistakes
             .iter()
             .map(|mistake| with_mending_command(home, file_error(mistake))),
     );
-    findings
+    let refusals = check
+        .refusals
+        .iter()
+        .map(|refusal| {
+            let finding =
+                Finding::from_error(FindingSeverity::Error, FindingArea::Structure, refusal);
+            with_mending_command(home, finding)
+        })
+        .collect();
+    // A file that can't be read leaves its records out of the catalog.
+    let catalog = check.catalog.filter(|_| findings.is_empty());
+    FileChecks {
+        findings,
+        catalog,
+        refusals,
+        ..FileChecks::default()
+    }
 }
 
 /// `finding` with the command that opens its catalog file in the editor
@@ -154,7 +194,7 @@ fn event_findings(home: &Path) -> FileChecks {
         Err(error) => {
             return FileChecks {
                 findings: vec![file_error(&error)],
-                events: Vec::new(),
+                ..FileChecks::default()
             };
         }
     };
@@ -215,8 +255,10 @@ mod tests {
         let home = scratch_dir()?;
         std::fs::create_dir(home.path().join("roles.toml"))?;
 
-        let findings = catalog_findings(home.path());
+        let checks = catalog_findings(home.path());
 
+        let findings = checks.findings;
+        assert!(checks.catalog.is_none());
         assert_eq!(findings.len(), 1, "{findings:?}");
         assert!(
             findings[0].message.starts_with("cannot read "),

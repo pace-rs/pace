@@ -1,5 +1,6 @@
-//! `pace doctor`: check the directories, the files, the device and setup,
-//! and say how to fix each problem; it changes nothing.
+//! `pace doctor`: check the directories, the files, the device, the
+//! entries, the structure, billing and setup, and say how to fix each
+//! problem; it changes nothing.
 
 use abscissa_core::{Command, Runnable};
 use pace_error::{ExitCode, PaceResult};
@@ -29,7 +30,7 @@ impl Runnable for DoctorCmd {
 impl DoctorCmd {
     /// Run every check and print the findings; whether one is an error.
     fn execute(&self, context: &Context) -> PaceResult<bool> {
-        let findings = check_everything(&context.dirs, &context.cwd);
+        let findings = check_everything(&context.dirs, &context.cwd, context.test_now.clone());
         if self.json {
             print_lines([schema_json(SchemaKind::Doctor, &doctor_rows(&findings))?])?;
         } else {

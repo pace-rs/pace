@@ -376,16 +376,6 @@ fn to_bill(entry: &Entry, input: &BillInput<'_>) -> bool {
             .is_some_and(|client| *client == input.client.key)
 }
 
-/// Whether `entry` may overlap others: its own mark, or its project's
-/// record.
-fn allows_overlap(entry: &Entry, catalog: &Catalog) -> bool {
-    entry.allow_overlap
-        || entry
-            .project
-            .as_ref()
-            .is_some_and(|project| catalog.project_allows_overlap(project))
-}
-
 /// Refuse the bill if one of `entries` overlaps any entry of the state,
 /// and neither of the two allows it: pace bills no time twice. The other
 /// entry may be running, billed already, of another client or project,
@@ -400,8 +390,8 @@ fn refuse_overlaps(input: &BillInput<'_>, entries: &[&Entry]) -> PaceResult<()> 
             on_bill.contains(&overlap.first.id) || on_bill.contains(&overlap.second.id)
         })
         .filter(|overlap| {
-            !allows_overlap(overlap.first, input.catalog)
-                && !allows_overlap(overlap.second, input.catalog)
+            !overlap.first.allows_overlap(input.catalog)
+                && !overlap.second.allows_overlap(input.catalog)
         })
         .map(|overlap| {
             format!(
@@ -429,7 +419,7 @@ fn refuse_overlaps(input: &BillInput<'_>, entries: &[&Entry]) -> PaceResult<()> 
 
 /// The time two entries share, in `zone`: `09:30–10:00 on 2026-11-20`,
 /// with both dates if it runs over midnight.
-fn shared_time(start: &ZonedDateTime, end: &ZonedDateTime, zone: &TimeZone) -> String {
+pub(crate) fn shared_time(start: &ZonedDateTime, end: &ZonedDateTime, zone: &TimeZone) -> String {
     let (start, end) = (
         start.with_time_zone(zone.clone()),
         end.with_time_zone(zone.clone()),

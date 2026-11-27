@@ -1,0 +1,43 @@
+---
+source: tests/journey/doctor.rs
+expression: transcript
+---
+$ pace doctor   # at 12:00
+success: false
+exit_code: 1
+----- stdout -----
+error[entries]: 2 entries are open at once: [ID-1] "Review the shop" (since 09:00); [ID-2] "Answer mail" (since 09:10)
+  fix: end all but one with `pace end <id>`
+
+warning[entries]: the entries [ID-3] and [ID-4] overlap: they share 09:30–10:00 on 2026-11-25
+  at entry [ID-3]
+  fix: move one with `pace adjust <id> --start` or `--end`, or allow the overlap with `pace adjust <id> --allow-overlap`
+
+warning[entries]: the note of [ID-3] changed on 2 devices: "Offer for ACME" on device [ID-5], "Offer for Beta" on device [ID-6]; "Offer for Beta" counts, the later change
+  at entry [ID-3]
+  fix: pace doesn't record what a device had seen, so this can be no conflict; if another value is right, set it with `pace edit [ID-3]`
+
+warning[entries]: 1 entry names the project `brochure`, which has no record: [ID-7]
+  fix: give it a record with `pace project init` in the project's directory, or with `pace project add brochure`
+
+error[structure]: the project `beta-site` names the client `beta`, which pace doesn't know
+  at [SANDBOX]/home/projects/beta-site.toml:5
+  fix: pace knows these clients: `acme`; `pace project edit beta-site` opens the file
+
+warning[structure]: the project `garden` is billable, but has no client
+  fix: give it a client, or make it not billable, with `pace project edit garden`
+
+warning[structure]: the weekly targets of the roles in use add up to 180h, more than the 168h of a week
+  fix: lower a target with `pace role edit`
+
+warning[billing]: [ID-8] went on the invoice 2026-0042 with 100.00 EUR; today's rates make it 120.00 EUR
+  at entry [ID-8]
+  fix: a written invoice keeps its amounts; if the rate was wrong, mend it with `pace client edit acme`
+
+warning[billing]: [ID-9] is billable, but no rate of the client `acme` holds on its day 2026-11-10
+  at entry [ID-9]
+  fix: add an earlier rate with `pace client edit acme`
+
+Found 2 errors and 7 warnings.
+
+----- stderr -----

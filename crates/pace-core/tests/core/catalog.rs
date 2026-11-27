@@ -599,3 +599,43 @@ fn empty_catalog_knows_nothing() -> TestResult {
     assert_eq!((catalog.roles().count(), catalog.clients().count()), (0, 0));
     Ok(())
 }
+
+#[test]
+fn collecting_catalog_names_every_refusal_and_keeps_the_records() -> TestResult {
+    let mut unknown_client = webshop()?;
+    unknown_client.client = Some("acmee".parse()?);
+    let mut unknown_role = project(GARDEN_ID, "acme-garden")?;
+    unknown_role.role = Some("health".parse()?);
+
+    let (catalog, refusals) = Catalog::collecting(
+        vec![work()?],
+        vec![acme()?],
+        vec![unknown_client, unknown_role],
+    );
+
+    let messages: Vec<String> = refusals.iter().map(ToString::to_string).collect();
+    assert_eq!(
+        messages,
+        [
+            "the project `acme-garden` names the role `health`, which pace doesn't know",
+            "the project `acme-webshop` names the client `acmee`, which pace doesn't know",
+            "the client `acme` has rates for the project `acme-webshop`, which belongs to the \
+             client `acmee`",
+        ]
+    );
+    assert!(catalog.project(&"acme-webshop".parse()?).is_some());
+    assert!(catalog.project(&"acme-garden".parse()?).is_some());
+    Ok(())
+}
+
+#[test]
+fn collecting_catalog_of_valid_records_is_the_checked_one() -> TestResult {
+    let (catalog, refusals) = Catalog::collecting(vec![work()?], vec![acme()?], vec![webshop()?]);
+
+    assert!(refusals.is_empty(), "{refusals:?}");
+    assert_eq!(
+        catalog,
+        Catalog::new(vec![work()?], vec![acme()?], vec![webshop()?])?
+    );
+    Ok(())
+}

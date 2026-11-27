@@ -15,9 +15,11 @@ frozen `Billing` of a billed entry. `bill.rs` decides the `Bill` of a client
 from the state and the catalog: its ended, billable entries that are not billed
 yet, or a refusal for an overlap or an entry before the first rate. `export.rs`
 gives the entries of a period for `pace export`, one by one and unsplit, each
-with its frozen price once billed, else the rate of its start day. The `testing`
-feature adds `testing.rs` for the tests of other crates: a settable clock,
-deterministic IDs and the lock the test doubles share.
+with its frozen price once billed, else the rate of its start day. `doctor.rs`
+holds the data checks of `pace doctor`: the entries, the structure and billing,
+checked on the state, the catalog and the events. The `testing` feature adds
+`testing.rs` for the tests of other crates: a settable clock, deterministic IDs
+and the lock the test doubles share.
 
 ## Files
 
@@ -29,6 +31,7 @@ deterministic IDs and the lock the test doubles share.
 | [`billing.rs`](billing.rs)   | Billing: the billable time of entries, rounded by their client's rule and priced at the rate of each entry's start day; the one place that `reflect`'s revenue and `bill` take their amounts from. |
 | [`catalog.rs`](catalog.rs)   | The catalog: the roles, clients and project records that rules, reports and bills take as a value, with their money and rounding.                                                                  |
 | [`command.rs`](command.rs)   | The use cases as data; see `Command`.                                                                                                                                                              |
+| [`doctor.rs`](doctor.rs)     | The data checks of `pace doctor`: the entries, the structure and the billing, each a function without I/O on the state, the catalog and the events.                                                |
 | [`entry.rs`](entry.rs)       | Entries: a stretch of tracked time with its note, project, tags and role, its holds, pauses and catches, and what it is doing now.                                                                 |
 | [`event.rs`](event.rs)       | The events of the log: what happened to an entry or a batch, as the core decided it.                                                                                                               |
 | [`export.rs`](export.rs)     | The export of `pace export`: one row per entry that starts in a period and passes the report's filters, unsplit, as plain data the app renders.                                                    |
@@ -48,6 +51,7 @@ deterministic IDs and the lock the test doubles share.
 | [`tracking.rs`](tracking.rs) | Where a hold came from, what kind of break a pause is, and who determined an entry's time.                                                                                                         |
 | [`bill/`](bill/)             | The bill of a client, decided from values: its ended, billable entries of a period that are not billed yet, priced line by line, or a refusal that names the entries and the fix.                  |
 | [`catalog/`](catalog/)       | The catalog: the roles, clients and project records that rules, reports and bills take as a value, with their money and rounding.                                                                  |
+| [`doctor/`](doctor/)         | The data checks of `pace doctor`: the entries, the structure and the billing, each a function without I/O on the state, the catalog and the events.                                                |
 | [`report/`](report/)         | The report of `reflect`, computed from values: time per role, project and day, targets, budgets, revenue, breaks, who decided and the overlaps of a period.                                        |
 | [`rules/`](rules/)           | What each command turns into: the events of one batch, or an error that says how to fix it.                                                                                                        |
 | [`testing/`](testing/)       | For tests of pace and of store backends: a settable clock, deterministic IDs, and the lock that the test doubles share.                                                                            |

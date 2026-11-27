@@ -259,31 +259,53 @@ pub fn catalog_file_paths(home: &Path) -> PaceResult<Vec<PathBuf>> {
     Ok(paths)
 }
 
-/// Every mistake of the catalog `files` of `home`, with its file and line.
+/// What [`check_catalog_files`] finds in the catalog's files.
+#[derive(Debug, Default)]
+pub struct CatalogCheck {
+    /// Each record that a file's reader refuses, with its file and line,
+    /// where [`read_catalog`] stops at the first.
+    pub mistakes: Vec<Box<PaceError>>,
+    /// If every file reads: the catalog of their records, as
+    /// [`Catalog::collecting`] takes them.
+    pub catalog: Option<Catalog>,
+    /// If every file reads: each refusal of [`Catalog::collecting`], such
+    /// as a project whose client doesn't exist, pointed at the spot where
+    /// one record names another.
+    pub refusals: Vec<Box<PaceError>>,
+}
+
+/// Every mistake of the catalog `files` of `home`, with its file and line,
+/// and the catalog of the records if every file reads.
 ///
 /// Each of `files` is a path from [`catalog_file_paths`] with its text.
-/// The mistakes are each record that a file's reader refuses, where
-/// [`read_catalog`] stops at the first. If every file reads, the one
-/// mistake that [`Catalog::new`] finds when it checks the records against
-/// each other, if any.
+/// The records of a file that doesn't read are missing, so pace checks
+/// them against each other only if every file reads.
 #[must_use]
-pub fn check_catalog_files(home: &Path, files: Vec<(PathBuf, String)>) -> Vec<Box<PaceError>> {
+pub fn check_catalog_files(home: &Path, files: Vec<(PathBuf, String)>) -> CatalogCheck {
     let sources: Vec<(Kind, Source)> = files
         .into_iter()
         .map(|(path, text)| (Kind::of(home, &path), Source { path, text }))
         .collect();
     let read = read_files(&sources);
-    if read.mistakes.is_empty() {
-        read.records
-            .check(&read.mentions, &sources)
-            .err()
+    if !read.mistakes.is_empty() {
+        return CatalogCheck {
+            mistakes: read
+                .mistakes
+                .into_iter()
+                .map(|(_, mistake)| mistake)
+                .collect(),
+            ..CatalogCheck::default()
+        };
+    }
+    let records = read.records;
+    let (catalog, refusals) = Catalog::collecting(records.roles, records.clients, records.projects);
+    CatalogCheck {
+        mistakes: Vec::new(),
+        catalog: Some(catalog),
+        refusals: refusals
             .into_iter()
-            .collect()
-    } else {
-        read.mistakes
-            .into_iter()
-            .map(|(_, mistake)| mistake)
-            .collect()
+            .map(|refusal| read.mentions.point(refusal, &sources))
+            .collect(),
     }
 }
 

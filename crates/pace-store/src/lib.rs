@@ -16,7 +16,8 @@
 //!   [`parse_events_collecting`] reads one, [`detect_cloned_device`] and
 //!   [`last_written_hlc`] give the clone check without an append, and
 //!   [`check_catalog_files`](catalog::check_catalog_files) reads the
-//!   catalog's files.
+//!   catalog's files, with the catalog of their records and every refusal
+//!   of `Catalog::collecting`.
 //! - [`toml_file`]: span-aware reading of pace's TOML files, so errors name
 //!   the file and the line.
 //! - [`field_edit`]: the field writer of pace's TOML files, which keeps

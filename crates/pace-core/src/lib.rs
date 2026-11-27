@@ -62,6 +62,7 @@ mod bill;
 mod billing;
 mod catalog;
 pub mod command;
+mod doctor;
 mod entry;
 mod event;
 mod export;
@@ -90,6 +91,10 @@ pub use catalog::{
     RoleKind, Rounding, RoundingMode, RoundingPer, Totals,
 };
 pub use command::Command;
+pub use doctor::{
+    DataArea, DataFinding, DoctorInput, FindingSeverity, billing_findings, data_findings,
+    entry_findings, structure_findings,
+};
 pub use entry::{Entry, EntryCatch, EntryHold, EntryOrigin, EntryPause, EntryState, ProjectRef};
 pub use event::{
     Batch, Change, ChangeMarker, Device, EntryChanges, Event, EventKind, Hlc, RecordedEvent,

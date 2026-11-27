@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use crate::support::{Sandbox, run};
+use crate::support::{Sandbox, run, short_id_after};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -148,6 +148,175 @@ fn device_id_written_by_machine_copy_is_named() -> TestResult {
     assert!(copy.starts_with("success: true"), "{copy}");
 
     let transcript = sandbox.journey(&[("11:00", &["doctor"])])?;
+    sandbox
+        .settings()
+        .bind(|| insta::assert_snapshot!(transcript));
+    Ok(())
+}
+
+/// `pace` on the desktop, a second device with its own data and machine
+/// directory, at `time` as for [`Sandbox::pace_at`].
+fn desktop(sandbox: &Sandbox, time: &str) -> std::process::Command {
+    let mut command = sandbox.pace_at(time);
+    _ = command
+        .env("PACE_HOME", sandbox.path("desktop-home"))
+        .env("PACE_MACHINE_DIR", sandbox.path("desktop-machine"));
+    command
+}
+
+/// Run `command` and fail unless pace did what it was asked.
+fn done(command: &mut std::process::Command) -> Result<String, Box<dyn std::error::Error>> {
+    let output = run(command)?;
+    if output.starts_with("success: true") {
+        Ok(output)
+    } else {
+        Err(output.into())
+    }
+}
+
+/// Copy the desktop's own device directory to the laptop. The desktop's
+/// copy of the laptop's directory is older than the laptop's own, and a
+/// file sync keeps the newer one, so it stays out.
+fn sync_desktop_device(sandbox: &Sandbox) -> std::io::Result<()> {
+    for laptop_device in std::fs::read_dir(sandbox.path("home/events"))? {
+        let name = laptop_device?.file_name();
+        std::fs::remove_dir_all(sandbox.path("desktop-home/events").join(name))?;
+    }
+    sandbox.sync_events_from("desktop-home")
+}
+
+/// The clients file once the rate of acme went up to 120 EUR.
+const ACME_AT_120: &str = r#"version = 1
+
+[acme]
+name = "acme"
+currency = "EUR"
+
+[[acme.rates]]
+hourly = 120
+from = 2026-11-20
+"#;
+
+/// A record, written by hand, of a project whose client doesn't exist.
+const BETA_SITE: &str = r#"version = 1
+id = "0193a7c4-0000-7000-8000-000000000003"
+key = "beta-site"
+name = "Beta's site"
+client = "beta"
+"#;
+
+/// A home with one finding of each data check, built by commands on the
+/// laptop and the desktop, two devices that sync their event files.
+fn home_with_every_data_finding() -> Result<Sandbox, Box<dyn std::error::Error>> {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("[reports]\ntime-zone = \"Europe/Berlin\"\n")?;
+    let laptop: [&[&str]; 9] = [
+        &["role", "add", "work", "--weekly-target", "120h"],
+        &["role", "add", "health", "--weekly-target", "60h"],
+        &[
+            "client",
+            "add",
+            "acme",
+            "--currency",
+            "EUR",
+            "--rate",
+            "100",
+            "--from",
+            "2026-11-20",
+        ],
+        &[
+            "project",
+            "add",
+            "acme-webshop",
+            "--client",
+            "acme",
+            "--role",
+            "work",
+        ],
+        &["project", "add", "garden", "--role", "health", "--billable"],
+        &[
+            "log",
+            "Fix the checkout",
+            "--project",
+            "acme-webshop",
+            "--from",
+            "2026-11-24 09:00",
+            "--to",
+            "2026-11-24 10:00",
+        ],
+        &[
+            "bill",
+            "--client",
+            "acme",
+            "--month",
+            "2026-11",
+            "--mark-billed",
+            "2026-0042",
+        ],
+        &[
+            "log",
+            "Plan the relaunch",
+            "--project",
+            "acme-webshop",
+            "--from",
+            "2026-11-10 09:00",
+            "--to",
+            "2026-11-10 10:00",
+        ],
+        &[
+            "log",
+            "Read the brief",
+            "--project",
+            "brochure",
+            "--from",
+            "2026-11-25 14:00",
+            "--to",
+            "2026-11-25 15:00",
+        ],
+    ];
+    for args in laptop {
+        _ = done(sandbox.pace_at("08:00").args(args))?;
+    }
+    let offer = done(sandbox.pace_at("08:10").args([
+        "log",
+        "Write offer",
+        "--from",
+        "2026-11-25 09:00",
+        "--to",
+        "2026-11-25 10:00",
+    ]))?;
+    let offer = short_id_after(&offer, "Logged ")?;
+    // Apart: an entry that overlaps the offer, and one open entry each.
+    _ = done(desktop(&sandbox, "08:30").args([
+        "log",
+        "Call Anna",
+        "--from",
+        "2026-11-25 09:30",
+        "--to",
+        "2026-11-25 10:30",
+    ]))?;
+    _ = done(sandbox.pace_at("09:00").args(["begin", "Review the shop"]))?;
+    _ = done(desktop(&sandbox, "09:10").args(["begin", "Answer mail"]))?;
+    sandbox.sync_events_to("desktop-home")?;
+    // Both change the offer's note before the next sync.
+    _ = done(
+        sandbox
+            .pace_at("11:00")
+            .args(["adjust", &offer, "--note", "Offer for ACME"]),
+    )?;
+    _ = done(desktop(&sandbox, "11:30").args(["adjust", &offer, "--note", "Offer for Beta"]))?;
+    sync_desktop_device(&sandbox)?;
+    // Edited by hand: a higher rate, and a project of an unknown client.
+    sandbox.write("home/clients.toml", ACME_AT_120)?;
+    sandbox.write("home/projects/beta-site.toml", BETA_SITE)?;
+    Ok(sandbox)
+}
+
+#[test]
+fn every_data_check_names_its_finding() -> TestResult {
+    let sandbox = home_with_every_data_finding()?;
+
+    let transcript = sandbox.journey(&[("12:00", &["doctor"])])?;
     sandbox
         .settings()
         .bind(|| insta::assert_snapshot!(transcript));

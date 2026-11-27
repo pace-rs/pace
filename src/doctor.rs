@@ -2,47 +2,35 @@
 //! where it is and how to fix it.
 //!
 //! [`check_everything`] runs the checks of the directories, the files, the
-//! device and setup, in that order. Every problem becomes a [`Finding`],
-//! so doctor names them all where a command stops at the first. The app
-//! gathers the files; `pace_store`'s checks take their texts and do no
-//! I/O. Doctor changes nothing: the only file it writes is the hidden
-//! probe of a directory, which it removes at once.
+//! device, the entries, the structure, billing and setup, in that order.
+//! Every problem becomes a [`Finding`], so doctor names them all where a
+//! command stops at the first. The app gathers the files and the events;
+//! the checks of `pace_store` and `pace_core` take their texts and values
+//! and do no I/O. Doctor changes nothing: the only file it writes is the
+//! hidden probe of a directory, which it removes at once.
 
+mod data;
 mod device;
 mod directories;
 mod files;
 mod report;
 
-use std::path::{Path, PathBuf};
+use std::{
+    ffi::OsString,
+    path::{Path, PathBuf},
+};
 
+use pace_core::DataArea;
 use pace_error::PaceError;
 
 use crate::dirs::Dirs;
 
+pub use data::data_check_findings;
 pub use device::{device_findings, unfinished_setup};
 pub use directories::directory_findings;
 pub use files::{FileChecks, file_findings};
+pub use pace_core::FindingSeverity;
 pub use report::{doctor_lines, doctor_rows};
-
-/// How bad a finding is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum FindingSeverity {
-    /// Something pace can't work with; doctor exits with 1.
-    Error,
-    /// Something to look at; doctor still exits with 0.
-    Warning,
-}
-
-impl FindingSeverity {
-    /// The severity as the findings name it: `error` or `warning`.
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::Error => "error",
-            Self::Warning => "warning",
-        }
-    }
-}
 
 /// The part of pace a finding is about: a row of doctor's checks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,6 +42,13 @@ pub enum FindingArea {
     Files,
     /// This machine's device ID.
     Device,
+    /// The entries: open entries, overlaps, changes on two devices,
+    /// projects without a record.
+    Entries,
+    /// The roles, clients and project records against each other.
+    Structure,
+    /// Billed and billable entries against the rates.
+    Billing,
     /// An interrupted `pace setup`.
     Setup,
 }
@@ -66,7 +61,20 @@ impl FindingArea {
             Self::Directories => "directories",
             Self::Files => "files",
             Self::Device => "device",
+            Self::Entries => "entries",
+            Self::Structure => "structure",
+            Self::Billing => "billing",
             Self::Setup => "setup",
+        }
+    }
+}
+
+impl From<DataArea> for FindingArea {
+    fn from(area: DataArea) -> Self {
+        match area {
+            DataArea::Entries => Self::Entries,
+            DataArea::Structure => Self::Structure,
+            DataArea::Billing => Self::Billing,
         }
     }
 }
@@ -162,15 +170,19 @@ pub fn has_errors(findings: &[Finding]) -> bool {
         .any(|finding| finding.severity == FindingSeverity::Error)
 }
 
-/// Every finding about the places `dirs`, with `cwd` as the working
-/// directory whose manifest is in reach: the directories, the files, the
-/// device and setup, in that order.
+/// Every finding about the places `dirs`: the directories, the files,
+/// the device, the entries, the structure, billing and setup, in that
+/// order.
+///
+/// `cwd` is the working directory whose manifest is in reach, `test_now`
+/// the value of `PACE_TEST_NOW`.
 #[must_use]
-pub fn check_everything(dirs: &Dirs, cwd: &Path) -> Vec<Finding> {
+pub fn check_everything(dirs: &Dirs, cwd: &Path, test_now: Option<OsString>) -> Vec<Finding> {
     let mut findings = directory_findings(dirs);
-    let files = file_findings(dirs, cwd);
-    findings.extend(files.findings);
+    let mut files = file_findings(dirs, cwd);
+    findings.append(&mut files.findings);
     findings.extend(device_findings(&dirs.machine.path, &files.events));
+    findings.extend(data_check_findings(&files, test_now));
     findings.extend(unfinished_setup(&dirs.machine.path));
     findings
 }

@@ -86,9 +86,10 @@ fn every_mistake_of_every_catalog_file_is_named_with_its_line() -> TestResult {
         ("projects/notes.toml", "version = 1\nkey = \n"),
     ])?;
 
-    let mistakes = check_catalog_files(dir.path(), gathered(dir.path())?);
+    let check = check_catalog_files(dir.path(), gathered(dir.path())?);
 
-    let found: Vec<(String, Option<usize>)> = named(&mistakes)
+    assert!(check.catalog.is_none() && check.refusals.is_empty());
+    let found: Vec<(String, Option<usize>)> = named(&check.mistakes)
         .into_iter()
         .map(|(file, line, _)| (file, line))
         .collect();
@@ -104,16 +105,36 @@ fn every_mistake_of_every_catalog_file_is_named_with_its_line() -> TestResult {
     Ok(())
 }
 
+const SHOP_APP_OF_UNKNOWN_CLIENT: &str = r#"version = 1
+id = "0193a7c4-0000-7000-8000-000000000004"
+key = "acme-app"
+name = "Shop app"
+client = "acme"
+"#;
+
 #[test]
-fn records_that_read_but_disagree_give_catalog_check() -> TestResult {
-    let dir = home(&[("projects/acme-webshop.toml", PROJECT_OF_UNKNOWN_CLIENT)])?;
+fn records_that_read_but_disagree_give_every_refusal_and_catalog() -> TestResult {
+    let dir = home(&[
+        ("projects/acme-app.toml", SHOP_APP_OF_UNKNOWN_CLIENT),
+        ("projects/acme-webshop.toml", PROJECT_OF_UNKNOWN_CLIENT),
+    ])?;
 
-    let mistakes = check_catalog_files(dir.path(), gathered(dir.path())?);
+    let check = check_catalog_files(dir.path(), gathered(dir.path())?);
 
-    let found = named(&mistakes);
-    assert_eq!(found.len(), 1, "{found:?}");
-    assert_eq!(found[0].0, "acme-webshop.toml");
-    assert_eq!(found[0].1, Some(5));
+    assert!(check.mistakes.is_empty(), "{:?}", check.mistakes);
+    let found: Vec<(String, Option<usize>)> = named(&check.refusals)
+        .into_iter()
+        .map(|(file, line, _)| (file, line))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("acme-app.toml".to_owned(), Some(5)),
+            ("acme-webshop.toml".to_owned(), Some(5)),
+        ]
+    );
+    let catalog = check.catalog.ok_or("the catalog of the records")?;
+    assert_eq!(catalog.projects().count(), 2);
     Ok(())
 }
 
@@ -122,9 +143,8 @@ fn catalog_files_that_read_have_no_mistake() -> TestResult {
     let dir = home(&[])?;
 
     assert_eq!(catalog_file_paths(dir.path())?.len(), 2);
-    assert_eq!(
-        check_catalog_files(dir.path(), gathered(dir.path())?).len(),
-        0
-    );
+    let check = check_catalog_files(dir.path(), gathered(dir.path())?);
+    assert!(check.mistakes.is_empty() && check.refusals.is_empty());
+    assert_eq!(check.catalog, Some(pace_core::Catalog::default()));
     Ok(())
 }

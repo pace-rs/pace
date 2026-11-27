@@ -37,7 +37,7 @@ use crate::{
 };
 
 /// The hours of a week; role targets above it can't all be met.
-const WEEK: SignedDuration = SignedDuration::from_hours(7 * 24);
+pub(crate) const WEEK: SignedDuration = SignedDuration::from_hours(7 * 24);
 
 /// What [`Report::build`] takes.
 #[derive(Debug, Clone, Copy)]
@@ -294,12 +294,18 @@ fn untracked(
 /// The warning that the weekly targets of the roles in use add up to more
 /// than a week.
 fn targets_above_week(catalog: &Catalog) -> Option<ReportWarning> {
+    targets_beyond_week(catalog).map(|total| ReportWarning::TargetsAboveWeek { total })
+}
+
+/// The sum of the weekly targets of the roles in use, if it is more than
+/// the 168 hours of a week.
+pub(crate) fn targets_beyond_week(catalog: &Catalog) -> Option<SignedDuration> {
     let total: SignedDuration = catalog
         .roles()
         .filter(|role| role.archived.is_none())
         .filter_map(|role| role.weekly_target)
         .sum();
-    (total > WEEK).then_some(ReportWarning::TargetsAboveWeek { total })
+    (total > WEEK).then_some(total)
 }
 
 /// The overlaps of two entries that pass the filter, cut to `span`.

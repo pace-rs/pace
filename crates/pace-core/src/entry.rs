@@ -135,6 +135,17 @@ impl Entry {
         })
     }
 
+    /// Whether it may overlap other entries: its own mark, or its
+    /// project record's `allow-overlap`.
+    #[must_use]
+    pub fn allows_overlap(&self, catalog: &Catalog) -> bool {
+        self.allow_overlap
+            || self
+                .project
+                .as_ref()
+                .is_some_and(|project| catalog.project_allows_overlap(project))
+    }
+
     /// Whether its time is billable: its own flag, else its project
     /// record's, else no. Never stored, as the role.
     #[must_use]

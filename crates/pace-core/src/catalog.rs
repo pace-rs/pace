@@ -75,6 +75,9 @@ pub use rounding::{Rounding, RoundingMode, RoundingPer};
 
 use crate::{ClientKey, ProjectId, ProjectKey, ProjectRef, RoleId, RoleKey};
 
+/// The refusals of [`Catalog::collecting`], in the order of its checks.
+pub(crate) type Refusals = Vec<Box<PaceError>>;
+
 /// The roles, clients and project records, checked against each other.
 ///
 /// The store reads them from their files; the core takes the catalog as a
@@ -103,19 +106,37 @@ impl Catalog {
         clients: Vec<Client>,
         projects: Vec<ProjectRecord>,
     ) -> PaceResult<Self> {
+        let (catalog, refusals) = Self::collecting(roles, clients, projects);
+        refusals.into_iter().next().map_or(Ok(catalog), Err)
+    }
+
+    /// The catalog of `roles`, `clients` and `projects`, with every
+    /// refusal that [`Catalog::new`] stops at the first of: for `pace
+    /// doctor`, which names them all.
+    ///
+    /// A record with a key or an ID that another one has already is left
+    /// out; a record that names a key the catalog doesn't hold stays in.
+    /// The refusals come in the order [`Catalog::new`] checks them.
+    #[must_use]
+    pub fn collecting(
+        roles: Vec<Role>,
+        clients: Vec<Client>,
+        projects: Vec<ProjectRecord>,
+    ) -> (Self, Refusals) {
         let mut catalog = Self::default();
+        let mut refusals = Vec::new();
         for role in roles {
-            catalog.insert_role(role)?;
+            refusals.extend(catalog.insert_role(role).err());
         }
         for client in clients {
-            catalog.insert_client(client)?;
+            refusals.extend(catalog.insert_client(client).err());
         }
         for project in projects {
-            catalog.insert_project(project)?;
+            refusals.extend(catalog.insert_project(project).err());
         }
-        catalog.check_projects()?;
-        catalog.check_clients()?;
-        Ok(catalog)
+        refusals.extend(catalog.project_refusals());
+        refusals.extend(catalog.client_refusals());
+        (catalog, refusals)
     }
 
     fn insert_role(&mut self, role: Role) -> PaceResult<()> {
@@ -155,13 +176,14 @@ impl Catalog {
         Ok(())
     }
 
-    /// Check that each project's client and role exist.
-    fn check_projects(&self) -> PaceResult<()> {
+    /// A refusal for each project's client and role that doesn't exist.
+    fn project_refusals(&self) -> Refusals {
+        let mut refusals = Vec::new();
         for project in self.projects.values() {
             if let Some(client) = project.client.as_ref()
                 && !self.clients.contains_key(client)
             {
-                return Err(unknown_reference(
+                refusals.push(unknown_reference(
                     ("project", project.key.as_str()),
                     "names",
                     ("client", "pace::core::unknown-client"),
@@ -172,7 +194,7 @@ impl Catalog {
             if let Some(role) = project.role.as_ref()
                 && !self.roles.contains_key(role)
             {
-                return Err(unknown_reference(
+                refusals.push(unknown_reference(
                     ("project", project.key.as_str()),
                     "names",
                     ("role", "pace::core::unknown-role"),
@@ -181,46 +203,38 @@ impl Catalog {
                 ));
             }
         }
-        Ok(())
+        refusals
     }
 
-    /// Check that each client's project rates name a project of this client,
-    /// and that its rates are in its currency.
-    fn check_clients(&self) -> PaceResult<()> {
+    /// A refusal for each client's project rates that name no project of
+    /// this client, and for each client with a rate in another currency
+    /// than its own.
+    fn client_refusals(&self) -> Refusals {
+        let mut refusals = Vec::new();
         for client in self.clients.values() {
             for key in client.project_rates.keys() {
-                let Some(project) = self.projects.get(key) else {
-                    return Err(unknown_reference(
+                match self.projects.get(key) {
+                    None => refusals.push(unknown_reference(
                         ("client", client.key.as_str()),
                         "has rates for",
                         ("project", "pace::core::unknown-project"),
                         key.as_str(),
                         self.projects.keys().map(ProjectKey::as_str),
-                    ));
-                };
-                if project.client.as_ref() != Some(&client.key) {
-                    return Err(rates_for_project_of_other_client(client, project));
+                    )),
+                    Some(project) if project.client.as_ref() != Some(&client.key) => {
+                        refusals.push(rates_for_project_of_other_client(client, project));
+                    }
+                    Some(_) => {}
                 }
             }
             if let Some(rate) = client
                 .all_rates()
                 .find(|rate| rate.hourly.currency() != client.currency)
             {
-                return Err(PaceError::new(
-                    ErrorKind::InvalidInput,
-                    "the client `{client}` bills in {currency}, but its rate from {from} is \
-                     {hourly} {other}",
-                )
-                .attach_context("client", client.key.as_str())
-                .attach_context("currency", client.currency.code())
-                .attach_context("from", rate.from.to_string())
-                .attach_context("hourly", rate.hourly.to_string())
-                .attach_context("other", rate.hourly.currency().code())
-                .attach_hint("give every rate of a client in the client's currency")
-                .attach_error_code("pace::core::rate-currency"));
+                refusals.push(rate_in_other_currency(client, rate));
             }
         }
-        Ok(())
+        refusals
     }
 
     /// The role with `key`.
@@ -326,6 +340,21 @@ impl Catalog {
     pub fn projects(&self) -> impl Iterator<Item = &ProjectRecord> {
         self.projects.values()
     }
+}
+
+/// The error for a rate of `client` in another currency than its own.
+fn rate_in_other_currency(client: &Client, rate: &Rate) -> Box<PaceError> {
+    PaceError::new(
+        ErrorKind::InvalidInput,
+        "the client `{client}` bills in {currency}, but its rate from {from} is {hourly} {other}",
+    )
+    .attach_context("client", client.key.as_str())
+    .attach_context("currency", client.currency.code())
+    .attach_context("from", rate.from.to_string())
+    .attach_context("hourly", rate.hourly.to_string())
+    .attach_context("other", rate.hourly.currency().code())
+    .attach_hint("give every rate of a client in the client's currency")
+    .attach_error_code("pace::core::rate-currency")
 }
 
 /// The error for two records of one kind with the same key.
