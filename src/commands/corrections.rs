@@ -2,7 +2,7 @@
 
 use abscissa_core::{Command, Runnable};
 use pace_core::{
-    Change, Command as UseCase,
+    Change, Command as UseCase, ProjectRef,
     command::{Adjust, Forget, Log},
 };
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -13,8 +13,8 @@ use crate::output::entry_label;
 use crate::prompt::{confirm, interactive};
 use crate::select::{chosen_entry, target_entry};
 use crate::{
-    application::{PACE_APP, exit_on_error},
-    project::Reason,
+    application::exit_on_error,
+    project::{Project, Reason},
 };
 
 /// `pace adjust`
@@ -65,14 +65,9 @@ pub struct AdjustCmd {
 
 impl Runnable for AdjustCmd {
     fn run(&self) {
-        exit_on_error(track(|session, notes| {
+        exit_on_error(track(|session, context, notes| {
             let now = session.now();
-            // Only an explicit `--project` moves the entry; a discovered
-            // project or PACE_PROJECT doesn't.
-            let project = match &PACE_APP.context()?.project {
-                Some(project) if project.reason == Reason::Flag => Change::Set(project.reference()),
-                _ => Change::Keep,
-            };
+            let project = moved_project(context.project.as_ref());
             let note = match self.note.as_deref() {
                 None => Change::Keep,
                 Some(note) if note.trim().is_empty() => Change::Clear,
@@ -89,6 +84,15 @@ impl Runnable for AdjustCmd {
                 allow_overlap: self.allow_overlap,
             }))
         }));
+    }
+}
+
+/// Where `adjust` moves the entry: only an explicit `--project` moves it;
+/// a discovered project or `PACE_PROJECT` doesn't.
+fn moved_project(project: Option<&Project>) -> Change<ProjectRef> {
+    match project {
+        Some(project) if project.reason == Reason::Flag => Change::Set(project.reference()),
+        _ => Change::Keep,
     }
 }
 
@@ -136,7 +140,7 @@ pub struct LogCmd {
 
 impl Runnable for LogCmd {
     fn run(&self) {
-        exit_on_error(track(|session, notes| {
+        exit_on_error(track(|session, context, notes| {
             let now = session.now();
             let start = moment(&self.from, &now, notes)?;
             let end = match (&self.to, &self.duration) {
@@ -157,7 +161,7 @@ impl Runnable for LogCmd {
                     );
                 }
             };
-            let project = PACE_APP.context()?.project.as_ref().map(|project| {
+            let project = context.project.as_ref().map(|project| {
                 notes.push(format!("Project: {} ({}).", project.key, project.reason));
                 project.reference()
             });
@@ -178,7 +182,7 @@ pub struct UndoCmd {}
 
 impl Runnable for UndoCmd {
     fn run(&self) {
-        exit_on_error(track(|_, _| Ok(UseCase::Undo)));
+        exit_on_error(track(|_, _, _| Ok(UseCase::Undo)));
     }
 }
 
@@ -201,7 +205,7 @@ pub struct ForgetCmd {
 
 impl Runnable for ForgetCmd {
     fn run(&self) {
-        exit_on_error(track(|session, _| {
+        exit_on_error(track(|session, _, _| {
             let chosen = chosen_entry(session, self.entry.as_deref(), self.last, "forget")?;
             if !self.for_good {
                 confirm_forget(&entry_label(&chosen.state, &chosen.entry, &session.now()))?;
@@ -233,4 +237,41 @@ fn confirm_forget(label: &str) -> PaceResult<()> {
         PaceError::new(ErrorKind::InvalidInput, "nothing was forgotten")
             .attach_exit_code(ExitCode::NothingToDo),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    fn project(reason: Reason) -> Project {
+        Project {
+            id: None,
+            key: "offer".parse().unwrap(),
+            name: None,
+            reason,
+        }
+    }
+
+    #[test]
+    fn project_flag_moves_entry() {
+        let change = moved_project(Some(&project(Reason::Flag)));
+
+        assert_eq!(
+            change,
+            Change::Set(ProjectRef::Key("offer".parse().unwrap()))
+        );
+    }
+
+    #[test]
+    fn discovered_project_keeps_entry_where_it_is() {
+        for reason in [
+            Reason::Variable,
+            Reason::Manifest(PathBuf::from("pace.toml")),
+        ] {
+            assert_eq!(moved_project(Some(&project(reason))), Change::Keep);
+        }
+        assert_eq!(moved_project(None), Change::Keep);
+    }
 }

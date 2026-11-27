@@ -53,7 +53,7 @@ pub struct EditCmd {
 
 impl Runnable for EditCmd {
     fn run(&self) {
-        exit_on_error(track(|session, _| {
+        exit_on_error(track(|session, _, _| {
             let chosen = chosen_entry(session, self.entry.as_deref(), self.last, "edit")?;
             let now = session.now();
             let mut text = edit_in_editor(&write(&chosen, session.device(), &now)?, ".toml")?;

@@ -17,19 +17,19 @@ use crate::print::print_lines;
 use crate::prompt::{choose, interactive};
 use crate::select::target_entry;
 use crate::{
-    application::{PACE_APP, exit_on_error},
+    application::{Context, PACE_APP, exit_on_error},
     session::Session,
 };
 
-/// Run `build` with the session, print what happened, the notes `build`
-/// left, and the first-use note.
+/// Run `build` with the session and the context, print what happened, the
+/// notes `build` left, and the first-use note.
 pub(super) fn track(
-    build: impl FnOnce(&Session, &mut Vec<String>) -> PaceResult<UseCase>,
+    build: impl FnOnce(&Session, &Context, &mut Vec<String>) -> PaceResult<UseCase>,
 ) -> PaceResult<()> {
     let context = PACE_APP.context()?;
     let session = Session::open(context)?;
     let mut notes = Vec::new();
-    let command = build(&session, &mut notes)?;
+    let command = build(&session, context, &mut notes)?;
     let outcome = session.run(&command)?;
     print_lines(
         describe_outcome(&outcome)?
@@ -132,10 +132,10 @@ pub struct BeginCmd {
 
 impl Runnable for BeginCmd {
     fn run(&self) {
-        exit_on_error(track(|session, notes| {
+        exit_on_error(track(|session, context, notes| {
             let at = at(self.at.as_deref(), &session.now(), notes)?;
             if self.again {
-                let count = PACE_APP.context()?.settings.settings.most_recent_count;
+                let count = context.settings.settings.most_recent_count;
                 let again = again(session, count)?;
                 return Ok(UseCase::Begin(Begin {
                     at,
@@ -143,7 +143,6 @@ impl Runnable for BeginCmd {
                     ..again
                 }));
             }
-            let context = PACE_APP.context()?;
             let project = context.project.as_ref().map(|project| {
                 notes.push(format!("Project: {} ({}).", project.key, project.reason));
                 project.reference()
@@ -255,7 +254,7 @@ pub struct HoldCmd {
 
 impl Runnable for HoldCmd {
     fn run(&self) {
-        exit_on_error(track(|session, notes| {
+        exit_on_error(track(|session, _, notes| {
             let source = match (self.inner, self.outer) {
                 (true, _) => Some(HoldSource::Inner),
                 (_, true) => Some(HoldSource::Outer),
@@ -290,7 +289,7 @@ pub struct PauseCmd {
 
 impl Runnable for PauseCmd {
     fn run(&self) {
-        exit_on_error(track(|session, notes| {
+        exit_on_error(track(|session, _, notes| {
             Ok(UseCase::Pause(Pause {
                 at: at(self.at.as_deref(), &session.now(), notes)?,
                 kind: if self.lunch {
@@ -324,7 +323,7 @@ pub struct ResumeCmd {
 
 impl Runnable for ResumeCmd {
     fn run(&self) {
-        exit_on_error(track(|session, notes| {
+        exit_on_error(track(|session, _, notes| {
             Ok(UseCase::Resume(Resume {
                 at: at(self.at.as_deref(), &session.now(), notes)?,
                 entry: target_entry(session, self.entry.as_deref(), false)?,
@@ -346,7 +345,7 @@ pub struct CatchCmd {
 
 impl Runnable for CatchCmd {
     fn run(&self) {
-        exit_on_error(track(|_, _| {
+        exit_on_error(track(|_, _, _| {
             Ok(UseCase::Catch(Catch {
                 text: text(&self.thought).unwrap_or_default(),
             }))
@@ -374,7 +373,7 @@ pub struct EndCmd {
 
 impl Runnable for EndCmd {
     fn run(&self) {
-        exit_on_error(track(|session, notes| {
+        exit_on_error(track(|session, _, notes| {
             Ok(UseCase::End(End {
                 at: at(self.at.as_deref(), &session.now(), notes)?,
                 entry: target_entry(session, self.entry.as_deref(), false)?,
