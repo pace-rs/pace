@@ -375,6 +375,37 @@ impl<'file> TomlFile<'file> {
         })
     }
 
+    /// The value as a list of text, such as `["dev", "ops"]`, each text
+    /// with where it stands in the file.
+    ///
+    /// # Errors
+    ///
+    /// If it is no list, or a list that holds something else than text; the
+    /// error says what `name` takes (`expects`).
+    pub fn strings<'value>(
+        &self,
+        name: &str,
+        value: TomlValue<'value>,
+        expects: &str,
+    ) -> PaceResult<Vec<(&'value str, Range<usize>)>> {
+        let items = value.0.get_ref().as_array();
+        let texts = items.and_then(|items| {
+            items
+                .iter()
+                .map(|item| Some((item.get_ref().as_str()?, item.span())))
+                .collect::<Option<Vec<_>>>()
+        });
+        texts.ok_or_else(|| {
+            self.wrong_type(
+                name,
+                value,
+                expects,
+                format!("write it as a list of text, like `{name} = [\"…\"]`"),
+                &value.type_with_article(),
+            )
+        })
+    }
+
     /// The value as a day: a TOML local date such as `2026-09-01`, without
     /// quotes.
     ///
@@ -807,6 +838,36 @@ mod tests {
             error.hint(),
             Some("write each as `[[rates]]` with its keys below")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn strings_read_list_of_texts_and_refuse_other_items() -> TestResult {
+        let file = manifest("tags = [\"dev\", \"ops\"]\nmixed = [\"dev\", 1]\none = \"dev\"\n");
+        let document = file.parse()?;
+        let table = document.table();
+
+        let tags = table.get("tags").ok_or("the key is there")?;
+        let mixed = table.get("mixed").ok_or("the key is there")?;
+        let one = table.get("one").ok_or("the key is there")?;
+
+        let texts: Vec<&str> = file
+            .strings("tags", tags, "a list of tags")?
+            .into_iter()
+            .map(|(text, _)| text)
+            .collect();
+        assert_eq!(texts, ["dev", "ops"]);
+        for value in [mixed, one] {
+            let error = file
+                .strings("tags", value, "a list of tags")
+                .err()
+                .ok_or("no list of texts")?;
+            assert_eq!(error.to_string(), "`tags` takes a list of tags");
+            assert_eq!(
+                error.hint(),
+                Some("write it as a list of text, like `tags = [\"…\"]`")
+            );
+        }
         Ok(())
     }
 }

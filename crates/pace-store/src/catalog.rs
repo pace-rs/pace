@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pace_core::Catalog;
+use pace_core::{Catalog, ProjectKey};
 use pace_error::{ErrorKind, PaceError, PaceResult, Snippet};
 
 use crate::toml_file::{TomlFile, read_hint};
@@ -36,6 +36,13 @@ pub const CLIENTS_FILE: &str = "clients.toml";
 
 /// The directory of the project records in `PACE_HOME`.
 pub const PROJECTS_DIR: &str = "projects";
+
+/// The file of the record of the project `key` in `home`:
+/// `projects/<key>.toml`.
+#[must_use]
+pub fn project_record_path(home: &Path, key: &ProjectKey) -> PathBuf {
+    home.join(PROJECTS_DIR).join(format!("{key}.toml"))
+}
 
 /// Read the roles, the clients and the project records in `home` into the
 /// catalog.
