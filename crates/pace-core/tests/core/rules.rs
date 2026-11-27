@@ -244,8 +244,9 @@ fn begin_inside_closed_break_of_running_entry_is_refused() -> TestResult {
 
     assert_eq!(
         error.to_string(),
-        "the entry has a break until 10:30, after the new end at 10:15"
+        "the running entry has a break until 10:30, after the new entry's start at 10:15"
     );
+    assert_eq!(error.hint(), Some("begin at 10:30 or later with `--at`"));
     Ok(())
 }
 

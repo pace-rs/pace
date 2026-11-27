@@ -1,7 +1,7 @@
 //! What each command turns into: the events of one batch, or an error that
 //! says how to fix it.
 
-use std::{cmp::Ordering, collections::BTreeSet};
+use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
 use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
@@ -13,6 +13,10 @@ use crate::{
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
     short_ids,
 };
+
+mod checks;
+
+use checks::open_break_start;
 
 const NOW_HINT: &str = "pace records what happened; `pace begin` starts an entry now";
 
@@ -105,7 +109,7 @@ impl Rules<'_> {
                         self.clock(&running.start)
                     )));
                 }
-                self.check_end_after_breaks(running, &start)?;
+                self.check_switch_after_breaks(running, &start)?;
                 events.push(self.event(
                     &start,
                     &running.filed,
@@ -458,141 +462,6 @@ impl Rules<'_> {
             .attach_hint(hint))
     }
 
-    /// A new hold or pause may not begin before the entry, before the open
-    /// break it replaces, or before the end of an earlier one.
-    fn check_break_start(&self, entry: &Entry, at: &ZonedDateTime) -> PaceResult<()> {
-        if *at < entry.start {
-            return Err(self.after(ENTRY_BEGAN, &entry.start, at));
-        }
-        if let Some(open_since) = open_break_start(entry)
-            && at < open_since
-        {
-            return Err(self.after(BREAK_BEGAN, open_since, at));
-        }
-        let last_break_end = entry
-            .holds
-            .iter()
-            .filter_map(|hold| hold.end.as_ref())
-            .chain(entry.pauses.iter().filter_map(|pause| pause.end.as_ref()))
-            .max();
-        if let Some(last) = last_break_end
-            && at < last
-        {
-            return Err(self.after(LAST_BREAK_ENDED, last, at));
-        }
-        Ok(())
-    }
-
-    /// An end at `at` closes the open break, so it may not come before the
-    /// break began, and the closed breaks lie before it.
-    fn check_end_after_breaks(&self, entry: &Entry, at: &ZonedDateTime) -> PaceResult<()> {
-        if let Some(open_since) = open_break_start(entry)
-            && at < open_since
-        {
-            return Err(self.after(BREAK_BEGAN, open_since, at));
-        }
-        self.check_breaks_inside(entry, &entry.start, Some(at))
-    }
-
-    /// The checks of an adjustment that moves the start or the end; a time
-    /// it leaves alone is not checked again.
-    fn check_moved_times(
-        &self,
-        entry: &Entry,
-        changes: &EntryChanges,
-        start: &ZonedDateTime,
-        end: Option<&ZonedDateTime>,
-    ) -> PaceResult<()> {
-        if let Some(end) = end {
-            self.check_length(start, end)?;
-        }
-        if let Some(start) = &changes.start {
-            self.refuse_future("start", start, NOW_HINT)?;
-        }
-        if let Some(end) = &changes.end {
-            self.refuse_future("end", end, NOW_HINT)?;
-        }
-        self.check_breaks_inside(entry, start, end)
-    }
-
-    /// After an adjustment, holds and pauses still lie inside the entry.
-    fn check_breaks_inside(
-        &self,
-        entry: &Entry,
-        start: &ZonedDateTime,
-        end: Option<&ZonedDateTime>,
-    ) -> PaceResult<()> {
-        let breaks = entry
-            .holds
-            .iter()
-            .map(|hold| (&hold.start, hold.end.as_ref()))
-            .chain(
-                entry
-                    .pauses
-                    .iter()
-                    .map(|pause| (&pause.start, pause.end.as_ref())),
-            );
-        for (break_start, break_end) in breaks {
-            if break_start < start {
-                return Err(PaceError::new(
-                    ErrorKind::InvalidInput,
-                    "the entry has a break at {at}, before the new start at {start}",
-                )
-                .attach_context("at", self.clock(break_start))
-                .attach_context("start", self.clock(start))
-                .attach_hint("pick a start before its first break"));
-            }
-            if let (Some(end), Some(break_end)) = (end, break_end)
-                && break_end > end
-            {
-                return Err(PaceError::new(
-                    ErrorKind::InvalidInput,
-                    "the entry has a break until {at}, after the new end at {end}",
-                )
-                .attach_context("at", self.clock(break_end))
-                .attach_context("end", self.clock(end))
-                .attach_hint("pick an end after its last break"));
-            }
-        }
-        Ok(())
-    }
-
-    /// `at` comes before `earlier`; `guidance` names both, as `{earlier}`
-    /// and `{at}`.
-    fn after(
-        &self,
-        guidance: &'static str,
-        earlier: &ZonedDateTime,
-        at: &ZonedDateTime,
-    ) -> Box<PaceError> {
-        PaceError::new(ErrorKind::InvalidInput, guidance)
-            .attach_context("earlier", self.clock(earlier))
-            .attach_context("at", self.clock(at))
-            .attach_hint(format!("give a time after {}", self.clock(earlier)))
-    }
-
-    /// An entry ends after it starts: `end`, `log` and `adjust` refuse an
-    /// entry without length alike.
-    fn check_length(&self, start: &ZonedDateTime, end: &ZonedDateTime) -> PaceResult<()> {
-        let error = match end.cmp(start) {
-            Ordering::Greater => return Ok(()),
-            Ordering::Equal => PaceError::new(
-                ErrorKind::InvalidInput,
-                "the entry would end at {end}, the moment it starts",
-            ),
-            Ordering::Less => PaceError::new(
-                ErrorKind::InvalidInput,
-                "the entry would end at {end}, before it starts at {start}",
-            )
-            .attach_context("start", self.clock(start)),
-        };
-        Err(error
-            .attach_context("end", self.clock(end))
-            .attach_hint("give an end after the start"))
-    }
-
-    /// A moment as the user reads it: `HH:MM` on the day of now, else with
-    /// the date; in the zone of now.
     /// pace records what happened, so nothing starts or ends after now.
     fn refuse_future(&self, what: &str, moment: &ZonedDateTime, hint: &str) -> PaceResult<()> {
         if moment <= self.now {
@@ -607,6 +476,8 @@ impl Rules<'_> {
         .attach_hint(hint))
     }
 
+    /// A moment as the user reads it: `HH:MM` on the day of now, else with
+    /// the date; in the zone of now.
     fn clock(&self, moment: &ZonedDateTime) -> String {
         let local = moment.with_time_zone(self.now.time_zone().clone());
         if local.date() == self.now.date() {
@@ -622,22 +493,6 @@ impl Rules<'_> {
             .remove(&id)
             .unwrap_or_else(|| id.to_string())
     }
-}
-
-/// The start of the entry's open hold or pause, if any.
-fn open_break_start(entry: &Entry) -> Option<&ZonedDateTime> {
-    entry
-        .holds
-        .iter()
-        .find(|hold| hold.end.is_none())
-        .map(|hold| &hold.start)
-        .or_else(|| {
-            entry
-                .pauses
-                .iter()
-                .find(|pause| pause.end.is_none())
-                .map(|pause| &pause.start)
-        })
 }
 
 /// The fields `adjust` really changes; a value equal to the current one is
