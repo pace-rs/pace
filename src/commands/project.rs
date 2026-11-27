@@ -401,7 +401,7 @@ impl ProjectEditCmd {
         let opened = opened_record(home, &context.catalog, key)?;
         let asker = &context.terminal;
         if !asker.can_ask() && context.editor.is_none() {
-            return Err(no_terminal_to_edit(&opened.path, &opened.key));
+            return Err(without_editor(opened));
         }
         let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
         let line = edit_record(
@@ -624,19 +624,32 @@ fn same_identity(
 }
 
 /// The error of `pace project edit` without a terminal and without an
-/// editor: it names the record to edit by hand.
-fn no_terminal_to_edit(record_file: &Path, key: &ProjectKey) -> Box<PaceError> {
-    PaceError::new(
-        ErrorKind::InvalidInput,
-        "`pace project edit` has no terminal and no editor in VISUAL or EDITOR to open the project `{key}`",
-    )
-    .attach_context("key", key.to_string())
-    .attach_hint(format!(
-        "edit {} by hand, or set VISUAL or EDITOR",
-        record_file.display()
-    ))
-    .attach_exit_code(ExitCode::Usage)
+/// editor: the mistake of the `opened` file with [`NO_TERMINAL`] after it,
+/// as the user mends it by hand; [`no_terminal_to_edit`] if it has none.
+fn without_editor(opened: OpenedRecord) -> Box<PaceError> {
+    match opened.mistake {
+        Some(mistake) => mistake
+            .append_guidance_line(NO_TERMINAL)
+            .attach_context("project-key", opened.key.to_string()),
+        None => no_terminal_to_edit(&opened.path, &opened.key),
+    }
 }
+
+/// The error of `pace project edit` without a terminal and without an
+/// editor for a file without a mistake: it names the record to edit by hand.
+fn no_terminal_to_edit(record_file: &Path, key: &ProjectKey) -> Box<PaceError> {
+    PaceError::new(ErrorKind::InvalidInput, NO_TERMINAL)
+        .attach_context("project-key", key.to_string())
+        .attach_hint(format!(
+            "edit {} by hand, or set VISUAL or EDITOR",
+            record_file.display()
+        ))
+        .attach_exit_code(ExitCode::Usage)
+}
+
+/// The line that says `pace project edit` has no terminal and no editor;
+/// its placeholder is `{project-key}`.
+const NO_TERMINAL: &str = "`pace project edit` has no terminal and no editor in VISUAL or EDITOR to open the project `{project-key}`";
 
 /// `text` as a project key; a usage error if it is none.
 fn project_key(text: &str) -> PaceResult<ProjectKey> {
@@ -867,5 +880,37 @@ mod tests {
             .unwrap_err();
 
         assert!(points_at_file(&error, &garden), "{error:?}");
+    }
+
+    #[test]
+    fn edit_of_broken_record_without_terminal_or_editor_shows_its_mistake() {
+        let (_home, opened) = home_with_webshop_as(&broken_webshop());
+
+        let error = without_editor(opened);
+
+        assert_eq!(
+            error.to_string(),
+            "`billable` takes `true` or `false`\n`pace project edit` has no terminal and no editor in VISUAL or EDITOR to open the project `webshop`"
+        );
+        assert_eq!(error.exit_code(), ExitCode::Error);
+    }
+
+    #[test]
+    fn edit_of_record_without_terminal_or_editor_names_record() {
+        let (home, opened) = home_with_webshop();
+
+        let error = without_editor(opened);
+
+        assert_eq!(error.exit_code(), ExitCode::Usage);
+        assert_eq!(
+            error.hint(),
+            Some(
+                format!(
+                    "edit {} by hand, or set VISUAL or EDITOR",
+                    home.path().join("projects/webshop.toml").display()
+                )
+                .as_str()
+            )
+        );
     }
 }

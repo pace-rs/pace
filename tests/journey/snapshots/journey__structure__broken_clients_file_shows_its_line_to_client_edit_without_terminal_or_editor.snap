@@ -1,0 +1,21 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::clients::invalid-value
+
+  × `EURO` is not an ISO 4217 currency code
+  │ `pace client edit` has no terminal and no editor in VISUAL or EDITOR to open the client `acme`
+   ╭─[[SANDBOX]/home/clients.toml:6:12]
+ 5 │ name = "ACME GmbH"
+ 6 │ currency = "EURO"
+   ·            ───┬──
+   ·               ╰── this value
+ 7 │ rounding = { per = "entry", step = "15m", mode = "up" }
+   ╰────
+  help: did you mean `EUR`?

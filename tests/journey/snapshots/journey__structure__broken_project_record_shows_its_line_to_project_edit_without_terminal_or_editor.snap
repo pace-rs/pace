@@ -1,0 +1,20 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::project-record::invalid-value
+
+  × `billable` takes `true` or `false`
+  │ `pace project edit` has no terminal and no editor in VISUAL or EDITOR to open the project `webshop`
+   ╭─[[SANDBOX]/home/projects/webshop.toml:5:12]
+ 4 │ name = "Webshop"
+ 5 │ billable = "yes"
+   ·            ──┬──
+   ·              ╰── a string
+   ╰────
+  help: write `billable = true` or `billable = false`, without quotes

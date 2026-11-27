@@ -228,7 +228,7 @@ impl ClientEditCmd {
         let opened = client_table(home, &context.catalog, key)?;
         let asker = &context.terminal;
         if !asker.can_ask() && context.editor.is_none() {
-            return Err(no_terminal_to_edit(&opened.path, &opened.key));
+            return Err(without_editor(opened));
         }
         let editor = editor_command(context.editor.as_deref(), asker.can_ask())?;
         let line = edit_client_table(
@@ -400,19 +400,32 @@ fn edit_client_table(
 }
 
 /// The error of `pace client edit` without a terminal and without an
-/// editor: it names the file to edit by hand.
-fn no_terminal_to_edit(clients_file: &Path, key: &ClientKey) -> Box<PaceError> {
-    PaceError::new(
-        ErrorKind::InvalidInput,
-        "`pace client edit` has no terminal and no editor in VISUAL or EDITOR to open the client `{key}`",
-    )
-    .attach_context("key", key.to_string())
-    .attach_hint(format!(
-        "edit {} by hand, or set VISUAL or EDITOR",
-        clients_file.display()
-    ))
-    .attach_exit_code(ExitCode::Usage)
+/// editor: the mistake of the `opened` file with [`NO_TERMINAL`] after it,
+/// as the user mends it by hand; [`no_terminal_to_edit`] if it has none.
+fn without_editor(opened: ClientTable) -> Box<PaceError> {
+    match opened.mistake {
+        Some(mistake) => mistake
+            .append_guidance_line(NO_TERMINAL)
+            .attach_context("client-key", opened.key.to_string()),
+        None => no_terminal_to_edit(&opened.path, &opened.key),
+    }
 }
+
+/// The error of `pace client edit` without a terminal and without an
+/// editor for a file without a mistake: it names the file to edit by hand.
+fn no_terminal_to_edit(clients_file: &Path, key: &ClientKey) -> Box<PaceError> {
+    PaceError::new(ErrorKind::InvalidInput, NO_TERMINAL)
+        .attach_context("client-key", key.to_string())
+        .attach_hint(format!(
+            "edit {} by hand, or set VISUAL or EDITOR",
+            clients_file.display()
+        ))
+        .attach_exit_code(ExitCode::Usage)
+}
+
+/// The line that says `pace client edit` has no terminal and no editor;
+/// its placeholder is `{client-key}`.
+const NO_TERMINAL: &str = "`pace client edit` has no terminal and no editor in VISUAL or EDITOR to open the client `{client-key}`";
 
 /// `text` as a client key; a usage error if it is none.
 fn client_key(text: &str) -> PaceResult<ClientKey> {
@@ -722,5 +735,19 @@ mod tests {
             error.hint(),
             Some("edit clients.toml by hand, or set VISUAL or EDITOR")
         );
+    }
+
+    #[test]
+    fn edit_of_broken_clients_file_without_terminal_or_editor_shows_its_mistake() {
+        let (home, catalog) = home_with_clients(&broken_acme());
+        let opened = client_table(home.path(), &catalog, "acme".parse().unwrap()).unwrap();
+
+        let error = without_editor(opened);
+
+        assert_eq!(
+            error.to_string(),
+            "`EURO` is not an ISO 4217 currency code\n`pace client edit` has no terminal and no editor in VISUAL or EDITOR to open the client `acme`"
+        );
+        assert_eq!(error.hint(), Some("did you mean `EUR`?"));
     }
 }

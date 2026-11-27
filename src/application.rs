@@ -177,8 +177,8 @@ impl PaceApp {
 }
 
 /// The catalog in `home`. A command that mends the catalog file `mended`,
-/// a path in `home`, gets an empty catalog when a mistake in that file keeps the catalog
-/// from reading; it reads the file it mends itself.
+/// a path in `home`, gets an empty catalog when a mistake in that file
+/// keeps the catalog from reading; it reads the file it mends itself.
 ///
 /// # Errors
 ///

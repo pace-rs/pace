@@ -424,6 +424,23 @@ fn broken_clients_file_reaches_client_edit_that_writes_fixed_table() -> TestResu
     Ok(())
 }
 
+#[test]
+fn broken_clients_file_shows_its_line_to_client_edit_without_terminal_or_editor() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write(
+        "home/clients.toml",
+        &CLIENTS.replace("currency = \"EUR\"", "currency = \"EURO\""),
+    )?;
+
+    let output = run(sandbox
+        .pace_at("09:00")
+        .env_remove("VISUAL")
+        .env_remove("EDITOR")
+        .args(["client", "edit", "acme"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
 /// The transcript of `steps`, then the record of `key` as pace left it.
 fn journey_and_record(
     sandbox: &Sandbox,
@@ -655,6 +672,20 @@ fn project_edit_without_terminal_or_editor_names_record() -> TestResult {
 
 /// The record of `webshop` with a mistake: `billable` is no boolean.
 const BROKEN_WEBSHOP: &str = "version = 1\nid = \"0193a7c4-0000-7000-8000-000000000001\"\nkey = \"webshop\"\nname = \"Webshop\"\nbillable = \"yes\"\n";
+
+#[test]
+fn broken_project_record_shows_its_line_to_project_edit_without_terminal_or_editor() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write("home/projects/webshop.toml", BROKEN_WEBSHOP)?;
+
+    let output = run(sandbox
+        .pace_at("09:00")
+        .env_remove("VISUAL")
+        .env_remove("EDITOR")
+        .args(["project", "edit", "webshop"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
 
 #[cfg(unix)]
 #[test]
