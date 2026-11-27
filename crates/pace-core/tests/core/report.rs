@@ -433,6 +433,69 @@ fn running_entry_marks_its_days_and_its_share_of_who_decided() -> TestResult {
 }
 
 #[test]
+fn running_entry_marks_its_role_target_and_project_budget() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.log("2026-11-24T09:00", "2026-11-24T10:00", on(WEBSHOP)?)?;
+    _ = log.log(
+        "2026-11-24T11:00",
+        "2026-11-24T12:00",
+        Fields {
+            role: Some(role_id(HEALTH)?),
+            ..Fields::default()
+        },
+    )?;
+    let catalog = catalog_with(Some(35), Some(7), Some(10))?;
+    let period = days("2026-11-23", "2026-11-30")?;
+    let ended = report(
+        &log.state(),
+        &catalog,
+        &period,
+        &ReportFilter::default(),
+        LATER,
+    )?;
+    _ = log.begin("2026-11-26T09:00", on(WEBSHOP)?)?;
+
+    let running = report(
+        &log.state(),
+        &catalog,
+        &period,
+        &ReportFilter::default(),
+        "2026-11-26T11:00",
+    )?;
+
+    let marks = |report: &Report| -> Vec<(RoleId, SignedDuration, bool)> {
+        report
+            .targets
+            .iter()
+            .map(|target| (target.role, target.actual, target.running))
+            .collect()
+    };
+    assert_eq!(
+        marks(&ended),
+        vec![
+            (role_id(HEALTH)?, hours(1), false),
+            (role_id(WORK)?, hours(1), false)
+        ]
+    );
+    assert_eq!(
+        marks(&running),
+        vec![
+            (role_id(HEALTH)?, hours(1), false),
+            (role_id(WORK)?, hours(3), true)
+        ]
+    );
+    let budget = |report: &Report| {
+        report
+            .budgets
+            .first()
+            .map(|budget| (budget.used, budget.running))
+    };
+    assert_eq!(budget(&ended), Some((hours(1), false)));
+    assert_eq!(budget(&running), Some((hours(3), true)));
+    Ok(())
+}
+
+#[test]
 fn holds_and_pauses_are_not_net_time_of_their_day() -> TestResult {
     let mut log = Log::new(1)?;
     let entry = log.begin("2026-11-24T09:00", on(WEBSHOP)?)?;

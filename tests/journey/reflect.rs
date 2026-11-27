@@ -122,6 +122,23 @@ fn reflect_shows_week_as_table() -> TestResult {
 }
 
 #[test]
+fn running_entry_marks_its_target_and_budget() -> TestResult {
+    let sandbox = catalog_sandbox()?;
+    _ = run(sandbox
+        .pace_at("09:00")
+        .args(["begin", "Write offer", "--project", "acme-webshop"]))?;
+
+    let output = run(sandbox.pace_at("11:00").args(["reflect"]))?;
+
+    assert!(output.contains("\n  Work  2h*  of 30h  7%\n"), "{output}");
+    assert!(
+        output.contains("\n  Webshop relaunch  2h*  of 10h  20%\n"),
+        "{output}"
+    );
+    Ok(())
+}
+
+#[test]
 fn ref_is_short_for_reflect() -> TestResult {
     let sandbox = week_sandbox()?;
 

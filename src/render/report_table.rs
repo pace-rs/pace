@@ -338,7 +338,7 @@ fn target_row(target: &RoleTarget, catalog: &Catalog, canvas: Canvas) -> Vec<Str
         percent(target.actual, target.target).map_or_else(String::new, |share| format!("{share}%"));
     vec![
         canvas.fit(&role_label(target.role, catalog), LABEL_WIDTH),
-        format_duration(target.actual),
+        marked(target.actual, target.running),
         format!("of {}", format_duration(target.target)),
         share,
     ]
@@ -371,7 +371,7 @@ fn budget_row(budget: &BudgetUse, catalog: &Catalog, canvas: Canvas) -> Vec<Stri
     }
     vec![
         canvas.fit(&project_label(&budget.project, catalog), LABEL_WIDTH),
-        format_duration(budget.used),
+        marked(budget.used, budget.running),
         format!("of {}", format_duration(budget.budget)),
         share,
     ]

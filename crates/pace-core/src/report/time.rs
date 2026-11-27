@@ -72,6 +72,8 @@ pub struct RoleTarget {
     pub target: SignedDuration,
     /// Its net time in the period.
     pub actual: SignedDuration,
+    /// Whether a running entry counts in `actual`, up to now.
+    pub running: bool,
 }
 
 /// How much of a project's budget its entries used, over all time.
@@ -83,6 +85,8 @@ pub struct BudgetUse {
     pub budget: SignedDuration,
     /// The net time of all its entries up to now.
     pub used: SignedDuration,
+    /// Whether a running entry counts in `used`, up to now.
+    pub running: bool,
     /// `used` in percent of `budget`, rounded; `None` for a budget of zero.
     pub percent: Option<i64>,
 }
@@ -236,13 +240,12 @@ impl TimeTally {
             .filter(|role| filter.roles.is_empty() || filter.roles.contains(&role.id))
             .filter_map(|role| {
                 let weekly = role.weekly_target?;
+                let actual = self.roles.get(&Some(role.id)).copied().unwrap_or_default();
                 Some(RoleTarget {
                     role: role.id,
                     target: scaled_to_days(weekly, days),
-                    actual: self
-                        .roles
-                        .get(&Some(role.id))
-                        .map_or(SignedDuration::ZERO, |share| share.net),
+                    actual: actual.net,
+                    running: actual.running,
                 })
             })
             .collect()
@@ -263,10 +266,11 @@ impl TimeTally {
                 let budget = catalog.resolve(&time.project)?.budget?;
                 let used = used_by(&time.project, catalog, all_time, now);
                 Some(BudgetUse {
-                    percent: percent_of(used, budget),
+                    percent: percent_of(used.net, budget),
                     project: time.project,
                     budget,
-                    used,
+                    used: used.net,
+                    running: used.running,
                 })
             })
             .collect();
@@ -293,24 +297,25 @@ fn scaled_to_days(weekly: SignedDuration, days: u32) -> SignedDuration {
         .map_or(SignedDuration::MAX, |total| total / 7)
 }
 
-/// The net time of every entry of `project` in `state`, up to `now`.
+/// The net time of every entry of `project` in `state`, up to `now`, and
+/// whether one of them runs.
 fn used_by(
     project: &ProjectRef,
     catalog: &Catalog,
     state: &State,
     now: &ZonedDateTime,
-) -> SignedDuration {
-    state
-        .entries()
-        .filter(|entry| {
-            entry
-                .project
-                .as_ref()
-                .is_some_and(|own| canonical_project(own, catalog) == *project)
-        })
-        .flat_map(|entry| worked(entry, now))
-        .map(Stretch::length)
-        .sum()
+) -> TimeShare {
+    let mut used = TimeShare::default();
+    for entry in state.entries().filter(|entry| {
+        entry
+            .project
+            .as_ref()
+            .is_some_and(|own| canonical_project(own, catalog) == *project)
+    }) {
+        let net = worked(entry, now).into_iter().map(Stretch::length).sum();
+        used.add(net, entry.is_open());
+    }
+    used
 }
 
 /// `part` in percent of `whole`, rounded to the nearest whole percent;
