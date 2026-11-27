@@ -10,9 +10,12 @@ that the store reads, and that rules, reports and bills take as an argument.
 `report.rs` computes the `Report` of `reflect` from the state of a period's
 events and the catalog; the app reads the events and renders it. `billing.rs`
 rounds billable time by the client's rule and prices it at the rate of each
-entry's start day, for the report's revenue and for the bill. The `testing`
-feature adds `testing.rs` for the tests of other crates: a settable clock,
-deterministic IDs and the lock the test doubles share.
+entry's start day, for the report's revenue and for the bill; it also holds the
+frozen `Billing` of a billed entry. `bill.rs` decides the `Bill` of a client
+from the state and the catalog: its ended, billable entries that are not billed
+yet, or a refusal for an overlap or an entry before the first rate. The
+`testing` feature adds `testing.rs` for the tests of other crates: a settable
+clock, deterministic IDs and the lock the test doubles share.
 
 ## Files
 
@@ -20,6 +23,7 @@ deterministic IDs and the lock the test doubles share.
 
 | File                         | What it holds                                                                                                                                                                                      |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`bill.rs`](bill.rs)         | The bill of a client, decided from values: its ended, billable entries of a period that are not billed yet, priced line by line, or a refusal that names the entries and the fix.                  |
 | [`billing.rs`](billing.rs)   | Billing: the billable time of entries, rounded by their client's rule and priced at the rate of each entry's start day; the one place that `reflect`'s revenue and `bill` take their amounts from. |
 | [`catalog.rs`](catalog.rs)   | The catalog: the roles, clients and project records that rules, reports and bills take as a value, with their money and rounding.                                                                  |
 | [`command.rs`](command.rs)   | The use cases as data; see `Command`.                                                                                                                                                              |

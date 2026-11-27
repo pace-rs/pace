@@ -17,7 +17,9 @@
 //! [`Report::build`] computes the report of `reflect` from the [`State`] of
 //! a period's events and the [`Catalog`]; the app reads the events.
 //! [`billable_charges`] rounds and prices billable time, for the report's
-//! [`Revenue`] and for the bill.
+//! [`Revenue`] and for the [`Bill`] of a client, which [`Bill::build`]
+//! decides from the [`State`] and the [`Catalog`]. A billed entry keeps its
+//! frozen [`Billing`] from its `billing.marked` event.
 //!
 //! Every timestamp is a jiff [`ZonedDateTime`](jiff::ZonedDateTime), so
 //! entries keep the zone they were recorded in. All IDs are UUIDv7.
@@ -55,6 +57,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+mod bill;
 mod billing;
 mod catalog;
 pub mod command;
@@ -75,6 +78,10 @@ pub mod testing;
 mod text;
 mod tracking;
 
+pub use bill::{
+    BILL_BEFORE_FIRST_RATE, BILL_OVERLAP, Bill, BillEntry, BillInput, BillLine, HoldTimeShare,
+    ProjectBill,
+};
 pub use billing::{Billing, Charge, InvoiceRef, Price, billable_charges};
 pub use catalog::{
     ArchiveReason, Archived, Catalog, Client, Currency, Money, ProjectRecord, Rate, Rates, Role,
