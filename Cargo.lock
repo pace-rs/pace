@@ -915,6 +915,7 @@ dependencies = [
  "gethostname",
  "insta",
  "jiff",
+ "miette",
  "pace_core",
  "pace_error",
  "pace_store",

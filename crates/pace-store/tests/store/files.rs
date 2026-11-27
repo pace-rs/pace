@@ -306,6 +306,49 @@ fn an_event_missing_field_is_named() -> TestResult {
     Ok(())
 }
 
+/// The line of the span an error's snippet points at, counted from 1.
+fn blamed_line(error: &pace_error::PaceError, text: &str) -> Option<usize> {
+    let label = miette::Diagnostic::labels(error)?.next()?;
+    Some(text.get(..label.offset())?.matches('\n').count() + 1)
+}
+
+#[test]
+fn an_invalid_event_is_blamed_on_its_own_line() -> TestResult {
+    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+    let tracker = setup.tracker(Split::Month);
+    _ = pollster::block_on(tracker.run(&Command::Begin(Begin {
+        note: Some("agenda\n[[event]]\nminutes".to_owned()),
+        ..Begin::default()
+    })))?;
+    setup.clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
+    _ = pollster::block_on(tracker.run(&Command::End(End::default())))?;
+    let file = setup.device_dir().join("2026/2026-11.toml");
+    let text = std::fs::read_to_string(&file)?;
+    // The second event's header gets a comment, and the event loses its
+    // entry; the note of the first holds a line `[[event]]`.
+    let header = text.rfind("[[event]]\n").ok_or("the file has events")?;
+    let (first, second) = text.split_at(header);
+    let second: String = second
+        .replacen("[[event]]", "[[event]] # the end", 1)
+        .split_inclusive('\n')
+        .filter(|line| !line.starts_with("entry = "))
+        .collect();
+    let broken = format!("{first}{second}");
+    std::fs::write(&file, &broken)?;
+
+    let error = pollster::block_on(setup.store(Split::Month).read(&everything()?))
+        .err()
+        .ok_or("the broken event must fail")?;
+
+    assert_eq!(error.to_string(), "an `entry.ended` event needs `entry`");
+    assert_eq!(
+        blamed_line(&error, &broken),
+        Some(first.matches('\n').count() + 1),
+        "{broken}"
+    );
+    Ok(())
+}
+
 #[test]
 fn an_event_type_from_newer_pace_asks_for_an_update() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;

@@ -14,6 +14,7 @@ use pace_core::{
 };
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use serde::{Deserialize, Serialize};
+use toml::Spanned;
 
 use crate::hlc::hlc_text;
 use crate::toml_file::{TomlFile, closest, in_file_order};
@@ -96,8 +97,9 @@ const KEYS: [&str; 22] = [
 #[serde(deny_unknown_fields)]
 struct File {
     version: u32,
+    /// Each event with its span in the file, to point at it.
     #[serde(default)]
-    event: Vec<Record>,
+    event: Vec<Spanned<Record>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -139,12 +141,11 @@ pub fn parse_events(path: &Path, text: &str, device: DeviceId) -> PaceResult<Vec
     }
     file.event
         .into_iter()
-        .enumerate()
-        .map(|(index, record)| {
-            recorded(record, device).map_err(|invalid| {
-                let file = event_file(path, text);
-                let span = event_span(text, index).unwrap_or(0..0);
-                file.error_at(span, invalid.message, invalid.hint, "this event")
+        .map(|record| {
+            let span = record.span();
+            recorded(record.into_inner(), device).map_err(|invalid| {
+                event_file(path, text)
+                    .error_at(span, invalid.message, invalid.hint, "this event")
                     .attach_error_code("pace::store::invalid-event")
             })
         })
@@ -227,22 +228,6 @@ fn newer_or_broken(path: &Path, text: &str, key: &str, version: u32) -> Box<Pace
         "this version",
     )
     .attach_error_code("pace::store::version")
-}
-
-/// The span of the header of the `index`-th `[[event]]` table.
-fn event_span(text: &str, index: usize) -> Option<Range<usize>> {
-    let mut offset = 0;
-    let mut seen = 0;
-    for line in text.split_inclusive('\n') {
-        if line.trim() == "[[event]]" {
-            if seen == index {
-                return Some(offset..offset + line.trim_end().len());
-            }
-            seen += 1;
-        }
-        offset += line.len();
-    }
-    None
 }
 
 /// Why a record is no valid event.
