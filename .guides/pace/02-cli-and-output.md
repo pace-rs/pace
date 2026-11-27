@@ -7,7 +7,7 @@
 3. A command says in one sentence what it did, with the entry's short ID, note
    and time (`src/output.rs`): `Began ad5e "Write offer" at 09:00.`
 4. Without a terminal pace never waits for input: it takes a default and says
-   so, or stops and names the flag to use (`prompt::interactive`).
+   so, or stops and names the flag to use (`prompt::Ask::can_ask`).
 5. Exit codes are 0 done, 1 error, 2 wrong usage, 3 nothing to do.
 6. Bare `pace` shows `now` and a help line, with exit code 0.
 7. Output for scripts is `--json`, with a `version` field.

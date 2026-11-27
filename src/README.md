@@ -2,9 +2,11 @@
 
 The app crate `pace-rs`: the Abscissa application and the `pace` command line on
 top of the core. `application.rs` resolves the directories, the settings and the
-project before a command runs. `commands/` holds the commands, and `session.rs`
-opens the tracker over the `files` backend. What the user reads comes from
-`output.rs`, and what pace asks from `prompt.rs`.
+project before a command runs. It is the only place that reads the environment:
+the terminal, the editor, the hostname and `PACE_TEST_NOW` reach the commands in
+the `Context`. `commands/` holds the commands, and `session.rs` opens the
+tracker over the `files` backend. What the user reads comes from `output.rs`,
+and what pace asks from `prompt.rs`.
 
 ## Files
 

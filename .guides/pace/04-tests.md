@@ -24,8 +24,8 @@
     `pace_store::testing::contract::run_store_contract`.
 11. A test that runs the binary keeps `LLVM_PROFILE_FILE` (no `env_clear()`), so
     its coverage counts for the CRAP gate.
-12. An interactive path needs a pty and has no journey test yet, so keep its
-    logic in functions a test can call.
+12. An interactive path takes the asker (`prompt::Ask`) as a value, so a unit
+    test passes `prompt::Scripted` answers instead of a pty.
 13. A test that writes through a store backend, or a `Sandbox`, takes its
     temporary directory from `pace_store::testing::scratch_dir`: in memory, a
     sync costs nothing, so the slow-tests gate does not time the disk.
