@@ -14,6 +14,38 @@
 //! - `testing` (feature `testing`): a scratch directory for tests that write
 //!   through a backend, the in-memory `MemoryStore`, `Raced`, and the store
 //!   contract every backend passes.
+//!
+//! A tracker over the `files` backend runs `pace begin`; the scratch
+//! directory and the IDs come from the `testing` features:
+//!
+//! ```
+//! use std::sync::Arc;
+//!
+//! use jiff::ZonedDateTime;
+//! use pace_core::{Command, FixedClock, Policy, command::Begin, testing::SequentialIds};
+//! use pace_store::{FilesStore, Split, Tracker, testing::scratch_dir};
+//!
+//! let dir = scratch_dir()?;
+//! let now: ZonedDateTime = "2026-11-26T09:00[Europe/Berlin]".parse()?;
+//! let ids = Arc::new(SequentialIds::starting_at(&now, 1));
+//! let clock = Arc::new(FixedClock::new(now));
+//! let device = "0193a8d0-000d-7000-8000-000000000001".parse()?;
+//! let home = dir.path().join("home");
+//! let machine = dir.path().join("machine");
+//! let name = "laptop".to_owned();
+//! let store = FilesStore::new(home, machine, device, name, clock.clone(), Split::Month);
+//! let tracker = Tracker::new(store, clock, ids, Policy::default(), device);
+//!
+//! let begin = Begin {
+//!     note: Some("Write offer".parse()?),
+//!     ..Begin::default()
+//! };
+//! let outcome = tracker.run(&Command::Begin(begin))?;
+//!
+//! assert_eq!(outcome.state.open().count(), 1);
+//! assert!(dir.path().join("home/events").join(device.to_string()).is_dir());
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 mod disk;
 mod files;

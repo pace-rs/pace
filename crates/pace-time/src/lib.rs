@@ -11,6 +11,20 @@
 //!
 //! Nothing here reads the clock: every function that needs "now" takes it as
 //! an argument, so callers decide which clock to use.
+//!
+//! ```
+//! use jiff::{SignedDuration, ZonedDateTime};
+//! use pace_time::{format_duration, format_moment, parse_duration};
+//!
+//! let duration = parse_duration("1h30m")?;
+//! assert_eq!(duration, SignedDuration::from_mins(90));
+//! assert_eq!(format_duration(duration), "1h 30m");
+//!
+//! let now: ZonedDateTime = "2026-11-26T17:00[Europe/Berlin]".parse()?;
+//! let began: ZonedDateTime = "2026-11-26T09:05[Europe/Berlin]".parse()?;
+//! assert_eq!(format_moment(&began, &now), "09:05");
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 mod at;
 mod display;

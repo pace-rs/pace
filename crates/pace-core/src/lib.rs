@@ -12,6 +12,38 @@
 //!
 //! Every timestamp is a jiff [`ZonedDateTime`](jiff::ZonedDateTime), so
 //! entries keep the zone they were recorded in. All IDs are UUIDv7.
+//!
+//! A `pace begin` on an empty log, decided without a store; the IDs come
+//! from `testing` (feature `testing`):
+//!
+//! ```
+//! use jiff::ZonedDateTime;
+//! use pace_core::{
+//!     AfterRead, ChangeMarker, Command, EventKind, Policy, Reading, command::Begin,
+//!     testing::SequentialIds,
+//! };
+//!
+//! let now: ZonedDateTime = "2026-11-26T09:00[Europe/Berlin]".parse()?;
+//! let ids = SequentialIds::starting_at(&now, 1);
+//! let policy = Policy::default();
+//! let begin = Command::Begin(Begin {
+//!     note: Some("Write offer".parse()?),
+//!     ..Begin::default()
+//! });
+//! let device = "0193a8d0-000d-7000-8000-000000000001".parse()?;
+//!
+//! let reading = Reading::start(&begin, now, device, &ids, &policy)?;
+//! // A driver reads `reading.scope()` from its store; this log is empty.
+//! let after = reading.decide(ChangeMarker::new(0), Vec::new())?;
+//! let AfterRead::Decided(decided) = after else {
+//!     panic!("a begin needs no more than the open entries");
+//! };
+//!
+//! let events = &decided.batch.events;
+//! let kinds: Vec<&EventKind> = events.iter().map(|event| &event.kind).collect();
+//! assert!(matches!(kinds[..], [EventKind::EntryBegun { .. }]));
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 pub mod command;
 mod entry;

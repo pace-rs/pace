@@ -4,6 +4,19 @@
 //! commands, the configuration and the project discovery. The domain lives in
 //! `pace_core`.
 //!
+//! [`commands::EntryPoint`] is the command line; clap reads it:
+//!
+//! ```
+//! use clap::Parser;
+//! use pace_rs::commands::EntryPoint;
+//!
+//! let begin = EntryPoint::try_parse_from(["pace", "begin", "Write offer", "--tag", "x"]);
+//! assert!(begin.is_ok());
+//!
+//! let wrong = EntryPoint::try_parse_from(["pace", "begin", "--no-such-flag"]);
+//! assert!(wrong.is_err());
+//! ```
+//!
 //! [Abscissa]: https://github.com/iqlusioninc/abscissa
 
 pub mod application;
