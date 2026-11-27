@@ -42,6 +42,9 @@ use crate::{
 };
 
 mod own_log;
+mod renames;
+
+use renames::{Prepared, persist, rename_all};
 
 /// The files backend for one device.
 pub struct FilesStore {
@@ -125,6 +128,17 @@ impl FilesStore {
     }
 
     fn append_now(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended> {
+        self.append_with(batch, read, persist)
+    }
+
+    /// [`EventStore::append`], with `rename` as the step that renames a
+    /// temporary file over its event file; a test makes it fail.
+    fn append_with(
+        &self,
+        batch: Batch,
+        read: ChangeMarker,
+        rename: impl FnMut(tempfile::NamedTempFile, &Path) -> std::io::Result<()>,
+    ) -> PaceResult<Appended> {
         let now = self.clock.now();
         create_dir(&self.machine)?;
         let _lock = lock(&self.machine.join("lock"))?;
@@ -184,14 +198,20 @@ impl FilesStore {
         let mut written = Vec::new();
         for (relative, events) in by_file {
             let path = dir.join(relative);
-            let mut text = match std::fs::read_to_string(&path) {
-                Ok(text) => text,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => file_header(),
+            let before = match std::fs::read_to_string(&path) {
+                Ok(text) => Some(text),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
                 Err(error) => return Err(io_error(FileOp::Read, &path, error)),
             };
+            let mut text = before.clone().unwrap_or_else(file_header);
             text.push('\n');
             text.push_str(&serialize_events(&events)?);
-            written.push(prepare(&path, &text)?);
+            let (temporary, path) = prepare(&path, &text)?;
+            written.push(Prepared {
+                temporary,
+                path,
+                before,
+            });
         }
         // The cursor goes ahead of the log, before the renames: a cursor
         // ahead of the own log passes the clone check, a log ahead of the
@@ -199,14 +219,11 @@ impl FilesStore {
         // the device out.
         cursors.last_written = last;
         cursors.save(&self.machine)?;
-        // All files are written before any is renamed, so a failure leaves
-        // the log as it was; only a crash between the renames of a batch
-        // that spans periods can leave part of it.
-        for (temporary, path) in written {
-            _ = temporary
-                .persist(&path)
-                .map_err(|error| io_error(FileOp::Write, &path, error.error))?;
-        }
+        // All files are written before any is renamed. The renames go all
+        // or none: a failed rename or a panic puts back the files renamed
+        // before it. A kill between two renames, or a file that can't be
+        // put back, leaves part of the batch; the error names that file.
+        rename_all(written, rename)?;
         // The batch is in the log: what follows can fail without failing it.
         self.clean_own_log(&dir, &index, &recorded, cursors);
         Ok(Appended::Recorded(recorded))
