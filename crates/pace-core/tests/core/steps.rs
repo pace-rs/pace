@@ -7,7 +7,7 @@ use pace_core::{
     Hlc, Policy, Reading, RecordedEvent, SequentialIds,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
-use pace_error::{ErrorKind, PaceError};
+use pace_error::{ErrorKind, ExitCode, PaceError};
 use pace_time::TimeRange;
 
 use crate::TestResult;
@@ -148,9 +148,13 @@ fn refusal_of_rules_is_error_without_batch() -> TestResult {
     let command = Command::End(End::default());
     let reading = Reading::start(&command, now, device()?, &ids, &policy)?;
 
-    let decided = reading.decide(ChangeMarker::new(7), Vec::new());
+    let error = reading
+        .decide(ChangeMarker::new(7), Vec::new())
+        .err()
+        .ok_or("an end with nothing open was decided")?;
 
-    assert!(decided.is_err());
+    assert_eq!(error.to_string(), "nothing is running");
+    assert_eq!(error.exit_code(), ExitCode::NothingToDo);
     Ok(())
 }
 
