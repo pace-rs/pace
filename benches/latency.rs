@@ -8,18 +8,16 @@
 //! - `pace now`, which reads today's entries through the index;
 //! - `pace begin`, which ends the running entry and appends to this
 //!   month's file;
-//! - `pace adjust --last`, `pace undo` and `pace forget --last`, which read
-//!   the whole history: an entry may have ended long ago, and the last batch
-//!   may be old.
+//! - `pace adjust --last`, `pace undo` and `pace forget --last`, which
+//!   read the last month: the entry, or the batch, they correct lies in it.
 //!
 //! The first `pace now` builds the index from every file; it is reported,
 //! but not held to the budget, since it happens once per machine and after
-//! large syncs. The three commands that read the whole history are reported
-//! but not held to the budget either, until their budget is settled.
+//! large syncs.
 //!
-//! Run with `cargo bench --bench latency`; it fails if the median of
-//! `config show`, `now` or `begin` is over the budget. In GitHub Actions,
-//! the results also go into the job summary.
+//! Run with `cargo bench --bench latency`; it fails if the median of a
+//! command is over the budget. In GitHub Actions, the results also go into
+//! the job summary.
 
 use std::{
     collections::BTreeMap,
@@ -74,24 +72,24 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     // After the begins, so the commands that correct see all of them.
     let later = now.checked_add(1.hour())?;
     let results = [
-        measure("config show --origin", Budget::Held, |_| {
+        measure("config show --origin", |_| {
             Ok(pace(&["config", "show", "--origin"], &now))
         })?,
-        measure("now", Budget::Held, |_| Ok(pace(&["now"], &now)))?,
-        measure("begin", Budget::Held, |run| {
+        measure("now", |_| Ok(pace(&["now"], &now)))?,
+        measure("begin", |run| {
             let minutes = i64::try_from(run)? + 1;
             Ok(pace(
                 &["begin", "Benchmark"],
                 &now.checked_add(minutes.minutes())?,
             ))
         })?,
-        measure("adjust --last", Budget::NotHeld, |run| {
+        measure("adjust --last", |run| {
             let note = format!("Adjusted {run}");
             Ok(pace(&["adjust", "--last", "--note", &note], &later))
         })?,
         // Each undo takes back one of the adjusts before it.
-        measure("undo", Budget::NotHeld, |_| Ok(pace(&["undo"], &later)))?,
-        measure("forget --last", Budget::NotHeld, |_| {
+        measure("undo", |_| Ok(pace(&["undo"], &later)))?,
+        measure("forget --last", |_| {
             Ok(pace(&["forget", "--last", "--for-good"], &later))
         })?,
     ];
@@ -99,22 +97,16 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     if let Some(summary) = std::env::var_os("GITHUB_STEP_SUMMARY") {
         let mut table = format!(
             "### Latency on {}\n\n{events} events of three years; budget {BUDGET:?} for the \
-             median.\n\n| Command | Median | p95 | Held to the budget |\n\
-             | --- | --- | --- | --- |\n\
-             | `pace now`, building the index | {elapsed:.1?} | | no |\n",
+             median, except for building the index.\n\n| Command | Median | p95 |\n\
+             | --- | --- | --- |\n\
+             | `pace now`, building the index | {elapsed:.1?} | |\n",
             std::env::consts::OS
         );
         for result in &results {
             writeln!(
                 table,
-                "| `pace {}` | {:.1?} | {:.1?} | {} |",
-                result.name,
-                result.median,
-                result.p95,
-                match result.budget {
-                    Budget::Held => "yes",
-                    Budget::NotHeld => "no",
-                }
+                "| `pace {}` | {:.1?} | {:.1?} |",
+                result.name, result.median, result.p95,
             )?;
         }
         let mut file = std::fs::OpenOptions::new()
@@ -124,29 +116,16 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
         std::io::Write::write_all(&mut file, table.as_bytes())?;
     }
 
-    if results
-        .iter()
-        .any(|result| result.budget == Budget::Held && result.median > BUDGET)
-    {
+    if results.iter().any(|result| result.median > BUDGET) {
         eprintln!("a median is over the budget of {BUDGET:?}");
         return Ok(ExitCode::FAILURE);
     }
     Ok(ExitCode::SUCCESS)
 }
 
-/// Whether a command's median is held to the budget.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Budget {
-    /// The bench fails if the median is over the budget.
-    Held,
-    /// The median is reported only.
-    NotHeld,
-}
-
 /// How long a command took.
 struct Measured {
     name: &'static str,
-    budget: Budget,
     median: Duration,
     p95: Duration,
 }
@@ -154,7 +133,6 @@ struct Measured {
 /// Run the command `RUNS` times, and print its median and 95th percentile.
 fn measure(
     name: &'static str,
-    budget: Budget,
     mut command: impl FnMut(usize) -> Result<Command, Box<dyn Error>>,
 ) -> Result<Measured, Box<dyn Error>> {
     let mut times = Vec::with_capacity(RUNS);
@@ -170,17 +148,10 @@ fn measure(
     times.sort();
     let median = times[RUNS / 2];
     let p95 = times[RUNS * 95 / 100];
-    let held = match budget {
-        Budget::Held => format!("budget {BUDGET:?}"),
-        Budget::NotHeld => "not held to the budget".to_owned(),
-    };
-    println!("pace {name}: median {median:.1?}, p95 {p95:.1?} over {RUNS} runs ({held})");
-    Ok(Measured {
-        name,
-        budget,
-        median,
-        p95,
-    })
+    println!(
+        "pace {name}: median {median:.1?}, p95 {p95:.1?} over {RUNS} runs (budget {BUDGET:?})"
+    );
+    Ok(Measured { name, median, p95 })
 }
 
 fn prepare(root: &Path) -> Result<(), Box<dyn Error>> {
