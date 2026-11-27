@@ -6,95 +6,31 @@
 //! flag. A key pace doesn't know stops pace with the file, the line and the
 //! closest known key; an unknown `PACE_*` variable only warns.
 
+mod key;
+mod values;
+
 use std::{
-    borrow::Cow,
     ffi::OsString,
-    fmt,
     ops::Range,
     path::{Path, PathBuf},
 };
 
-use jiff::{civil::Weekday, tz::TimeZone};
+use jiff::civil::Weekday;
 use pace_core::{HoldSource, ProjectKey};
 use pace_error::{ErrorKind, PaceError, PaceResult, Severity, closest_name};
 use pace_store::Split;
 
 use pace_store::toml_file::{TomlFile, TomlKey, TomlValue, read_hint};
 
+pub use self::values::TimeZoneSetting;
+use self::{
+    key::{Key, Kind},
+    values::{
+        Value, hold_source_name, parse_count, parse_hold_source, parse_time_zone, parse_weekday,
+        weekday_name,
+    },
+};
 use crate::{dirs::Located, origin::Origin};
-
-/// A setting pace knows. A key in a table is written `table.key`.
-///
-/// Only [`Key::ALL`] builds a key, so a key left out of it is dead code,
-/// which the workspace refuses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Key {
-    TimeZone,
-    WeekStart,
-    MostRecentCount,
-    HoldsDefaultSource,
-    StorageSplit,
-}
-
-/// What a setting's value is in TOML.
-#[derive(Clone, Copy)]
-enum Kind {
-    Text,
-    Number,
-}
-
-impl Key {
-    /// Every setting, in the order pace documents them.
-    const ALL: [Self; 5] = [
-        Self::TimeZone,
-        Self::WeekStart,
-        Self::MostRecentCount,
-        Self::HoldsDefaultSource,
-        Self::StorageSplit,
-    ];
-
-    /// The key as written in the file.
-    const fn name(self) -> &'static str {
-        match self {
-            Self::TimeZone => "time-zone",
-            Self::WeekStart => "week-start",
-            Self::MostRecentCount => "most-recent-count",
-            Self::HoldsDefaultSource => "holds.default-source",
-            Self::StorageSplit => "storage.split",
-        }
-    }
-
-    /// The environment variable that sets it.
-    const fn variable(self) -> &'static str {
-        match self {
-            Self::TimeZone => "PACE_TIME_ZONE",
-            Self::WeekStart => "PACE_WEEK_START",
-            Self::MostRecentCount => "PACE_MOST_RECENT_COUNT",
-            Self::HoldsDefaultSource => "PACE_HOLDS__DEFAULT_SOURCE",
-            Self::StorageSplit => "PACE_STORAGE__SPLIT",
-        }
-    }
-
-    /// The values that fit, for an error about the TOML type.
-    const fn expects(self) -> &'static str {
-        match self {
-            Self::TimeZone => "a time zone name like `Europe/Berlin`, or `system`",
-            Self::WeekStart => "a day name like `monday`",
-            Self::MostRecentCount => "a whole number from 1, like `9`",
-            Self::HoldsDefaultSource => "`inner`, `outer` or `unknown`",
-            Self::StorageSplit => "`year`, `month`, `week` or `day`",
-        }
-    }
-
-    const fn kind(self) -> Kind {
-        match self {
-            Self::MostRecentCount => Kind::Number,
-            Self::TimeZone | Self::WeekStart | Self::HoldsDefaultSource | Self::StorageSplit => {
-                Kind::Text
-            }
-        }
-    }
-}
 
 /// The table that maps directories to projects.
 const PROJECT_PATHS: &str = "project-paths";
@@ -113,26 +49,6 @@ const OTHER_VARIABLES: [&str; 5] = [
 
 /// The version of `pace.global.toml` this pace reads and writes.
 const FILE_VERSION: i64 = 1;
-
-/// The time zone pace records and reports in.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TimeZoneSetting {
-    /// The zone of the operating system, looked up when pace needs it.
-    System,
-    /// A zone of the IANA time zone database; it always has its IANA name.
-    Named(TimeZone),
-}
-
-impl fmt::Display for TimeZoneSetting {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::System => f.write_str("system"),
-            // `parse_time_zone` takes only zones with a name; a zone
-            // without one is what jiff calls `Etc/Unknown`.
-            Self::Named(zone) => f.write_str(zone.iana_name().unwrap_or("Etc/Unknown")),
-        }
-    }
-}
 
 /// The effective settings.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -163,31 +79,6 @@ impl Default for Settings {
     }
 }
 
-/// A setting's value as read: text, or a whole number from a file.
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Value {
-    Text(String),
-    Number(i64),
-}
-
-impl Value {
-    /// The value as text; a number in decimal digits.
-    fn text(&self) -> Cow<'_, str> {
-        match self {
-            Self::Text(text) => Cow::Borrowed(text),
-            Self::Number(number) => Cow::Owned(number.to_string()),
-        }
-    }
-}
-
-/// A value that doesn't fit its setting: `guidance` names it as `{value}`.
-/// The caller adds where the value came from.
-fn invalid(guidance: &'static str, value: &str, hint: impl Into<String>) -> Box<PaceError> {
-    PaceError::new(ErrorKind::Configuration, guidance)
-        .attach_context("value", value)
-        .attach_hint(hint)
-}
-
 impl Settings {
     fn set(&mut self, key: Key, value: &Value) -> PaceResult<()> {
         match key {
@@ -213,108 +104,6 @@ impl Settings {
             Key::StorageSplit => self.split.to_string(),
         };
         toml::Value::String(text)
-    }
-}
-
-fn parse_count(value: &Value) -> PaceResult<usize> {
-    match value {
-        Value::Number(number) => usize::try_from(*number).ok(),
-        Value::Text(text) => text.parse::<usize>().ok(),
-    }
-    .filter(|count| *count > 0)
-    .ok_or_else(|| {
-        invalid(
-            "`{value}` is not a whole number from 1",
-            &value.text(),
-            "write a number like `9`",
-        )
-    })
-}
-
-fn parse_hold_source(value: &str) -> PaceResult<HoldSource> {
-    match value.to_lowercase().as_str() {
-        "inner" => Ok(HoldSource::Inner),
-        "outer" => Ok(HoldSource::Outer),
-        "unknown" => Ok(HoldSource::Unknown),
-        _ => Err(invalid(
-            "`{value}` is not a source of holds",
-            value,
-            "use `inner` (you broke off), `outer` (someone interrupted) or `unknown`",
-        )),
-    }
-}
-
-const fn hold_source_name(source: HoldSource) -> &'static str {
-    match source {
-        HoldSource::Inner => "inner",
-        HoldSource::Outer => "outer",
-        HoldSource::Unknown => "unknown",
-    }
-}
-
-fn parse_time_zone(value: &str) -> PaceResult<TimeZoneSetting> {
-    if value.eq_ignore_ascii_case("system") {
-        return Ok(TimeZoneSetting::System);
-    }
-    if let Some(zone) = jiff::tz::db()
-        .get(value)
-        .ok()
-        .filter(|zone| zone.iana_name().is_some())
-    {
-        return Ok(TimeZoneSetting::Named(zone));
-    }
-    let names: Vec<String> = jiff::tz::db()
-        .available()
-        .map(|name| name.as_str().to_owned())
-        .collect();
-    let hint = closest_name(value, names.iter().map(String::as_str)).map_or_else(
-        || {
-            "use a name from the IANA time zone database, like `Europe/Berlin`, or `system`"
-                .to_owned()
-        },
-        |name| format!("did you mean `{name}`?"),
-    );
-    Err(invalid(
-        "`{value}` is not a time zone pace knows",
-        value,
-        hint,
-    ))
-}
-
-const WEEKDAYS: [Weekday; 7] = [
-    Weekday::Monday,
-    Weekday::Tuesday,
-    Weekday::Wednesday,
-    Weekday::Thursday,
-    Weekday::Friday,
-    Weekday::Saturday,
-    Weekday::Sunday,
-];
-
-fn parse_weekday(value: &str) -> PaceResult<Weekday> {
-    let lowercase = value.to_lowercase();
-    WEEKDAYS
-        .into_iter()
-        .find(|day| weekday_name(*day) == lowercase)
-        .ok_or_else(|| {
-            let hint = closest_name(&lowercase, WEEKDAYS.into_iter().map(weekday_name))
-                .map_or_else(
-                    || "use a day name like `monday`".to_owned(),
-                    |name| format!("did you mean `{name}`?"),
-                );
-            invalid("`{value}` is not a day of the week", value, hint)
-        })
-}
-
-const fn weekday_name(day: Weekday) -> &'static str {
-    match day {
-        Weekday::Monday => "monday",
-        Weekday::Tuesday => "tuesday",
-        Weekday::Wednesday => "wednesday",
-        Weekday::Thursday => "thursday",
-        Weekday::Friday => "friday",
-        Weekday::Saturday => "saturday",
-        Weekday::Sunday => "sunday",
     }
 }
 
@@ -645,18 +434,6 @@ mod tests {
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
     #[test]
-    fn time_zone_setting_holds_zone_under_its_canonical_name() -> TestResult {
-        let setting = parse_time_zone("america/NEW_YORK")?;
-
-        assert_eq!(
-            setting,
-            TimeZoneSetting::Named(TimeZone::get("America/New_York")?)
-        );
-        assert_eq!(setting.to_string(), "America/New_York");
-        Ok(())
-    }
-
-    #[test]
     fn every_setting_reads_back_what_it_shows() -> TestResult {
         let settings = Settings {
             time_zone: parse_time_zone("Asia/Tokyo")?,
@@ -681,18 +458,6 @@ mod tests {
     }
 
     #[test]
-    fn system_keyword_of_time_zone_ignores_case() -> TestResult {
-        assert_eq!(parse_time_zone("System")?, TimeZoneSetting::System);
-        assert_eq!(parse_time_zone("SYSTEM")?, TimeZoneSetting::System);
-        Ok(())
-    }
-
-    #[test]
-    fn unknown_zone_of_jiff_is_no_time_zone_setting() {
-        assert!(parse_time_zone("Etc/Unknown").is_err());
-    }
-
-    #[test]
     fn unknown_variable_far_from_every_known_one_gets_no_suggestion() {
         let warnings = unknown_variables(["PACE_DEBUG".into()].into_iter());
 
@@ -707,61 +472,6 @@ mod tests {
         assert_eq!(
             warnings[0].hint(),
             Some("did you mean PACE_TIME_ZONE? pace ignores PACE_TIMEZONE")
-        );
-    }
-
-    #[test]
-    fn hold_source_reads_each_source_and_shows_it_back() -> TestResult {
-        for (written, source) in [
-            ("inner", HoldSource::Inner),
-            ("outer", HoldSource::Outer),
-            ("unknown", HoldSource::Unknown),
-        ] {
-            assert_eq!(parse_hold_source(written)?, source);
-            assert_eq!(hold_source_name(source), written);
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn hold_source_refuses_other_word_and_names_the_three() {
-        let error = parse_hold_source("sideways").err();
-
-        assert_eq!(
-            error.as_ref().map(ToString::to_string).as_deref(),
-            Some("`sideways` is not a source of holds")
-        );
-        assert_eq!(
-            error.as_ref().and_then(|error| error.hint()),
-            Some("use `inner` (you broke off), `outer` (someone interrupted) or `unknown`")
-        );
-    }
-
-    #[test]
-    fn time_zone_far_from_every_name_points_to_the_database() {
-        let error = parse_time_zone("Qqqqqqqqqqqqqqqq").err();
-
-        assert_eq!(
-            error.as_ref().map(ToString::to_string).as_deref(),
-            Some("`Qqqqqqqqqqqqqqqq` is not a time zone pace knows")
-        );
-        assert_eq!(
-            error.as_ref().and_then(|error| error.hint()),
-            Some("use a name from the IANA time zone database, like `Europe/Berlin`, or `system`")
-        );
-    }
-
-    #[test]
-    fn weekday_close_to_day_name_suggests_it() {
-        let error = parse_weekday("Mondy").err();
-
-        assert_eq!(
-            error.as_ref().map(ToString::to_string).as_deref(),
-            Some("`Mondy` is not a day of the week")
-        );
-        assert_eq!(
-            error.as_ref().and_then(|error| error.hint()),
-            Some("did you mean `monday`?")
         );
     }
 

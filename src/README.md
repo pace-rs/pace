@@ -33,6 +33,7 @@ in `questions.rs`: its flow gives the questions without I/O.
 | [`session.rs`](session.rs)         | What a tracking command works with: the tracker over the files backend, with this machine's device ID, the clock and the settings.                                            |
 | [`bin/`](bin/)                     | The `pace` binary.                                                                                                                                                            |
 | [`commands/`](commands/)           | The command line: the entry point and its subcommands.                                                                                                                        |
+| [`config/`](config/)               | Settings and the layers they come from.                                                                                                                                       |
 | [`dirs/`](dirs/)                   | The three places pace keeps files: the global config file, the data directory (`PACE_HOME`) and the machine directory.                                                        |
 | [`questions/`](questions/)         | The question machine: a `Flow` gives questions and takes answers without I/O, and `ask_flow` drives it through the asker.                                                     |
 

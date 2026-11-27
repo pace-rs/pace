@@ -19,6 +19,6 @@ machine directory resolve from flags, variables and the platform.
 
 - Uses: no other module.
 - Used by: [`application`](../application.rs), [`commands`](../commands/),
-  [`config`](../config.rs).
+  [`config`](../config/).
 
 <!-- /uses -->
