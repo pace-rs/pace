@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    AfterAppend, Clock, Command, Decided, DeviceId, Ids, Outcome, Policy, Reading, State,
+    AfterAppend, Clock, Command, Decided, DeviceId, Ids, Outcome, Policy, ReadScope, Reading, State,
 };
 use pace_error::PaceResult;
 use pace_time::TimeRange;
@@ -77,7 +77,7 @@ impl<S: EventStore> Tracker<S> {
         )?;
         loop {
             let marker = self.store.marker()?;
-            let events = self.store.read(reading.range())?;
+            let events = self.store.read(reading.scope())?;
             let Decided {
                 batch,
                 read,
@@ -85,7 +85,7 @@ impl<S: EventStore> Tracker<S> {
             } = reading.decide(marker, events)?;
             match appending.appended(self.store.append(batch, read)?, self.clock.now())? {
                 AfterAppend::Done(outcome) => return Ok(*outcome),
-                AfterAppend::ReadAgain(again) => reading = again,
+                AfterAppend::ReadAgain(again) => reading = *again,
             }
         }
     }
@@ -96,6 +96,8 @@ impl<S: EventStore> Tracker<S> {
     ///
     /// If the store fails.
     pub fn state(&self, range: &TimeRange) -> PaceResult<State> {
-        Ok(State::from_events(&self.store.read(range)?))
+        Ok(State::from_events(
+            &self.store.read(&ReadScope::of(range.clone()))?,
+        ))
     }
 }

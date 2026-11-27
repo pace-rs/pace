@@ -1,8 +1,7 @@
 //! The event store port: the trait every backend implements.
 
-use pace_core::{Appended, Batch, ChangeMarker, Device, RecordedEvent};
+use pace_core::{Appended, Batch, ChangeMarker, Device, ReadScope, RecordedEvent};
 use pace_error::PaceResult;
-use pace_time::TimeRange;
 
 /// The append-only event log: one log per device, read merged.
 ///
@@ -30,16 +29,17 @@ pub trait EventStore: Send + Sync {
     fn append(&self, batch: Batch, read: ChangeMarker) -> PaceResult<Appended>;
 
     /// From the logs of all devices: every event of every entry whose time
-    /// overlaps `range` (an open entry lasts until now, whatever the range),
-    /// and the `batch.undone` events of their batches. A backend may return
-    /// more events, never fewer, and in any order: the state sorts them by
-    /// [`RecordedEvent::merge_key`]. The contract tests in
-    /// `testing::contract` check this.
+    /// overlaps the scope's range (an open entry lasts until now, whatever
+    /// the range) or, with [`ReadScope::recorded_since`], that has an event
+    /// recorded since then, and the `batch.undone` events of their batches.
+    /// A backend may return more events, never fewer, and in any order: the
+    /// state sorts them by [`RecordedEvent::merge_key`]. The contract tests
+    /// in `testing::contract` check this.
     ///
     /// # Errors
     ///
     /// If the store can't be read.
-    fn read(&self, range: &TimeRange) -> PaceResult<Vec<RecordedEvent>>;
+    fn read(&self, scope: &ReadScope) -> PaceResult<Vec<RecordedEvent>>;
 
     /// The devices that have written to the log.
     ///

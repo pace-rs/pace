@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use jiff::ZonedDateTime;
-use pace_core::{BatchId, DeviceId, EntryId, Event, EventId, EventKind, Hlc, RecordedEvent};
+use pace_core::{
+    BatchId, DeviceId, EntryId, Event, EventId, EventKind, Hlc, ReadScope, RecordedEvent,
+};
 use pace_time::TimeRange;
 
 use crate::index::{FileSummary, INDEX_VERSION, Index, select, summarize};
@@ -185,8 +187,11 @@ fn the_envelope_covers_every_moment_in_the_file() -> TestResult {
     Ok(())
 }
 
-fn range(start: &str, end: &str) -> Result<TimeRange, Box<dyn std::error::Error>> {
-    Ok(TimeRange::new(Some(at(start)?), Some(at(end)?))?)
+fn range(start: &str, end: &str) -> Result<ReadScope, Box<dyn std::error::Error>> {
+    Ok(ReadScope::of(TimeRange::new(
+        Some(at(start)?),
+        Some(at(end)?),
+    )?))
 }
 
 fn files(list: Vec<(&str, FileSummary)>) -> BTreeMap<String, FileSummary> {
@@ -304,5 +309,51 @@ fn files_of_other_devices_about_the_same_entries_come_along() -> TestResult {
             "b/2026/2026-W42.toml".to_owned()
         ])
     );
+    Ok(())
+}
+
+#[test]
+fn files_with_events_recorded_since_are_selected_with_their_entries() -> TestResult {
+    // Logged on 26 November about June: the moments lie in June, the HLC
+    // in November.
+    let mut june = Events::new();
+    _ = june.add(
+        1,
+        "06-30T08:00",
+        "06-30T08:00",
+        EventKind::EntryLogged {
+            entry: entry(1)?,
+            end: at("06-30T09:00")?,
+            project: None,
+            note: None,
+            tags: BTreeSet::new(),
+        },
+    )?;
+    for recorded in &mut june.events {
+        recorded.hlc = Hlc::new(at("11-26T10:00")?.timestamp(), 0);
+    }
+    let mut september = Events::new();
+    _ = september
+        .add(2, "09-01T09:00", "09-01T09:00", begun(entry(2)?))?
+        .add(
+            3,
+            "09-01T10:00",
+            "09-01T09:00",
+            EventKind::EntryEnded { entry: entry(2)? },
+        )?;
+    let all = files(vec![
+        ("a/2026/2026-06.toml", summary_of(&june)),
+        ("a/2026/2026-09.toml", summary_of(&september)),
+    ]);
+    let scope = range("11-26T11:00", "11-26T11:00")?;
+
+    let without = select(&all, &scope);
+    let with = select(
+        &all,
+        &scope.with_recorded_since(at("11-25T00:00")?.timestamp()),
+    );
+
+    assert_eq!(without, BTreeSet::new());
+    assert_eq!(with, BTreeSet::from(["a/2026/2026-06.toml".to_owned()]));
     Ok(())
 }

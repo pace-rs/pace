@@ -5,7 +5,8 @@
 //! small summary, so that a read only parses the files it needs:
 //!
 //! - size and modification time, to notice a changed file
-//! - the latest HLC, for the next event's clock
+//! - the latest HLC, for the next event's clock and to find the files with
+//!   events recorded since a moment
 //! - the envelope of all moments in the file (`at`, `about`, `start`,
 //!   `end`), to find the files that meet a time range
 //! - the range of `about` moments, to find every file with events about the
@@ -19,9 +20,9 @@ use std::{
     path::Path,
 };
 
-use pace_core::{EntryId, EventKind, Hlc, RecordedEvent};
+use jiff::Timestamp;
+use pace_core::{EntryId, EventKind, Hlc, ReadScope, RecordedEvent};
 use pace_error::PaceResult;
-use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
 
 use crate::hlc::{HlcParts, hlc_from_parts, hlc_parts};
@@ -163,17 +164,20 @@ fn span(moments: &[i64]) -> Option<(i64, i64)> {
     Some((*moments.iter().min()?, *moments.iter().max()?))
 }
 
-/// The files to read for `range`: those whose moments meet it, those where
-/// an open entry began, and every file with events about the same entries.
-pub fn select(files: &BTreeMap<String, FileSummary>, range: &TimeRange) -> BTreeSet<String> {
+/// The files to read for `scope`: those whose moments meet its range, those
+/// where an open entry began, those with an event recorded since the
+/// scope's moment, and every file with events about the same entries.
+pub fn select(files: &BTreeMap<String, FileSummary>, scope: &ReadScope) -> BTreeSet<String> {
     let ended_elsewhere: BTreeSet<EntryId> = files
         .values()
         .flat_map(|summary| summary.ends_elsewhere.iter().copied())
         .collect();
+    let range = scope.range();
     let start = range
         .start()
         .map(|start| start.timestamp().as_millisecond());
     let end = range.end().map(|end| end.timestamp().as_millisecond());
+    let recorded_since = scope.recorded_since().map(Timestamp::as_millisecond);
     let meets = |(min, max): (i64, i64)| {
         start.is_none_or(|start| max >= start) && end.is_none_or(|end| min <= end)
     };
@@ -182,6 +186,8 @@ pub fn select(files: &BTreeMap<String, FileSummary>, range: &TimeRange) -> BTree
         .values()
         .filter(|summary| {
             summary.envelope.is_some_and(meets)
+                || recorded_since
+                    .is_some_and(|since| summary.max_hlc.is_some_and(|(latest, _)| latest >= since))
                 || summary
                     .unended
                     .iter()

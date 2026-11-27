@@ -381,6 +381,16 @@ fn an_open_range_contains_everything_on_its_open_side() -> TestResult {
 }
 
 #[test]
+fn only_range_open_at_both_ends_is_everything() -> TestResult {
+    let half_open = TimeRange::new(None, Some(at("2021-02-04T00:00[Europe/Berlin]")?))?;
+
+    assert!(TimeRange::everything().is_everything());
+    assert_eq!(TimeRange::everything(), TimeRange::new(None, None)?);
+    assert!(!half_open.is_everything());
+    Ok(())
+}
+
+#[test]
 fn range_that_ends_before_it_starts_is_rejected() -> TestResult {
     let result = TimeRange::new(
         Some(at("2021-02-04T00:00[Europe/Berlin]")?),

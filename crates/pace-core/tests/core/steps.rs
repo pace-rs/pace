@@ -47,7 +47,7 @@ fn range_of(
     let ids = SequentialIds::starting_at(now, 1);
     let policy = Policy::default();
     let reading = Reading::start(command, now.clone(), device()?, &ids, &policy)?;
-    Ok(reading.range().clone())
+    Ok(reading.scope().range().clone())
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn stale_append_gives_new_read_at_new_time() -> TestResult {
         return Err(format!("a stale append gave {after:?}").into());
     };
     assert_eq!(
-        again.range(),
+        again.scope().range(),
         &TimeRange::new(Some(berlin("09:00")?), Some(berlin("10:05")?))?
     );
     Ok(())
@@ -208,7 +208,7 @@ fn fifth_stale_append_fails_naming_concurrent_writes() -> TestResult {
     for _ in 1..5 {
         let Decided { appending, .. } = reading.decide(ChangeMarker::new(7), Vec::new())?;
         match appending.appended(Appended::Stale, now.clone())? {
-            AfterAppend::ReadAgain(again) => reading = again,
+            AfterAppend::ReadAgain(again) => reading = *again,
             done @ AfterAppend::Done(_) => {
                 return Err(format!("a stale append gave {done:?}").into());
             }

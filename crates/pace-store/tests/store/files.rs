@@ -5,7 +5,7 @@ use std::{path::Path, sync::Arc};
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Clock, Command, DeviceId, Policy, SequentialIds,
+    Clock, Command, DeviceId, Policy, ReadScope, SequentialIds,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause},
     testing::TestClock,
 };
@@ -90,10 +90,6 @@ fn collect(root: &Path, dir: &Path, files: &mut Vec<String>) -> std::io::Result<
         }
     }
     Ok(())
-}
-
-fn everything() -> Result<TimeRange, Box<dyn std::error::Error>> {
-    Ok(TimeRange::new(None, None)?)
 }
 
 #[test]
@@ -230,7 +226,7 @@ fn what_was_written_reads_back_the_same() -> TestResult {
         ..Begin::default()
     }))?;
 
-    let read = setup.store(Split::Month).read(&everything()?)?;
+    let read = setup.store(Split::Month).read(&ReadScope::everything())?;
 
     assert_eq!(read, written.recorded);
     Ok(())
@@ -272,7 +268,7 @@ fn an_unknown_key_in_an_event_file_names_the_file_and_line() -> TestResult {
 
     let error = setup
         .store(Split::Month)
-        .read(&everything()?)
+        .read(&ReadScope::everything())
         .err()
         .ok_or("the broken file must fail")?;
 
@@ -304,7 +300,7 @@ fn an_event_missing_field_is_named() -> TestResult {
 
     let error = setup
         .store(Split::Month)
-        .read(&everything()?)
+        .read(&ReadScope::everything())
         .err()
         .ok_or("the broken file must fail")?;
 
@@ -341,7 +337,7 @@ fn broken_event_file_keeps_its_cause_and_asks_to_repair_it(
 
     let error = setup
         .store(Split::Month)
-        .read(&everything()?)
+        .read(&ReadScope::everything())
         .err()
         .ok_or("the broken file must fail")?;
 
@@ -386,7 +382,7 @@ fn an_invalid_event_is_blamed_on_its_own_line() -> TestResult {
 
     let error = setup
         .store(Split::Month)
-        .read(&everything()?)
+        .read(&ReadScope::everything())
         .err()
         .ok_or("the broken event must fail")?;
 
@@ -417,7 +413,7 @@ fn an_event_type_from_newer_pace_asks_for_an_update() -> TestResult {
 
     let error = setup
         .store(Split::Month)
-        .read(&everything()?)
+        .read(&ReadScope::everything())
         .err()
         .ok_or("the unknown type must fail")?;
 
@@ -448,7 +444,7 @@ fn two_months(setup: &Setup) -> TestResult {
 fn resplitting_rewrites_this_devices_files_and_keeps_the_events() -> TestResult {
     let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
     two_months(&setup)?;
-    let before = setup.store(Split::Month).read(&everything()?)?;
+    let before = setup.store(Split::Month).read(&ReadScope::everything())?;
 
     let resplit = setup.store(Split::Month).resplit(Split::Day)?;
 
@@ -465,7 +461,7 @@ fn resplitting_rewrites_this_devices_files_and_keeps_the_events() -> TestResult 
             "device.toml"
         ]
     );
-    let after = setup.store(Split::Month).read(&everything()?)?;
+    let after = setup.store(Split::Month).read(&ReadScope::everything())?;
     assert_eq!(after, before);
     let device_file = std::fs::read_to_string(setup.device_dir().join("device.toml"))?;
     assert!(device_file.contains("split = \"day\""), "{device_file}");
@@ -569,7 +565,7 @@ fn an_event_in_two_files_is_read_once() -> TestResult {
         setup.device_dir().join("2026/2026-W44.toml"),
     )?;
 
-    let events = setup.store(Split::Month).read(&everything()?)?;
+    let events = setup.store(Split::Month).read(&ReadScope::everything())?;
 
     assert_eq!(events.len(), 3);
     Ok(())
@@ -637,7 +633,7 @@ fn forgotten_entry_leaves_every_own_file_that_holds_it() -> TestResult {
     let setup = Setup::new("2026-10-30T09:00[Europe/Berlin]")?;
     interrupted_split_to_weeks(&setup)?;
     let tracker = setup.tracker(Split::Month);
-    let state = tracker.state(&everything()?)?;
+    let state = tracker.state(&TimeRange::everything())?;
     let october = state
         .entries()
         .find(|entry| state.open().all(|open| open.id != entry.id))
@@ -694,7 +690,9 @@ fn begin_raced_by_another_process_decides_again_and_switches_from_it() -> TestRe
         ..Begin::default()
     }))?;
 
-    let state = setup.tracker(Split::Month).state(&everything()?)?;
+    let state = setup
+        .tracker(Split::Month)
+        .state(&TimeRange::everything())?;
     let open: Vec<_> = state.open().map(|entry| entry.note.clone()).collect();
     assert_eq!(open, vec![Some("A".to_owned())]);
     assert_eq!(state.entries().count(), 3);
@@ -717,7 +715,7 @@ mod expensive {
             at("2026-11-26T08:00[Europe/Berlin]")?,
         )))?;
         let entry = tracker
-            .state(&everything()?)?
+            .state(&TimeRange::everything())?
             .entries()
             .next()
             .map(|entry| entry.id)
@@ -756,7 +754,7 @@ mod expensive {
             }
         });
 
-        let read = setup.store(Split::Month).read(&everything()?)?;
+        let read = setup.store(Split::Month).read(&ReadScope::everything())?;
         assert_eq!(read.len(), 1 + 4 * 10);
         let leftovers: Vec<_> = setup
             .files()?

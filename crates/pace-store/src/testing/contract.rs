@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Appended, Clock, Command, DeviceId, EntryState, Policy, Rules, SequentialIds, State,
-    command::{Begin, End, Log},
+    Appended, Change, Clock, Command, DeviceId, EntryState, EventKind, Policy, ReadScope, Rules,
+    SequentialIds, State,
+    command::{Adjust, Begin, End, Log},
     testing::TestClock,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult};
@@ -40,6 +41,10 @@ where
         entries_overlapping_the_range_are_read_wherever_they_are_filed(&new_storage()),
     )?;
     within(
+        RECORDED_SINCE,
+        entries_recorded_since_are_read_wherever_they_are_filed(&new_storage()),
+    )?;
+    within(
         UNDO_WITH_BATCH,
         an_undo_is_read_with_its_batch(&new_storage()),
     )?;
@@ -67,6 +72,8 @@ where
 const COME_BACK: &str = "appended events come back with their device and batch";
 const OPEN_ENTRIES: &str = "open entries are read whatever the range";
 const OVERLAPPING_ENTRIES: &str = "entries overlapping the range are read wherever they are filed";
+const RECORDED_SINCE: &str =
+    "entries with an event recorded since a moment are read wherever they are filed";
 const UNDO_WITH_BATCH: &str = "an undo is read with its batch";
 const HLC_NEVER_GOES_BACK: &str = "the HLC never goes back when the clock does";
 const HLC_AFTER_OTHER_DEVICES: &str = "the HLC comes after what other devices wrote";
@@ -222,6 +229,65 @@ where
         state.entries().count() == 1,
         check,
         "an entry from 31 October 22:00 to 1 November 02:00 is missing in 1 November",
+    )
+}
+
+fn entries_recorded_since_are_read_wherever_they_are_filed<O, S>(open_store: &O) -> PaceResult<()>
+where
+    O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
+    S: EventStore,
+{
+    let check = RECORDED_SINCE;
+    let laptop = open(open_store, 1, "2026-08-01T09:00[Europe/Berlin]")?;
+    let logged = laptop.tracker.run(&Command::Log(Log::new(
+        at("2026-07-31T08:00[Europe/Berlin]")?,
+        at("2026-07-31T09:00[Europe/Berlin]")?,
+    )))?;
+    let entry = logged
+        .recorded
+        .iter()
+        .find_map(|recorded| match recorded.event.kind {
+            EventKind::EntryLogged { entry, .. } => Some(entry),
+            _ => None,
+        })
+        .ok_or_else(|| broken(check, "the log recorded no entry"))?;
+    let desktop = open(open_store, 2, "2026-11-26T09:00[Europe/Berlin]")?;
+    _ = desktop.tracker.run(&Command::Adjust(Adjust {
+        entry: Some(entry),
+        note: Change::Set("Recorded in November".parse()?),
+        ..Adjust::default()
+    }))?;
+    _ = desktop.tracker.run(&Command::Log(Log::new(
+        at("2026-06-30T08:00[Europe/Berlin]")?,
+        at("2026-06-30T09:00[Europe/Berlin]")?,
+    )))?;
+
+    let now = desktop.clock.now();
+    let scope = ReadScope::of(TimeRange::new(Some(now.clone()), Some(now))?)
+        .with_recorded_since(at("2026-11-25T09:00[Europe/Berlin]")?.timestamp());
+    let state = State::from_events(&laptop.tracker.store().read(&scope)?);
+    let logged_in_november = at("2026-06-30T08:00[Europe/Berlin]")?;
+    ensure(
+        state
+            .entries()
+            .any(|logged| logged.start == logged_in_november),
+        check,
+        "an entry of June, logged in November, is missing in a read of what was recorded since",
+    )?;
+    let note = state
+        .entry(entry)
+        .ok_or_else(|| {
+            broken(
+                check,
+                "an entry of July, adjusted in November, is missing in a read of what was recorded since",
+            )
+        })?
+        .note
+        .clone();
+    ensure(
+        note.as_deref() == Some("Recorded in November"),
+        check,
+        format!("the entry came without its adjustment: its note is {note:?}"),
     )
 }
 

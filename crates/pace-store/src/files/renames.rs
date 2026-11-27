@@ -114,10 +114,9 @@ mod tests {
     use std::sync::Arc;
 
     use pace_core::{
-        Batch, ChangeMarker, Clock, Command, DeviceId, Policy, RecordedEvent, Rules, SequentialIds,
-        State, command::Begin, testing::TestClock,
+        Batch, ChangeMarker, Clock, Command, DeviceId, Policy, ReadScope, RecordedEvent, Rules,
+        SequentialIds, State, command::Begin, testing::TestClock,
     };
-    use pace_time::TimeRange;
 
     use super::*;
     use crate::{EventStore, FilesStore, Split, Tracker, testing::scratch_dir};
@@ -172,7 +171,7 @@ mod tests {
         }
 
         fn log(&self) -> PaceResult<Vec<RecordedEvent>> {
-            self.store().read(&TimeRange::new(None, None)?)
+            self.store().read(&ReadScope::everything())
         }
 
         /// The batch of `begin Review`, and the marker it was decided on.

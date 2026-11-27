@@ -21,8 +21,8 @@ use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::TimeRange;
 
 use crate::{
-    Appended, Batch, ChangeMarker, Command, DeviceId, EventKind, Ids, Policy, RecordedEvent, Rules,
-    State,
+    Appended, Batch, ChangeMarker, Command, DeviceId, EventKind, Ids, Policy, ReadScope,
+    RecordedEvent, Rules, State,
     command::{End, Resume},
 };
 
@@ -75,7 +75,7 @@ impl fmt::Debug for CommandRun<'_> {
 pub struct Reading<'a> {
     run: CommandRun<'a>,
     now: ZonedDateTime,
-    range: TimeRange,
+    scope: ReadScope,
 }
 
 /// A decided read: the batch to append, and what the append means.
@@ -104,8 +104,9 @@ pub struct Appending<'a> {
 pub enum AfterAppend<'a> {
     /// The batch is in the store; boxed, since an outcome holds two states.
     Done(Box<Outcome>),
-    /// Another command wrote since the read: read and decide again.
-    ReadAgain(Reading<'a>),
+    /// Another command wrote since the read: read and decide again; boxed,
+    /// since a reading holds its scope.
+    ReadAgain(Box<Reading<'a>>),
 }
 
 impl<'a> Reading<'a> {
@@ -136,15 +137,15 @@ impl<'a> Reading<'a> {
     }
 
     fn at(run: CommandRun<'a>, now: ZonedDateTime) -> PaceResult<Self> {
-        let range = scope(run.command, &now)?;
-        Ok(Self { run, now, range })
+        let scope = scope(run.command, &now)?.into();
+        Ok(Self { run, now, scope })
     }
 
-    /// The time the command's rules need to see: read the events of this
-    /// range from the store.
+    /// What the command's rules need to see: read the events of this
+    /// scope from the store.
     #[must_use]
-    pub const fn range(&self) -> &TimeRange {
-        &self.range
+    pub const fn scope(&self) -> &ReadScope {
+        &self.scope
     }
 
     /// Decide the command on the `events` of the [`range`](Self::range),
@@ -203,7 +204,7 @@ impl<'a> Appending<'a> {
                 },
                 now,
             )
-            .map(AfterAppend::ReadAgain),
+            .map(|again| AfterAppend::ReadAgain(Box::new(again))),
             Appended::Stale => Err(concurrent_writes()),
         }
     }

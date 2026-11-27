@@ -13,7 +13,7 @@ use std::{
 
 use pace_core::{
     Appended, Batch, BatchId, ChangeMarker, Clock, Command, Device, DeviceId, Entry, EntryId,
-    EventKind, Hlc, RecordedEvent, State,
+    EventKind, Hlc, ReadScope, RecordedEvent, State,
     testing::{TestClock, locked},
 };
 use pace_error::PaceResult;
@@ -143,9 +143,9 @@ impl EventStore for MemoryStore {
         })
     }
 
-    fn read(&self, range: &TimeRange) -> PaceResult<Vec<RecordedEvent>> {
+    fn read(&self, scope: &ReadScope) -> PaceResult<Vec<RecordedEvent>> {
         self.storage()
-            .map(|storage| events_meeting(&storage.events, range))
+            .map(|storage| events_meeting(&storage.events, scope))
     }
 
     fn devices(&self) -> PaceResult<Vec<Device>> {
@@ -159,13 +159,28 @@ impl EventStore for MemoryStore {
     }
 }
 
-/// What [`EventStore::read`] must return for `range`: every event of the
-/// entries that meet it or are open, and the undos of their batches. An
-/// entry that is gone, undone or forgotten, has no time; its events come
-/// with every read, so a read of everything returns every event.
-fn events_meeting(events: &[RecordedEvent], range: &TimeRange) -> Vec<RecordedEvent> {
+/// What [`EventStore::read`] must return for `scope`: every event of the
+/// entries that meet its range, are open, or have an event recorded since
+/// its moment, and the undos of their batches. An entry that is gone,
+/// undone or forgotten, has no time; its events come with every read, so a
+/// read of everything returns every event.
+fn events_meeting(events: &[RecordedEvent], scope: &ReadScope) -> Vec<RecordedEvent> {
     let state = State::from_events(events);
-    let kept = |entry: EntryId| state.entry(entry).is_none_or(|entry| meets(entry, range));
+    let recorded: BTreeSet<EntryId> = events
+        .iter()
+        .filter(|recorded| {
+            scope
+                .recorded_since()
+                .is_some_and(|since| recorded.hlc.wall() >= since)
+        })
+        .filter_map(|recorded| entry_of(&recorded.event.kind))
+        .collect();
+    let kept = |entry: EntryId| {
+        recorded.contains(&entry)
+            || state
+                .entry(entry)
+                .is_none_or(|found| meets(found, scope.range()))
+    };
     let batches: BTreeSet<BatchId> = events
         .iter()
         .filter(|recorded| entry_of(&recorded.event.kind).is_some_and(kept))
@@ -246,8 +261,8 @@ impl<S: EventStore, R: EventStore> EventStore for Raced<S, R> {
         self.store.append(batch, read)
     }
 
-    fn read(&self, range: &TimeRange) -> PaceResult<Vec<RecordedEvent>> {
-        self.store.read(range)
+    fn read(&self, scope: &ReadScope) -> PaceResult<Vec<RecordedEvent>> {
+        self.store.read(scope)
     }
 
     fn devices(&self) -> PaceResult<Vec<Device>> {

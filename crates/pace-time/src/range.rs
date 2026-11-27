@@ -31,6 +31,21 @@ impl TimeRange {
         Ok(Self { start, end })
     }
 
+    /// The range of all time, open at both ends.
+    #[must_use]
+    pub const fn everything() -> Self {
+        Self {
+            start: None,
+            end: None,
+        }
+    }
+
+    /// Whether the range is open at both ends.
+    #[must_use]
+    pub const fn is_everything(&self) -> bool {
+        self.start.is_none() && self.end.is_none()
+    }
+
     /// The first moment in the range; `None` if the range is open at the start.
     #[must_use]
     pub const fn start(&self) -> Option<&ZonedDateTime> {

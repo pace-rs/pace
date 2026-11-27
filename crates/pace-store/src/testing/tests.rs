@@ -8,8 +8,7 @@ use std::{
 };
 
 use jiff::ZonedDateTime;
-use pace_core::{DeviceId, testing::TestClock};
-use pace_time::TimeRange;
+use pace_core::{DeviceId, ReadScope, testing::TestClock};
 
 use crate::{
     EventStore,
@@ -44,7 +43,7 @@ fn memory_store_refuses_poisoned_storage() -> TestResult {
     poison(&store.storage);
 
     let error = store
-        .read(&TimeRange::new(None, None)?)
+        .read(&ReadScope::everything())
         .err()
         .ok_or("the store read poisoned storage")?;
 

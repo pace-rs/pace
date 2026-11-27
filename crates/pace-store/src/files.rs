@@ -21,10 +21,10 @@ use std::{
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Appended, Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, EventKind, Hlc, RecordedEvent,
+    Appended, Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, EventKind, Hlc, ReadScope,
+    RecordedEvent,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
-use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
 
 use crate::disk::{
@@ -402,11 +402,11 @@ impl EventStore for FilesStore {
 
     /// The events of the files `range` needs, through the index; an event
     /// in two files (left by an interrupted resplit) counts once.
-    fn read(&self, range: &TimeRange) -> PaceResult<Vec<RecordedEvent>> {
+    fn read(&self, scope: &ReadScope) -> PaceResult<Vec<RecordedEvent>> {
         let (index, mut found) = self.refreshed_index()?;
         let mut events = Vec::new();
         let mut seen = BTreeSet::new();
-        for name in select(&index.files, range) {
+        for name in select(&index.files, scope) {
             // The refreshed index names only the files it found.
             let Some(file) = found.remove(&name) else {
                 continue;
