@@ -2,7 +2,7 @@
 //! [`EventStore`], and the store contract every backend must keep.
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     future::Future,
     sync::{
         Arc, Mutex, MutexGuard,
@@ -14,9 +14,11 @@ use jiff::ZonedDateTime;
 use pace_error::{ErrorKind, PaceError, PaceResult};
 
 use crate::{
-    Appended, Batch, ChangeMarker, Clock, Command, Device, DeviceId, EventStore, Hlc,
-    RecordedEvent, Tracker,
+    Appended, Batch, BatchId, ChangeMarker, Clock, Command, Device, DeviceId, Entry, EntryId,
+    EventKind, EventStore, Hlc, RecordedEvent, State, Tracker,
 };
+
+pub mod contract;
 
 /// A clock that tests set.
 #[derive(Debug)]
@@ -54,9 +56,11 @@ struct Storage {
     appends: u64,
 }
 
-/// An event store in memory. Stores made with [`MemoryStore::for_device`]
-/// share one storage, like devices that sync `PACE_HOME`. `read` returns
-/// everything, which keeps the contract trivially.
+/// An event store in memory.
+///
+/// Stores made with [`MemoryStore::for_device`] share one storage, like
+/// devices that sync `PACE_HOME`. `read` returns no more than the contract
+/// asks for, so a command that reads too little fails its tests.
 #[derive(Debug, Clone)]
 pub struct MemoryStore {
     storage: Arc<Mutex<Storage>>,
@@ -158,9 +162,12 @@ impl EventStore for MemoryStore {
 
     fn read(
         &self,
-        _range: &pace_time::TimeRange,
+        range: &pace_time::TimeRange,
     ) -> impl Future<Output = PaceResult<Vec<RecordedEvent>>> + Send {
-        std::future::ready(self.storage().map(|storage| storage.events.clone()))
+        std::future::ready(
+            self.storage()
+                .map(|storage| events_meeting(&storage.events, range)),
+        )
     }
 
     fn devices(&self) -> impl Future<Output = PaceResult<Vec<Device>>> + Send {
@@ -175,6 +182,54 @@ impl EventStore for MemoryStore {
             self.storage()
                 .map(|storage| ChangeMarker::new(storage.appends)),
         )
+    }
+}
+
+/// What [`EventStore::read`] must return for `range`: every event of the
+/// entries that meet it or are open, and the undos of their batches. An
+/// entry that is gone, undone or forgotten, has no time; its events come
+/// with every read, so a read of everything returns every event.
+fn events_meeting(events: &[RecordedEvent], range: &pace_time::TimeRange) -> Vec<RecordedEvent> {
+    let state = State::from_events(events);
+    let kept = |entry: EntryId| state.entry(entry).is_none_or(|entry| meets(entry, range));
+    let batches: BTreeSet<BatchId> = events
+        .iter()
+        .filter(|recorded| entry_of(&recorded.event.kind).is_some_and(kept))
+        .map(|recorded| recorded.batch)
+        .collect();
+    events
+        .iter()
+        .filter(|recorded| match recorded.event.kind {
+            EventKind::BatchUndone { batch } => batches.contains(&batch),
+            ref kind => entry_of(kind).is_some_and(kept),
+        })
+        .cloned()
+        .collect()
+}
+
+/// Whether `entry` is open or its time meets `range`, ends included.
+fn meets(entry: &Entry, range: &pace_time::TimeRange) -> bool {
+    entry.end.as_ref().is_none_or(|end| {
+        range.start().is_none_or(|start| start <= end)
+            && range
+                .end()
+                .is_none_or(|range_end| entry.start <= *range_end)
+    })
+}
+
+/// The entry an event is about; `None` for an undo, which is about a batch.
+const fn entry_of(kind: &EventKind) -> Option<EntryId> {
+    match kind {
+        EventKind::EntryBegun { entry, .. }
+        | EventKind::EntryHeld { entry, .. }
+        | EventKind::EntryPaused { entry, .. }
+        | EventKind::EntryResumed { entry }
+        | EventKind::EntryEnded { entry }
+        | EventKind::CatchNoted { entry, .. }
+        | EventKind::EntryLogged { entry, .. }
+        | EventKind::EntryAdjusted { entry, .. }
+        | EventKind::EntryForgotten { entry } => Some(*entry),
+        EventKind::BatchUndone { .. } => None,
     }
 }
 
@@ -230,384 +285,5 @@ impl<S: EventStore, R: EventStore> EventStore for Raced<S, R> {
 
     fn marker(&self) -> impl Future<Output = PaceResult<ChangeMarker>> + Send {
         self.store.marker()
-    }
-}
-
-/// The contract of [`EventStore`], as checks that every backend runs.
-pub mod contract {
-    use std::sync::Arc;
-
-    use jiff::ZonedDateTime;
-    use pace_error::{ErrorKind, PaceError, PaceResult};
-    use pace_time::TimeRange;
-
-    use crate::testing::TestClock;
-    use crate::{
-        Appended, Clock, Command, DeviceId, EntryState, EventStore, Policy, Rules, SequentialIds,
-        State, Tracker,
-        command::{Begin, End, Hold, Log},
-    };
-
-    /// Run every check. `new_storage` gives fresh, empty storage for each
-    /// check, as a function that opens it for a device with a clock; stores
-    /// opened from one storage share it, like devices syncing `PACE_HOME`.
-    ///
-    /// # Errors
-    ///
-    /// The first broken promise, naming the check.
-    pub async fn run_store_contract<O, S>(new_storage: impl Fn() -> O) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        appended_events_come_back_with_their_device_and_batch(&new_storage()).await?;
-        the_hlc_never_goes_back_when_the_clock_does(&new_storage()).await?;
-        the_hlc_comes_after_what_other_devices_wrote(&new_storage()).await?;
-        open_entries_are_read_whatever_the_range(&new_storage()).await?;
-        entries_overlapping_the_range_are_read_wherever_they_are_filed(&new_storage()).await?;
-        an_undo_is_read_with_its_batch(&new_storage()).await?;
-        devices_are_the_ones_that_wrote(&new_storage()).await?;
-        the_marker_changes_with_the_data(&new_storage()).await?;
-        append_after_stale_read_is_refused(&new_storage()).await?;
-        Ok(())
-    }
-
-    fn broken(check: &str, detail: impl std::fmt::Display) -> Box<PaceError> {
-        PaceError::new(
-            ErrorKind::Internal,
-            "the store breaks its contract: {check}: {detail}",
-        )
-        .attach_context("check", check)
-        .attach_context("detail", detail.to_string())
-    }
-
-    fn ensure(condition: bool, check: &str, detail: impl std::fmt::Display) -> PaceResult<()> {
-        if condition {
-            Ok(())
-        } else {
-            Err(broken(check, detail))
-        }
-    }
-
-    fn at(rfc9557: &str) -> PaceResult<ZonedDateTime> {
-        rfc9557.parse().map_err(|error| {
-            PaceError::with_source(
-                ErrorKind::Internal,
-                "the test time {time} is no RFC 9557 time",
-                error,
-            )
-            .attach_context("time", rfc9557)
-        })
-    }
-
-    fn device(number: u16) -> PaceResult<DeviceId> {
-        format!("0193a8d0-000d-7000-8000-{number:012x}").parse()
-    }
-
-    /// A device: its tracker and its clock.
-    struct Device<S> {
-        tracker: Tracker<S>,
-        clock: Arc<TestClock>,
-        id: DeviceId,
-    }
-
-    fn open<O, S>(open: &O, number: u16, now: &str) -> PaceResult<Device<S>>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let clock = Arc::new(TestClock::new(at(now)?));
-        let id = device(number)?;
-        let tracker = Tracker::new(
-            open(id, clock.clone()),
-            clock.clone(),
-            Arc::new(SequentialIds::starting_at(&clock.now(), number)),
-            Policy::default(),
-            id,
-        );
-        Ok(Device { tracker, clock, id })
-    }
-
-    fn range(start: &str, end: &str) -> PaceResult<TimeRange> {
-        TimeRange::new(Some(at(start)?), Some(at(end)?))
-    }
-
-    async fn appended_events_come_back_with_their_device_and_batch<O, S>(
-        open_store: &O,
-    ) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let check = "appended events come back with their device and batch";
-        let laptop = open(open_store, 1, "2026-11-26T09:00[Europe/Berlin]")?;
-        let outcome = laptop
-            .tracker
-            .run(&Command::Begin(Begin::default()))
-            .await?;
-        let appended = outcome
-            .recorded
-            .first()
-            .ok_or_else(|| broken(check, "append returned nothing"))?;
-
-        let read = laptop.tracker.state(&TimeRange::new(None, None)?).await?;
-        let found = State::from_events(std::slice::from_ref(appended));
-        ensure(appended.device == laptop.id, check, "wrong device")?;
-        ensure(
-            read.entries().count() == 1,
-            check,
-            "the entry was not read back",
-        )?;
-        ensure(
-            found.entries().next() == read.entries().next(),
-            check,
-            "the entry changed on the way",
-        )
-    }
-
-    async fn the_hlc_never_goes_back_when_the_clock_does<O, S>(open_store: &O) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let check = "the HLC never goes back when the clock does";
-        let laptop = open(open_store, 1, "2026-11-26T10:00[Europe/Berlin]")?;
-        let first = laptop
-            .tracker
-            .run(&Command::Begin(Begin::default()))
-            .await?;
-        laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
-        let second = laptop
-            .tracker
-            .run(&Command::Hold(Hold {
-                at: Some(at("2026-11-26T10:05[Europe/Berlin]")?),
-                ..Hold::default()
-            }))
-            .await;
-        // The hold lies in the future of the jumped-back clock, which the rules
-        // don't check; the store must still order it after the begin.
-        let second = second?;
-        let (Some(first), Some(second)) = (first.recorded.first(), second.recorded.first()) else {
-            return Err(broken(check, "append returned nothing"));
-        };
-        ensure(
-            second.hlc > first.hlc,
-            check,
-            format!("{:?} after {:?}", second.hlc, first.hlc),
-        )
-    }
-
-    async fn the_hlc_comes_after_what_other_devices_wrote<O, S>(open_store: &O) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let check = "the HLC comes after what other devices wrote";
-        let laptop = open(open_store, 1, "2026-11-26T10:00[Europe/Berlin]")?;
-        let desktop = open(open_store, 2, "2026-11-26T09:00[Europe/Berlin]")?;
-        let began = laptop
-            .tracker
-            .run(&Command::Begin(Begin {
-                at: Some(at("2026-11-26T08:00[Europe/Berlin]")?),
-                ..Begin::default()
-            }))
-            .await?;
-        let ended = desktop
-            .tracker
-            .run(&Command::End(End {
-                at: Some(at("2026-11-26T08:30[Europe/Berlin]")?),
-                ..End::default()
-            }))
-            .await?;
-        let (Some(began), Some(ended)) = (began.recorded.first(), ended.recorded.first()) else {
-            return Err(broken(check, "append returned nothing"));
-        };
-        ensure(
-            ended.hlc > began.hlc,
-            check,
-            "the desktop's clock is behind, but its event must come later",
-        )
-    }
-
-    async fn open_entries_are_read_whatever_the_range<O, S>(open_store: &O) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let check = "open entries are read whatever the range";
-        let laptop = open(open_store, 1, "2026-10-15T09:00[Europe/Berlin]")?;
-        _ = laptop
-            .tracker
-            .run(&Command::Begin(Begin::default()))
-            .await?;
-        laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
-
-        let state = laptop
-            .tracker
-            .state(&range(
-                "2026-11-26T00:00[Europe/Berlin]",
-                "2026-11-27T00:00[Europe/Berlin]",
-            )?)
-            .await?;
-        ensure(
-            state.open().count() == 1,
-            check,
-            "an entry begun in October and still open is missing",
-        )
-    }
-
-    async fn entries_overlapping_the_range_are_read_wherever_they_are_filed<O, S>(
-        open_store: &O,
-    ) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let check = "entries overlapping the range are read wherever they are filed";
-        let laptop = open(open_store, 1, "2026-11-02T09:00[Europe/Berlin]")?;
-        _ = laptop
-            .tracker
-            .run(&Command::Log(Log::new(
-                at("2026-10-31T22:00[Europe/Berlin]")?,
-                at("2026-11-01T02:00[Europe/Berlin]")?,
-            )))
-            .await?;
-
-        let state = laptop
-            .tracker
-            .state(&range(
-                "2026-11-01T00:00[Europe/Berlin]",
-                "2026-11-01T01:00[Europe/Berlin]",
-            )?)
-            .await?;
-        ensure(
-            state.entries().count() == 1,
-            check,
-            "an entry from 31 October 22:00 to 1 November 02:00 is missing in 1 November",
-        )
-    }
-
-    async fn an_undo_is_read_with_its_batch<O, S>(open_store: &O) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let check = "an undo is read with its batch";
-        let laptop = open(open_store, 1, "2026-10-15T09:00[Europe/Berlin]")?;
-        _ = laptop
-            .tracker
-            .run(&Command::Begin(Begin::default()))
-            .await?;
-        laptop.clock.set(at("2026-10-15T10:00[Europe/Berlin]")?);
-        _ = laptop.tracker.run(&Command::End(End::default())).await?;
-        laptop.clock.set(at("2026-11-26T09:00[Europe/Berlin]")?);
-        _ = laptop.tracker.run(&Command::Undo).await?;
-
-        let state = laptop
-            .tracker
-            .state(&range(
-                "2026-10-15T00:00[Europe/Berlin]",
-                "2026-10-16T00:00[Europe/Berlin]",
-            )?)
-            .await?;
-        let entry = state
-            .entries()
-            .next()
-            .ok_or_else(|| broken(check, "the entry is missing"))?;
-        ensure(
-            entry.state() == EntryState::Running,
-            check,
-            "the end was undone in November, but reading October still shows it",
-        )
-    }
-
-    async fn devices_are_the_ones_that_wrote<O, S>(open_store: &O) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let check = "devices are the ones that wrote";
-        let laptop = open(open_store, 1, "2026-11-26T09:00[Europe/Berlin]")?;
-        let desktop = open(open_store, 2, "2026-11-26T10:00[Europe/Berlin]")?;
-        _ = laptop
-            .tracker
-            .run(&Command::Begin(Begin::default()))
-            .await?;
-        _ = desktop.tracker.run(&Command::End(End::default())).await?;
-
-        let store = open_store(laptop.id, laptop.clock.clone());
-        let mut ids: Vec<DeviceId> = store
-            .devices()
-            .await?
-            .iter()
-            .map(|device| device.id)
-            .collect();
-        ids.sort();
-        let mut expected = vec![laptop.id, desktop.id];
-        expected.sort();
-        ensure(ids == expected, check, format!("{ids:?}"))
-    }
-
-    async fn the_marker_changes_with_the_data<O, S>(open_store: &O) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let check = "the marker changes with the data";
-        let laptop = open(open_store, 1, "2026-11-26T09:00[Europe/Berlin]")?;
-        let store = open_store(laptop.id, laptop.clock.clone());
-        let before = store.marker().await?;
-        ensure(
-            store.marker().await? == before,
-            check,
-            "it changed without a change",
-        )?;
-        _ = laptop
-            .tracker
-            .run(&Command::Begin(Begin::default()))
-            .await?;
-        ensure(
-            store.marker().await? != before,
-            check,
-            "it stayed after an append",
-        )
-    }
-
-    async fn append_after_stale_read_is_refused<O, S>(open_store: &O) -> PaceResult<()>
-    where
-        O: Fn(DeviceId, Arc<TestClock>) -> S + Sync,
-        S: EventStore,
-    {
-        let check = "an append after a stale read is refused";
-        let laptop = open(open_store, 1, "2026-11-26T09:00[Europe/Berlin]")?;
-        let store = open_store(laptop.id, laptop.clock.clone());
-        let read = store.marker().await?;
-        _ = laptop
-            .tracker
-            .run(&Command::Begin(Begin::default()))
-            .await?;
-        // The batch as decided on the stale read: nothing was open.
-        let now = laptop.clock.now();
-        let batch = Rules {
-            state: &State::default(),
-            now: &now,
-            device: laptop.id,
-            ids: &SequentialIds::starting_at(&now, 9),
-            policy: &Policy::default(),
-        }
-        .decide(&Command::Begin(Begin::default()))?;
-
-        let appended = store.append(batch, read).await?;
-        ensure(
-            appended == Appended::Stale,
-            check,
-            "it appended a batch decided before another append",
-        )?;
-        let state = laptop.tracker.state(&TimeRange::new(None, None)?).await?;
-        ensure(
-            state.entries().count() == 1,
-            check,
-            "the refused batch is in the log",
-        )
     }
 }

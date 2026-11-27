@@ -26,6 +26,7 @@ the `EventStore` port, lets `rules.rs` decide and appends the events. The
 | [`tracker.rs`](tracker.rs)   | The tracker: runs a command over the ports and says what it did.                                                                      |
 | [`tracking.rs`](tracking.rs) | Where a hold came from, and what kind of break a pause is.                                                                            |
 | [`rules/`](rules/)           | What each command turns into: the events of one batch, or an error that says how to fix it.                                           |
+| [`testing/`](testing/)       | For tests of pace and of store backends: a settable clock, an in-memory `EventStore`, and the store contract every backend must keep. |
 
 <!-- /files -->
 

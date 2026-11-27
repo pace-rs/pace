@@ -5,7 +5,8 @@ use std::sync::Arc;
 use jiff::ZonedDateTime;
 use pace_core::testing::contract::run_store_contract;
 use pace_core::{
-    Clock, Command, DeviceId, EntryState, EventStore, Policy, SequentialIds, State, Tracker,
+    Clock, Command, DeviceId, EntryState, EventStore, Policy, RecordedEvent, SequentialIds, State,
+    Tracker,
     command::{Adjust, Begin, End, Log},
     testing::{MemoryStore, Raced, TestClock},
 };
@@ -253,5 +254,83 @@ fn command_raced_every_time_fails_naming_the_concurrent_writes() -> TestResult {
     assert_eq!(error.context_value("attempts"), Some("5"));
     let state = pollster::block_on(tracker.state(&everything()?))?;
     assert_eq!(state.open().count(), 0, "the begin was appended");
+    Ok(())
+}
+
+#[test]
+fn the_memory_store_reads_only_entries_that_meet_the_range() -> TestResult {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let store = MemoryStore::new(device(1)?, clock.clone());
+    let tracker = tracker(store, &clock, 1)?;
+    _ = pollster::block_on(tracker.run(&Command::Log(Log::new(
+        at("2026-10-15T09:00[Europe/Berlin]")?,
+        at("2026-10-15T10:00[Europe/Berlin]")?,
+    ))))?;
+    _ = pollster::block_on(tracker.run(&Command::Log(Log::new(
+        at("2026-11-26T07:00[Europe/Berlin]")?,
+        at("2026-11-26T08:00[Europe/Berlin]")?,
+    ))))?;
+
+    let state = pollster::block_on(tracker.state(&TimeRange::new(
+        Some(at("2026-11-26T00:00[Europe/Berlin]")?),
+        Some(at("2026-11-27T00:00[Europe/Berlin]")?),
+    )?))?;
+
+    let starts: Vec<String> = state
+        .entries()
+        .map(|entry| entry.start.to_string())
+        .collect();
+    assert_eq!(starts, ["2026-11-26T07:00:00+01:00[Europe/Berlin]"]);
+    Ok(())
+}
+
+/// A store that reads only the events whose moment lies in the range, and
+/// so misses the open entries that began before it.
+struct OnlyInside(MemoryStore);
+
+impl EventStore for OnlyInside {
+    fn append(
+        &self,
+        batch: pace_core::Batch,
+        read: pace_core::ChangeMarker,
+    ) -> impl Future<Output = pace_error::PaceResult<pace_core::Appended>> + Send {
+        self.0.append(batch, read)
+    }
+
+    async fn read(&self, range: &TimeRange) -> pace_error::PaceResult<Vec<RecordedEvent>> {
+        let mut events = self.0.read(range).await?;
+        events.retain(|recorded| range.contains(&recorded.event.at));
+        Ok(events)
+    }
+
+    fn devices(
+        &self,
+    ) -> impl Future<Output = pace_error::PaceResult<Vec<pace_core::Device>>> + Send {
+        self.0.devices()
+    }
+
+    fn marker(
+        &self,
+    ) -> impl Future<Output = pace_error::PaceResult<pace_core::ChangeMarker>> + Send {
+        self.0.marker()
+    }
+}
+
+#[test]
+fn store_contract_names_check_that_broken_store_fails() -> TestResult {
+    let opener = || {
+        let open = MemoryStore::opener();
+        move |device, clock| OnlyInside(open(device, clock))
+    };
+
+    let error = pollster::block_on(run_store_contract(opener))
+        .err()
+        .ok_or("the broken store passed the contract")?;
+
+    assert_eq!(
+        error.to_string(),
+        "the store breaks its contract: the HLC never goes back when the clock does: \
+         nothing is running"
+    );
     Ok(())
 }
