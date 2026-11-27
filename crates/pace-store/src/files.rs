@@ -16,7 +16,7 @@ use std::{
     future::Future,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::SystemTime,
 };
 
@@ -25,7 +25,7 @@ use pace_core::{
     Appended, Batch, ChangeMarker, Clock, Device, DeviceId, EntryId, EventKind, EventStore, Hlc,
     RecordedEvent,
 };
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::{ErrorKind, PaceError, PaceResult, Severity};
 use pace_time::TimeRange;
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +48,7 @@ pub struct FilesStore {
     device: DeviceId,
     clock: Arc<dyn Clock>,
     split: Split,
+    problems: Mutex<Vec<PaceError>>,
 }
 
 /// What [`FilesStore::resplit`] did.
@@ -98,6 +99,7 @@ impl FilesStore {
             device,
             clock,
             split,
+            problems: Mutex::default(),
         }
     }
 
@@ -137,11 +139,13 @@ impl FilesStore {
         if let (Some(own_last), Some(remembered)) = (own_last, cursors.last_written)
             && own_last > remembered
         {
-            return Err(clone_detected(&self.machine));
+            return Err(clone_detected(&self.machine, own_last, remembered));
         }
 
         let device_file = self.device_file(&dir, &now)?;
-        let mut last = max_hlc(index.files.values(), &index_path)?;
+        // After the latest event of every log, and after the cursor, which
+        // may be ahead of the own log (below).
+        let mut last = max_hlc(index.files.values(), &index_path)?.max(cursors.last_written);
         let recorded: Vec<RecordedEvent> = batch
             .events
             .into_iter()
@@ -176,6 +180,12 @@ impl FilesStore {
             text.push_str(&serialize_events(&events)?);
             written.push(prepare(&path, &text)?);
         }
+        // The cursor goes ahead of the log, before the renames: a cursor
+        // ahead of the own log passes the clone check, a log ahead of the
+        // cursor doesn't. So a failure or a stop from here on never locks
+        // the device out.
+        cursors.last_written = last;
+        cursors.save(&self.machine)?;
         // All files are written before any is renamed, so a failure leaves
         // the log as it was; only a crash between the renames of a batch
         // that spans periods can leave part of it.
@@ -184,11 +194,23 @@ impl FilesStore {
                 .persist(&path)
                 .map_err(|error| io_error("write", &path, error.error))?;
         }
-        cursors.last_written = recorded
-            .last()
-            .map(|last| last.hlc)
-            .or(cursors.last_written);
+        // The batch is in the log: what follows can fail without failing it.
+        self.clean_own_log(&dir, device_file.split, &index, &recorded, cursors);
+        Ok(Appended::Recorded(recorded))
+    }
 
+    /// Remove the events of forgotten entries from this device's own files,
+    /// for each tombstone this machine hasn't applied yet. A cleaning that
+    /// fails becomes a [problem](Self::take_problems) and stays out of the
+    /// cursors' `cleaned`, so the next append tries it again.
+    fn clean_own_log(
+        &self,
+        dir: &Path,
+        split: Split,
+        index: &Index,
+        recorded: &[RecordedEvent],
+        mut cursors: Cursors,
+    ) {
         let tombstones: Vec<(EntryId, String)> = index
             .files
             .values()
@@ -204,14 +226,49 @@ impl FilesStore {
                     }),
             )
             .collect();
+        let mut cleaned = false;
         for (entry, about) in tombstones {
-            // On an error, the cursors aren't saved, so the cleaning is retried.
-            if cursors.cleaned.insert(entry) {
-                self.forget_in_own_log(&dir, device_file.split, entry, &about)?;
+            if cursors.cleaned.contains(&entry) {
+                continue;
+            }
+            match self.forget_in_own_log(dir, split, entry, &about) {
+                Ok(()) => {
+                    cleaned |= cursors.cleaned.insert(entry);
+                }
+                Err(error) => self.report(
+                    PaceError::with_source(
+                        ErrorKind::InputOutput,
+                        "pace recorded the command but kept the events of the forgotten entry {entry} in this device's files",
+                        error,
+                    )
+                    .attach_context("entry", entry.to_string())
+                    .attach_hint("pace removes them with the next command that writes")
+                    .attach_severity(Severity::Warning),
+                ),
             }
         }
-        cursors.save(&self.machine)?;
-        Ok(Appended::Recorded(recorded))
+        if cleaned && let Err(error) = cursors.save(&self.machine) {
+            self.report(error.attach_severity(Severity::Warning));
+        }
+    }
+
+    /// What went wrong after an append was recorded, such as a cleaning
+    /// that failed; taking them empties the list. The append succeeded, so
+    /// the caller shows them as warnings.
+    pub fn take_problems(&self) -> Vec<PaceError> {
+        std::mem::take(
+            &mut *self
+                .problems
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
+    }
+
+    fn report(&self, problem: Box<PaceError>) {
+        self.problems
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(*problem);
     }
 
     /// Rewrite this device's event files split by `split`, and record the

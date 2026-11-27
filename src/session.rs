@@ -12,7 +12,7 @@ use pace_time::TimeRange;
 
 use crate::clock::clock;
 use crate::{
-    application::{Context, PACE_APP},
+    application::{Context, PACE_APP, print_error},
     clock::{RandomIds, TEST_NOW},
 };
 
@@ -70,13 +70,19 @@ impl Session {
         self.tracker.now()
     }
 
-    /// Run `command` through the tracker.
+    /// Run `command` through the tracker. What went wrong after the
+    /// command was recorded, such as a failed cleaning of forgotten
+    /// entries, is printed as a warning.
     ///
     /// # Errors
     ///
     /// If the command doesn't fit the state, or the store fails.
     pub fn run(&self, command: &Command) -> PaceResult<Outcome> {
-        block_on(self.tracker.run(command))?
+        let outcome = block_on(self.tracker.run(command))?;
+        for problem in self.tracker.store().take_problems() {
+            print_error(&problem);
+        }
+        outcome
     }
 
     /// The state of the entries that overlap `range`, and of the open ones.

@@ -101,7 +101,8 @@ fn device_id_used_by_two_machines_stops_writing() -> TestResult {
 
     assert_eq!(
         error.to_string(),
-        "another machine writes with this machine's device ID"
+        "another machine writes with this machine's device ID: the log of this ID reaches \
+         2026-11-26T09:00:00Z #0, but this machine wrote up to 2026-11-26T08:00:00Z #0"
     );
     assert!(
         error

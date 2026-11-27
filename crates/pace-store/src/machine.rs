@@ -139,18 +139,26 @@ impl Cursors {
     }
 }
 
-/// The error when this machine's own log has events it didn't write.
-pub fn clone_detected(machine: &Path) -> Box<PaceError> {
+/// The error when this machine's own log reaches `own_last`, beyond the
+/// last event it wrote, `remembered`.
+pub fn clone_detected(machine: &Path, own_last: Hlc, remembered: Hlc) -> Box<PaceError> {
     PaceError::new(
         ErrorKind::InputOutput,
-        "another machine writes with this machine's device ID",
+        "another machine writes with this machine's device ID: the log of this ID reaches {own_last}, but this machine wrote up to {remembered}",
     )
+    .attach_context("own_last", hlc_text(own_last))
+    .attach_context("remembered", hlc_text(remembered))
     .attach_hint(format!(
         "pace stopped writing. If this machine was restored from a backup or \
          copied, remove {} so it gets a new device ID",
         machine.join(DEVICE_FILE).display()
     ))
     .attach_error_code("pace::store::device-cloned")
+}
+
+/// An HLC as a timestamp and its counter: `2026-11-26T08:00:00Z #0`.
+fn hlc_text(hlc: Hlc) -> String {
+    format!("{} #{}", hlc.wall(), hlc.counter())
 }
 
 fn write<T: Serialize>(path: &Path, value: &T) -> PaceResult<()> {
