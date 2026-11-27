@@ -17,6 +17,7 @@ use toml::Spanned;
 use crate::commands::role::known_role;
 use crate::commands::tracking::{chosen_moment, track_run};
 use crate::editor::{edit_in_editor, editor_command};
+use crate::output::role_key;
 use crate::prompt::Ask;
 use crate::select::{Target, chosen_entry};
 use crate::{
@@ -257,7 +258,7 @@ fn write_entry_text(
         project,
         project_key,
         tags: entry.tags.iter().map(Tag::as_str).collect(),
-        role: entry.role.map(|role| written_role(role, catalog)),
+        role: entry.role.map(|role| role_key(role, catalog)),
         determined_by: entry.determined_by,
         billable: entry.billable,
         allow_overlap: entry.allow_overlap,
@@ -294,14 +295,6 @@ fn write_entry_text(
     }
     lines.push(String::new());
     Ok(lines.join("\n"))
-}
-
-/// The `role` line's value: the role's key in `catalog`, else its ID,
-/// which reads back as the same role.
-fn written_role(role: RoleId, catalog: &Catalog) -> String {
-    catalog
-        .role_by_id(role)
-        .map_or_else(|| role.to_string(), |known| known.key.to_string())
 }
 
 /// The holds, pauses and catches, as comment lines.

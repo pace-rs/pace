@@ -86,6 +86,15 @@ pub fn role_label(role: RoleId, catalog: &Catalog) -> String {
         .map_or_else(|| role.to_string(), |role| role.name.clone())
 }
 
+/// A role as `--role` and the edited entry name it: its key in
+/// `catalog`, else its ID.
+#[must_use]
+pub fn role_key(role: RoleId, catalog: &Catalog) -> String {
+    catalog
+        .role_by_id(role)
+        .map_or_else(|| role.to_string(), |known| known.key.to_string())
+}
+
 /// Who decided, as the flags say it: `by me`, `by others`.
 #[must_use]
 pub const fn decided_label(determined_by: DeterminedBy) -> &'static str {

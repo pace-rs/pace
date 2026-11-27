@@ -2,12 +2,12 @@
 
 use abscissa_core::{Command, Runnable};
 use jiff::{ToSpan, ZonedDateTime};
-use pace_core::{Catalog, DeterminedBy, Entry, EntryState, ProjectRef, RoleId, State};
+use pace_core::{Catalog, DeterminedBy, Entry, EntryState, ProjectRef, State};
 use pace_error::{ErrorKind, PaceError, PaceResult};
 use pace_time::{TimeFrame, format_duration, format_moment, relative_time};
 use serde::Serialize;
 
-use crate::output::{project_label, role_label};
+use crate::output::{project_label, role_key, role_label};
 use crate::print::print_lines;
 use crate::{
     application::{Context, PACE_APP, exit_on_error},
@@ -295,13 +295,6 @@ fn render_json(
     serde_json::to_string_pretty(&json).map_err(|error| {
         PaceError::with_source(ErrorKind::Internal, "cannot write JSON", error).ask_report()
     })
-}
-
-/// A role for scripts: its key in `catalog`, else its ID.
-fn role_key(role: RoleId, catalog: &Catalog) -> String {
-    catalog
-        .role_by_id(role)
-        .map_or_else(|| role.to_string(), |known| known.key.to_string())
 }
 
 /// Recent entries are those of the last 30 days.
