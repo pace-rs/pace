@@ -1,0 +1,23 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace client list   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+key     name       currency  rate today   rounding
+acme    ACME GmbH  EUR       95.50        up to 15m per entry
+globex  Globex     USD       no rate yet  none
+
+----- stderr -----
+
+$ pace client list   # at 2026-12-01T09:00[Europe/Berlin]
+success: true
+exit_code: 0
+----- stdout -----
+key     name       currency  rate today   rounding
+acme    ACME GmbH  EUR       105.00       up to 15m per entry
+globex  Globex     USD       no rate yet  none
+
+----- stderr -----

@@ -1,0 +1,23 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace client add acme --currency EUR --rate 95   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Added the client `acme` (acme) in EUR at 95.00 an hour from 2026-11-26.
+pace took these defaults: name `acme` from the key, the rate from today (2026-11-26) and no rounding; `pace client edit acme` changes them.
+
+----- stderr -----
+
+--- home/clients.toml ---
+version = 1
+
+[acme]
+name = "acme"
+currency = "EUR"
+
+[[acme.rates]]
+hourly = 95
+from = 2026-11-26

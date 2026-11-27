@@ -1,0 +1,21 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace client add acme --name ACME GmbH   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × pace has no terminal to ask "Which currency does the client pay in, such as EUR?", which has no default
+  help: answer it with `--currency`
+
+
+$ pace client list   # at 09:01
+success: true
+exit_code: 0
+----- stdout -----
+There are no clients yet; `pace client add <key>` adds one.
+
+----- stderr -----

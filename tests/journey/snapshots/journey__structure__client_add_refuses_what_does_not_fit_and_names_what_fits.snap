@@ -1,0 +1,46 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace client add acme --currency EUR --rate 95.555   # at 09:00
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `--rate "95.555"` doesn't fit: `95.555` is not an amount in EUR: write an amount in EUR with at most 2 decimals, like `95.50`
+  help: give `--rate` another value, or leave the flag out
+
+
+$ pace client add acme --currency EURO   # at 09:01
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `--currency "EURO"` doesn't fit: `EURO` is not an ISO 4217 currency code: did you mean `EUR`?
+  help: give `--currency` another value, or leave the flag out
+
+
+$ pace client add acme --currency EUR --rounding-step 0m   # at 09:02
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `--rounding-step "0m"` doesn't fit: the duration `0m` is not positive: give a duration longer than zero, like `15m`
+  help: give `--rounding-step` another value, or leave the flag out
+
+
+$ pace client add acme --from 2026-11-01   # at 09:03
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+error: the following required arguments were not provided:
+  --rate <AMOUNT>
+
+Usage: pace client add --rate <AMOUNT> --from <DAY> <KEY>
+
+For more information, try '--help'.

@@ -23,6 +23,7 @@ Commands:
   undo         Take back the last command of this device
   forget       Remove an entry for good
   role         Keep the roles: the lasting responsibilities time goes to
+  client       Keep the clients: who gets billed, in which currency, at which rates
   config       Look at pace's configuration
   store        Look after how pace keeps its data
   completions  Print the completion script for your shell

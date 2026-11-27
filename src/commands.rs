@@ -1,5 +1,6 @@
 //! The command line: the entry point and its subcommands.
 
+pub mod client;
 pub mod completions;
 pub mod config;
 pub mod corrections;
@@ -14,6 +15,7 @@ use std::path::PathBuf;
 use abscissa_core::{Command, Configurable, Runnable};
 
 use self::{
+    client::ClientCmd,
     completions::CompletionsCmd,
     config::ConfigCmd,
     corrections::{AdjustCmd, ForgetCmd, LogCmd, UndoCmd},
@@ -111,6 +113,10 @@ pub enum PaceCmd {
     /// Keep the roles: the lasting responsibilities time goes to
     #[command(subcommand)]
     Role(RoleCmd),
+
+    /// Keep the clients: who gets billed, in which currency, at which rates
+    #[command(subcommand)]
+    Client(ClientCmd),
 
     /// Look at pace's configuration.
     #[command(subcommand)]

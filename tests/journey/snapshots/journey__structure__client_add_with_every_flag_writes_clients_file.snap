@@ -1,0 +1,23 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace client add acme --name ACME GmbH --currency EUR --rate 95.50 --from 2026-11-01 --rounding-step 15m --rounding-mode up --rounding-per entry   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Added the client `acme` (ACME GmbH) in EUR at 95.50 an hour from 2026-11-01, rounding up to 15m per entry.
+
+----- stderr -----
+
+--- home/clients.toml ---
+version = 1
+
+[acme]
+name = "ACME GmbH"
+currency = "EUR"
+rounding = { per = "entry", step = "15m", mode = "up" }
+
+[[acme.rates]]
+hourly = 95.50
+from = 2026-11-01

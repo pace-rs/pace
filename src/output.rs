@@ -1,11 +1,12 @@
-//! How tracking commands describe what they did.
+//! How commands describe what they did: the sentences of the tracking
+//! commands, lists in a sentence and tables.
 
 use jiff::ZonedDateTime;
 use pace_core::{
     Catalog, Change, Entry, EntryChanges, EntryId, EventKind, HoldSource, Outcome, PauseKind,
     ProjectRef, RecordedEvent, State, Tag,
 };
-use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_error::{ErrorKind, ExitCode, PaceError, PaceResult};
 use pace_time::{format_duration, format_moment};
 
 /// `1 event`, `2 events`.
@@ -16,6 +17,47 @@ pub fn counted(count: usize, noun: &str) -> String {
     } else {
         format!("{count} {noun}s")
     }
+}
+
+/// `items` as a list in a sentence: `a, b and c`.
+#[must_use]
+pub fn listed(items: &[String]) -> String {
+    match items {
+        [] => String::new(),
+        [only] => only.clone(),
+        [first @ .., last] => format!("{} and {last}", first.join(", ")),
+    }
+}
+
+/// `rows` as lines, each column as wide as its widest cell.
+#[must_use]
+pub fn aligned(rows: &[Vec<String>]) -> Vec<String> {
+    let columns = rows.first().map_or(0, Vec::len);
+    let widths: Vec<usize> = (0..columns)
+        .map(|column| {
+            rows.iter()
+                .filter_map(|row| row.get(column))
+                .map(|cell| cell.chars().count())
+                .max()
+                .unwrap_or(0)
+        })
+        .collect();
+    rows.iter()
+        .map(|row| {
+            let cells: Vec<String> = row
+                .iter()
+                .zip(&widths)
+                .map(|(cell, width)| format!("{cell:width$}"))
+                .collect();
+            cells.join("  ").trim_end().to_owned()
+        })
+        .collect()
+}
+
+/// `error` of a value on the command line, which exits with 2.
+#[must_use]
+pub fn usage(error: Box<PaceError>) -> Box<PaceError> {
+    error.attach_exit_code(ExitCode::Usage)
 }
 
 /// A project as the user knows it: its key, or its ID.
@@ -412,6 +454,30 @@ mod tests {
     use super::*;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn listed_items_read_as_sentence() {
+        let items = |words: &[&str]| {
+            words
+                .iter()
+                .map(|&word| word.to_owned())
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(listed(&items(&[])), "");
+        assert_eq!(listed(&items(&["a"])), "a");
+        assert_eq!(listed(&items(&["a", "b", "c"])), "a, b and c");
+    }
+
+    #[test]
+    fn aligned_rows_pad_each_column_to_its_widest_cell() {
+        let rows = vec![
+            vec!["key".to_owned(), "name".to_owned()],
+            vec!["acme".to_owned(), "ACME GmbH".to_owned()],
+        ];
+
+        assert_eq!(aligned(&rows), ["key   name", "acme  ACME GmbH"]);
+    }
 
     fn id<T: std::str::FromStr>(prefix: u16, number: u32) -> Result<T, T::Err> {
         format!("0193a8d0-{prefix:04x}-7000-8000-{number:012x}").parse()

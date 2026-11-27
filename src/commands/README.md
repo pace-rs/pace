@@ -4,7 +4,9 @@ The commands, one file per command or group of commands; `src/commands.rs`
 declares the entry point and the subcommands. A tracking command opens a
 `Session`, resolves the project, the entry and the times, and hands a
 `pace_core::Command` to the tracker. A command that adds something, such as
-`role add`, drives a flow of `questions` and writes its field edits.
+`role add` or `client add`, drives a flow of `questions` and writes its field
+edits. `role edit` and `client edit` open a file, or one client's table, in the
+editor until the catalog reads it.
 
 ## Files
 
@@ -12,6 +14,7 @@ declares the entry point and the subcommands. A tracking command opens a
 
 | File                               | What it holds                                                                         |
 | ---------------------------------- | ------------------------------------------------------------------------------------- |
+| [`client.rs`](client.rs)           | `pace client`: add, list and edit the clients in `clients.toml`.                      |
 | [`completions.rs`](completions.rs) | `pace completions`: the completion script for a shell.                                |
 | [`config.rs`](config.rs)           | `pace config`                                                                         |
 | [`corrections.rs`](corrections.rs) | Correcting the record: `adjust`, `log`, `undo`, `forget`.                             |

@@ -6,9 +6,9 @@ project before a command runs. It is the only place that reads the environment:
 the terminal, the editor, the hostname and `PACE_TEST_NOW` reach the commands in
 the `Context`. `commands/` holds the commands, and `session.rs` opens the
 tracker over the `files` backend. The commands write what the user reads through
-`print.rs`; `output.rs` words the sentences of the tracking commands, and
-`prompt.rs` asks the user. A command that adds something asks through the
-question machine in `questions.rs`: its flow gives the questions without I/O.
+`print.rs`; `output.rs` words the sentences of the commands, and `prompt.rs`
+asks the user. A command that adds something asks through the question machine
+in `questions.rs`: its flow gives the questions without I/O.
 
 ## Files
 
@@ -24,7 +24,7 @@ question machine in `questions.rs`: its flow gives the questions without I/O.
 | [`editor.rs`](editor.rs)           | Editing text in the user's editor: `VISUAL`, else `EDITOR`; and the round trip that opens a file again until its check takes it.   |
 | [`lib.rs`](lib.rs)                 | pace: a local-first command-line time tracker for work and daily life.                                                             |
 | [`origin.rs`](origin.rs)           | Where a setting or a directory comes from.                                                                                         |
-| [`output.rs`](output.rs)           | How tracking commands describe what they did.                                                                                      |
+| [`output.rs`](output.rs)           | How commands describe what they did: the sentences of the tracking commands, lists in a sentence and tables.                       |
 | [`print.rs`](print.rs)             | Writing what pace says to the standard output, as an error instead of a panic.                                                     |
 | [`project.rs`](project.rs)         | The project context: which project the working directory belongs to.                                                               |
 | [`prompt.rs`](prompt.rs)           | Asking the user, only when a terminal is attached: the `Ask` trait and the `Terminal` that the edge finds once.                    |

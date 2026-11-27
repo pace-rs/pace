@@ -1,0 +1,58 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+success: true
+exit_code: 0
+----- stdout -----
+Saved the client `acme` (ACME AG) in [SANDBOX]/home/clients.toml.
+
+----- stderr -----
+
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::clients::invalid-value
+
+  × `95.555` is not an amount in EUR
+    ╭─[[SANDBOX]/home/clients.toml:10:10]
+  9 │ [[acme.rates]]
+ 10 │ hourly = 95.555
+    ·          ───┬──
+    ·             ╰── this value
+ 11 │ from = 2026-01-01
+    ╰────
+  help: write an amount in EUR with at most 2 decimals, like `95.50`
+
+
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × pace doesn't know the client `amce`
+  help: did you mean `acme`?
+
+
+--- home/clients.toml ---
+version = 1
+
+# pays late
+[acme]
+name = "ACME AG"
+currency = "EUR"
+rounding = { per = "entry", step = "15m", mode = "up" }
+
+[[acme.rates]]
+hourly = 95.50
+from = 2026-01-01
+
+[[acme.rates]]
+hourly = 110
+from = 2026-12-01
+
+[globex]
+name = "Globex"
+currency = "USD"

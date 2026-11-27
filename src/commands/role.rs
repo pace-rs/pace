@@ -12,7 +12,7 @@ use pace_store::{
 
 use crate::clock::{RandomIds, clock_for_run};
 use crate::editor::{EditedFile, edit_in_editor, edit_until_checked, editor_command};
-use crate::output::counted;
+use crate::output::{aligned, counted, listed, usage};
 use crate::print::print_lines;
 use crate::prompt::Ask;
 use crate::questions::add_role::{AddRoleFlow, RoleFlags};
@@ -129,15 +129,6 @@ fn added_lines(asked: &Asked<Role>) -> Vec<String> {
     lines
 }
 
-/// `items` as a list in a sentence: `a, b and c`.
-fn listed(items: &[String]) -> String {
-    match items {
-        [] => String::new(),
-        [only] => only.clone(),
-        [first @ .., last] => format!("{} and {last}", first.join(", ")),
-    }
-}
-
 /// `pace role list`
 #[derive(clap::Args, Command, Debug)]
 pub struct RoleListCmd {
@@ -195,30 +186,6 @@ fn role_lines(catalog: &Catalog, archived: bool) -> Vec<String> {
         rows.push(row);
     }
     aligned(&rows)
-}
-
-/// `rows` as lines, each column as wide as its widest cell.
-fn aligned(rows: &[Vec<String>]) -> Vec<String> {
-    let columns = rows.first().map_or(0, Vec::len);
-    let widths: Vec<usize> = (0..columns)
-        .map(|column| {
-            rows.iter()
-                .filter_map(|row| row.get(column))
-                .map(|cell| cell.chars().count())
-                .max()
-                .unwrap_or(0)
-        })
-        .collect();
-    rows.iter()
-        .map(|row| {
-            let cells: Vec<String> = row
-                .iter()
-                .zip(&widths)
-                .map(|(cell, width)| format!("{cell:width$}"))
-                .collect();
-            cells.join("  ").trim_end().to_owned()
-        })
-        .collect()
 }
 
 /// `pace role archive`
@@ -403,11 +370,6 @@ fn no_terminal_to_edit(roles_file: &Path) -> Box<PaceError> {
 /// `text` as a role key; a usage error if it is none.
 fn role_key(text: &str) -> PaceResult<RoleKey> {
     text.parse().map_err(usage)
-}
-
-/// `error` of a value on the command line, which exits with 2.
-fn usage(error: Box<PaceError>) -> Box<PaceError> {
-    error.attach_exit_code(ExitCode::Usage)
 }
 
 #[cfg(test)]
@@ -599,18 +561,5 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error.kind(), ErrorKind::InputOutput);
-    }
-
-    #[test]
-    fn listed_defaults_read_as_sentence() {
-        let items = |words: &[&str]| {
-            words
-                .iter()
-                .map(|&word| word.to_owned())
-                .collect::<Vec<_>>()
-        };
-
-        assert_eq!(listed(&items(&["a"])), "a");
-        assert_eq!(listed(&items(&["a", "b", "c"])), "a, b and c");
     }
 }

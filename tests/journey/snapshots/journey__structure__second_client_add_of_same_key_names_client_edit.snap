@@ -1,0 +1,21 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+$ pace client add acme --currency EUR   # at 09:00
+success: true
+exit_code: 0
+----- stdout -----
+Added the client `acme` (acme) in EUR.
+pace took these defaults: name `acme` from the key, no rate and no rounding; `pace client edit acme` changes them.
+
+----- stderr -----
+
+$ pace client add acme --currency USD   # at 09:01
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × the client `acme` exists already
+  help: change it with `pace client edit acme`

@@ -1,0 +1,11 @@
+---
+source: tests/journey/structure.rs
+expression: output
+---
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+  × `pace client edit` has no terminal and no editor in VISUAL or EDITOR to open the client `acme`
+  help: edit [SANDBOX]/home/clients.toml by hand, or set VISUAL or EDITOR
