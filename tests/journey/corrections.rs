@@ -483,3 +483,29 @@ fn log_with_role_names_role_and_records_decided_and_billable() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn adjust_to_project_role_and_billable_writes_no_exception() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = journey_and_events(
+        &sandbox,
+        &[
+            ("08:50", &["role", "add", "work", "--name", "Work"]),
+            ("08:51", &["role", "add", "health", "--name", "Health"]),
+            ("08:52", &["client", "add", "acme", "--currency", "EUR"]),
+            (
+                "08:53",
+                &[
+                    "project", "add", "webshop", "--client", "acme", "--role", "work",
+                ],
+            ),
+            ("09:00", &["--project", "webshop", "begin", "Write offer"]),
+            ("09:10", &["adjust", "--role", "work", "--billable"]),
+            ("09:20", &["adjust", "--role", "health", "--not-billable"]),
+            ("09:30", &["adjust", "--role", "work", "--billable"]),
+        ],
+    )?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}

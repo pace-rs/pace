@@ -346,7 +346,7 @@ fn adjusted(
             parts.push(format!("untagged {}", removed.join(", ")));
         }
     }
-    parts.extend(marks_changed(before, changes, catalog));
+    parts.extend(marks_changed(before, after, changes, catalog));
     if changes.allow_overlap {
         parts.push("overlap allowed".to_owned());
     }
@@ -363,15 +363,26 @@ fn adjusted(
 }
 
 /// The parts of an adjustment of role, who decided and billable:
-/// `role Work (was Health)`, `decided by others`, `not billable`.
-fn marks_changed(before: &Entry, changes: &EntryChanges, catalog: &Catalog) -> Vec<String> {
+/// `role Work (was Health)`, `decided by others`, `not billable`. An
+/// entry of a project that loses its own role takes the project's:
+/// `role as its project (was Health)`.
+fn marks_changed(
+    before: &Entry,
+    after: &Entry,
+    changes: &EntryChanges,
+    catalog: &Catalog,
+) -> Vec<String> {
     let mut parts = Vec::new();
-    parts.extend(changed(
-        "role",
-        &changes.role,
-        before.role.as_ref(),
-        |role| role_label(*role, catalog),
-    ));
+    let was_role = before.role.map(|role| role_label(role, catalog));
+    match (&changes.role, &after.project) {
+        (Change::Clear, Some(_)) => parts.push(format!(
+            "role as its project ({})",
+            was_role.map_or_else(|| "had none".to_owned(), |was| format!("was {was}"))
+        )),
+        (role, _) => parts.extend(changed("role", role, before.role.as_ref(), |role| {
+            role_label(*role, catalog)
+        })),
+    }
     match &changes.determined_by {
         Change::Keep => {}
         Change::Set(determined_by) => {
@@ -379,10 +390,12 @@ fn marks_changed(before: &Entry, changes: &EntryChanges, catalog: &Catalog) -> V
         }
         Change::Clear => parts.push("who decided removed".to_owned()),
     }
-    match &changes.billable {
-        Change::Keep => {}
-        Change::Set(billable) => parts.push(billable_label(*billable).to_owned()),
-        Change::Clear => parts.push("billable as its project".to_owned()),
+    // without a project, an entry without its own flag is not billable
+    match (&changes.billable, &after.project) {
+        (Change::Keep, _) => {}
+        (Change::Set(billable), _) => parts.push(billable_label(*billable).to_owned()),
+        (Change::Clear, Some(_)) => parts.push("billable as its project".to_owned()),
+        (Change::Clear, None) => parts.push(billable_label(false).to_owned()),
     }
     parts
 }

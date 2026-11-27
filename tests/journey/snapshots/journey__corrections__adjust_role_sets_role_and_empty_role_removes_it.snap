@@ -101,5 +101,4 @@ about = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
 hlc = "2026-11-26T08:20:00.000Z/0"
 entry = "[ID-3]"
 determined-by = "self"
-billable = false
-cleared = ["role"]
+cleared = ["role", "billable"]

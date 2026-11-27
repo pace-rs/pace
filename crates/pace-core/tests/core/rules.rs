@@ -6,9 +6,9 @@ use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Batch, BatchId, Catalog, Change, Command, DeterminedBy, DeviceId, EntryId, EntryState,
-    EntryVerb, Event, EventId, EventKind, Hlc, HoldSource, Ids, OVERLAP, PauseKind, Policy,
-    ProjectRecord, ProjectRef, RecordedEvent, Role, RoleId, RoleKind, Rules, State,
+    Batch, BatchId, Catalog, Change, Command, DeterminedBy, DeviceId, EntryChanges, EntryId,
+    EntryState, EntryVerb, Event, EventId, EventKind, Hlc, HoldSource, Ids, OVERLAP, PauseKind,
+    Policy, ProjectRecord, ProjectRef, RecordedEvent, Role, RoleId, RoleKind, Rules, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
     testing::SequentialIds,
 };
@@ -2167,6 +2167,90 @@ fn adjust_changes_role_determined_by_and_billable_only_where_they_differ() -> Te
 
     assert_eq!(changes.role, Change::Keep);
     assert_eq!(changes.determined_by, Change::Set(DeterminedBy::Others));
+    assert_eq!(changes.billable, Change::Keep);
+    Ok(())
+}
+
+/// The changes of the one `entry.adjusted` of `batch`.
+fn adjusted_changes(batch: &Batch) -> Result<&EntryChanges, Box<dyn std::error::Error>> {
+    match batch.events.as_slice() {
+        [
+            Event {
+                kind: EventKind::EntryAdjusted { changes, .. },
+                ..
+            },
+        ] => Ok(changes),
+        other => Err(format!("expected one entry.adjusted, found {other:?}").into()),
+    }
+}
+
+#[test]
+fn adjust_to_project_role_and_billable_has_nothing_to_change() -> TestResult {
+    let mut world = world_with_webshop(false)?;
+    _ = world.run("09:00", &begin_in_webshop("09:00")?)?;
+
+    let error = world
+        .run(
+            "09:10",
+            &Command::Adjust(Adjust {
+                role: Change::Set(role_id(WORK_ID)?),
+                billable: Change::Set(true),
+                ..Adjust::default()
+            }),
+        )
+        .err()
+        .ok_or("the project's role and flag must change nothing")?;
+
+    assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
+fn adjust_to_project_role_and_billable_clears_entry_own_values() -> TestResult {
+    let mut world = world_with_webshop(false)?;
+    _ = world.run(
+        "09:00",
+        &Command::Begin(Begin {
+            project: Some(webshop_key()?),
+            role: Some(role_id(FAMILY_ID)?),
+            billable: Some(false),
+            ..Begin::default()
+        }),
+    )?;
+
+    let batch = world.run(
+        "09:10",
+        &Command::Adjust(Adjust {
+            role: Change::Set(role_id(WORK_ID)?),
+            billable: Change::Set(true),
+            ..Adjust::default()
+        }),
+    )?;
+
+    let changes = adjusted_changes(&batch)?;
+    assert_eq!(changes.role, Change::Clear);
+    assert_eq!(changes.billable, Change::Clear);
+    Ok(())
+}
+
+#[test]
+fn adjust_compares_role_and_billable_with_new_project() -> TestResult {
+    let mut world = world_with_webshop(false)?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+
+    let batch = world.run(
+        "09:10",
+        &Command::Adjust(Adjust {
+            project: Change::Set(webshop_key()?),
+            role: Change::Set(role_id(WORK_ID)?),
+            billable: Change::Set(true),
+            ..Adjust::default()
+        }),
+    )?;
+
+    let changes = adjusted_changes(&batch)?;
+    assert_eq!(changes.project, Change::Set(webshop_key()?));
+    assert_eq!(changes.role, Change::Keep);
     assert_eq!(changes.billable, Change::Keep);
     Ok(())
 }

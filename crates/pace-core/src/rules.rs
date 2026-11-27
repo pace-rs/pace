@@ -283,7 +283,7 @@ impl Rules<'_> {
 
         let start = adjust.start.clone().unwrap_or_else(|| entry.start.clone());
         let end = adjust.end.clone().or_else(|| entry.end.clone());
-        let changes = adjust.changes(entry);
+        let changes = self.without_project_values(adjust.changes(entry), entry);
         if changes.is_empty() {
             return Err(nothing_to_do(
                 "nothing to change",
@@ -292,12 +292,7 @@ impl Rules<'_> {
         }
         if changes.start.is_some() || changes.end.is_some() {
             self.check_moved_times(entry, &changes, &start, end.as_ref())?;
-            let project = match &changes.project {
-                Change::Keep => entry.project.as_ref(),
-                Change::Set(project) => Some(project),
-                Change::Clear => None,
-            };
-            if !self.overlap_allowed(adjust.allow_overlap, project) {
+            if !self.overlap_allowed(adjust.allow_overlap, project_after(entry, &changes)) {
                 self.refuse_overlap(
                     &start,
                     end.as_ref().unwrap_or(self.now),
@@ -422,6 +417,26 @@ impl Rules<'_> {
         billable.filter(|billable| *billable != project_billable)
     }
 
+    /// `changes` without a role or billable flag equal to that of the
+    /// project the entry has after them: the entry takes its project's
+    /// again, so a changed project role applies to it.
+    fn without_project_values(&self, mut changes: EntryChanges, entry: &Entry) -> EntryChanges {
+        let project = project_after(entry, &changes).cloned();
+        if let Change::Set(role) = changes.role
+            && self.role_exception(Some(role), project.as_ref()).is_none()
+        {
+            changes.role = own_value_cleared(entry.role.as_ref());
+        }
+        if let Change::Set(billable) = changes.billable
+            && self
+                .billable_exception(Some(billable), project.as_ref())
+                .is_none()
+        {
+            changes.billable = own_value_cleared(entry.billable.as_ref());
+        }
+        changes
+    }
+
     fn refuse_overlap(
         &self,
         start: &ZonedDateTime,
@@ -537,6 +552,25 @@ fn real_change<T: Clone + PartialEq>(change: &Change<T>, current: Option<&T>) ->
         (Change::Set(value), Some(current)) if value == current => Change::Keep,
         (Change::Clear, None) | (Change::Keep, _) => Change::Keep,
         (change, _) => change.clone(),
+    }
+}
+
+/// The project `entry` has after `changes`.
+const fn project_after<'a>(entry: &'a Entry, changes: &'a EntryChanges) -> Option<&'a ProjectRef> {
+    match &changes.project {
+        Change::Keep => entry.project.as_ref(),
+        Change::Set(project) => Some(project),
+        Change::Clear => None,
+    }
+}
+
+/// The change that leaves an entry without its own value: none needed
+/// when it has none.
+const fn own_value_cleared<T>(own: Option<&T>) -> Change<T> {
+    if own.is_some() {
+        Change::Clear
+    } else {
+        Change::Keep
     }
 }
 
