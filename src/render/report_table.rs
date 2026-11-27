@@ -244,7 +244,7 @@ fn time_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         let days: Vec<BarRow> = report
             .days
             .iter()
-            .map(|day_time| BarRow::new(day(day_time.date), day_time.net, false))
+            .map(|day_time| BarRow::new(day(day_time.date), day_time.net, day_time.running))
             .collect();
         lines.push(String::new());
         lines.extend(bar_part("Time per day", &days, report.tracked, canvas));
@@ -517,9 +517,13 @@ fn decided_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
     let report = table.report;
     let decided = &report.decided;
     let rows = [
-        BarRow::new("By me", decided.by_me, false),
-        BarRow::new("By others", decided.by_others, false),
-        BarRow::new("Unmarked", decided.unmarked, false),
+        BarRow::new("By me", decided.by_me.net, decided.by_me.running),
+        BarRow::new(
+            "By others",
+            decided.by_others.net,
+            decided.by_others.running,
+        ),
+        BarRow::new("Unmarked", decided.unmarked.net, decided.unmarked.running),
     ];
     bar_part("Who decided", &rows, report.tracked, canvas)
 }

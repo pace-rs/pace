@@ -59,6 +59,8 @@ pub struct DayTime {
     pub date: Date,
     /// The net time that lies on it.
     pub net: SignedDuration,
+    /// Whether a running entry counts in it, up to now.
+    pub running: bool,
 }
 
 /// A role's weekly target, scaled to the period, against its actual time.
@@ -89,20 +91,21 @@ pub struct BudgetUse {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct DecidedShares {
     /// Self-determined.
-    pub by_me: SignedDuration,
+    pub by_me: TimeShare,
     /// Other-determined.
-    pub by_others: SignedDuration,
+    pub by_others: TimeShare,
     /// Not marked.
-    pub unmarked: SignedDuration,
+    pub unmarked: TimeShare,
 }
 
 impl DecidedShares {
-    fn add(&mut self, determined_by: Option<DeterminedBy>, net: SignedDuration) {
-        match determined_by {
-            Some(DeterminedBy::Me) => self.by_me += net,
-            Some(DeterminedBy::Others) => self.by_others += net,
-            None => self.unmarked += net,
-        }
+    fn add(&mut self, determined_by: Option<DeterminedBy>, net: SignedDuration, running: bool) {
+        let share = match determined_by {
+            Some(DeterminedBy::Me) => &mut self.by_me,
+            Some(DeterminedBy::Others) => &mut self.by_others,
+            None => &mut self.unmarked,
+        };
+        share.add(net, running);
     }
 }
 
@@ -112,7 +115,7 @@ pub(crate) struct TimeTally {
     pub(crate) roles: BTreeMap<Option<RoleId>, TimeShare>,
     pub(crate) projects: BTreeMap<ProjectRef, TimeShare>,
     pub(crate) back_flow: TimeShare,
-    pub(crate) days: BTreeMap<Date, SignedDuration>,
+    pub(crate) days: BTreeMap<Date, TimeShare>,
     pub(crate) decided: DecidedShares,
 }
 
@@ -122,7 +125,7 @@ impl TimeTally {
         let days = period
             .map_or_else(Vec::new, |period| per_day(period, zone))
             .into_iter()
-            .map(|(date, _)| (date, SignedDuration::ZERO))
+            .map(|(date, _)| (date, TimeShare::default()))
             .collect();
         Self {
             days,
@@ -145,10 +148,10 @@ impl TimeTally {
             .flat_map(|stretch| per_day(stretch, zone))
             .collect();
         let net: SignedDuration = parts.iter().map(|(_, net)| *net).sum();
-        for (date, part) in parts {
-            *self.days.entry(date).or_default() += part;
-        }
         let running = entry.is_open();
+        for (date, part) in parts {
+            self.days.entry(date).or_default().add(part, running);
+        }
         self.roles
             .entry(entry.effective_role(catalog))
             .or_default()
@@ -161,12 +164,12 @@ impl TimeTally {
                 .add(net, running),
             None => self.back_flow.add(net, running),
         }
-        self.decided.add(entry.determined_by, net);
+        self.decided.add(entry.determined_by, net, running);
     }
 
     /// The net time of all entries.
     pub(crate) fn tracked(&self) -> SignedDuration {
-        self.days.values().copied().sum()
+        self.days.values().map(|share| share.net).sum()
     }
 
     /// The net time per role, the most first; of two with one time, by key,
@@ -211,9 +214,10 @@ impl TimeTally {
     pub(crate) fn day_times(&self) -> Vec<DayTime> {
         self.days
             .iter()
-            .map(|(date, net)| DayTime {
+            .map(|(date, share)| DayTime {
                 date: *date,
-                net: *net,
+                net: share.net,
+                running: share.running,
             })
             .collect()
     }

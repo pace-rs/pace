@@ -398,6 +398,41 @@ fn running_entry_counts_up_to_now_and_is_marked() -> TestResult {
 }
 
 #[test]
+fn running_entry_marks_its_days_and_its_share_of_who_decided() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.log("2026-11-25T09:00", "2026-11-25T10:00", Fields::default())?;
+    _ = log.begin(
+        "2026-11-25T23:00",
+        Fields {
+            determined_by: Some(DeterminedBy::Others),
+            ..Fields::default()
+        },
+    )?;
+
+    let report = plain(&log, &days("2026-11-24", "2026-11-27")?, "2026-11-26T01:00")?;
+
+    let marks: Vec<(Date, bool)> = report
+        .days
+        .iter()
+        .map(|day| (day.date, day.running))
+        .collect();
+    assert_eq!(
+        marks,
+        vec![
+            (date("2026-11-24")?, false),
+            (date("2026-11-25")?, true),
+            (date("2026-11-26")?, true)
+        ]
+    );
+    let decided = &report.decided;
+    assert!(decided.by_others.running);
+    assert_eq!(decided.by_others.net, hours(2));
+    assert!(!decided.unmarked.running);
+    assert!(!decided.by_me.running);
+    Ok(())
+}
+
+#[test]
 fn holds_and_pauses_are_not_net_time_of_their_day() -> TestResult {
     let mut log = Log::new(1)?;
     let entry = log.begin("2026-11-24T09:00", on(WEBSHOP)?)?;
@@ -728,7 +763,11 @@ fn who_decided_shares_time_by_me_by_others_and_unmarked() -> TestResult {
 
     let decided = &report.decided;
     assert_eq!(
-        (decided.by_me, decided.by_others, decided.unmarked),
+        (
+            decided.by_me.net,
+            decided.by_others.net,
+            decided.unmarked.net
+        ),
         (hours(3), hours(1), hours(2))
     );
     Ok(())
