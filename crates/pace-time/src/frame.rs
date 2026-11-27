@@ -60,8 +60,8 @@ impl TimeFrame {
     ///
     /// # Errors
     ///
-    /// If `from` lies after `to`, or the dates leave the range jiff can
-    /// calculate with.
+    /// If `from` lies after `to`, or after today without `to`, or the dates
+    /// leave the range jiff can calculate with.
     pub fn resolve(&self, now: &ZonedDateTime, week_start: Weekday) -> PaceResult<TimeRange> {
         let zone = now.time_zone();
         let today = now.date();
@@ -104,6 +104,18 @@ fn between(from: Option<Date>, to: Option<Date>, now: &ZonedDateTime) -> PaceRes
         .attach_hint("swap `--from` and `--to`")
         .attach_context("from", from.to_string())
         .attach_context("to", to.to_string()));
+    }
+
+    let today = now.date();
+    if let (Some(from), None) = (from, to)
+        && from > today
+    {
+        return Err(PaceError::new(
+            ErrorKind::InvalidInput,
+            "the time frame starts on {from}, after today",
+        )
+        .attach_hint(format!("give `--from` today, {today}, or an earlier day"))
+        .attach_context("from", from.to_string()));
     }
 
     let zone = now.time_zone();

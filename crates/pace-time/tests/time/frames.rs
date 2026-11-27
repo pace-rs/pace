@@ -335,6 +335,29 @@ fn from_after_to_is_rejected() -> TestResult {
 }
 
 #[test]
+fn only_from_in_the_future_is_rejected() -> TestResult {
+    let frame = TimeFrame::Between {
+        from: Some("2026-11-27".parse()?),
+        to: None,
+    };
+
+    let error = frame
+        .resolve(&at("2026-11-26T14:30[Europe/Berlin]")?, Weekday::Monday)
+        .err()
+        .ok_or("from after today must fail")?;
+
+    assert_eq!(
+        error.to_string(),
+        "the time frame starts on 2026-11-27, after today"
+    );
+    assert_eq!(
+        error.hint(),
+        Some("give `--from` today, 2026-11-26, or an earlier day")
+    );
+    Ok(())
+}
+
+#[test]
 fn range_contains_its_start_but_not_its_end() -> TestResult {
     let range = TimeRange::new(
         Some(at("2021-02-02T00:00[Europe/Berlin]")?),
