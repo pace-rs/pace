@@ -113,3 +113,23 @@ fn linux_defaults_follow_xdg() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn portable_mode_keeps_files_next_to_the_executable() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write("stick/pace.global.toml", "")?;
+
+    let shown = run(sandbox
+        .pace_copied_to("stick")?
+        .args(["config", "show", "--origin"]))?;
+    let began = run(sandbox
+        .pace_copied_to("stick")?
+        .env("PACE_TEST_NOW", "2026-11-26T09:00[Europe/Berlin]")
+        .args(["begin", "Write offer"]))?;
+
+    assert!(began.contains("exit_code: 0"), "{began}");
+    assert!(sandbox.path("stick/data/events").is_dir(), "{began}");
+    assert!(sandbox.path("stick/machine").is_dir(), "{began}");
+    sandbox.settings().bind(|| insta::assert_snapshot!(shown));
+    Ok(())
+}

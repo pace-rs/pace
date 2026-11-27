@@ -310,3 +310,17 @@ fn executable_without_global_config_is_not_portable() -> Result<(), Box<dyn std:
     assert_eq!(inputs.portable, None);
     Ok(())
 }
+
+#[test]
+fn empty_flag_in_empty_working_directory_cannot_be_found() {
+    let error = Inputs::gather(None, Some(Path::new("")), no_env, Path::new(""), None).err();
+
+    assert_eq!(
+        error.as_ref().map(ToString::to_string).as_deref(),
+        Some("cannot find ")
+    );
+    assert_eq!(
+        error.as_ref().and_then(|error| error.hint()),
+        Some("give an absolute path")
+    );
+}

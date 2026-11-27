@@ -1,0 +1,23 @@
+---
+source: tests/journey/directories.rs
+expression: shown
+---
+success: true
+exit_code: 0
+----- stdout -----
+# config file: [SANDBOX]/stick/pace.global.toml (portable mode, next to the executable)
+# data:        [SANDBOX]/stick/data (portable mode, next to the executable, not there yet)
+# machine:     [SANDBOX]/stick/machine (portable mode, next to the executable, not there yet)
+# project:     none (no --project, PACE_PROJECT, manifest or path mapping)
+
+time-zone = "system"   # default
+week-start = "monday"  # default
+most-recent-count = 9  # default
+
+[holds]
+default-source = "unknown"  # default
+
+[storage]
+split = "month"  # default
+
+----- stderr -----

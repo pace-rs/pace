@@ -202,7 +202,25 @@ impl Sandbox {
     /// `pace` run in `work/` without any `PACE_*` variable, and without the
     /// variables by which the caller's shell sets colour, graphics or width.
     pub fn bare_pace(&self) -> Command {
-        let mut command = pace();
+        self.bare(pace())
+    }
+
+    /// A copy of the `pace` binary in the sandbox directory `relative`, run
+    /// as [`Sandbox::bare_pace`] runs, for portable mode.
+    pub fn pace_copied_to(&self, relative: &str) -> std::io::Result<Command> {
+        let binary = Path::new(env!("CARGO_BIN_EXE_pace"));
+        let name = binary.file_name().ok_or_else(|| {
+            std::io::Error::other(format!("{} has no file name", binary.display()))
+        })?;
+        let copy = self.path(relative).join(name);
+        std::fs::create_dir_all(self.path(relative))?;
+        _ = std::fs::copy(binary, &copy)?;
+        Ok(self.bare(Command::new(copy)))
+    }
+
+    /// `command` without the caller's `PACE_*` and output variables, in
+    /// `work/`.
+    fn bare(&self, mut command: Command) -> Command {
         for (key, _) in std::env::vars_os() {
             if key.to_string_lossy().starts_with("PACE_") {
                 _ = command.env_remove(key);
