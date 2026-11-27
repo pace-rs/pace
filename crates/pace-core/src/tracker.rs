@@ -9,6 +9,7 @@ use pace_time::TimeRange;
 use crate::{
     Appended, Clock, Command, DeviceId, EventKind, EventStore, Ids, Policy, RecordedEvent, Rules,
     State,
+    command::{End, Resume},
 };
 
 /// How often [`Tracker::run`] reads and decides before it gives up on
@@ -163,6 +164,13 @@ fn scope(command: &Command, now: &ZonedDateTime) -> PaceResult<TimeRange> {
             let start = begin.at.as_ref().unwrap_or(now).min(now).clone();
             TimeRange::new(Some(start), Some(now.clone()))
         }
+        // A command about an entry it names, or about the last batch, reads
+        // everything: the entry may have ended long ago, and the rules say so.
+        Command::Resume(Resume { entry: Some(_), .. })
+        | Command::End(End { entry: Some(_), .. })
+        | Command::Adjust(_)
+        | Command::Undo
+        | Command::Forget(_) => TimeRange::new(None, None),
         Command::Hold(_)
         | Command::Pause(_)
         | Command::Resume(_)
@@ -174,6 +182,5 @@ fn scope(command: &Command, now: &ZonedDateTime) -> PaceResult<TimeRange> {
             Some((&log.start).min(&log.end).clone()),
             Some((&log.start).max(&log.end).clone()),
         ),
-        Command::Adjust(_) | Command::Undo | Command::Forget(_) => TimeRange::new(None, None),
     }
 }

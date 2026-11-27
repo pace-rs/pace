@@ -1,0 +1,30 @@
+---
+source: tests/journey/tracking.rs
+expression: output
+---
+$ pace end   # at 09:15
+success: true
+exit_code: 0
+----- stdout -----
+Ended [ID-1] "Write offer" at 09:15 after 15m.
+
+----- stderr -----
+
+$ pace end [ID-1]   # at 09:30
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × the entry ended at 09:15
+  help: `pace adjust --end` moves its end
+
+
+$ pace resume [ID-1]   # at 09:31
+success: false
+exit_code: 3
+----- stdout -----
+
+----- stderr -----
+  × the entry ended at 09:15
+  help: `pace adjust --end` moves its end

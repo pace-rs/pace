@@ -7,9 +7,10 @@ use pace_core::testing::contract::run_store_contract;
 use pace_core::{
     Clock, Command, DeviceId, EntryState, EventStore, Policy, RecordedEvent, SequentialIds, State,
     Tracker,
-    command::{Adjust, Begin, End, Log},
+    command::{Adjust, Begin, End, Log, Resume},
     testing::{MemoryStore, Raced, TestClock},
 };
+use pace_error::ExitCode;
 use pace_time::TimeRange;
 
 use crate::TestResult;
@@ -332,5 +333,51 @@ fn store_contract_names_check_that_broken_store_fails() -> TestResult {
         "the store breaks its contract: the HLC never goes back when the clock does: \
          nothing is running"
     );
+    Ok(())
+}
+
+/// A tracker with an entry from 09:00 to 09:15, at 09:30.
+fn tracker_after_an_ended_entry()
+-> Result<(Tracker<MemoryStore>, pace_core::EntryId), Box<dyn std::error::Error>> {
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let store = MemoryStore::new(device(1)?, clock.clone());
+    let tracker = tracker(store, &clock, 1)?;
+    _ = pollster::block_on(tracker.run(&Command::Begin(Begin::default())))?;
+    clock.set(at("2026-11-26T09:15[Europe/Berlin]")?);
+    let ended = pollster::block_on(tracker.run(&Command::End(End::default())))?;
+    let entry = ended.state.entries().next().ok_or("entry")?.id;
+    clock.set(at("2026-11-26T09:30[Europe/Berlin]")?);
+    Ok((tracker, entry))
+}
+
+#[test]
+fn end_naming_an_ended_entry_says_when_it_ended() -> TestResult {
+    let (tracker, entry) = tracker_after_an_ended_entry()?;
+
+    let error = pollster::block_on(tracker.run(&Command::End(End {
+        entry: Some(entry),
+        ..End::default()
+    })))
+    .err()
+    .ok_or("the end passed")?;
+
+    assert_eq!(error.to_string(), "the entry ended at 09:15");
+    assert_eq!(error.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
+fn resume_naming_an_ended_entry_says_when_it_ended() -> TestResult {
+    let (tracker, entry) = tracker_after_an_ended_entry()?;
+
+    let error = pollster::block_on(tracker.run(&Command::Resume(Resume {
+        entry: Some(entry),
+        ..Resume::default()
+    })))
+    .err()
+    .ok_or("the resume passed")?;
+
+    assert_eq!(error.to_string(), "the entry ended at 09:15");
+    assert_eq!(error.exit_code(), ExitCode::NothingToDo);
     Ok(())
 }
