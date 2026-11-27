@@ -142,6 +142,28 @@ mod tests {
     }
 
     #[test]
+    fn debug_names_files_in_order_without_text() {
+        let parsed = Parsed::default();
+        parsed.remember(
+            PathBuf::from("2026-11.toml"),
+            "begun".to_owned(),
+            Arc::new([]),
+        );
+        parsed.remember(
+            PathBuf::from("2026-10.toml"),
+            "ended".to_owned(),
+            Arc::new([]),
+        );
+
+        let debug = format!("{parsed:?}");
+
+        assert_eq!(
+            debug,
+            r#"Parsed { files: ["2026-10.toml", "2026-11.toml"] }"#
+        );
+    }
+
+    #[test]
     fn failed_parse_is_not_kept() {
         let parsed = Parsed::default();
         let calls = Cell::new(0);
