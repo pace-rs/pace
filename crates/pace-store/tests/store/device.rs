@@ -10,7 +10,10 @@ use pace_core::{
     testing::SequentialIds,
     testing::TestClock,
 };
-use pace_store::{FilesStore, Split, Tracker, device_id, testing::scratch_dir};
+use pace_store::{
+    FilesStore, Split, Tracker, detect_cloned_device, device_id, event_file_paths,
+    last_written_hlc, parse_events_collecting, testing::scratch_dir,
+};
 use pace_time::TimeRange;
 use rstest::rstest;
 
@@ -193,6 +196,53 @@ fn device_id_used_by_two_machines_stops_writing() -> TestResult {
     );
     let state = laptop.state(&TimeRange::new(None, None)?)?;
     assert_eq!(state.entries().count(), 1, "nothing more was written");
+    Ok(())
+}
+
+/// The latest HLC of `device`'s own log in `home`, read as `pace doctor`
+/// reads it: every event file through the collecting reader.
+fn own_last(
+    home: &std::path::Path,
+    device: DeviceId,
+) -> Result<Option<pace_core::Hlc>, Box<dyn std::error::Error>> {
+    let mut last = None;
+    for (of, path) in event_file_paths(home)? {
+        let text = std::fs::read_to_string(&path)?;
+        let read = parse_events_collecting(&path, &text, of);
+        last = last.max(
+            read.events
+                .iter()
+                .filter(|event| event.device == device)
+                .map(|event| event.hlc)
+                .max(),
+        );
+    }
+    Ok(last)
+}
+
+#[test]
+fn clone_check_without_append_names_the_machine_left_behind() -> TestResult {
+    let dir = scratch_dir()?;
+    let home = dir.path().join("home");
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let device: DeviceId = "0193a8d0-000d-7000-8000-000000000001".parse()?;
+    let laptop = machine(&home, &dir.path().join("laptop"), device, &clock, 1);
+    let copy = machine(&home, &dir.path().join("copy"), device, &clock, 2);
+    _ = laptop.run(&Command::Begin(Begin::default()))?;
+    clock.set(at("2026-11-26T10:00[Europe/Berlin]")?);
+    _ = copy.run(&Command::End(End::default()))?;
+
+    let last = own_last(&home, device)?;
+    let laptop_dir = dir.path().join("laptop");
+    let copy_dir = dir.path().join("copy");
+    let found = detect_cloned_device(&laptop_dir, last, last_written_hlc(&laptop_dir)?)
+        .ok_or("the laptop's log is ahead of what it wrote")?;
+
+    assert!(found.is_code("pace::store::device-cloned"));
+    assert!(
+        detect_cloned_device(&copy_dir, last, last_written_hlc(&copy_dir)?).is_none(),
+        "the copy wrote the last event itself"
+    );
     Ok(())
 }
 

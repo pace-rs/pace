@@ -11,6 +11,12 @@
 //!   [`existing_device_id`] reads it without creating one.
 //! - [`catalog`]: [`read_catalog`](catalog::read_catalog) reads the roles,
 //!   the clients and the project records of `PACE_HOME` into the `Catalog`.
+//! - The checks of `pace doctor`, which name every mistake where a command
+//!   stops at the first: [`event_file_paths`] lists the event files,
+//!   [`parse_events_collecting`] reads one, [`detect_cloned_device`] and
+//!   [`last_written_hlc`] give the clone check without an append, and
+//!   [`check_catalog_files`](catalog::check_catalog_files) reads the
+//!   catalog's files.
 //! - [`toml_file`]: span-aware reading of pace's TOML files, so errors name
 //!   the file and the line.
 //! - [`field_edit`]: the field writer of pace's TOML files, which keeps
@@ -70,9 +76,11 @@ pub mod toml_file;
 mod tracker;
 
 pub use disk::write_atomically;
-pub use files::{FilesStore, Resplit};
+pub use files::{FilesStore, Resplit, event_file_paths};
 pub use format::{EventFileRead, parse_events_collecting};
-pub use machine::{DeviceIdentity, device_id, existing_device_id};
+pub use machine::{
+    DeviceIdentity, detect_cloned_device, device_id, existing_device_id, last_written_hlc,
+};
 pub use port::EventStore;
 pub use split::Split;
 pub use tracker::Tracker;

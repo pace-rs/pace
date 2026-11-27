@@ -31,7 +31,7 @@ use crate::disk::{
     prepare_temporary_file, relative_name, write_atomically,
 };
 use crate::format::parse_events;
-use crate::machine::clone_detected;
+use crate::machine::detect_cloned_device;
 use crate::renames::{Prepared, persist, rename_all};
 use crate::{
     EventStore, Split,
@@ -179,10 +179,8 @@ impl FilesStore {
             &index_path,
         )?;
         let mut cursors = Cursors::load(&self.machine)?;
-        if let (Some(own_last), Some(remembered)) = (own_last, cursors.last_written)
-            && own_last > remembered
-        {
-            return Err(clone_detected(&self.machine, own_last, remembered));
+        if let Some(cloned) = detect_cloned_device(&self.machine, own_last, cursors.last_written) {
+            return Err(cloned);
         }
 
         let device_info = self.device_info_file(&dir, &now)?;
@@ -363,33 +361,53 @@ impl FilesStore {
 
     /// The directories under `events/`, by device.
     fn device_dirs(&self) -> PaceResult<Vec<(DeviceId, PathBuf)>> {
-        let dir = self.events_dir();
-        let entries = match std::fs::read_dir(&dir) {
-            Ok(entries) => entries,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-            Err(error) => return Err(io_error(FileOp::Read, &dir, error)),
-        };
-        let mut dirs = Vec::new();
-        for entry in entries {
-            let path = entry
-                .map_err(|error| io_error(FileOp::Read, &dir, error))?
-                .path();
-            let name = path
-                .file_name()
-                .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
-            if name.starts_with('.') || !path.is_dir() {
-                continue;
-            }
-            let device = name.parse::<DeviceId>().map_err(|_| {
-                PaceError::new(ErrorKind::InputOutput, "pace found no device ID in the name of {path}")
-                    .attach_context("path", path.display().to_string())
-                    .attach_hint("`events/` holds one directory per device, named by its ID; move other files elsewhere")
-            })?;
-            dirs.push((device, path));
-        }
-        dirs.sort();
-        Ok(dirs)
+        device_dirs(&self.events_dir())
     }
+}
+
+/// The event files of every device in `home` (`PACE_HOME`), by device and
+/// in the order of their names. `pace doctor` reads each and hands its
+/// text to [`parse_events_collecting`](crate::parse_events_collecting).
+///
+/// # Errors
+///
+/// If `events/` or a device's directory can't be read, or `events/` holds
+/// a directory that is not named by a device ID.
+pub fn event_file_paths(home: &Path) -> PaceResult<Vec<(DeviceId, PathBuf)>> {
+    let mut files = Vec::new();
+    for (device, dir) in device_dirs(&home.join("events"))? {
+        files.extend(event_files(&dir)?.into_iter().map(|path| (device, path)));
+    }
+    Ok(files)
+}
+
+/// The directories under `dir`, the `events/` of `PACE_HOME`, by device.
+fn device_dirs(dir: &Path) -> PaceResult<Vec<(DeviceId, PathBuf)>> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(io_error(FileOp::Read, dir, error)),
+    };
+    let mut dirs = Vec::new();
+    for entry in entries {
+        let path = entry
+            .map_err(|error| io_error(FileOp::Read, dir, error))?
+            .path();
+        let name = path
+            .file_name()
+            .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
+        if name.starts_with('.') || !path.is_dir() {
+            continue;
+        }
+        let device = name.parse::<DeviceId>().map_err(|_| {
+            PaceError::new(ErrorKind::InputOutput, "pace found no device ID in the name of {path}")
+                .attach_context("path", path.display().to_string())
+                .attach_hint("`events/` holds one directory per device, named by its ID; move other files elsewhere")
+        })?;
+        dirs.push((device, path));
+    }
+    dirs.sort();
+    Ok(dirs)
 }
 
 impl EventStore for FilesStore {

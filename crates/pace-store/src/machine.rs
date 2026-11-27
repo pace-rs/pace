@@ -181,9 +181,40 @@ impl Cursors {
     }
 }
 
+/// The HLC of the last event this machine wrote, as its machine directory
+/// `machine` remembers it; `None` before its first event.
+///
+/// # Errors
+///
+/// If its `cursors.toml` can't be read or is not valid.
+pub fn last_written_hlc(machine: &Path) -> PaceResult<Option<Hlc>> {
+    Cursors::load(machine).map(|cursors| cursors.last_written)
+}
+
+/// The clone check of the files backend: the error when this machine's
+/// own log reaches `own_last`, beyond the last event it wrote,
+/// `remembered`; `None` while it doesn't, or either is unknown.
+///
+/// Another machine with this machine's device ID wrote then, such as a
+/// copy or a restored backup. `machine` is the machine directory, whose
+/// `device.toml` the hint names.
+#[must_use]
+pub fn detect_cloned_device(
+    machine: &Path,
+    own_last: Option<Hlc>,
+    remembered: Option<Hlc>,
+) -> Option<Box<PaceError>> {
+    match (own_last, remembered) {
+        (Some(own_last), Some(remembered)) if own_last > remembered => {
+            Some(clone_detected(machine, own_last, remembered))
+        }
+        _ => None,
+    }
+}
+
 /// The error when this machine's own log reaches `own_last`, beyond the
 /// last event it wrote, `remembered`.
-pub(crate) fn clone_detected(machine: &Path, own_last: Hlc, remembered: Hlc) -> Box<PaceError> {
+fn clone_detected(machine: &Path, own_last: Hlc, remembered: Hlc) -> Box<PaceError> {
     PaceError::new(
         ErrorKind::InputOutput,
         "another machine writes with this machine's device ID: the log of this ID reaches {own_last}, but this machine wrote up to {remembered}",
