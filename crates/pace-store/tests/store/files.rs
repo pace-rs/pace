@@ -253,63 +253,6 @@ fn the_device_file_names_the_device_and_its_split() -> TestResult {
 }
 
 #[test]
-fn appends_from_two_processes_both_land() -> TestResult {
-    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
-    let tracker = setup.tracker(Split::Month);
-    _ = pollster::block_on(tracker.run(&Command::Log(Log::new(
-        at("2026-11-26T07:00[Europe/Berlin]")?,
-        at("2026-11-26T08:00[Europe/Berlin]")?,
-    ))))?;
-    let entry = pollster::block_on(tracker.state(&everything()?))?
-        .entries()
-        .next()
-        .map(|entry| entry.id)
-        .ok_or("entry")?;
-
-    std::thread::scope(|scope| {
-        for writer in 0..4u16 {
-            let store = setup.store(Split::Month);
-            let clock = setup.clock.clone();
-            let device = setup.device;
-            _ = scope.spawn(move || {
-                let tracker = Tracker::new(
-                    store,
-                    clock.clone(),
-                    Arc::new(SequentialIds::starting_at(&clock.now(), 100 + writer)),
-                    Policy::default(),
-                    device,
-                );
-                for round in 0..10 {
-                    _ = pollster::block_on(tracker.run(&Command::Adjust(Adjust {
-                        entry: Some(entry),
-                        note: pace_core::Change::Set(format!("{writer}/{round}")),
-                        ..Adjust::default()
-                    })));
-                }
-            });
-        }
-    });
-
-    let read = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
-    assert_eq!(read.len(), 1 + 4 * 10);
-    let leftovers: Vec<_> = setup
-        .files()?
-        .into_iter()
-        .filter(|file| {
-            file.rsplit('/')
-                .next()
-                .is_some_and(|name| name.starts_with(".pace-"))
-        })
-        .collect();
-    assert_eq!(
-        leftovers,
-        Vec::<String>::new(),
-        "temporary files were left behind"
-    );
-    Ok(())
-}
-
-#[test]
 fn an_unknown_key_in_an_event_file_names_the_file_and_line() -> TestResult {
     let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
     _ = pollster::block_on(
@@ -539,4 +482,69 @@ fn an_event_in_two_files_is_read_once() -> TestResult {
 
     assert_eq!(events.len(), 3);
     Ok(())
+}
+
+/// Tests that cost more than the others: four threads append 40 events to one
+/// event file at once, each append under the file lock, and the test reads
+/// the file back. `.config/nextest.toml` runs them in the test group
+/// `expensive`.
+mod expensive {
+    use super::*;
+
+    #[test]
+    fn appends_from_two_processes_both_land() -> TestResult {
+        let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+        let tracker = setup.tracker(Split::Month);
+        _ = pollster::block_on(tracker.run(&Command::Log(Log::new(
+            at("2026-11-26T07:00[Europe/Berlin]")?,
+            at("2026-11-26T08:00[Europe/Berlin]")?,
+        ))))?;
+        let entry = pollster::block_on(tracker.state(&everything()?))?
+            .entries()
+            .next()
+            .map(|entry| entry.id)
+            .ok_or("entry")?;
+
+        std::thread::scope(|scope| {
+            for writer in 0..4u16 {
+                let store = setup.store(Split::Month);
+                let clock = setup.clock.clone();
+                let device = setup.device;
+                _ = scope.spawn(move || {
+                    let tracker = Tracker::new(
+                        store,
+                        clock.clone(),
+                        Arc::new(SequentialIds::starting_at(&clock.now(), 100 + writer)),
+                        Policy::default(),
+                        device,
+                    );
+                    for round in 0..10 {
+                        _ = pollster::block_on(tracker.run(&Command::Adjust(Adjust {
+                            entry: Some(entry),
+                            note: pace_core::Change::Set(format!("{writer}/{round}")),
+                            ..Adjust::default()
+                        })));
+                    }
+                });
+            }
+        });
+
+        let read = pollster::block_on(setup.store(Split::Month).read(&everything()?))?;
+        assert_eq!(read.len(), 1 + 4 * 10);
+        let leftovers: Vec<_> = setup
+            .files()?
+            .into_iter()
+            .filter(|file| {
+                file.rsplit('/')
+                    .next()
+                    .is_some_and(|name| name.starts_with(".pace-"))
+            })
+            .collect();
+        assert_eq!(
+            leftovers,
+            Vec::<String>::new(),
+            "temporary files were left behind"
+        );
+        Ok(())
+    }
 }

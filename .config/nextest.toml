@@ -5,3 +5,12 @@ fail-fast = false
 [profile.ci]
 failure-output = "immediate-final"
 fail-fast = false
+
+# Tests in a module named `expensive` cost more than the others (each module's
+# doc says why); codegate's slow-tests gate wants them bounded.
+[test-groups]
+expensive = { max-threads = 2 }
+
+[[profile.default.overrides]]
+filter = "test(/::expensive::/)"
+test-group = "expensive"
