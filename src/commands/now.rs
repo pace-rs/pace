@@ -34,7 +34,7 @@ impl Runnable for NowCmd {
 /// If the store can't be read.
 pub fn show(json: bool) -> PaceResult<()> {
     let context = PACE_APP.context()?;
-    let session = Session::open(context)?;
+    let session = Session::open_existing(context)?;
     let now = session.now();
     let today = TimeFrame::Today.resolve(&now, context.settings.settings.week_start)?;
     let state = session.state(&today)?;

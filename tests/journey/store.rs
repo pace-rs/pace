@@ -92,3 +92,15 @@ fn split_again_finishes_split_that_stopped() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn split_with_nothing_to_do_writes_nothing() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    let output = run(sandbox.pace_at("09:00").args(["store", "split"]))?;
+
+    assert!(output.contains("exit_code: 3"), "{output}");
+    assert!(!sandbox.path("machine").exists());
+    assert!(!sandbox.path("home").exists());
+    Ok(())
+}

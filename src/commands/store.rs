@@ -43,7 +43,13 @@ impl SplitCmd {
                 .map_err(|error| error.attach_exit_code(ExitCode::Usage))?,
             None => context.settings.settings.split,
         };
-        let session = Session::open(context)?;
+        // A machine without a device ID has no events to rewrite; only a
+        // split other than the setting must be recorded, under a saved ID.
+        let session = if split == context.settings.settings.split {
+            Session::open_existing(context)?
+        } else {
+            Session::open(context)?
+        };
         let resplit = session.resplit(split)?;
         if resplit.from == resplit.to && resplit.events == 0 {
             return Err(PaceError::new(

@@ -7,7 +7,7 @@ use abscissa_core::Application;
 use abscissa_tokio::TokioComponent;
 use pace_core::{Command, DeviceId, Ids, Outcome, Policy, Tracker};
 use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_store::{FilesStore, Resplit, Split, device_id};
+use pace_store::{FilesStore, Resplit, Split, device_id, existing_device_id};
 use pace_time::TimeRange;
 
 use crate::clock::clock;
@@ -31,19 +31,38 @@ impl Session {
     ///
     /// If the clock, the device ID or the store can't be set up.
     pub fn open(context: &Context) -> PaceResult<Self> {
+        let ids: Arc<dyn Ids> = Arc::new(RandomIds);
+        let device = device_id(&context.dirs.machine.path, &*ids)?.id;
+        Self::with_device(context, ids, device)
+    }
+
+    /// Open the store of this machine without creating its device ID: on
+    /// the first run, the session takes an ID that it never saves. So a
+    /// query writes nothing; a command that writes needs [`Session::open`].
+    ///
+    /// # Errors
+    ///
+    /// If the clock, the device ID or the store can't be set up.
+    pub fn open_existing(context: &Context) -> PaceResult<Self> {
+        let ids: Arc<dyn Ids> = Arc::new(RandomIds);
+        let device = match existing_device_id(&context.dirs.machine.path)? {
+            Some(device) => device,
+            None => DeviceId::try_from(ids.next_id())?,
+        };
+        Self::with_device(context, ids, device)
+    }
+
+    fn with_device(context: &Context, ids: Arc<dyn Ids>, device: DeviceId) -> PaceResult<Self> {
         let clock = clock(
             &context.settings.settings.time_zone,
             std::env::var_os(TEST_NOW),
         )?;
-        let ids: Arc<dyn Ids> = Arc::new(RandomIds);
         let data = context.dirs.data.path.clone();
-        let machine = context.dirs.machine.path.clone();
-        let device = device_id(&machine, &*ids)?;
         let settings = &context.settings.settings;
         let store = FilesStore::new(
             data.clone(),
-            machine,
-            device.id,
+            context.dirs.machine.path.clone(),
+            device,
             clock.clone(),
             settings.split,
         );
@@ -51,8 +70,8 @@ impl Session {
             default_hold_source: settings.default_hold_source,
         };
         Ok(Self {
-            tracker: Tracker::new(store, clock, ids, policy, device.id),
-            device: device.id,
+            tracker: Tracker::new(store, clock, ids, policy, device),
+            device,
             data_existed: data.exists(),
             data,
         })

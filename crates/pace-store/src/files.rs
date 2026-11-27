@@ -378,13 +378,11 @@ impl FilesStore {
         index.files.retain(|name, _| seen.contains(name));
         changed |= index.files.len() != before;
 
+        // The index is a cache: if it can't be saved, this run works with
+        // the one in memory and the next run parses the files again. So a
+        // read works in a machine directory that pace may not write.
         if changed {
-            create_dir(&self.machine)?;
-            let text = serde_json::to_string(&index).map_err(|error| {
-                PaceError::with_source(ErrorKind::Internal, "cannot write the index", error)
-                    .ask_report()
-            })?;
-            write_atomically(&index_path, &text)?;
+            _ = save_index(&self.machine, &index_path, &index);
         }
         Ok((index, parsed))
     }
@@ -476,6 +474,14 @@ impl EventStore for FilesStore {
     fn marker(&self) -> impl Future<Output = PaceResult<ChangeMarker>> + Send {
         std::future::ready(self.marker_now())
     }
+}
+
+fn save_index(machine: &Path, path: &Path, index: &Index) -> PaceResult<()> {
+    create_dir(machine)?;
+    let text = serde_json::to_string(index).map_err(|error| {
+        PaceError::with_source(ErrorKind::Internal, "cannot write the index", error).ask_report()
+    })?;
+    write_atomically(path, &text)
 }
 
 fn write_device_file(path: &Path, file: &DeviceFile) -> PaceResult<()> {

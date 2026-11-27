@@ -137,3 +137,21 @@ fn failed_cleaning_keeps_the_append_and_is_retried() -> TestResult {
     assert!(laptop.store().take_problems().is_empty());
     Ok(())
 }
+
+#[test]
+fn read_works_when_index_cannot_be_written() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let (home, machine) = (dir.path().join("home"), dir.path().join("machine"));
+    let clock = Arc::new(TestClock::new(at("2026-11-26T09:00[Europe/Berlin]")?));
+    let laptop = tracker(&home, &machine, device(1)?, &clock, 1);
+    // The append changes the event file after the index was refreshed, so
+    // the next read refreshes it again.
+    _ = pollster::block_on(laptop.run(&Command::Begin(Begin::default())))?;
+    read_only(&machine)?;
+
+    let state = pollster::block_on(laptop.state(&TimeRange::new(None, None)?));
+    writable(&machine)?;
+
+    assert_eq!(state?.open().count(), 1);
+    Ok(())
+}

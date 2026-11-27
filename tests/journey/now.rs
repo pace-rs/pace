@@ -165,3 +165,17 @@ fn forget_without_entry_lists_the_open_ones_without_terminal() -> TestResult {
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }
+
+#[test]
+fn now_on_first_run_writes_nothing() -> TestResult {
+    let sandbox = Sandbox::new()?;
+
+    _ = run(sandbox.pace_at("09:00").arg("now"))?;
+
+    assert!(
+        !sandbox.path("machine").exists(),
+        "no device ID for a query"
+    );
+    assert!(!sandbox.path("home").exists());
+    Ok(())
+}
