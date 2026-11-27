@@ -3,13 +3,9 @@
 
 use jiff::Timestamp;
 use pace_core::Hlc;
-use proptest::{
-    prelude::*,
-    strategy::ValueTree as _,
-    test_runner::{RngSeed, TestRunner},
-};
+use proptest::{prelude::*, strategy::ValueTree as _, test_runner::TestRunner};
 
-use crate::TestResult;
+use crate::{TestResult, fixed_seed};
 
 fn timestamp(millis: i64) -> Result<Timestamp, TestCaseError> {
     Timestamp::from_millisecond(millis).map_err(|error| TestCaseError::fail(error.to_string()))
@@ -36,15 +32,6 @@ fn tick_in_the_same_millisecond_counts_up() -> TestResult {
 
     assert_eq!(Hlc::tick(Some(first), now), Hlc::new(now, 1));
     Ok(())
-}
-
-/// The config of the property tests below: a fixed seed, so a case that
-/// fails fails again on the next run and on every machine.
-fn fixed_seed() -> ProptestConfig {
-    ProptestConfig {
-        rng_seed: RngSeed::Fixed(20_261_126),
-        ..ProptestConfig::default()
-    }
 }
 
 #[test]
