@@ -163,7 +163,8 @@ impl ReflectCmd {
     }
 
     /// The filters, with the keys and names of the flags resolved. A
-    /// global `pace --project KEY reflect` filters as `--project` does.
+    /// global `pace --project KEY reflect` filters as `--project` does;
+    /// beside reflect's own `--project`, clap keeps only reflect's keys.
     fn filter(
         &self,
         context: &Context,
@@ -392,6 +393,25 @@ mod tests {
         let reflect = reflect(&["--project", "webshop", "--project", "blog"]);
 
         assert_eq!(reflect.projects, ["webshop", "blog"]);
+    }
+
+    #[test]
+    fn project_flag_of_reflect_wins_over_global_one() {
+        let args = [
+            "pace",
+            "--project",
+            "blog",
+            "reflect",
+            "--project",
+            "webshop",
+        ];
+        let entry = EntryPoint::try_parse_from(args).unwrap();
+
+        assert_eq!(entry.project.as_deref(), Some("webshop"));
+        match entry.cmd {
+            Some(PaceCmd::Reflect(reflect)) => assert_eq!(reflect.projects, ["webshop"]),
+            other => panic!("not reflect: {other:?}"),
+        }
     }
 
     #[test]
