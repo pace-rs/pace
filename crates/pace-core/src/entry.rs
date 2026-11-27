@@ -1,12 +1,15 @@
-//! Entries: a stretch of tracked time with its note, project and tags, its
-//! holds, pauses and catches, and what it is doing now.
+//! Entries: a stretch of tracked time with its note, project, tags and role,
+//! its holds, pauses and catches, and what it is doing now.
 
 use std::collections::BTreeSet;
 
 use jiff::{SignedDuration, ZonedDateTime};
 use serde::{Deserialize, Serialize};
 
-use crate::{DeviceId, EntryId, HoldSource, PauseKind, ProjectId, ProjectKey, Tag};
+use crate::{
+    Catalog, DeterminedBy, DeviceId, EntryId, HoldSource, PauseKind, ProjectId, ProjectKey, RoleId,
+    Tag,
+};
 
 /// A reference to a project: its ID, or its key while it has no ID yet.
 ///
@@ -96,6 +99,16 @@ pub struct Entry {
     pub note: Option<String>,
     /// Its tags.
     pub tags: BTreeSet<Tag>,
+    /// Its role, where it differs from its project's; see
+    /// [`effective_role`](Self::effective_role).
+    pub role: Option<RoleId>,
+    /// Who determined its time; `None` while unmarked.
+    pub determined_by: Option<DeterminedBy>,
+    /// Whether it is billable, where it differs from its project; see
+    /// [`effective_billable`](Self::effective_billable).
+    pub billable: Option<bool>,
+    /// Whether it may overlap other entries: `--allow-overlap` was given.
+    pub allow_overlap: bool,
     /// Its interruptions.
     pub holds: Vec<EntryHold>,
     /// Its planned breaks.
@@ -110,6 +123,28 @@ pub struct Entry {
 }
 
 impl Entry {
+    /// The role its time goes to: its own, else its project record's, else
+    /// none. Never stored, so a changed project role applies to old entries.
+    #[must_use]
+    pub fn effective_role(&self, catalog: &Catalog) -> Option<RoleId> {
+        self.role.or_else(|| {
+            self.project
+                .as_ref()
+                .and_then(|project| catalog.project_role(project))
+        })
+    }
+
+    /// Whether its time is billable: its own flag, else its project
+    /// record's, else no. Never stored, as the role.
+    #[must_use]
+    pub fn effective_billable(&self, catalog: &Catalog) -> bool {
+        self.billable.unwrap_or_else(|| {
+            self.project
+                .as_ref()
+                .is_some_and(|project| catalog.project_billable(project))
+        })
+    }
+
     /// What the entry is doing.
     #[must_use]
     pub fn state(&self) -> EntryState {

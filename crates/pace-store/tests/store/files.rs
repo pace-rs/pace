@@ -5,7 +5,7 @@ use std::{path::Path, sync::Arc};
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Catalog, Clock, Command, DeviceId, Policy, ReadScope,
+    Catalog, Clock, Command, DeterminedBy, DeviceId, EventKind, Policy, ProjectRef, ReadScope,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause},
     testing::SequentialIds,
     testing::TestClock,
@@ -178,7 +178,7 @@ fn the_event_file_reads_like_the_plan() -> TestResult {
         "2026-11-26T09:02:11[Europe/Berlin]",
         Command::Begin(Begin {
             note: Some("Checkout flow".parse()?),
-            project: Some(pace_core::ProjectRef::Key("acme-webshop".parse()?)),
+            project: Some(ProjectRef::Key("acme-webshop".parse()?)),
             tags: std::collections::BTreeSet::from(["dev".parse()?]),
             ..Begin::default()
         }),
@@ -245,6 +245,73 @@ fn what_was_written_reads_back_the_same() -> TestResult {
     // `ZonedDateTime` equality compares the instant only; the debug text
     // holds the time zone of each timestamp too.
     assert_eq!(format!("{read:#?}"), format!("{:#?}", written.recorded));
+    Ok(())
+}
+
+#[test]
+fn entry_begun_with_role_determined_by_billable_and_overlap_reads_back() -> TestResult {
+    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+    let written = setup.tracker(Split::Month).run(&Command::Begin(Begin {
+        role: Some("0193a8d0-000e-7000-8000-000000000001".parse()?),
+        determined_by: Some(DeterminedBy::Others),
+        billable: Some(true),
+        allow_overlap: true,
+        ..Begin::default()
+    }))?;
+
+    let text = std::fs::read_to_string(setup.device_dir().join("2026/2026-11.toml"))?;
+    insta::assert_snapshot!(text);
+    let read = setup.store(Split::Month).read(&ReadScope::everything())?;
+    assert_eq!(read, written.recorded);
+    Ok(())
+}
+
+/// An `entry.begun` as pace wrote it before entries had a role, who
+/// determined them, a billable flag and an allowed overlap.
+const BEGUN_BEFORE_PHASE_3: &str = r#"version = 1
+
+[[event]]
+id = "01a216e0-57b8-7001-b621-28d43a992de3"
+type = "entry.begun"
+v = 1
+batch = "01a216e0-57b8-7001-9fe7-8d23019a48c1"
+at = "2026-11-26T09:02:11+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:02:11.000Z/0"
+entry = "01a216e0-57b8-7001-a4ad-fbb5ba7f5814"
+project-key = "acme-webshop"
+note = "Checkout flow"
+tags = ["dev"]
+"#;
+
+#[test]
+fn entry_begun_written_before_the_entry_fields_reads_unchanged() -> TestResult {
+    let setup = Setup::new("2026-11-26T09:00[Europe/Berlin]")?;
+    _ = setup
+        .tracker(Split::Month)
+        .run(&Command::Begin(Begin::default()))?;
+    std::fs::write(
+        setup.device_dir().join("2026/2026-11.toml"),
+        BEGUN_BEFORE_PHASE_3,
+    )?;
+
+    let read = setup.store(Split::Month).read(&ReadScope::everything())?;
+
+    let [recorded] = read.as_slice() else {
+        return Err(format!("expected one event, read {read:?}").into());
+    };
+    assert_eq!(
+        recorded.event.kind,
+        EventKind::EntryBegun {
+            entry: "01a216e0-57b8-7001-a4ad-fbb5ba7f5814".parse()?,
+            project: Some(ProjectRef::Key("acme-webshop".parse()?)),
+            note: Some("Checkout flow".to_owned()),
+            tags: std::collections::BTreeSet::from(["dev".parse()?]),
+            role: None,
+            determined_by: None,
+            billable: None,
+            allow_overlap: false,
+        }
+    );
     Ok(())
 }
 

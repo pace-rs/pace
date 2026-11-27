@@ -86,4 +86,4 @@ pub use scope::ReadScope;
 pub use state::{Overlap, State, UndoTarget};
 pub use steps::{AfterAppend, AfterRead, Appending, Decided, Outcome, Reading};
 pub use text::Text;
-pub use tracking::{HoldSource, PauseKind};
+pub use tracking::{DeterminedBy, HoldSource, PauseKind};

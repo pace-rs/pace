@@ -5,7 +5,10 @@ use std::collections::BTreeSet;
 
 use jiff::{Timestamp, ZonedDateTime};
 
-use crate::{BatchId, DeviceId, EntryId, EventId, HoldSource, PauseKind, ProjectRef, Tag};
+use crate::{
+    BatchId, DeterminedBy, DeviceId, EntryId, EventId, HoldSource, PauseKind, ProjectRef, RoleId,
+    Tag,
+};
 
 /// Something that happened, as the core decided it.
 ///
@@ -43,6 +46,14 @@ pub enum EventKind {
         note: Option<String>,
         /// Its tags.
         tags: BTreeSet<Tag>,
+        /// Its role, only where it differs from its project's.
+        role: Option<RoleId>,
+        /// Who determined its time, when marked.
+        determined_by: Option<DeterminedBy>,
+        /// Whether it is billable, only where it differs from its project.
+        billable: Option<bool>,
+        /// Whether `--allow-overlap` was given.
+        allow_overlap: bool,
     },
     /// `entry.held`: an interruption began.
     EntryHeld {
@@ -91,6 +102,14 @@ pub enum EventKind {
         note: Option<String>,
         /// Its tags.
         tags: BTreeSet<Tag>,
+        /// Its role, only where it differs from its project's.
+        role: Option<RoleId>,
+        /// Who determined its time, when marked.
+        determined_by: Option<DeterminedBy>,
+        /// Whether it is billable, only where it differs from its project.
+        billable: Option<bool>,
+        /// Whether `--allow-overlap` was given.
+        allow_overlap: bool,
     },
     /// `entry.adjusted`: some fields of an entry changed. Per field, the
     /// later change by HLC wins.
@@ -175,6 +194,15 @@ pub struct EntryChanges {
     pub project: Change<ProjectRef>,
     /// The new set of tags.
     pub tags: Option<BTreeSet<Tag>>,
+    /// A new role, or none: the project's role again.
+    pub role: Change<RoleId>,
+    /// Who determined the time, or unmarked.
+    pub determined_by: Change<DeterminedBy>,
+    /// Billable or not, or none: the project's flag again.
+    pub billable: Change<bool>,
+    /// Whether the overlap is allowed from now on: `--allow-overlap` was
+    /// given to an entry that didn't have it.
+    pub allow_overlap: bool,
 }
 
 impl EntryChanges {
@@ -186,6 +214,10 @@ impl EntryChanges {
             && self.note.is_keep()
             && self.project.is_keep()
             && self.tags.is_none()
+            && self.role.is_keep()
+            && self.determined_by.is_keep()
+            && self.billable.is_keep()
+            && !self.allow_overlap
     }
 }
 

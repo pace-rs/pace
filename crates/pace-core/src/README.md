@@ -18,7 +18,7 @@ clock, deterministic IDs and the lock the test doubles share.
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | [`catalog.rs`](catalog.rs)   | The catalog: the roles, clients and project records that rules, reports and bills take as a value, with their money and rounding.      |
 | [`command.rs`](command.rs)   | The use cases as data; see `Command`.                                                                                                  |
-| [`entry.rs`](entry.rs)       | Entries: a stretch of tracked time with its note, project and tags, its holds, pauses and catches, and what it is doing now.           |
+| [`entry.rs`](entry.rs)       | Entries: a stretch of tracked time with its note, project, tags and role, its holds, pauses and catches, and what it is doing now.     |
 | [`event.rs`](event.rs)       | The events of the log: what happened to an entry or a batch, as the core decided it.                                                   |
 | [`id.rs`](id.rs)             | The IDs of events, batches, devices, entries, projects and roles, each a UUIDv7.                                                       |
 | [`key.rs`](key.rs)           | The names people type: the keys of projects, roles and clients such as `acme-webshop`, and tags.                                       |
@@ -32,7 +32,7 @@ clock, deterministic IDs and the lock the test doubles share.
 | [`steps.rs`](steps.rs)       | The step machine of a command: what to read, the batch to append, and what the append means, without I/O.                              |
 | [`testing.rs`](testing.rs)   | For tests of pace and of store backends: a settable clock, deterministic IDs, and the lock that the test doubles share.                |
 | [`text.rs`](text.rs)         | Text that people write: the note of an entry, the reason of a hold or a pause, a caught thought.                                       |
-| [`tracking.rs`](tracking.rs) | Where a hold came from, and what kind of break a pause is.                                                                             |
+| [`tracking.rs`](tracking.rs) | Where a hold came from, what kind of break a pause is, and who determined an entry's time.                                             |
 | [`catalog/`](catalog/)       | The catalog: the roles, clients and project records that rules, reports and bills take as a value, with their money and rounding.      |
 | [`rules/`](rules/)           | What each command turns into: the events of one batch, or an error that says how to fix it.                                            |
 | [`testing/`](testing/)       | For tests of pace and of store backends: a settable clock, deterministic IDs, and the lock that the test doubles share.                |

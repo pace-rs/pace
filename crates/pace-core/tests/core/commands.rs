@@ -4,7 +4,7 @@
 use std::collections::BTreeSet;
 
 use pace_core::{
-    Change, Command, HoldSource, PauseKind, ProjectRef,
+    Change, Command, DeterminedBy, HoldSource, PauseKind, ProjectRef,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
 use rstest::rstest;
@@ -24,12 +24,15 @@ fn begin_carries_what_was_typed() -> TestResult {
         note: Some("Write offer".parse()?),
         project: Some(ProjectRef::Key("acme-webshop".parse()?)),
         tags: BTreeSet::from(["dev".parse()?, "offer".parse()?]),
+        role: Some("0193a8d0-000e-7000-8000-000000000001".parse()?),
+        determined_by: Some(DeterminedBy::Others),
+        billable: Some(false),
         allow_overlap: true,
     });
 
     assert_eq!(
         round_trip(&command)?,
-        r#"{"command":"begin","at":"2026-11-26T09:00:00+01:00[Europe/Berlin]","note":"Write offer","project":{"key":"acme-webshop"},"tags":["dev","offer"],"allow-overlap":true}"#
+        r#"{"command":"begin","at":"2026-11-26T09:00:00+01:00[Europe/Berlin]","note":"Write offer","project":{"key":"acme-webshop"},"tags":["dev","offer"],"role":"0193a8d0-000e-7000-8000-000000000001","determined-by":"other","billable":false,"allow-overlap":true}"#
     );
     Ok(())
 }
@@ -132,6 +135,23 @@ fn adjust_sets_with_value_and_clears_with_null() -> TestResult {
     assert_eq!(
         round_trip(&command)?,
         r#"{"command":"adjust","note":"Write offer","project":null,"tag":["dev"]}"#
+    );
+    Ok(())
+}
+
+#[test]
+fn adjust_changes_role_determined_by_and_billable_like_note() -> TestResult {
+    let command = Command::Adjust(Adjust {
+        role: Change::Clear,
+        determined_by: Change::Set(DeterminedBy::Me),
+        billable: Change::Set(true),
+        allow_overlap: true,
+        ..Adjust::default()
+    });
+
+    assert_eq!(
+        round_trip(&command)?,
+        r#"{"command":"adjust","role":null,"determined-by":"self","billable":true,"allow-overlap":true}"#
     );
     Ok(())
 }

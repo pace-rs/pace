@@ -347,6 +347,7 @@ fn read_adjustment(
         untag: entry.tags.difference(&edited.tags).cloned().collect(),
         tag: edited.tags,
         allow_overlap: false,
+        ..Adjust::default()
     };
     if adjust.changes(entry).is_empty() {
         return Err(
@@ -436,6 +437,10 @@ mod tests {
             project: None,
             note: Some("Draft".to_owned()),
             tags: BTreeSet::new(),
+            role: None,
+            determined_by: None,
+            billable: None,
+            allow_overlap: false,
             holds: Vec::new(),
             pauses: Vec::new(),
             catches: Vec::new(),

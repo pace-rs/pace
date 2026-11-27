@@ -1,0 +1,18 @@
+---
+source: crates/pace-store/tests/store/files.rs
+expression: text
+---
+version = 1
+
+[[event]]
+id = "01a216de-5800-7001-b559-7e50def746d8"
+type = "entry.begun"
+v = 1
+batch = "01a216de-5800-7001-aab5-5b0fb956ec38"
+at = "2026-11-26T09:00:00+01:00[Europe/Berlin]"
+hlc = "2026-11-26T08:00:00.000Z/0"
+entry = "01a216de-5800-7001-8cd3-2313420c08a5"
+role = "0193a8d0-000e-7000-8000-000000000001"
+determined-by = "other"
+billable = true
+allow-overlap = true

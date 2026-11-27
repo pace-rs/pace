@@ -66,6 +66,10 @@ fn begun(entry: EntryId) -> EventKind {
         project: None,
         note: None,
         tags: BTreeSet::new(),
+        role: None,
+        determined_by: None,
+        billable: None,
+        allow_overlap: false,
     }
 }
 
@@ -330,6 +334,10 @@ fn files_about_the_entries_of_files_that_came_along_come_along_too() -> TestResu
                 project: None,
                 note: None,
                 tags: BTreeSet::new(),
+                role: None,
+                determined_by: None,
+                billable: None,
+                allow_overlap: false,
             },
         )?;
     let mut ended = Events::new();
@@ -368,6 +376,10 @@ fn files_with_events_recorded_since_are_selected_with_their_entries() -> TestRes
             project: None,
             note: None,
             tags: BTreeSet::new(),
+            role: None,
+            determined_by: None,
+            billable: None,
+            allow_overlap: false,
         },
     )?;
     for recorded in &mut june.events {

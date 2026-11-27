@@ -6,7 +6,7 @@ use std::{collections::BTreeSet, sync::Arc};
 
 use jiff::{SignedDuration, ZonedDateTime};
 use pace_core::{
-    Catalog, Clock, Command, DeviceId, Entry, EntryId, Policy, State, Tag,
+    Catalog, Clock, Command, DeterminedBy, DeviceId, Entry, EntryId, Policy, RoleId, State, Tag,
     command::{Adjust, Begin, End, Forget, Hold, Log, Pause, Resume},
     testing::SequentialIds,
     testing::TestClock,
@@ -22,6 +22,7 @@ use crate::fixed_seed;
 enum Verb {
     Begin {
         allow_overlap: bool,
+        fields: Fields,
     },
     Hold {
         reason: bool,
@@ -36,6 +37,7 @@ enum Verb {
     Log {
         minutes: i64,
         allow_overlap: bool,
+        fields: Fields,
     },
     Adjust {
         entry: Option<Index>,
@@ -46,6 +48,43 @@ enum Verb {
     Forget {
         entry: Index,
     },
+}
+
+/// The entry fields a begin or a log gives besides its times: a role or
+/// none, who determined it, and billable or not.
+#[derive(Debug, Clone, Default)]
+struct Fields {
+    role: bool,
+    determined_by: Option<DeterminedBy>,
+    billable: Option<bool>,
+}
+
+impl Fields {
+    /// The role every entry with a role gets.
+    const ROLE: &str = "0193a8d0-000f-7000-8000-000000000001";
+
+    fn role(&self) -> Result<Option<RoleId>, TestCaseError> {
+        self.role
+            .then(|| Self::ROLE.parse::<RoleId>())
+            .transpose()
+            .map_err(fail)
+    }
+}
+
+fn fields() -> impl Strategy<Value = Fields> {
+    (
+        any::<bool>(),
+        prop::option::of(prop_oneof![
+            Just(DeterminedBy::Me),
+            Just(DeterminedBy::Others)
+        ]),
+        any::<Option<bool>>(),
+    )
+        .prop_map(|(role, determined_by, billable)| Fields {
+            role,
+            determined_by,
+            billable,
+        })
 }
 
 /// One command: the clock moves on by `wait` minutes, and the command
@@ -59,13 +98,14 @@ struct Step {
 
 fn verb() -> impl Strategy<Value = Verb> {
     prop_oneof![
-        3 => any::<bool>().prop_map(|allow_overlap| Verb::Begin { allow_overlap }),
+        3 => (any::<bool>(), fields())
+            .prop_map(|(allow_overlap, fields)| Verb::Begin { allow_overlap, fields }),
         2 => any::<bool>().prop_map(|reason| Verb::Hold { reason }),
         2 => any::<bool>().prop_map(|reason| Verb::Pause { reason }),
         2 => Just(Verb::Resume),
         2 => any::<Option<Index>>().prop_map(|entry| Verb::End { entry }),
-        1 => (1..120i64, any::<bool>())
-            .prop_map(|(minutes, allow_overlap)| Verb::Log { minutes, allow_overlap }),
+        1 => (1..120i64, any::<bool>(), fields())
+            .prop_map(|(minutes, allow_overlap, fields)| Verb::Log { minutes, allow_overlap, fields }),
         2 => (any::<Option<Index>>(), prop::option::of(0..180i64), prop::option::of(0..180i64))
             .prop_map(|(entry, start, end)| Verb::Adjust { entry, start, end }),
         1 => Just(Verb::Undo),
@@ -99,8 +139,14 @@ fn command(step: &Step, now: &ZonedDateTime, state: &State) -> Result<Command, T
         .transpose()?;
     let reason = |given: bool| given.then(|| "why".parse()).transpose();
     Ok(match &step.verb {
-        Verb::Begin { allow_overlap } => Command::Begin(Begin {
+        Verb::Begin {
+            allow_overlap,
+            fields,
+        } => Command::Begin(Begin {
             at,
+            role: fields.role()?,
+            determined_by: fields.determined_by,
+            billable: fields.billable,
             allow_overlap: *allow_overlap,
             ..Begin::default()
         }),
@@ -122,11 +168,16 @@ fn command(step: &Step, now: &ZonedDateTime, state: &State) -> Result<Command, T
         Verb::Log {
             minutes,
             allow_overlap,
+            fields,
         } => {
             let end = at.unwrap_or_else(|| now.clone());
-            let mut log = Log::new(minutes_before(&end, *minutes)?, end);
-            log.allow_overlap = *allow_overlap;
-            Command::Log(log)
+            Command::Log(Log {
+                role: fields.role()?,
+                determined_by: fields.determined_by,
+                billable: fields.billable,
+                allow_overlap: *allow_overlap,
+                ..Log::new(minutes_before(&end, *minutes)?, end)
+            })
         }
         Verb::Adjust { entry, start, end } => Command::Adjust(Adjust {
             entry: entry.and_then(|index| pick(state, index)),
@@ -274,6 +325,7 @@ fn zero_length_pause_and_longer_hold_from_same_start_are_legal() -> Result<(), T
             Some(19),
             Verb::Begin {
                 allow_overlap: false,
+                fields: Fields::default(),
             },
         ),
         (14, Some(33), Verb::Pause { reason: false }),

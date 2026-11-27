@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     Batch, Catalog, Change, Command, DeviceId, Entry, EntryChanges, EntryId, EntryVerb, Event,
-    EventKind, HoldSource, Ids, State,
+    EventKind, HoldSource, Ids, ProjectRef, RoleId, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
 };
 
@@ -110,11 +110,12 @@ impl Rules<'_> {
             ending.push(running.id);
         }
 
-        if !begin.allow_overlap {
+        if !self.overlap_allowed(begin.allow_overlap, begin.project.as_ref()) {
             self.refuse_overlap(&start, self.now, &ending, Verb::Begin)?;
         }
 
         let entry = self.new_id()?;
+        let project = begin.project.as_ref();
         events.push(self.event(
             &start,
             &start,
@@ -123,6 +124,10 @@ impl Rules<'_> {
                 project: begin.project.clone(),
                 note: begin.note.clone().map(String::from),
                 tags: begin.tags.clone(),
+                role: self.role_exception(begin.role, project),
+                determined_by: begin.determined_by,
+                billable: self.billable_exception(begin.billable, project),
+                allow_overlap: begin.allow_overlap,
             },
         )?);
         Ok(events)
@@ -240,7 +245,8 @@ impl Rules<'_> {
     fn log(&self, log: &Log) -> PaceResult<Vec<Event>> {
         self.check_length(&log.start, &log.end)?;
         self.refuse_future("end", &log.end, NOW_HINT)?;
-        if !log.allow_overlap {
+        let project = log.project.as_ref();
+        if !self.overlap_allowed(log.allow_overlap, project) {
             self.refuse_overlap(&log.start, &log.end, &[], Verb::Log)?;
         }
         Ok(vec![self.event(
@@ -252,6 +258,10 @@ impl Rules<'_> {
                 project: log.project.clone(),
                 note: log.note.clone().map(String::from),
                 tags: log.tags.clone(),
+                role: self.role_exception(log.role, project),
+                determined_by: log.determined_by,
+                billable: self.billable_exception(log.billable, project),
+                allow_overlap: log.allow_overlap,
             },
         )?])
     }
@@ -282,7 +292,12 @@ impl Rules<'_> {
         }
         if changes.start.is_some() || changes.end.is_some() {
             self.check_moved_times(entry, &changes, &start, end.as_ref())?;
-            if !adjust.allow_overlap {
+            let project = match &changes.project {
+                Change::Keep => entry.project.as_ref(),
+                Change::Set(project) => Some(project),
+                Change::Clear => None,
+            };
+            if !self.overlap_allowed(adjust.allow_overlap, project) {
                 self.refuse_overlap(
                     &start,
                     end.as_ref().unwrap_or(self.now),
@@ -377,6 +392,34 @@ impl Rules<'_> {
                 .attach_context("id", id.to_string())
                 .attach_hint("`pace now` shows the IDs of the open entries")
         })
+    }
+
+    /// Whether an entry of `project` may overlap others: `--allow-overlap`
+    /// was given, or the project's record has `allow-overlap = true`.
+    fn overlap_allowed(&self, flag: bool, project: Option<&ProjectRef>) -> bool {
+        flag || project.is_some_and(|project| self.catalog.project_allows_overlap(project))
+    }
+
+    /// The role to write for an entry of `project`: `role` where it differs
+    /// from the project's role, so a changed project role applies to the
+    /// entry.
+    fn role_exception(&self, role: Option<RoleId>, project: Option<&ProjectRef>) -> Option<RoleId> {
+        role.filter(|role| {
+            Some(*role) != project.and_then(|project| self.catalog.project_role(project))
+        })
+    }
+
+    /// The billable flag to write for an entry of `project`: `billable`
+    /// where it differs from the project's flag, which is no without a
+    /// record.
+    fn billable_exception(
+        &self,
+        billable: Option<bool>,
+        project: Option<&ProjectRef>,
+    ) -> Option<bool> {
+        let project_billable =
+            project.is_some_and(|project| self.catalog.project_billable(project));
+        billable.filter(|billable| *billable != project_billable)
     }
 
     fn refuse_overlap(
@@ -481,6 +524,10 @@ impl Adjust {
             note: real_change(&self.note.clone().map(String::from), entry.note.as_ref()),
             project: real_change(&self.project, entry.project.as_ref()),
             tags: (tags != entry.tags).then_some(tags),
+            role: real_change(&self.role, entry.role.as_ref()),
+            determined_by: real_change(&self.determined_by, entry.determined_by.as_ref()),
+            billable: real_change(&self.billable, entry.billable.as_ref()),
+            allow_overlap: self.allow_overlap && !entry.allow_overlap,
         }
     }
 }

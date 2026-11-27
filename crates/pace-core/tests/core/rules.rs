@@ -6,9 +6,9 @@ use std::collections::BTreeSet;
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    Batch, BatchId, Catalog, Change, Command, DeviceId, EntryId, EntryState, EntryVerb, Event,
-    EventId, EventKind, Hlc, HoldSource, Ids, OVERLAP, PauseKind, Policy, ProjectRef,
-    RecordedEvent, Rules, State,
+    Batch, BatchId, Catalog, Change, Command, DeterminedBy, DeviceId, EntryId, EntryState,
+    EntryVerb, Event, EventId, EventKind, Hlc, HoldSource, Ids, OVERLAP, PauseKind, Policy,
+    ProjectRecord, ProjectRef, RecordedEvent, Role, RoleId, RoleKind, Rules, State,
     command::{Adjust, Begin, Catch, End, Forget, Hold, Log, Pause, Resume},
     testing::SequentialIds,
 };
@@ -23,6 +23,7 @@ struct World {
     device: DeviceId,
     ids: SequentialIds,
     policy: Policy,
+    catalog: Catalog,
     log: Vec<RecordedEvent>,
     counter: u32,
 }
@@ -45,6 +46,7 @@ impl World {
             device: format!("0193a8d0-000d-7000-8000-{number:012x}").parse()?,
             ids: SequentialIds::starting_at(&berlin("08:00")?, number),
             policy: Policy::default(),
+            catalog: Catalog::default(),
             log: Vec::new(),
             counter: 0,
         })
@@ -77,7 +79,7 @@ impl World {
             device: self.device,
             ids: &self.ids,
             policy: &self.policy,
-            catalog: &Catalog::default(),
+            catalog: &self.catalog,
         }
         .decide(command)?;
         for event in &batch.events {
@@ -1134,6 +1136,10 @@ fn adjust_of_tags_leaves_entry_without_length_alone() -> TestResult {
             project: None,
             note: None,
             tags: BTreeSet::new(),
+            role: None,
+            determined_by: None,
+            billable: None,
+            allow_overlap: false,
         },
     )?;
     let entry = world.only_entry(EntryState::Ended)?;
@@ -1163,6 +1169,10 @@ fn adjust_of_note_leaves_break_past_end_alone() -> TestResult {
             project: None,
             note: None,
             tags: BTreeSet::new(),
+            role: None,
+            determined_by: None,
+            billable: None,
+            allow_overlap: false,
         },
     )?;
     world.record(
@@ -1803,5 +1813,359 @@ fn adjustment_changes_only_values_entry_lacks() -> TestResult {
     assert_eq!(changes.note, Change::Set("Call".to_owned()));
     assert_eq!(changes.project, Change::Keep);
     assert_eq!(changes.tags, Some(BTreeSet::new()));
+    Ok(())
+}
+
+// role, determined by, billable, allowed overlap
+
+const WORK_ID: &str = "0193a8d0-000f-7000-8000-000000000001";
+const FAMILY_ID: &str = "0193a8d0-000f-7000-8000-000000000002";
+
+fn role_id(id: &str) -> Result<RoleId, Box<dyn std::error::Error>> {
+    Ok(id.parse()?)
+}
+
+fn role(id: &str, key: &str) -> Result<Role, Box<dyn std::error::Error>> {
+    Ok(Role {
+        id: id.parse()?,
+        key: key.parse()?,
+        kind: RoleKind::Area,
+        name: key.to_owned(),
+        purpose: None,
+        weekly_target: None,
+        archived: None,
+    })
+}
+
+/// The project `acme-webshop` with the role `work`, billable, and whether
+/// its entries may overlap others.
+fn webshop(allow_overlap: bool) -> Result<ProjectRecord, Box<dyn std::error::Error>> {
+    Ok(ProjectRecord {
+        id: "0193a8d0-000c-7000-8000-000000000001".parse()?,
+        key: "acme-webshop".parse()?,
+        name: "Webshop relaunch".to_owned(),
+        client: None,
+        role: Some("work".parse()?),
+        billable: true,
+        budget: None,
+        starts_on: None,
+        ends_on: None,
+        done_when: None,
+        allow_overlap,
+        archived: None,
+    })
+}
+
+/// A world whose catalog holds the roles `work` and `family` and the
+/// project `acme-webshop`.
+fn world_with_webshop(allow_overlap: bool) -> Result<World, Box<dyn std::error::Error>> {
+    let mut world = World::new()?;
+    world.catalog = Catalog::new(
+        vec![role(WORK_ID, "work")?, role(FAMILY_ID, "family")?],
+        Vec::new(),
+        vec![webshop(allow_overlap)?],
+    )?;
+    Ok(world)
+}
+
+fn webshop_key() -> Result<ProjectRef, Box<dyn std::error::Error>> {
+    Ok(ProjectRef::Key("acme-webshop".parse()?))
+}
+
+/// A begin at `time` in `acme-webshop`, without `--allow-overlap`.
+fn begin_in_webshop(time: &str) -> Result<Command, Box<dyn std::error::Error>> {
+    Ok(Command::Begin(Begin {
+        at: Some(berlin(time)?),
+        project: Some(webshop_key()?),
+        ..Begin::default()
+    }))
+}
+
+#[test]
+fn begin_in_project_that_allows_overlap_overlaps_without_flag() -> TestResult {
+    let mut world = world_with_webshop(true)?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::End(End::default()))?;
+
+    let batch = world.run("10:30", &begin_in_webshop("09:30")?)?;
+
+    assert_eq!(kinds(&batch), ["entry.begun"]);
+    let [
+        Event {
+            kind: EventKind::EntryBegun { allow_overlap, .. },
+            ..
+        },
+    ] = batch.events.as_slice()
+    else {
+        return Err("one entry.begun".into());
+    };
+    assert!(
+        !allow_overlap,
+        "the project allows it, the flag wasn't given"
+    );
+    Ok(())
+}
+
+#[test]
+fn begin_in_project_without_allow_overlap_is_still_refused() -> TestResult {
+    let mut world = world_with_webshop(false)?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::End(End::default()))?;
+
+    let error = world
+        .run("10:30", &begin_in_webshop("09:30")?)
+        .err()
+        .ok_or("the overlap must be refused")?;
+
+    assert!(error.is_code(OVERLAP), "{error}");
+    Ok(())
+}
+
+#[test]
+fn log_in_project_that_allows_overlap_overlaps_without_flag() -> TestResult {
+    let mut world = world_with_webshop(true)?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::End(End::default()))?;
+
+    let batch = world.run(
+        "11:00",
+        &Command::Log(Log {
+            project: Some(webshop_key()?),
+            ..Log::new(berlin("09:30")?, berlin("10:30")?)
+        }),
+    )?;
+
+    assert_eq!(kinds(&batch), ["entry.logged"]);
+    Ok(())
+}
+
+#[test]
+fn adjust_into_project_that_allows_overlap_moves_without_flag() -> TestResult {
+    let mut world = world_with_webshop(true)?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    _ = world.run("10:00", &Command::End(End::default()))?;
+    _ = world.run("10:00", &begin("Review"))?;
+    let review = world.only_entry(EntryState::Running)?;
+
+    let batch = world.run(
+        "10:30",
+        &Command::Adjust(Adjust {
+            entry: Some(review),
+            start: Some(berlin("09:30")?),
+            project: Change::Set(webshop_key()?),
+            ..Adjust::default()
+        }),
+    )?;
+
+    assert_eq!(kinds(&batch), ["entry.adjusted"]);
+    Ok(())
+}
+
+/// The role, determined-by, billable and allow-overlap of a new entry.
+type EntryFields = (Option<RoleId>, Option<DeterminedBy>, Option<bool>, bool);
+
+/// The [`EntryFields`] of the `entry.begun` or `entry.logged` of `batch`.
+fn entry_fields(batch: &Batch) -> Result<EntryFields, Box<dyn std::error::Error>> {
+    batch
+        .events
+        .iter()
+        .find_map(|event| match &event.kind {
+            EventKind::EntryBegun {
+                role,
+                determined_by,
+                billable,
+                allow_overlap,
+                ..
+            }
+            | EventKind::EntryLogged {
+                role,
+                determined_by,
+                billable,
+                allow_overlap,
+                ..
+            } => Some((*role, *determined_by, *billable, *allow_overlap)),
+            _ => None,
+        })
+        .ok_or_else(|| format!("expected a new entry, found {:?}", batch.events).into())
+}
+
+#[test]
+fn begin_writes_role_and_billable_only_where_they_differ_from_project() -> TestResult {
+    let mut world = world_with_webshop(false)?;
+    let begin = |role: &str, billable: bool| -> Result<Command, Box<dyn std::error::Error>> {
+        Ok(Command::Begin(Begin {
+            project: Some(webshop_key()?),
+            role: Some(role_id(role)?),
+            billable: Some(billable),
+            ..Begin::default()
+        }))
+    };
+
+    let same = world.run("09:00", &begin(WORK_ID, true)?)?;
+    let other = world.run("10:00", &begin(FAMILY_ID, false)?)?;
+
+    assert_eq!(entry_fields(&same)?, (None, None, None, false));
+    assert_eq!(
+        entry_fields(&other)?,
+        (Some(role_id(FAMILY_ID)?), None, Some(false), false)
+    );
+    Ok(())
+}
+
+#[test]
+fn log_without_project_writes_role_and_billable_but_not_billable_false() -> TestResult {
+    let mut world = world_with_webshop(false)?;
+    let log =
+        |billable: bool, start: &str, end: &str| -> Result<Command, Box<dyn std::error::Error>> {
+            Ok(Command::Log(Log {
+                role: Some(role_id(WORK_ID)?),
+                determined_by: Some(DeterminedBy::Others),
+                billable: Some(billable),
+                allow_overlap: true,
+                ..Log::new(berlin(start)?, berlin(end)?)
+            }))
+        };
+
+    let billable = world.run("12:00", &log(true, "09:00", "10:00")?)?;
+    let not_billable = world.run("12:00", &log(false, "10:00", "11:00")?)?;
+
+    assert_eq!(
+        entry_fields(&billable)?,
+        (
+            Some(role_id(WORK_ID)?),
+            Some(DeterminedBy::Others),
+            Some(true),
+            true
+        )
+    );
+    assert_eq!(
+        entry_fields(&not_billable)?,
+        (
+            Some(role_id(WORK_ID)?),
+            Some(DeterminedBy::Others),
+            None,
+            true
+        )
+    );
+    Ok(())
+}
+
+#[test]
+fn effective_role_and_billable_fall_back_to_project_record() -> TestResult {
+    let mut world = world_with_webshop(false)?;
+    _ = world.run("09:00", &begin_in_webshop("09:00")?)?;
+    _ = world.run(
+        "10:00",
+        &Command::Begin(Begin {
+            project: Some(webshop_key()?),
+            role: Some(role_id(FAMILY_ID)?),
+            billable: Some(false),
+            ..Begin::default()
+        }),
+    )?;
+    _ = world.run("11:00", &begin("Without project"))?;
+
+    let state = world.state();
+    let entries: Vec<_> = state.entries().collect();
+    let effective: Vec<_> = entries
+        .iter()
+        .map(|entry| {
+            (
+                entry.effective_role(&world.catalog),
+                entry.effective_billable(&world.catalog),
+            )
+        })
+        .collect();
+
+    assert_eq!(
+        effective,
+        [
+            (Some(role_id(WORK_ID)?), true),
+            (Some(role_id(FAMILY_ID)?), false),
+            (None, false),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn changed_project_role_applies_to_old_entries() -> TestResult {
+    let mut world = world_with_webshop(false)?;
+    _ = world.run("09:00", &begin_in_webshop("09:00")?)?;
+    let mut moved = webshop(false)?;
+    moved.role = Some("family".parse()?);
+    world.catalog = Catalog::new(
+        vec![role(WORK_ID, "work")?, role(FAMILY_ID, "family")?],
+        Vec::new(),
+        vec![moved],
+    )?;
+
+    let state = world.state();
+    let entry = state
+        .entry(world.only_entry(EntryState::Running)?)
+        .ok_or("entry")?;
+
+    assert_eq!(
+        entry.effective_role(&world.catalog),
+        Some(role_id(FAMILY_ID)?)
+    );
+    Ok(())
+}
+
+#[test]
+fn adjust_with_allow_overlap_records_it_once() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run("09:00", &begin("Write offer"))?;
+    let allow = Command::Adjust(Adjust {
+        allow_overlap: true,
+        ..Adjust::default()
+    });
+
+    let batch = world.run("09:10", &allow)?;
+    let again = world
+        .run("09:20", &allow)
+        .err()
+        .ok_or("the second must have nothing to do")?;
+
+    let [
+        Event {
+            kind: EventKind::EntryAdjusted { changes, .. },
+            ..
+        },
+    ] = batch.events.as_slice()
+    else {
+        return Err("one entry.adjusted".into());
+    };
+    assert!(changes.allow_overlap);
+    assert_eq!(again.exit_code(), ExitCode::NothingToDo);
+    Ok(())
+}
+
+#[test]
+fn adjust_changes_role_determined_by_and_billable_only_where_they_differ() -> TestResult {
+    let mut world = World::new()?;
+    _ = world.run(
+        "09:00",
+        &Command::Begin(Begin {
+            role: Some(role_id(WORK_ID)?),
+            determined_by: Some(DeterminedBy::Me),
+            ..Begin::default()
+        }),
+    )?;
+    let entry = world.only_entry(EntryState::Running)?;
+    let state = world.state();
+    let entry = state.entry(entry).ok_or("entry")?;
+    let adjust = Adjust {
+        role: Change::Set(role_id(WORK_ID)?),
+        determined_by: Change::Set(DeterminedBy::Others),
+        billable: Change::Clear,
+        ..Adjust::default()
+    };
+
+    let changes = adjust.changes(entry);
+
+    assert_eq!(changes.role, Change::Keep);
+    assert_eq!(changes.determined_by, Change::Set(DeterminedBy::Others));
+    assert_eq!(changes.billable, Change::Keep);
     Ok(())
 }

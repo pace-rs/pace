@@ -225,6 +225,7 @@ impl Runnable for BeginCmd {
                 project,
                 tags: entry_tags(&self.tags, context.project.as_ref())?,
                 allow_overlap: self.allow_overlap,
+                ..Begin::default()
             }))
         }));
     }
@@ -514,6 +515,10 @@ mod tests {
             project: Some(project),
             note: Some("Standup".to_owned()),
             tags: BTreeSet::new(),
+            role: None,
+            determined_by: None,
+            billable: None,
+            allow_overlap: false,
             holds: Vec::new(),
             pauses: Vec::new(),
             catches: Vec::new(),
@@ -624,6 +629,10 @@ mod tests {
                     project: None,
                     note: Some(note.to_owned()),
                     tags: BTreeSet::new(),
+                    role: None,
+                    determined_by: None,
+                    billable: None,
+                    allow_overlap: false,
                 },
             ),
             event(1, end, pace_core::EventKind::EntryEnded { entry }),

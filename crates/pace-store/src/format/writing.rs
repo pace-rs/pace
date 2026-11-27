@@ -1,8 +1,6 @@
 //! An event written as its `[[event]]` record.
 
-use std::collections::BTreeSet;
-
-use pace_core::{Change, EntryChanges, EventKind, ProjectRef, RecordedEvent, Tag};
+use pace_core::{Change, EntryChanges, EventKind, ProjectRef, RecordedEvent};
 
 use crate::format::{EVENT_VERSION, EventType, Record};
 use crate::hlc::hlc_text;
@@ -22,6 +20,10 @@ pub(super) fn record_from_event(recorded: &RecordedEvent) -> Record {
         project_key: None,
         note: None,
         tags: None,
+        role: None,
+        determined_by: None,
+        billable: None,
+        allow_overlap: None,
         source: None,
         pause_kind: None,
         reason: None,
@@ -31,18 +33,9 @@ pub(super) fn record_from_event(recorded: &RecordedEvent) -> Record {
         cleared: None,
         undoes: None,
     };
-    let non_empty = |tags: &BTreeSet<Tag>| (!tags.is_empty()).then(|| tags.clone());
     match &event.kind {
-        EventKind::EntryBegun {
-            entry,
-            project,
-            note,
-            tags,
-        } => {
-            record.entry = Some(*entry);
-            set_project(&mut record, project.as_ref());
-            record.note.clone_from(note);
-            record.tags = non_empty(tags);
+        EventKind::EntryBegun { .. } | EventKind::EntryLogged { .. } => {
+            new_entry_record(&mut record, &event.kind);
         }
         EventKind::EntryHeld {
             entry,
@@ -69,19 +62,6 @@ pub(super) fn record_from_event(recorded: &RecordedEvent) -> Record {
             record.entry = Some(*entry);
             record.text = Some(text.clone());
         }
-        EventKind::EntryLogged {
-            entry,
-            end,
-            project,
-            note,
-            tags,
-        } => {
-            record.entry = Some(*entry);
-            record.end = Some(end.clone());
-            set_project(&mut record, project.as_ref());
-            record.note.clone_from(note);
-            record.tags = non_empty(tags);
-        }
         EventKind::EntryAdjusted { entry, changes } => {
             record.entry = Some(*entry);
             adjusted_record(&mut record, changes);
@@ -89,6 +69,46 @@ pub(super) fn record_from_event(recorded: &RecordedEvent) -> Record {
         EventKind::BatchUndone { batch } => record.undoes = Some(*batch),
     }
     record
+}
+
+/// The fields of an `entry.begun` or an `entry.logged` event; the four
+/// fields of phase 3 only when the event has them.
+fn new_entry_record(record: &mut Record, kind: &EventKind) {
+    let (EventKind::EntryBegun {
+        entry,
+        project,
+        note,
+        tags,
+        role,
+        determined_by,
+        billable,
+        allow_overlap,
+    }
+    | EventKind::EntryLogged {
+        entry,
+        project,
+        note,
+        tags,
+        role,
+        determined_by,
+        billable,
+        allow_overlap,
+        ..
+    }) = kind
+    else {
+        return;
+    };
+    if let EventKind::EntryLogged { end, .. } = kind {
+        record.end = Some(end.clone());
+    }
+    record.entry = Some(*entry);
+    set_project(record, project.as_ref());
+    record.note.clone_from(note);
+    record.tags = (!tags.is_empty()).then(|| tags.clone());
+    record.role = *role;
+    record.determined_by = *determined_by;
+    record.billable = *billable;
+    record.allow_overlap = allow_overlap.then_some(true);
 }
 
 fn set_project(record: &mut Record, project: Option<&ProjectRef>) {
@@ -115,5 +135,21 @@ fn adjusted_record(record: &mut Record, changes: &EntryChanges) {
         Change::Keep => {}
     }
     record.tags.clone_from(&changes.tags);
+    match changes.role {
+        Change::Set(role) => record.role = Some(role),
+        Change::Clear => cleared.push("role".to_owned()),
+        Change::Keep => {}
+    }
+    match changes.determined_by {
+        Change::Set(by) => record.determined_by = Some(by),
+        Change::Clear => cleared.push("determined-by".to_owned()),
+        Change::Keep => {}
+    }
+    match changes.billable {
+        Change::Set(billable) => record.billable = Some(billable),
+        Change::Clear => cleared.push("billable".to_owned()),
+        Change::Keep => {}
+    }
+    record.allow_overlap = changes.allow_overlap.then_some(true);
     record.cleared = (!cleared.is_empty()).then_some(cleared);
 }

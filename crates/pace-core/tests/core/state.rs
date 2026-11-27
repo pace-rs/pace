@@ -5,8 +5,8 @@ use std::collections::BTreeSet;
 
 use jiff::{SignedDuration, ZonedDateTime};
 use pace_core::{
-    BatchId, Change, DeviceId, EntryChanges, EntryId, EntryOrigin, EntryState, Event, EventId,
-    EventKind, Hlc, HoldSource, PauseKind, ProjectRef, RecordedEvent, State,
+    BatchId, Change, DeterminedBy, DeviceId, EntryChanges, EntryId, EntryOrigin, EntryState, Event,
+    EventId, EventKind, Hlc, HoldSource, PauseKind, ProjectRef, RecordedEvent, RoleId, State,
 };
 
 use rstest::rstest;
@@ -79,6 +79,10 @@ fn begun(entry: EntryId) -> EventKind {
         project: None,
         note: Some("Write offer".to_owned()),
         tags: BTreeSet::new(),
+        role: None,
+        determined_by: None,
+        billable: None,
+        allow_overlap: false,
     }
 }
 
@@ -423,6 +427,10 @@ fn logged_entry_is_ended_from_the_start() -> TestResult {
             project: Some(ProjectRef::Key("acme-webshop".parse()?)),
             note: Some("Call with ACME".to_owned()),
             tags: BTreeSet::new(),
+            role: None,
+            determined_by: None,
+            billable: None,
+            allow_overlap: false,
         },
     )?;
 
@@ -511,6 +519,10 @@ fn adjustment_clears_project() -> TestResult {
             project: Some(ProjectRef::Key("acme-webshop".parse()?)),
             note: None,
             tags: BTreeSet::new(),
+            role: None,
+            determined_by: None,
+            billable: None,
+            allow_overlap: false,
         },
     )?;
     _ = log.push(
@@ -563,6 +575,169 @@ fn per_field_the_later_change_wins_across_devices() -> TestResult {
 
     assert_eq!(found.note.as_deref(), Some("desktop"));
     assert_eq!(found.tags, BTreeSet::from(["dev".parse()?]));
+    Ok(())
+}
+
+fn role(number: u32) -> Result<RoleId, Box<dyn std::error::Error>> {
+    Ok(id(0xf, number).parse()?)
+}
+
+/// An `entry.begun` with role 1, self-determined, billable and its overlap
+/// allowed.
+fn begun_with_fields(entry: EntryId) -> Result<EventKind, Box<dyn std::error::Error>> {
+    Ok(EventKind::EntryBegun {
+        entry,
+        project: None,
+        note: None,
+        tags: BTreeSet::new(),
+        role: Some(role(1)?),
+        determined_by: Some(DeterminedBy::Me),
+        billable: Some(true),
+        allow_overlap: true,
+    })
+}
+
+#[test]
+fn begun_entry_carries_role_determined_by_billable_and_overlap() -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun_with_fields(e)?)?;
+
+    let state = State::from_events(&log.events);
+    let found = state.entry(e).ok_or("entry")?;
+
+    assert_eq!(found.role, Some(role(1)?));
+    assert_eq!(found.determined_by, Some(DeterminedBy::Me));
+    assert_eq!(found.billable, Some(true));
+    assert!(found.allow_overlap);
+    Ok(())
+}
+
+#[test]
+fn begun_entry_without_the_fields_has_none_of_them() -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+
+    let state = State::from_events(&log.events);
+    let found = state.entry(e).ok_or("entry")?;
+
+    assert_eq!(found.role, None);
+    assert_eq!(found.determined_by, None);
+    assert_eq!(found.billable, None);
+    assert!(!found.allow_overlap);
+    Ok(())
+}
+
+#[rstest]
+#[case::keep(
+    Change::Keep,
+    Change::Keep,
+    Change::Keep,
+    Some(1),
+    Some(DeterminedBy::Me),
+    Some(true)
+)]
+#[case::set(
+    Change::Set(2),
+    Change::Set(DeterminedBy::Others),
+    Change::Set(false),
+    Some(2),
+    Some(DeterminedBy::Others),
+    Some(false)
+)]
+#[case::clear(Change::Clear, Change::Clear, Change::Clear, None, None, None)]
+fn adjustment_keeps_sets_or_clears_role_determined_by_and_billable(
+    #[case] role_change: Change<u32>,
+    #[case] determined_by: Change<DeterminedBy>,
+    #[case] billable: Change<bool>,
+    #[case] role_after: Option<u32>,
+    #[case] determined_by_after: Option<DeterminedBy>,
+    #[case] billable_after: Option<bool>,
+) -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun_with_fields(e)?)?;
+    let role_change = match role_change {
+        Change::Keep => Change::Keep,
+        Change::Set(number) => Change::Set(role(number)?),
+        Change::Clear => Change::Clear,
+    };
+    _ = log.push(
+        "2026-11-26T09:10[Europe/Berlin]",
+        EventKind::EntryAdjusted {
+            entry: e,
+            changes: EntryChanges {
+                role: role_change,
+                determined_by,
+                billable,
+                ..EntryChanges::default()
+            },
+        },
+    )?;
+
+    let state = State::from_events(&log.events);
+    let found = state.entry(e).ok_or("entry")?;
+
+    assert_eq!(found.role, role_after.map(role).transpose()?);
+    assert_eq!(found.determined_by, determined_by_after);
+    assert_eq!(found.billable, billable_after);
+    assert!(
+        found.allow_overlap,
+        "an adjustment never takes the overlap back"
+    );
+    Ok(())
+}
+
+#[test]
+fn adjustment_allows_overlap_of_entry_from_then_on() -> TestResult {
+    let mut log = Log::new(1)?;
+    let e = entry(1)?;
+    _ = log.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = log.push(
+        "2026-11-26T09:10[Europe/Berlin]",
+        EventKind::EntryAdjusted {
+            entry: e,
+            changes: EntryChanges {
+                allow_overlap: true,
+                ..EntryChanges::default()
+            },
+        },
+    )?;
+
+    let state = State::from_events(&log.events);
+
+    assert!(state.entry(e).ok_or("entry")?.allow_overlap);
+    Ok(())
+}
+
+#[test]
+fn later_role_change_by_hlc_wins_across_devices() -> TestResult {
+    let mut laptop = Log::new(1)?;
+    let mut desktop = Log::new(2)?;
+    let e = entry(1)?;
+    _ = laptop.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    let change = |number: u32| -> Result<EventKind, Box<dyn std::error::Error>> {
+        Ok(EventKind::EntryAdjusted {
+            entry: e,
+            changes: EntryChanges {
+                role: Change::Set(role(number)?),
+                billable: Change::Set(number == 1),
+                ..EntryChanges::default()
+            },
+        })
+    };
+    // Recorded apart: the desktop's change comes later by HLC.
+    _ = desktop.push("2026-11-26T10:05[Europe/Berlin]", change(2)?)?;
+    _ = laptop.push("2026-11-26T10:00[Europe/Berlin]", change(1)?)?;
+
+    let mut merged = desktop.events.clone();
+    merged.extend(laptop.events.clone());
+    let state = State::from_events(&merged);
+    let found = state.entry(e).ok_or("entry")?;
+
+    assert_eq!(found.role, Some(role(2)?));
+    assert_eq!(found.billable, Some(false));
     Ok(())
 }
 
@@ -1076,6 +1251,10 @@ fn logged(entry: EntryId, end: &str) -> Result<EventKind, Box<dyn std::error::Er
         project: None,
         note: None,
         tags: BTreeSet::new(),
+        role: None,
+        determined_by: None,
+        billable: None,
+        allow_overlap: false,
     })
 }
 

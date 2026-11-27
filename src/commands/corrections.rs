@@ -84,6 +84,7 @@ impl Runnable for AdjustCmd {
                 tag: tags(&self.tags)?,
                 untag: tags(&self.untags)?,
                 allow_overlap: self.allow_overlap,
+                ..Adjust::default()
             }))
         }));
     }

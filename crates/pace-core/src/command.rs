@@ -8,7 +8,7 @@ use serde::{
     de::{Error as _, IgnoredAny, MapAccess, SeqAccess, Visitor},
 };
 
-use crate::{Change, EntryId, HoldSource, PauseKind, ProjectRef, Tag, Text};
+use crate::{Change, DeterminedBy, EntryId, HoldSource, PauseKind, ProjectRef, RoleId, Tag, Text};
 
 /// A use case, as data.
 ///
@@ -62,6 +62,15 @@ pub struct Begin {
     /// Tags of the entry.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub tags: BTreeSet<Tag>,
+    /// `--role`, resolved to the role's ID; `None` takes the project's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<RoleId>,
+    /// `--by-me` or `--by-others`; `None` leaves it unmarked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub determined_by: Option<DeterminedBy>,
+    /// `--billable` or `--not-billable`; `None` takes the project's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub billable: Option<bool>,
     /// `--allow-overlap`: overlapping another entry is intended.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub allow_overlap: bool,
@@ -146,13 +155,23 @@ pub struct Log {
     /// Its tags.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub tags: BTreeSet<Tag>,
+    /// `--role`, resolved to the role's ID; `None` takes the project's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<RoleId>,
+    /// `--by-me` or `--by-others`; `None` leaves it unmarked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub determined_by: Option<DeterminedBy>,
+    /// `--billable` or `--not-billable`; `None` takes the project's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub billable: Option<bool>,
     /// `--allow-overlap`
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub allow_overlap: bool,
 }
 
 impl Log {
-    /// An entry from `start` to `end` without note, project or tags.
+    /// An entry from `start` to `end` without note, project, tags, role or
+    /// billable flag, unmarked, its overlap refused.
     #[must_use]
     pub const fn new(start: ZonedDateTime, end: ZonedDateTime) -> Self {
         Self {
@@ -161,6 +180,9 @@ impl Log {
             note: None,
             project: None,
             tags: BTreeSet::new(),
+            role: None,
+            determined_by: None,
+            billable: None,
             allow_overlap: false,
         }
     }
@@ -191,7 +213,16 @@ pub struct Adjust {
     /// Tags to remove.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub untag: BTreeSet<Tag>,
-    /// `--allow-overlap`
+    /// A new role; `null` takes the project's role again.
+    #[serde(default, skip_serializing_if = "Change::is_keep", with = "change")]
+    pub role: Change<RoleId>,
+    /// Who determined the time; `null` unmarks it.
+    #[serde(default, skip_serializing_if = "Change::is_keep", with = "change")]
+    pub determined_by: Change<DeterminedBy>,
+    /// Billable or not; `null` takes the project's flag again.
+    #[serde(default, skip_serializing_if = "Change::is_keep", with = "change")]
+    pub billable: Change<bool>,
+    /// `--allow-overlap`; the entry keeps it from now on.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub allow_overlap: bool,
 }

@@ -55,6 +55,10 @@ fn present(record: &Record) -> Vec<&'static str> {
         ("project-key", record.project_key.is_some()),
         ("note", record.note.is_some()),
         ("tags", record.tags.is_some()),
+        ("role", record.role.is_some()),
+        ("determined-by", record.determined_by.is_some()),
+        ("billable", record.billable.is_some()),
+        ("allow-overlap", record.allow_overlap.is_some()),
         ("source", record.source.is_some()),
         ("kind", record.pause_kind.is_some()),
         ("reason", record.reason.is_some()),
@@ -151,6 +155,7 @@ fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Inval
         .map(ProjectRef::Id)
         .or_else(|| record.project_key.clone().map(ProjectRef::Key));
     let tags = record.tags.clone().unwrap_or_default();
+    let allow_overlap = record.allow_overlap == Some(true);
 
     Ok(match event_type {
         EventType::EntryBegun => EventKind::EntryBegun {
@@ -158,6 +163,10 @@ fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Inval
             project,
             note: record.note.clone(),
             tags,
+            role: record.role,
+            determined_by: record.determined_by,
+            billable: record.billable,
+            allow_overlap,
         },
         EventType::EntryHeld => EventKind::EntryHeld {
             entry: entry?,
@@ -182,6 +191,10 @@ fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Inval
             project,
             note: record.note.clone(),
             tags,
+            role: record.role,
+            determined_by: record.determined_by,
+            billable: record.billable,
+            allow_overlap,
         },
         EventType::EntryAdjusted => EventKind::EntryAdjusted {
             entry: entry?,
@@ -193,14 +206,18 @@ fn event_kind(record: &Record, event_type: EventType) -> Result<EventKind, Inval
     })
 }
 
+/// The fields an `entry.adjusted` event can empty with `cleared`.
+const CLEARABLE: [&str; 5] = ["note", "project", "role", "determined-by", "billable"];
+
 fn adjusted(record: &Record, project: Option<ProjectRef>) -> Result<EntryChanges, InvalidRecord> {
     let cleared = record.cleared.clone().unwrap_or_default();
     if let Some(unknown) = cleared
         .iter()
-        .find(|field| !["note", "project"].contains(&field.as_str()))
+        .find(|field| !CLEARABLE.contains(&field.as_str()))
     {
         return Err(InvalidRecord::new(
-            "`cleared` names `{field}`; only `note` and `project` can be cleared",
+            "`cleared` names `{field}`; only `note`, `project`, `role`, `determined-by` and \
+             `billable` can be cleared",
         )
         .with("field", unknown));
     }
@@ -210,6 +227,10 @@ fn adjusted(record: &Record, project: Option<ProjectRef>) -> Result<EntryChanges
         note: change("note", record.note.clone(), &cleared)?,
         project: change("project", project, &cleared)?,
         tags: record.tags.clone(),
+        role: change("role", record.role, &cleared)?,
+        determined_by: change("determined-by", record.determined_by, &cleared)?,
+        billable: change("billable", record.billable, &cleared)?,
+        allow_overlap: record.allow_overlap == Some(true),
     })
 }
 

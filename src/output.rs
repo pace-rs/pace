@@ -438,6 +438,10 @@ mod tests {
             project: None,
             note: Some("Write offer".to_owned()),
             tags: BTreeSet::new(),
+            role: None,
+            determined_by: None,
+            billable: None,
+            allow_overlap: false,
         }
     }
 
@@ -514,6 +518,10 @@ mod tests {
                 project: None,
                 note: Some("Review".to_owned()),
                 tags: BTreeSet::new(),
+                role: None,
+                determined_by: None,
+                billable: None,
+                allow_overlap: false,
             },
             EventKind::EntryAdjusted {
                 entry,
@@ -657,6 +665,10 @@ mod tests {
                 project: None,
                 note: Some("Write offer".to_owned()),
                 tags: BTreeSet::from(["draft".parse()?]),
+                role: None,
+                determined_by: None,
+                billable: None,
+                allow_overlap: false,
             },
         )?;
         let changes = EntryChanges {

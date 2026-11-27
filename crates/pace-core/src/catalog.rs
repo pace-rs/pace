@@ -268,6 +268,30 @@ impl Catalog {
         }
     }
 
+    /// The ID of the role of the project an entry refers to, if the catalog
+    /// holds its record and the record names a role.
+    #[must_use]
+    pub fn project_role(&self, project: &ProjectRef) -> Option<RoleId> {
+        self.resolve(project)
+            .and_then(|record| self.role_of(record))
+            .map(|role| role.id)
+    }
+
+    /// Whether the project an entry refers to is billable; no without a
+    /// record.
+    #[must_use]
+    pub fn project_billable(&self, project: &ProjectRef) -> bool {
+        self.resolve(project).is_some_and(|record| record.billable)
+    }
+
+    /// Whether the entries of the project an entry refers to may overlap
+    /// others; no without a record.
+    #[must_use]
+    pub fn project_allows_overlap(&self, project: &ProjectRef) -> bool {
+        self.resolve(project)
+            .is_some_and(|record| record.allow_overlap)
+    }
+
     /// The hourly rate of `project` on `day`: the project's rates first,
     /// then its client's. `None` without a client, and before the first
     /// rate (restart.md 3.7).

@@ -301,6 +301,10 @@ mod tests {
                     project: None,
                     note: Some(note.to_owned()),
                     tags: BTreeSet::new(),
+                    role: None,
+                    determined_by: None,
+                    billable: None,
+                    allow_overlap: false,
                 },
             },
         }

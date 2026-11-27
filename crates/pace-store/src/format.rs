@@ -9,8 +9,8 @@ use std::{collections::BTreeSet, ops::Range, path::Path};
 
 use jiff::ZonedDateTime;
 use pace_core::{
-    BatchId, DeviceId, EntryId, EventId, HoldSource, PauseKind, ProjectId, ProjectKey,
-    RecordedEvent, Tag,
+    BatchId, DeterminedBy, DeviceId, EntryId, EventId, HoldSource, PauseKind, ProjectId,
+    ProjectKey, RecordedEvent, RoleId, Tag,
 };
 use pace_error::{ErrorKind, PaceError, PaceResult, closest_name};
 use serde::{Deserialize, Serialize};
@@ -56,6 +56,14 @@ struct Record {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     tags: Option<BTreeSet<Tag>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    role: Option<RoleId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    determined_by: Option<DeterminedBy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    billable: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    allow_overlap: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     source: Option<HoldSource>,
     #[serde(default, rename = "kind", skip_serializing_if = "Option::is_none")]
     pause_kind: Option<PauseKind>,
@@ -74,7 +82,7 @@ struct Record {
 }
 
 /// The keys an `[[event]]` table may have.
-const KEYS: [&str; 22] = [
+const KEYS: [&str; 26] = [
     "id",
     "type",
     "v",
@@ -87,6 +95,10 @@ const KEYS: [&str; 22] = [
     "project-key",
     "note",
     "tags",
+    "role",
+    "determined-by",
+    "billable",
+    "allow-overlap",
     "source",
     "kind",
     "reason",

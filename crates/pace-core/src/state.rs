@@ -6,7 +6,7 @@ use jiff::ZonedDateTime;
 
 use crate::{
     BatchId, Catalog, Change, DeviceId, Entry, EntryChanges, EntryId, EntryOrigin, EventId,
-    EventKind, Hlc, HoldSource, PauseKind, ProjectRef, RecordedEvent, Tag,
+    EventKind, Hlc, HoldSource, PauseKind, ProjectRef, RecordedEvent,
     entry::{EntryCatch, EntryHold, EntryPause},
     short_id::short_id_among,
 };
@@ -326,33 +326,11 @@ impl State {
     fn apply(&mut self, recorded: &RecordedEvent) {
         let at = &recorded.event.at;
         match &recorded.event.kind {
-            EventKind::EntryBegun {
-                entry,
-                project,
-                note,
-                tags,
-            } => self.insert(new_entry(
-                recorded,
-                *entry,
-                None,
-                project.as_ref(),
-                note.as_ref(),
-                tags,
-            )),
-            EventKind::EntryLogged {
-                entry,
-                end,
-                project,
-                note,
-                tags,
-            } => self.insert(new_entry(
-                recorded,
-                *entry,
-                Some(end),
-                project.as_ref(),
-                note.as_ref(),
-                tags,
-            )),
+            EventKind::EntryBegun { .. } | EventKind::EntryLogged { .. } => {
+                if let Some(entry) = new_entry(recorded) {
+                    self.insert(entry);
+                }
+            }
             EventKind::EntryHeld {
                 entry,
                 source,
@@ -440,32 +418,60 @@ impl State {
     }
 }
 
-fn new_entry(
-    recorded: &RecordedEvent,
-    id: EntryId,
-    end: Option<&ZonedDateTime>,
-    project: Option<&ProjectRef>,
-    note: Option<&String>,
-    tags: &BTreeSet<Tag>,
-) -> Entry {
-    Entry {
-        id,
+/// The entry an `entry.begun` or `entry.logged` event creates; `None` for
+/// any other event.
+fn new_entry(recorded: &RecordedEvent) -> Option<Entry> {
+    let kind = &recorded.event.kind;
+    let (EventKind::EntryBegun {
+        entry,
+        project,
+        note,
+        tags,
+        role,
+        determined_by,
+        billable,
+        allow_overlap,
+    }
+    | EventKind::EntryLogged {
+        entry,
+        project,
+        note,
+        tags,
+        role,
+        determined_by,
+        billable,
+        allow_overlap,
+        ..
+    }) = kind
+    else {
+        return None;
+    };
+    let end = match kind {
+        EventKind::EntryLogged { end, .. } => Some(end.clone()),
+        _ => None,
+    };
+    Some(Entry {
+        id: *entry,
         device: recorded.device,
         start: recorded.event.at.clone(),
-        end: end.cloned(),
-        project: project.cloned(),
-        note: note.cloned(),
-        tags: tags.clone(),
-        holds: Vec::new(),
-        pauses: Vec::new(),
-        catches: Vec::new(),
         origin: if end.is_some() {
             EntryOrigin::Logged
         } else {
             EntryOrigin::Live
         },
+        end,
+        project: project.clone(),
+        note: note.clone(),
+        tags: tags.clone(),
+        role: *role,
+        determined_by: *determined_by,
+        billable: *billable,
+        allow_overlap: *allow_overlap,
+        holds: Vec::new(),
+        pauses: Vec::new(),
+        catches: Vec::new(),
         filed: recorded.event.about.clone(),
-    }
+    })
 }
 
 /// A hold while held only updates the reason; a hold while paused turns the
@@ -511,17 +517,22 @@ fn adjust(entry: &mut Entry, changes: &EntryChanges) {
     if let Some(end) = &changes.end {
         entry.end = Some(end.clone());
     }
-    match &changes.note {
-        Change::Keep => {}
-        Change::Set(note) => entry.note = Some(note.clone()),
-        Change::Clear => entry.note = None,
-    }
-    match &changes.project {
-        Change::Keep => {}
-        Change::Set(project) => entry.project = Some(project.clone()),
-        Change::Clear => entry.project = None,
-    }
+    apply_change(&mut entry.note, &changes.note);
+    apply_change(&mut entry.project, &changes.project);
     if let Some(tags) = &changes.tags {
         entry.tags.clone_from(tags);
+    }
+    apply_change(&mut entry.role, &changes.role);
+    apply_change(&mut entry.determined_by, &changes.determined_by);
+    apply_change(&mut entry.billable, &changes.billable);
+    entry.allow_overlap |= changes.allow_overlap;
+}
+
+/// Keep, set or clear one field of an entry.
+fn apply_change<T: Clone>(field: &mut Option<T>, change: &Change<T>) {
+    match change {
+        Change::Keep => {}
+        Change::Set(value) => *field = Some(value.clone()),
+        Change::Clear => *field = None,
     }
 }

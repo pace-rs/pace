@@ -1,7 +1,7 @@
 //! Every event kind reads back as written, and each invalid event file is
 //! refused with its reason.
 
-use pace_core::{Change, EntryChanges, Event, EventKind, Hlc, ProjectRef};
+use pace_core::{Change, DeterminedBy, EntryChanges, Event, EventKind, Hlc, ProjectRef, RoleId};
 
 use super::*;
 
@@ -17,12 +17,17 @@ fn one_of_each() -> Result<Vec<EventKind>, Box<dyn std::error::Error>> {
     let entry: EntryId = id(0xa, 1).parse()?;
     let tags = BTreeSet::from(["dev".parse()?]);
     let project = Some(ProjectRef::Key("acme-webshop".parse()?));
+    let role: RoleId = id(0xe, 1).parse()?;
     Ok(vec![
         EventKind::EntryBegun {
             entry,
             project: project.clone(),
             note: Some("Write offer".to_owned()),
             tags: tags.clone(),
+            role: Some(role),
+            determined_by: Some(DeterminedBy::Others),
+            billable: Some(true),
+            allow_overlap: true,
         },
         EventKind::EntryHeld {
             entry,
@@ -46,6 +51,10 @@ fn one_of_each() -> Result<Vec<EventKind>, Box<dyn std::error::Error>> {
             project,
             note: Some("Review".to_owned()),
             tags: tags.clone(),
+            role: Some(role),
+            determined_by: Some(DeterminedBy::Me),
+            billable: Some(false),
+            allow_overlap: true,
         },
         EventKind::EntryAdjusted {
             entry,
@@ -55,6 +64,10 @@ fn one_of_each() -> Result<Vec<EventKind>, Box<dyn std::error::Error>> {
                 note: Change::Clear,
                 project: Change::Set(ProjectRef::Id(id(0xc, 1).parse()?)),
                 tags: Some(tags),
+                role: Change::Set(role),
+                determined_by: Change::Clear,
+                billable: Change::Set(false),
+                allow_overlap: true,
             },
         },
         EventKind::EntryAdjusted {
@@ -62,6 +75,9 @@ fn one_of_each() -> Result<Vec<EventKind>, Box<dyn std::error::Error>> {
             changes: EntryChanges {
                 note: Change::Set("Offer, second draft".to_owned()),
                 project: Change::Clear,
+                role: Change::Clear,
+                determined_by: Change::Set(DeterminedBy::Others),
+                billable: Change::Clear,
                 ..EntryChanges::default()
             },
         },
@@ -323,12 +339,13 @@ fn adjusted_with(changes: &str) -> String {
 }
 
 #[test]
-fn adjusted_event_clears_only_note_and_project() -> TestResult {
+fn adjusted_event_clears_only_note_project_role_determined_by_and_billable() -> TestResult {
     let error = refusal(&event_file_with(&adjusted_with("cleared = [\"tags\"]")))?;
 
     assert_eq!(
         error.to_string(),
-        "`cleared` names `tags`; only `note` and `project` can be cleared"
+        "`cleared` names `tags`; only `note`, `project`, `role`, `determined-by` and `billable` \
+         can be cleared"
     );
     assert_eq!(error.context_value("field"), Some("tags"));
     Ok(())

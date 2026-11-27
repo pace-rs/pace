@@ -1,4 +1,5 @@
-//! Where a hold came from, and what kind of break a pause is.
+//! Where a hold came from, what kind of break a pause is, and who determined
+//! an entry's time.
 
 use serde::{Deserialize, Serialize};
 
@@ -35,4 +36,16 @@ impl PauseKind {
     pub const fn is_default(&self) -> bool {
         matches!(self, Self::Break)
     }
+}
+
+/// Who determined the time of an entry: the book's self-determined and
+/// other-determined time. Written `self` and `other` in the log.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DeterminedBy {
+    /// Self-determined: you chose what to do with the time.
+    #[serde(rename = "self")]
+    Me,
+    /// Other-determined: someone else chose it for you.
+    #[serde(rename = "other")]
+    Others,
 }
