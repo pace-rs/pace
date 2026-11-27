@@ -85,6 +85,15 @@ impl Earned {
 }
 
 impl Revenue {
+    /// Whether a row of the revenue counts a running entry up to now: a
+    /// project, a client or a charge without a rate.
+    #[must_use]
+    pub fn marks_running(&self) -> bool {
+        self.projects.iter().any(|project| project.running)
+            || self.clients.iter().any(|client| client.running)
+            || self.no_rate.iter().any(|charge| charge.running)
+    }
+
     /// The revenue of `charges`, as [`billable_charges`](crate::billable_charges)
     /// gives them.
     ///

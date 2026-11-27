@@ -1190,6 +1190,40 @@ fn running_billable_entry_earns_up_to_now() -> TestResult {
 }
 
 #[test]
+fn billable_entry_begun_at_now_marks_report_by_its_revenue() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.log("2026-11-24T09:00", "2026-11-24T10:00", on(PORTAL)?)?;
+    _ = log.begin("2026-11-24T11:00", on(PORTAL)?)?;
+
+    let report = revenue_report(&log, &days("2026-11-24", "2026-11-25")?, "2026-11-24T11:00")?;
+
+    assert_eq!(report.running, Vec::new());
+    assert!(
+        report
+            .revenue
+            .projects
+            .iter()
+            .all(|project| project.running)
+    );
+    assert!(report.marks_running());
+    Ok(())
+}
+
+#[test]
+fn billable_entry_without_rate_begun_at_now_marks_report() -> TestResult {
+    let mut log = Log::new(1)?;
+    _ = log.begin("2026-10-30T11:00", on(PORTAL)?)?;
+
+    let report = revenue_report(&log, &days("2026-10-30", "2026-10-31")?, "2026-10-30T11:00")?;
+
+    assert_eq!(report.running, Vec::new());
+    assert_eq!(report.revenue.projects, Vec::new());
+    assert!(report.revenue.no_rate.iter().all(|charge| charge.running));
+    assert!(report.marks_running());
+    Ok(())
+}
+
+#[test]
 fn client_filter_keeps_revenue_of_that_client() -> TestResult {
     let mut log = Log::new(1)?;
     _ = log.log("2026-11-16T09:00", "2026-11-16T10:00", on(WEBSHOP)?)?;

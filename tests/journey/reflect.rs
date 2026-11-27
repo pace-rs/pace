@@ -169,6 +169,40 @@ fn running_entry_outside_period_marks_budget_with_footnote() -> TestResult {
 }
 
 #[test]
+fn billable_entry_begun_at_now_marks_revenue_with_footnote() -> TestResult {
+    let sandbox = catalog_sandbox()?;
+    sandbox.write(
+        "home/projects/acme-webshop.toml",
+        &WEBSHOP.replace("budget = \"10h\"\n", ""),
+    )?;
+    _ = run(sandbox.pace_at("11:00").args([
+        "log",
+        "Plan relaunch",
+        "--project",
+        "acme-webshop",
+        "--from",
+        "09:00",
+        "--to",
+        "10:00",
+    ]))?;
+    _ = run(sandbox
+        .pace_at("11:00")
+        .args(["begin", "Write offer", "--project", "acme-webshop"]))?;
+
+    let output = run(sandbox.pace_at("11:00").args(["reflect", "today"]))?;
+
+    assert!(
+        output.contains("\n    Webshop relaunch  1h*  95.00 EUR\n"),
+        "{output}"
+    );
+    assert!(
+        output.contains("\n\n* counts a running entry up to now.\n"),
+        "{output}"
+    );
+    Ok(())
+}
+
+#[test]
 fn ref_is_short_for_reflect() -> TestResult {
     let sandbox = week_sandbox()?;
 
