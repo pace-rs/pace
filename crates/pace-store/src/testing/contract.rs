@@ -1,17 +1,15 @@
-//! The contract of [`EventStore`](crate::EventStore), as checks that every
-//! backend runs.
+//! The contract of [`EventStore`], as checks that every backend runs.
 
 use std::sync::Arc;
 
 use jiff::ZonedDateTime;
-use pace_error::{ErrorKind, PaceError, PaceResult};
-use pace_time::TimeRange;
-
 use pace_core::{
     Appended, Clock, Command, DeviceId, EntryState, Policy, Rules, SequentialIds, State,
     command::{Begin, End, Log},
     testing::TestClock,
 };
+use pace_error::{ErrorKind, PaceError, PaceResult};
+use pace_time::TimeRange;
 
 use crate::{EventStore, Tracker};
 

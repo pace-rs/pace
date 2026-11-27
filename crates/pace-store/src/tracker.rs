@@ -4,12 +4,11 @@
 use std::sync::Arc;
 
 use jiff::ZonedDateTime;
-use pace_error::PaceResult;
-use pace_time::TimeRange;
-
 use pace_core::{
     AfterAppend, Clock, Command, Decided, DeviceId, Ids, Outcome, Policy, Reading, State,
 };
+use pace_error::PaceResult;
+use pace_time::TimeRange;
 
 use crate::EventStore;
 
