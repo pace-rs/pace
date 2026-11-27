@@ -708,4 +708,82 @@ mod tests {
             Some("did you mean PACE_TIME_ZONE? pace ignores PACE_TIMEZONE")
         );
     }
+
+    #[test]
+    fn hold_source_reads_each_source_and_shows_it_back() -> TestResult {
+        for (written, source) in [
+            ("inner", HoldSource::Inner),
+            ("outer", HoldSource::Outer),
+            ("unknown", HoldSource::Unknown),
+        ] {
+            assert_eq!(parse_hold_source(written)?, source);
+            assert_eq!(hold_source_name(source), written);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn hold_source_refuses_other_word_and_names_the_three() {
+        let error = parse_hold_source("sideways").err();
+
+        assert_eq!(
+            error.as_ref().map(ToString::to_string).as_deref(),
+            Some("`sideways` is not a source of holds")
+        );
+        assert_eq!(
+            error.as_ref().and_then(|error| error.hint()),
+            Some("use `inner` (you broke off), `outer` (someone interrupted) or `unknown`")
+        );
+    }
+
+    #[test]
+    fn time_zone_far_from_every_name_points_to_the_database() {
+        let error = parse_time_zone("Qqqqqqqqqqqqqqqq").err();
+
+        assert_eq!(
+            error.as_ref().map(ToString::to_string).as_deref(),
+            Some("`Qqqqqqqqqqqqqqqq` is not a time zone pace knows")
+        );
+        assert_eq!(
+            error.as_ref().and_then(|error| error.hint()),
+            Some("use a name from the IANA time zone database, like `Europe/Berlin`, or `system`")
+        );
+    }
+
+    #[test]
+    fn weekday_close_to_day_name_suggests_it() {
+        let error = parse_weekday("Mondy").err();
+
+        assert_eq!(
+            error.as_ref().map(ToString::to_string).as_deref(),
+            Some("`Mondy` is not a day of the week")
+        );
+        assert_eq!(
+            error.as_ref().and_then(|error| error.hint()),
+            Some("did you mean `monday`?")
+        );
+    }
+
+    #[test]
+    fn project_path_at_home_without_home_directory_is_refused() -> TestResult {
+        let dir = pace_store::testing::scratch_dir()?;
+        let path = dir.path().join("pace.global.toml");
+        std::fs::write(&path, "[project-paths]\n\"~/repo\" = \"client-repo\"\n")?;
+        let config_file = Located {
+            path,
+            origin: Origin::Default,
+        };
+
+        let error = load_settings(&config_file, None, |_| None, std::iter::empty()).err();
+
+        assert_eq!(
+            error.as_ref().map(ToString::to_string).as_deref(),
+            Some("pace cannot find your home directory to expand `~`")
+        );
+        assert_eq!(
+            error.as_ref().and_then(|error| error.hint()),
+            Some("write the full path")
+        );
+        Ok(())
+    }
 }

@@ -309,3 +309,16 @@ fn config_show_quotes_mapped_path_with_apostrophe_so_it_reads_back() -> TestResu
     assert_eq!(again, shown);
     Ok(())
 }
+
+#[test]
+fn config_file_that_is_no_text_names_its_path() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    std::fs::write(
+        sandbox.path("config/pace.global.toml"),
+        b"week-start = \"\xff\"\n",
+    )?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
