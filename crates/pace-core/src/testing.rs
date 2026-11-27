@@ -19,8 +19,14 @@ use crate::{
 };
 
 pub mod contract;
+#[cfg(test)]
+mod tests;
 
 /// A clock that tests set.
+///
+/// A clock whose lock a panicked thread held panics when it is read or
+/// set, with the error that [`MemoryStore`] returns for its own lock:
+/// [`Clock::now`] cannot return an error.
 #[derive(Debug)]
 pub struct TestClock(Mutex<ZonedDateTime>);
 
@@ -32,21 +38,38 @@ impl TestClock {
     }
 
     /// Move the clock to `now`, also backwards.
+    ///
+    /// # Panics
+    ///
+    /// If a thread panicked while it held the clock's lock.
     pub fn set(&self, now: ZonedDateTime) {
-        *self
-            .0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = now;
+        *self.time() = now;
+    }
+
+    fn time(&self) -> MutexGuard<'_, ZonedDateTime> {
+        match locked(&self.0, "test clock") {
+            Ok(time) => time,
+            Err(error) => panic!("{error}"),
+        }
     }
 }
 
 impl Clock for TestClock {
     fn now(&self) -> ZonedDateTime {
-        self.0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
+        self.time().clone()
     }
+}
+
+/// The value behind `lock`, or an error that names the `what` it guards.
+///
+/// A thread that panicked while it held the lock may have left the value
+/// half-changed, so the test doubles never read it.
+fn locked<'lock, T>(lock: &'lock Mutex<T>, what: &str) -> PaceResult<MutexGuard<'lock, T>> {
+    lock.lock().map_err(|_| {
+        PaceError::new(ErrorKind::Internal, "the {what}'s lock is poisoned")
+            .attach_context("what", what)
+            .ask_report()
+    })
 }
 
 #[derive(Debug, Default)]
@@ -107,9 +130,7 @@ impl MemoryStore {
     }
 
     fn storage(&self) -> PaceResult<MutexGuard<'_, Storage>> {
-        self.storage.lock().map_err(|_| {
-            PaceError::new(ErrorKind::Internal, "the memory store's lock is poisoned").ask_report()
-        })
+        locked(&self.storage, "memory store")
     }
 }
 
