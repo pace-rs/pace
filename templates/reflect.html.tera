@@ -127,18 +127,24 @@ td.number, th.number { text-align: right; }
 {% if holds %}
 <h2>Interruptions</h2>
 {% for total in holds.total | default(value=[]) -%}
-<p>{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}{{ <change row={total} kind="held"/> }}:
+<p>{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}:
 {%- for row in holds.source | default(value=[]) %} {{ row.key }} {{ row.count }}{% if row.count > 0 %} ({{ row.held }}){% endif %}{% if loop.last %}.{% else %},{% endif %}{% endfor %}</p>
 {% endfor -%}
 {% if holds.reason -%}
 <p>Most frequent reasons: {% for row in holds.reason %}{{ row.reason }} {{ row.count }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>
 {% endif -%}
+{%- for total in holds.total | default(value=[]) -%}{%- if total.previous %}<p>Previous period: {{ total.previous.count }} hold{{ total.previous.count | pluralize }}, {{ total.previous.held }}:{%- for row in holds.source | default(value=[]) %} {{ row.key }} {{ row.previous.count }}{% if row.previous.count > 0 %} ({{ row.previous.held }}){% endif %}{% if not loop.last %},{% endif %}{% endfor %}{% if holds.reason %}; reasons: {% for row in holds.reason %}{{ row.reason }} {{ row.previous.count }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}.</p>
+{% endif -%}{%- endfor -%}
 {% endif -%}
 {% set pauses = parts.pauses | default(value=[]) | group_by(attribute="group") -%}
 {% if pauses %}
 <h2>Pauses and catches</h2>
 {% if pauses.kind -%}
-<p>Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}{% if row.previous %}, was {{ row.previous.count }} ({{ row.previous.paused }}){% endif %}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
+<p>Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
+{% set first_kind = pauses.kind | first -%}
+{%- if first_kind.previous -%}
+<p>Previous period: {% for row in pauses.kind %}{{ row.key }} {{ row.previous.count }} ({{ row.previous.paused }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
+{% endif -%}
 {% endif -%}
 {% if pauses.catch -%}
 <ul>

@@ -595,10 +595,7 @@ fn holds_part(table: &ReportTable<'_>, canvas: Canvas) -> Vec<String> {
         ));
     }
     if let Some(comparison) = table.comparison {
-        lines.extend(sentence(
-            &compared_holds(comparison, &holds.by_source),
-            canvas,
-        ));
+        lines.extend(sentence(&compared_holds(comparison, holds), canvas));
     }
     lines
 }

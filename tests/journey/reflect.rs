@@ -893,11 +893,12 @@ fn broken_template_in_templates_directory_names_its_file_and_line() -> TestResul
     Ok(())
 }
 
-/// The sandbox of [`week_sandbox`] with last week's entries: three hours
-/// on the webshop on Tuesday with a hold, and a run on Wednesday.
-fn two_weeks_sandbox() -> Result<Sandbox, Box<dyn std::error::Error>> {
-    let sandbox = week_sandbox()?;
-    let last_week: [&[&str]; 2] = [
+/// Last week's steps: three hours on the webshop on Tuesday, a run on
+/// Wednesday, and on Thursday a review of the webshop with a hold for a
+/// phone call and a lunch break.
+const LAST_WEEK: [(&str, &[&str]); 8] = [
+    (
+        "2026-11-17T12:00[Europe/Berlin]",
         &[
             "log",
             "Plan release",
@@ -908,6 +909,9 @@ fn two_weeks_sandbox() -> Result<Sandbox, Box<dyn std::error::Error>> {
             "--to",
             "2026-11-17 12:00",
         ],
+    ),
+    (
+        "2026-11-18T08:00[Europe/Berlin]",
         &[
             "log",
             "Run",
@@ -919,9 +923,27 @@ fn two_weeks_sandbox() -> Result<Sandbox, Box<dyn std::error::Error>> {
             "--to",
             "2026-11-18 07:30",
         ],
-    ];
-    for args in last_week {
-        _ = run(sandbox.pace_at("15:00").args(args))?;
+    ),
+    (
+        "2026-11-19T09:00[Europe/Berlin]",
+        &["begin", "Review shop", "--project", "acme-webshop"],
+    ),
+    (
+        "2026-11-19T09:30[Europe/Berlin]",
+        &["hold", "--outer", "--reason", "phone call"],
+    ),
+    ("2026-11-19T09:40[Europe/Berlin]", &["resume"]),
+    ("2026-11-19T10:00[Europe/Berlin]", &["pause", "--lunch"]),
+    ("2026-11-19T10:45[Europe/Berlin]", &["resume"]),
+    ("2026-11-19T11:00[Europe/Berlin]", &["end"]),
+];
+
+/// The sandbox of [`catalog_sandbox`] after the steps of [`LAST_WEEK`],
+/// then of [`WEEK`].
+fn two_weeks_sandbox() -> Result<Sandbox, Box<dyn std::error::Error>> {
+    let sandbox = catalog_sandbox()?;
+    for (time, args) in LAST_WEEK.iter().chain(&WEEK) {
+        _ = run(sandbox.pace_at(time).args(*args))?;
     }
     Ok(sandbox)
 }
@@ -981,7 +1003,7 @@ fn compare_of_all_is_usage_error() -> TestResult {
 }
 
 #[test]
-fn compare_as_markdown_and_html_names_highlights() -> TestResult {
+fn compare_as_markdown_and_html_names_highlights_and_previous_breaks() -> TestResult {
     let sandbox = two_weeks_sandbox()?;
 
     for format in ["markdown", "html"] {
@@ -993,7 +1015,17 @@ fn compare_as_markdown_and_html_names_highlights() -> TestResult {
         assert!(output.status.success(), "{format}: {output:?}");
         let stdout = String::from_utf8(output.stdout)?;
         assert!(stdout.contains("Highlights"), "{stdout}");
-        assert!(stdout.contains("(was 3h, +2h 15m, +75%)"), "{stdout}");
+        assert!(stdout.contains("(was 4h 5m, +1h 10m, +29%)"), "{stdout}");
+        assert!(
+            stdout.contains(
+                "Previous period: 1 hold, 10m: inner 0, outer 1 (10m), unknown 0; reasons: phone call 1."
+            ),
+            "{stdout}"
+        );
+        assert!(
+            stdout.contains("Previous period: lunch 1 (45m)."),
+            "{stdout}"
+        );
     }
     Ok(())
 }

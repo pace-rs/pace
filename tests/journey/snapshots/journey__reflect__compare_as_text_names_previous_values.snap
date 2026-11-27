@@ -7,19 +7,19 @@ success: true
 exit_code: 0
 ----- stdout -----
 Report from 2026-11-23 to 2026-11-29
-Tracked 7h 15m (was 3h 30m, +3h 45m, +107%), untracked 79h 45m (was 164h 30m, -84h 45m, -52%).
+Tracked 7h 15m (was 4h 35m, +2h 40m, +58%), untracked 79h 45m (was 163h 25m, -83h 40m, -51%).
 
 Highlights
 - Busiest day: 2026-11-26, 4h 15m*; in the previous period 2026-11-17, 3h.
-- Top project: Webshop relaunch, 5h 15m; in the previous period Webshop relaunch, 3h.
+- Top project: Webshop relaunch, 5h 15m; in the previous period Webshop relaunch, 4h 5m.
 
 Time per role
-- Work: 5h 15m (72%) (was 3h, +2h 15m, +75%)
+- Work: 5h 15m (72%) (was 4h 5m, +1h 10m, +29%)
 - Health: 1h (14%) (was 30m, +30m, +100%)
 - No role: 1h* (14%) (was 0s, +1h)
 
 Time per project
-- Webshop relaunch: 5h 15m (72%) (was 3h, +2h 15m, +75%)
+- Webshop relaunch: 5h 15m (72%) (was 4h 5m, +1h 10m, +29%)
 - No project: 2h* (28%) (was 30m, +1h 30m, +300%)
 
 Time per day
@@ -32,28 +32,30 @@ Time per day
 - 2026-11-29: nothing
 
 Target vs. actual
-- Work: 5h 15m of 30h (18%) (was 3h, +2h 15m, +75%)
+- Work: 5h 15m of 30h (18%) (was 4h 5m, +1h 10m, +29%)
 
 Budgets, used to date
-- Webshop relaunch: 8h 15m of 10h (83%)
+- Webshop relaunch: 9h 20m of 10h (93%)
 
 Revenue
-- ACME GmbH: 5h 15m, 498.75 EUR (was 285.00 EUR, +213.75, +75%)
-  - Webshop relaunch: 5h 15m, 498.75 EUR (was 285.00 EUR, +213.75, +75%)
-- Total: 498.75 EUR (was 285.00 EUR, +213.75, +75%)
+- ACME GmbH: 5h 15m, 498.75 EUR (was 387.92 EUR, +110.83, +29%)
+  - Webshop relaunch: 5h 15m, 498.75 EUR (was 387.92 EUR, +110.83, +29%)
+- Total: 498.75 EUR (was 387.92 EUR, +110.83, +29%)
 
 Interruptions
-1 hold, 15m (was 0s, +15m): inner 0, outer 1 (15m), unknown 0.
+1 hold, 15m: inner 0, outer 1 (15m), unknown 0.
 Most frequent reasons: phone call 1.
+Previous period: 1 hold, 10m: inner 0, outer 1 (10m), unknown 0; reasons: phone call 1.
 
 Pauses and catches
-Pauses: lunch 1 (30m, was 0 (0s)).
+Pauses: lunch 1 (30m).
+Previous period: lunch 1 (45m).
 - Catch on 2026-11-26 at 14:30: call Bob back
 
 Who decided
 - By me: 1h (14%) (was 30m, +30m, +100%)
 - By others: 1h* (14%) (was 0s, +1h)
-- Unmarked: 5h 15m (72%) (was 3h, +2h 15m, +75%)
+- Unmarked: 5h 15m (72%) (was 4h 5m, +1h 10m, +29%)
 
 * counts a running entry up to now.
 

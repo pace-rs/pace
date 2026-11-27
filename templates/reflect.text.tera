@@ -84,18 +84,24 @@ No rate on {{ row.date }} for {{ row.net }} of {{ row.name | default(value=row.k
 {%- if holds %}
 Interruptions
 {% for total in holds.total | default(value=[]) -%}
-{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}{{ <change row={total} kind="held"/> }}:
+{{ total.count }} hold{{ total.count | pluralize }}, {{ total.held }}:
 {%- for row in holds.source | default(value=[]) %} {{ row.key }} {{ row.count }}{% if row.count > 0 %} ({{ row.held }}){% endif %}{% if loop.last %}.{% else %},{% endif %}{% endfor %}
 {% endfor -%}
 {%- if holds.reason -%}
 Most frequent reasons: {% for row in holds.reason %}{{ row.reason }} {{ row.count }}{% if not loop.last %}, {% endif %}{% endfor %}.
 {% endif -%}
+{%- for total in holds.total | default(value=[]) -%}{%- if total.previous %}Previous period: {{ total.previous.count }} hold{{ total.previous.count | pluralize }}, {{ total.previous.held }}:{%- for row in holds.source | default(value=[]) %} {{ row.key }} {{ row.previous.count }}{% if row.previous.count > 0 %} ({{ row.previous.held }}){% endif %}{% if not loop.last %},{% endif %}{% endfor %}{% if holds.reason %}; reasons: {% for row in holds.reason %}{{ row.reason }} {{ row.previous.count }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}.
+{% endif -%}{%- endfor -%}
 {%- endif -%}
 {%- set pauses = parts.pauses | default(value=[]) | group_by(attribute="group") -%}
 {%- if pauses %}
 Pauses and catches
 {% if pauses.kind -%}
-Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}{% if row.previous %}, was {{ row.previous.count }} ({{ row.previous.paused }}){% endif %}){% if not loop.last %}, {% endif %}{% endfor %}.
+Pauses: {% for row in pauses.kind %}{{ row.key }} {{ row.count }} ({{ row.paused }}){% if not loop.last %}, {% endif %}{% endfor %}.
+{% set first_kind = pauses.kind | first -%}
+{%- if first_kind.previous -%}
+Previous period: {% for row in pauses.kind %}{{ row.key }} {{ row.previous.count }} ({{ row.previous.paused }}){% if not loop.last %}, {% endif %}{% endfor %}.
+{% endif -%}
 {% endif -%}
 {%- for row in pauses.catch | default(value=[]) -%}
 - Catch on {{ row.start[:10] }} at {{ row.start[11:16] }}: {{ row.note }}

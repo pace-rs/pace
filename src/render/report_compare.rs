@@ -3,7 +3,7 @@
 //! highlights.
 
 use jiff::SignedDuration;
-use pace_core::{Catalog, Compared, Money, ReportComparison, ReportPeriod};
+use pace_core::{Catalog, Compared, HoldReport, Money, ReportComparison, ReportPeriod};
 use pace_time::format_duration;
 
 use crate::config::hold_source_name;
@@ -97,15 +97,14 @@ pub(crate) fn compared_summary(
     )
 }
 
-/// The holds of the previous period in a sentence: `Previous period: 2
-/// holds, 30m: inner 0, outer 2 (30m), unknown 0.`
+/// The holds of the previous period in a sentence, its sources and the
+/// reasons named above: `Previous period: 2 holds, 30m: inner 0, outer 2
+/// (30m), unknown 0; reasons: phone call 1.`
 #[must_use]
-pub(crate) fn compared_holds(
-    comparison: &ReportComparison,
-    sources: &[pace_core::HoldShare],
-) -> String {
+pub(crate) fn compared_holds(comparison: &ReportComparison, holds: &HoldReport) -> String {
     let total = &comparison.holds.total;
-    let by_source: Vec<String> = sources
+    let by_source: Vec<String> = holds
+        .by_source
         .iter()
         .zip(&comparison.holds.by_source)
         .map(|(share, change)| {
@@ -116,8 +115,19 @@ pub(crate) fn compared_holds(
             }
         })
         .collect();
+    let reasons: Vec<String> = holds
+        .reasons
+        .iter()
+        .zip(&comparison.holds.reasons)
+        .map(|(reason, change)| format!("{} {}", reason.reason, change.previous))
+        .collect();
+    let reasons = if reasons.is_empty() {
+        String::new()
+    } else {
+        format!("; reasons: {}", reasons.join(", "))
+    };
     format!(
-        "Previous period: {}, {}: {}.",
+        "Previous period: {}, {}: {}{reasons}.",
         counted(previous_count(total.count.previous), "hold"),
         format_duration(total.time.previous),
         by_source.join(", ")

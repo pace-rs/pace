@@ -36,8 +36,8 @@ exit_code: 0
         "key": "acme-webshop",
         "id": "[ID-1]",
         "name": "Webshop relaunch",
-        "net_seconds": 10800,
-        "net": "3h"
+        "net_seconds": 14700,
+        "net": "4h 5m"
       }
     },
     {
@@ -51,12 +51,12 @@ exit_code: 0
       "previous": {
         "start": "2026-11-16T00:00:00+01:00[Europe/Berlin]",
         "end": "2026-11-23T00:00:00+01:00[Europe/Berlin]",
-        "net_seconds": 12600,
-        "net": "3h 30m"
+        "net_seconds": 16500,
+        "net": "4h 35m"
       },
-      "change_net_seconds": 13500,
-      "change_net": "+3h 45m",
-      "change_percent": 107
+      "change_net_seconds": 9600,
+      "change_net": "+2h 40m",
+      "change_percent": 58
     },
     {
       "part": "time",
@@ -64,12 +64,12 @@ exit_code: 0
       "net_seconds": 287100,
       "net": "79h 45m",
       "previous": {
-        "net_seconds": 592200,
-        "net": "164h 30m"
+        "net_seconds": 588300,
+        "net": "163h 25m"
       },
-      "change_net_seconds": -305100,
-      "change_net": "-84h 45m",
-      "change_percent": -52
+      "change_net_seconds": -301200,
+      "change_net": "-83h 40m",
+      "change_percent": -51
     },
     {
       "part": "time",
@@ -82,12 +82,12 @@ exit_code: 0
       "percent": 72,
       "running": false,
       "previous": {
-        "net_seconds": 10800,
-        "net": "3h"
+        "net_seconds": 14700,
+        "net": "4h 5m"
       },
-      "change_net_seconds": 8100,
-      "change_net": "+2h 15m",
-      "change_percent": 75
+      "change_net_seconds": 4200,
+      "change_net": "+1h 10m",
+      "change_percent": 29
     },
     {
       "part": "time",
@@ -132,12 +132,12 @@ exit_code: 0
       "percent": 72,
       "running": false,
       "previous": {
-        "net_seconds": 10800,
-        "net": "3h"
+        "net_seconds": 14700,
+        "net": "4h 5m"
       },
-      "change_net_seconds": 8100,
-      "change_net": "+2h 15m",
-      "change_percent": 75
+      "change_net_seconds": 4200,
+      "change_net": "+1h 10m",
+      "change_percent": 29
     },
     {
       "part": "time",
@@ -230,12 +230,12 @@ exit_code: 0
       "target": "30h",
       "running": false,
       "previous": {
-        "net_seconds": 10800,
-        "net": "3h"
+        "net_seconds": 14700,
+        "net": "4h 5m"
       },
-      "change_net_seconds": 8100,
-      "change_net": "+2h 15m",
-      "change_percent": 75
+      "change_net_seconds": 4200,
+      "change_net": "+1h 10m",
+      "change_percent": 29
     },
     {
       "part": "budget",
@@ -243,9 +243,9 @@ exit_code: 0
       "key": "acme-webshop",
       "id": "[ID-1]",
       "name": "Webshop relaunch",
-      "net_seconds": 29700,
-      "net": "8h 15m",
-      "percent": 83,
+      "net_seconds": 33600,
+      "net": "9h 20m",
+      "percent": 93,
       "budget_seconds": 36000,
       "budget": "10h",
       "running": false
@@ -261,11 +261,11 @@ exit_code: 0
       "currency": "EUR",
       "running": false,
       "previous": {
-        "amount": "285.00",
+        "amount": "387.92",
         "currency": "EUR"
       },
-      "change_amount": "+213.75",
-      "change_percent": 75
+      "change_amount": "+110.83",
+      "change_percent": 29
     },
     {
       "part": "revenue",
@@ -280,11 +280,11 @@ exit_code: 0
       "currency": "EUR",
       "running": false,
       "previous": {
-        "amount": "285.00",
+        "amount": "387.92",
         "currency": "EUR"
       },
-      "change_amount": "+213.75",
-      "change_percent": 75
+      "change_amount": "+110.83",
+      "change_percent": 29
     },
     {
       "part": "revenue",
@@ -292,11 +292,11 @@ exit_code: 0
       "amount": "498.75",
       "currency": "EUR",
       "previous": {
-        "amount": "285.00",
+        "amount": "387.92",
         "currency": "EUR"
       },
-      "change_amount": "+213.75",
-      "change_percent": 75
+      "change_amount": "+110.83",
+      "change_percent": 29
     },
     {
       "part": "interruptions",
@@ -305,13 +305,14 @@ exit_code: 0
       "held_seconds": 900,
       "held": "15m",
       "previous": {
-        "count": 0,
-        "held_seconds": 0,
-        "held": "0s"
+        "count": 1,
+        "held_seconds": 600,
+        "held": "10m"
       },
-      "change_count": 1,
-      "change_held_seconds": 900,
-      "change_held": "+15m"
+      "change_count": 0,
+      "change_held_seconds": 300,
+      "change_held": "+5m",
+      "change_percent": 50
     },
     {
       "part": "interruptions",
@@ -337,13 +338,14 @@ exit_code: 0
       "held_seconds": 900,
       "held": "15m",
       "previous": {
-        "count": 0,
-        "held_seconds": 0,
-        "held": "0s"
+        "count": 1,
+        "held_seconds": 600,
+        "held": "10m"
       },
-      "change_count": 1,
-      "change_held_seconds": 900,
-      "change_held": "+15m"
+      "change_count": 0,
+      "change_held_seconds": 300,
+      "change_held": "+5m",
+      "change_percent": 50
     },
     {
       "part": "interruptions",
@@ -367,9 +369,10 @@ exit_code: 0
       "count": 1,
       "reason": "phone call",
       "previous": {
-        "count": 0
+        "count": 1
       },
-      "change_count": 1
+      "change_count": 0,
+      "change_percent": 0
     },
     {
       "part": "pauses",
@@ -379,13 +382,14 @@ exit_code: 0
       "paused_seconds": 1800,
       "paused": "30m",
       "previous": {
-        "count": 0,
-        "paused_seconds": 0,
-        "paused": "0s"
+        "count": 1,
+        "paused_seconds": 2700,
+        "paused": "45m"
       },
-      "change_count": 1,
-      "change_paused_seconds": 1800,
-      "change_paused": "+30m"
+      "change_count": 0,
+      "change_paused_seconds": -900,
+      "change_paused": "-15m",
+      "change_percent": -33
     },
     {
       "part": "pauses",
@@ -435,12 +439,12 @@ exit_code: 0
       "percent": 72,
       "running": false,
       "previous": {
-        "net_seconds": 10800,
-        "net": "3h"
+        "net_seconds": 14700,
+        "net": "4h 5m"
       },
-      "change_net_seconds": 8100,
-      "change_net": "+2h 15m",
-      "change_percent": 75
+      "change_net_seconds": 4200,
+      "change_net": "+1h 10m",
+      "change_percent": 29
     }
   ]
 }

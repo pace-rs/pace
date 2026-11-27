@@ -8,13 +8,13 @@ exit_code: 0
 ----- stdout -----
 part,group,key,id,short,name,client,date,start,end,count,net_seconds,net,percent,target_seconds,target,budget_seconds,budget,billed_seconds,billed,held_seconds,held,paused_seconds,paused,amount,currency,reason,note,other_id,other_short,running,previous_key,previous_id,previous_name,previous_date,previous_start,previous_end,previous_count,previous_net_seconds,previous_net,previous_held_seconds,previous_held,previous_paused_seconds,previous_paused,previous_amount,previous_currency,change_count,change_net_seconds,change_net,change_held_seconds,change_held,change_paused_seconds,change_paused,change_amount,change_percent
 highlights,busiest_day,,,,,,2026-11-26,,,,15300,4h 15m,,,,,,,,,,,,,,,,,,true,,,,2026-11-17,,,,10800,3h,,,,,,,,,,,,,,,
-highlights,top_project,acme-webshop,[ID-1],,Webshop relaunch,,,,,,18900,5h 15m,,,,,,,,,,,,,,,,,,false,acme-webshop,[ID-1],Webshop relaunch,,,,,10800,3h,,,,,,,,,,,,,,,
-time,tracked,,,,,,,2026-11-23T00:00:00+01:00[Europe/Berlin],2026-11-30T00:00:00+01:00[Europe/Berlin],,26100,7h 15m,,,,,,,,,,,,,,,,,,true,,,,,2026-11-16T00:00:00+01:00[Europe/Berlin],2026-11-23T00:00:00+01:00[Europe/Berlin],,12600,3h 30m,,,,,,,,13500,+3h 45m,,,,,,107
-time,untracked,,,,,,,,,,287100,79h 45m,,,,,,,,,,,,,,,,,,,,,,,,,,592200,164h 30m,,,,,,,,-305100,-84h 45m,,,,,,-52
-time,role,work,[ID-2],,Work,,,,,,18900,5h 15m,72,,,,,,,,,,,,,,,,,false,,,,,,,,10800,3h,,,,,,,,8100,+2h 15m,,,,,,75
+highlights,top_project,acme-webshop,[ID-1],,Webshop relaunch,,,,,,18900,5h 15m,,,,,,,,,,,,,,,,,,false,acme-webshop,[ID-1],Webshop relaunch,,,,,14700,4h 5m,,,,,,,,,,,,,,,
+time,tracked,,,,,,,2026-11-23T00:00:00+01:00[Europe/Berlin],2026-11-30T00:00:00+01:00[Europe/Berlin],,26100,7h 15m,,,,,,,,,,,,,,,,,,true,,,,,2026-11-16T00:00:00+01:00[Europe/Berlin],2026-11-23T00:00:00+01:00[Europe/Berlin],,16500,4h 35m,,,,,,,,9600,+2h 40m,,,,,,58
+time,untracked,,,,,,,,,,287100,79h 45m,,,,,,,,,,,,,,,,,,,,,,,,,,588300,163h 25m,,,,,,,,-301200,-83h 40m,,,,,,-51
+time,role,work,[ID-2],,Work,,,,,,18900,5h 15m,72,,,,,,,,,,,,,,,,,false,,,,,,,,14700,4h 5m,,,,,,,,4200,+1h 10m,,,,,,29
 time,role,health,[ID-3],,Health,,,,,,3600,1h,14,,,,,,,,,,,,,,,,,false,,,,,,,,1800,30m,,,,,,,,1800,+30m,,,,,,100
 time,role,,,,,,,,,,3600,1h,14,,,,,,,,,,,,,,,,,true,,,,,,,,0,0s,,,,,,,,3600,+1h,,,,,,
-time,project,acme-webshop,[ID-1],,Webshop relaunch,,,,,,18900,5h 15m,72,,,,,,,,,,,,,,,,,false,,,,,,,,10800,3h,,,,,,,,8100,+2h 15m,,,,,,75
+time,project,acme-webshop,[ID-1],,Webshop relaunch,,,,,,18900,5h 15m,72,,,,,,,,,,,,,,,,,false,,,,,,,,14700,4h 5m,,,,,,,,4200,+1h 10m,,,,,,29
 time,project,,,,,,,,,,7200,2h,28,,,,,,,,,,,,,,,,,true,,,,,,,,1800,30m,,,,,,,,5400,+1h 30m,,,,,,300
 time,day,,,,,,2026-11-23,,,,0,0s,0,,,,,,,,,,,,,,,,,false,,,,,,,,,,,,,,,,,,,,,,,,
 time,day,,,,,,2026-11-24,,,,3600,1h,14,,,,,,,,,,,,,,,,,false,,,,,,,,,,,,,,,,,,,,,,,,
@@ -23,20 +23,20 @@ time,day,,,,,,2026-11-26,,,,15300,4h 15m,59,,,,,,,,,,,,,,,,,true,,,,,,,,,,,,,,,,
 time,day,,,,,,2026-11-27,,,,0,0s,0,,,,,,,,,,,,,,,,,false,,,,,,,,,,,,,,,,,,,,,,,,
 time,day,,,,,,2026-11-28,,,,0,0s,0,,,,,,,,,,,,,,,,,false,,,,,,,,,,,,,,,,,,,,,,,,
 time,day,,,,,,2026-11-29,,,,0,0s,0,,,,,,,,,,,,,,,,,false,,,,,,,,,,,,,,,,,,,,,,,,
-target,role,work,[ID-2],,Work,,,,,,18900,5h 15m,18,108000,30h,,,,,,,,,,,,,,,false,,,,,,,,10800,3h,,,,,,,,8100,+2h 15m,,,,,,75
-budget,project,acme-webshop,[ID-1],,Webshop relaunch,,,,,,29700,8h 15m,83,,,36000,10h,,,,,,,,,,,,,false,,,,,,,,,,,,,,,,,,,,,,,,
-revenue,client,acme,,,ACME GmbH,,,,,,,,,,,,,18900,5h 15m,,,,,498.75,EUR,,,,,false,,,,,,,,,,,,,,285.00,EUR,,,,,,,,+213.75,75
-revenue,project,acme-webshop,[ID-1],,Webshop relaunch,acme,,,,,,,,,,,,18900,5h 15m,,,,,498.75,EUR,,,,,false,,,,,,,,,,,,,,285.00,EUR,,,,,,,,+213.75,75
-revenue,total,,,,,,,,,,,,,,,,,,,,,,,498.75,EUR,,,,,,,,,,,,,,,,,,,285.00,EUR,,,,,,,,+213.75,75
-interruptions,total,,,,,,,,,1,,,,,,,,,,900,15m,,,,,,,,,,,,,,,,0,,,0,0s,,,,,1,,,900,+15m,,,,
+target,role,work,[ID-2],,Work,,,,,,18900,5h 15m,18,108000,30h,,,,,,,,,,,,,,,false,,,,,,,,14700,4h 5m,,,,,,,,4200,+1h 10m,,,,,,29
+budget,project,acme-webshop,[ID-1],,Webshop relaunch,,,,,,33600,9h 20m,93,,,36000,10h,,,,,,,,,,,,,false,,,,,,,,,,,,,,,,,,,,,,,,
+revenue,client,acme,,,ACME GmbH,,,,,,,,,,,,,18900,5h 15m,,,,,498.75,EUR,,,,,false,,,,,,,,,,,,,,387.92,EUR,,,,,,,,+110.83,29
+revenue,project,acme-webshop,[ID-1],,Webshop relaunch,acme,,,,,,,,,,,,18900,5h 15m,,,,,498.75,EUR,,,,,false,,,,,,,,,,,,,,387.92,EUR,,,,,,,,+110.83,29
+revenue,total,,,,,,,,,,,,,,,,,,,,,,,498.75,EUR,,,,,,,,,,,,,,,,,,,387.92,EUR,,,,,,,,+110.83,29
+interruptions,total,,,,,,,,,1,,,,,,,,,,900,15m,,,,,,,,,,,,,,,,1,,,600,10m,,,,,0,,,300,+5m,,,,50
 interruptions,source,inner,,,,,,,,0,,,,,,,,,,0,0s,,,,,,,,,,,,,,,,0,,,0,0s,,,,,0,,,0,0s,,,,
-interruptions,source,outer,,,,,,,,1,,,,,,,,,,900,15m,,,,,,,,,,,,,,,,0,,,0,0s,,,,,1,,,900,+15m,,,,
+interruptions,source,outer,,,,,,,,1,,,,,,,,,,900,15m,,,,,,,,,,,,,,,,1,,,600,10m,,,,,0,,,300,+5m,,,,50
 interruptions,source,unknown,,,,,,,,0,,,,,,,,,,0,0s,,,,,,,,,,,,,,,,0,,,0,0s,,,,,0,,,0,0s,,,,
-interruptions,reason,,,,,,,,,1,,,,,,,,,,,,,,,,phone call,,,,,,,,,,,0,,,,,,,,,1,,,,,,,,
-pauses,kind,lunch,,,,,,,,1,,,,,,,,,,,,1800,30m,,,,,,,,,,,,,,0,,,,,0,0s,,,1,,,,,1800,+30m,,
+interruptions,reason,,,,,,,,,1,,,,,,,,,,,,,,,,phone call,,,,,,,,,,,1,,,,,,,,,0,,,,,,,,0
+pauses,kind,lunch,,,,,,,,1,,,,,,,,,,,,1800,30m,,,,,,,,,,,,,,1,,,,,2700,45m,,,0,,,,,-900,-15m,,-33
 pauses,catch,,[ID-4],[ID-4],,,,2026-11-26T14:30:00+01:00[Europe/Berlin],,,,,,,,,,,,,,,,,,,call Bob back,,,,,,,,,,,,,,,,,,,,,,,,,,,
 decided,determined_by,self,,,,,,,,,3600,1h,14,,,,,,,,,,,,,,,,,false,,,,,,,,1800,30m,,,,,,,,1800,+30m,,,,,,100
 decided,determined_by,other,,,,,,,,,3600,1h,14,,,,,,,,,,,,,,,,,true,,,,,,,,0,0s,,,,,,,,3600,+1h,,,,,,
-decided,determined_by,unmarked,,,,,,,,,18900,5h 15m,72,,,,,,,,,,,,,,,,,false,,,,,,,,10800,3h,,,,,,,,8100,+2h 15m,,,,,,75
+decided,determined_by,unmarked,,,,,,,,,18900,5h 15m,72,,,,,,,,,,,,,,,,,false,,,,,,,,14700,4h 5m,,,,,,,,4200,+1h 10m,,,,,,29
 
 ----- stderr -----
