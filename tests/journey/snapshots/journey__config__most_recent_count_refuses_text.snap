@@ -1,0 +1,18 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::invalid-value
+
+  × `most-recent-count` takes a whole number from 1, like `9`
+   ╭─[[SANDBOX]/config/pace.global.toml:1:21]
+ 1 │ most-recent-count = "nine"
+   ·                     ───┬──
+   ·                        ╰── a string
+   ╰────
+  help: write it as a number, for example `most-recent-count = 9`

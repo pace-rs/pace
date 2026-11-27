@@ -187,20 +187,33 @@ fn an_unknown_key_in_table_suggests_the_closest() -> TestResult {
 }
 
 #[test]
-fn count_is_whole_number_from_one() -> TestResult {
+fn most_recent_count_refuses_zero() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("most-recent-count = 0\n")?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn most_recent_count_refuses_text() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    sandbox.write_config("most-recent-count = \"nine\"\n")?;
+
+    let output = run(sandbox.pace().args(["config", "show"]))?;
+    sandbox.settings().bind(|| insta::assert_snapshot!(output));
+    Ok(())
+}
+
+#[test]
+fn most_recent_count_in_variable_refuses_negative_number() -> TestResult {
     let sandbox = Sandbox::new()?;
 
-    sandbox.write_config("most-recent-count = 0\n")?;
-    let zero = run(sandbox.pace().args(["config", "show"]))?;
-    sandbox.write_config("most-recent-count = \"nine\"\n")?;
-    let text = run(sandbox.pace().args(["config", "show"]))?;
-    sandbox.write_config("")?;
-    let variable = run(sandbox
+    let output = run(sandbox
         .pace()
         .env("PACE_MOST_RECENT_COUNT", "-3")
         .args(["config", "show"]))?;
-
-    let output = format!("{zero}\n{text}\n{variable}");
     sandbox.settings().bind(|| insta::assert_snapshot!(output));
     Ok(())
 }

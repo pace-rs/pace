@@ -1,0 +1,14 @@
+---
+source: tests/journey/config.rs
+expression: output
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+pace::config::invalid-value
+
+  × the setting given by PACE_MOST_RECENT_COUNT is not valid
+  │ `-3` is not a whole number from 1
+  help: write a number like `9`
