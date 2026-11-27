@@ -89,7 +89,7 @@ fn date_and_time_is_taken_as_is_in_the_zone_of_now(
 #[case("-15m", "2026-11-26T14:15:15+01:00[Europe/Berlin]")]
 #[case("-1h30m", "2026-11-26T13:00:15+01:00[Europe/Berlin]")]
 #[case("15m ago", "2026-11-26T14:15:15+01:00[Europe/Berlin]")]
-fn relative_time_counts_back_from_now_in_whole_seconds(
+fn duration_back_from_now_counts_in_whole_seconds(
     #[case] input: &str,
     #[case] expected: &str,
 ) -> TestResult {
@@ -141,7 +141,7 @@ fn time_before_first_moment_jiff_knows_asks_for_date_closer_to_today() -> TestRe
 #[rstest]
 #[case("15m")]
 #[case("+15m")]
-fn relative_time_forward_suggests_going_back(#[case] input: &str) -> TestResult {
+fn duration_forward_suggests_going_back(#[case] input: &str) -> TestResult {
     let (_, hint) = rejected(input, NOW)?;
 
     assert_eq!(hint, "did you mean `-15m`?");

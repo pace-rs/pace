@@ -82,7 +82,7 @@ pub fn parse_at(input: &str, now: &ZonedDateTime) -> PaceResult<At> {
         return in_the_past(datetime, now);
     }
 
-    if let Some(duration) = relative_time(&text) {
+    if let Some(duration) = duration_back_from_now(&text) {
         return back_from_now(input, duration, now);
     }
 
@@ -108,7 +108,7 @@ fn clock_time(text: &str) -> Option<Time> {
 /// A time back from now in jiff's friendly format: `-15m`, `-1h30m`,
 /// `15m ago`. A text with `:` is a clock time, never a duration, and the ISO
 /// 8601 format (`PT15M`) is no part of pace's grammar.
-fn relative_time(text: &str) -> Option<SignedDuration> {
+fn duration_back_from_now(text: &str) -> Option<SignedDuration> {
     const FRIENDLY: SpanParser = SpanParser::new();
     if text.contains(':') {
         return None;
