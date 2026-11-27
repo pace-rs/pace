@@ -183,6 +183,30 @@ fn undo_after_another_device_forgot_the_entry_has_nothing_to_do() -> TestResult 
     Ok(())
 }
 
+#[test]
+fn undo_after_other_device_undid_begin_has_nothing_to_do() -> TestResult {
+    let sandbox = Sandbox::new()?;
+    let desktop = |at: &str| {
+        let mut command = sandbox.pace_at(at);
+        _ = command
+            .env("PACE_HOME", sandbox.path("other-home"))
+            .env("PACE_MACHINE_DIR", sandbox.path("other-machine"));
+        command
+    };
+    _ = run(sandbox.pace_at("09:00").args(["begin", "Write offer"]))?;
+    sandbox.sync_events_to("other-home")?;
+    _ = run(desktop("09:30").arg("end"))?;
+    sandbox.sync_events_from("other-home")?;
+    _ = run(sandbox.pace_at("10:00").arg("undo"))?;
+    sandbox.sync_events_to("other-home")?;
+
+    let undone = desktop("10:05").arg("undo").output()?;
+
+    assert_eq!(undone.status.code(), Some(3));
+    assert!(String::from_utf8(undone.stderr)?.contains("nothing left to undo"));
+    Ok(())
+}
+
 #[cfg(unix)]
 #[test]
 fn edit_turns_the_changes_into_an_adjustment() -> TestResult {

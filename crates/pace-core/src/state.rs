@@ -29,9 +29,9 @@ struct BatchRecord {
     undone: bool,
     /// Undo and forget can't be undone.
     undoable: bool,
-    /// One of its events concerns an entry that isn't forgotten; undoing a
-    /// batch without one would change nothing.
-    concerns_kept: bool,
+    /// The entries its events concern; undoing a batch whose entries are all
+    /// gone for good would change nothing.
+    entries: BTreeSet<EntryId>,
     /// The moments its events are filed under, each once.
     abouts: Vec<ZonedDateTime>,
 }
@@ -72,7 +72,7 @@ impl State {
 
         let mut state = Self::default();
         for recorded in ordered {
-            state.record_batch(recorded, undone.contains(&recorded.batch), &forgotten);
+            state.record_batch(recorded, undone.contains(&recorded.batch));
             if !undone.contains(&recorded.batch) {
                 state.apply(recorded, &forgotten);
             }
@@ -80,21 +80,12 @@ impl State {
         state
     }
 
-    fn record_batch(
-        &mut self,
-        recorded: &RecordedEvent,
-        undone: bool,
-        forgotten: &BTreeSet<EntryId>,
-    ) {
+    fn record_batch(&mut self, recorded: &RecordedEvent, undone: bool) {
         let undoable = !matches!(
             recorded.event.kind,
             EventKind::BatchUndone { .. } | EventKind::EntryForgotten { .. }
         );
-        let concerns_kept = recorded
-            .event
-            .kind
-            .entry()
-            .is_some_and(|entry| !forgotten.contains(&entry));
+        let entry = recorded.event.kind.entry();
         let about = &recorded.event.about;
         if let Some(batch) = self
             .batches
@@ -102,7 +93,7 @@ impl State {
             .find(|batch| batch.id == recorded.batch)
         {
             batch.undoable &= undoable;
-            batch.concerns_kept |= concerns_kept;
+            batch.entries.extend(entry);
             if !batch.abouts.contains(about) {
                 batch.abouts.push(about.clone());
             }
@@ -112,21 +103,25 @@ impl State {
                 device: recorded.device,
                 undone,
                 undoable,
-                concerns_kept,
+                entries: entry.into_iter().collect(),
                 abouts: vec![about.clone()],
             });
         }
     }
 
     /// The last batch of `device` that can be undone and isn't yet; a batch
-    /// whose events all concern forgotten entries is left out.
+    /// whose entries are all gone for good, forgotten or begun in an undone
+    /// batch, is left out.
     #[must_use]
     pub fn last_undoable(&self, device: DeviceId) -> Option<UndoTarget> {
         self.batches
             .iter()
             .rev()
             .find(|batch| {
-                batch.device == device && batch.undoable && batch.concerns_kept && !batch.undone
+                batch.device == device
+                    && batch.undoable
+                    && !batch.undone
+                    && batch.entries.iter().any(|id| self.entries.contains_key(id))
             })
             .map(|batch| UndoTarget {
                 batch: batch.id,

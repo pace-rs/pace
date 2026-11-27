@@ -161,7 +161,8 @@ fn recorded_line(outcome: &Outcome, recorded: &RecordedEvent) -> PaceResult<Opti
 }
 
 /// What an undo took back, one line per undone event. An event about an
-/// entry forgotten since has nothing left to take back, so it has no line.
+/// entry that is gone for good since, forgotten or begun in an undone batch,
+/// has nothing left to take back, so it has no line.
 fn undid(outcome: &Outcome) -> PaceResult<Vec<String>> {
     let before = &outcome.before;
     outcome

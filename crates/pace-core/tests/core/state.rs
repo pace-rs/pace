@@ -493,6 +493,29 @@ fn batch_about_forgotten_entry_is_not_left_to_undo() -> TestResult {
 }
 
 #[test]
+fn batch_about_entry_whose_begin_was_undone_is_not_left_to_undo() -> TestResult {
+    let mut laptop = Log::new(1)?;
+    let mut desktop = Log::new(2)?;
+    let e = entry(1)?;
+    let began = laptop.push("2026-11-26T09:00[Europe/Berlin]", begun(e))?;
+    _ = desktop.push(
+        "2026-11-26T09:30[Europe/Berlin]",
+        EventKind::EntryEnded { entry: e },
+    )?;
+    _ = laptop.push(
+        "2026-11-26T10:00[Europe/Berlin]",
+        EventKind::BatchUndone { batch: began },
+    )?;
+
+    let mut merged = laptop.events;
+    merged.extend(desktop.events);
+    let state = State::from_events(&merged);
+
+    assert_eq!(state.last_undoable(desktop.device), None);
+    Ok(())
+}
+
+#[test]
 fn batch_about_forgotten_and_kept_entry_is_left_to_undo() -> TestResult {
     let mut laptop = Log::new(1)?;
     let mut desktop = Log::new(2)?;
