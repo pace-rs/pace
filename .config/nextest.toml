@@ -14,3 +14,10 @@ expensive = { max-threads = 2 }
 [[profile.default.overrides]]
 filter = "test(/::expensive::/)"
 test-group = "expensive"
+
+# codegate's coverage run, whose durations the slow-tests gate reads. With a
+# thread per core, 48 on the sandbox machine, the journey tests' spawns of the
+# instrumented binary wait on each other and land at 0.5 s; with 8 the slowest
+# takes 0.25 s.
+[profile.codegate]
+test-threads = 8
