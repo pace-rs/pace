@@ -404,15 +404,102 @@ fn overlap_among_entries_is_refused_with_their_short_ids() -> TestResult {
     Ok(())
 }
 
+/// Assert that `error` refuses the bill for the overlap of `first` and
+/// `second` from 09:30 to `until` on 20 November.
+fn assert_overlap_refused(
+    error: &pace_error::PaceError,
+    state: &State,
+    (first, second): (EntryId, EntryId),
+    until: &str,
+) {
+    assert!(error.is_code(BILL_OVERLAP));
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "pace bills no time twice, but these entries overlap: {} and {} share 09:30–{until} \
+             on 2026-11-20",
+            state.short_id(first),
+            state.short_id(second)
+        )
+    );
+}
+
 #[test]
-fn overlap_with_entry_of_other_client_does_not_block_bill() -> TestResult {
+fn overlap_with_entry_of_other_client_is_refused() -> TestResult {
     let mut log = Log::new(1)?;
     let acme = log.log("2026-11-20T09:00", "2026-11-20T10:00", on(WEBSHOP)?)?;
-    _ = log.log("2026-11-20T09:30", "2026-11-20T11:00", on(BETA_SITE)?)?;
+    let beta = log.log("2026-11-20T09:30", "2026-11-20T11:00", on(BETA_SITE)?)?;
+
+    let error = refused_november(&log, &catalog(Rounding::NONE)?)?;
+
+    assert_overlap_refused(&error, &log.state(), (acme, beta), "10:00");
+    Ok(())
+}
+
+#[test]
+fn overlap_with_entry_billed_earlier_is_refused() -> TestResult {
+    let mut log = Log::new(1)?;
+    let billed = log.log("2026-11-20T09:00", "2026-11-20T10:00", on(WEBSHOP)?)?;
+    mark_billed(
+        &mut log,
+        billed,
+        "2026-11-22T09:00",
+        one_hour_on("2026-0042")?,
+    )?;
+    let synced_late = log.log("2026-11-20T09:30", "2026-11-20T10:00", on(SHOP_APP)?)?;
+
+    let error = refused_november(&log, &catalog(Rounding::NONE)?)?;
+
+    assert_overlap_refused(&error, &log.state(), (billed, synced_late), "10:00");
+    Ok(())
+}
+
+#[test]
+fn overlap_with_running_entry_is_refused() -> TestResult {
+    let mut log = Log::new(1)?;
+    let ended = log.log("2026-11-20T09:00", "2026-11-20T10:00", on(WEBSHOP)?)?;
+    let running = log.begin("2026-11-20T09:30", on(SHOP_APP)?)?;
+
+    let error = refused_november(&log, &catalog(Rounding::NONE)?)?;
+
+    assert_overlap_refused(&error, &log.state(), (ended, running), "10:00");
+    Ok(())
+}
+
+#[test]
+fn overlap_with_entry_that_is_not_billable_is_refused() -> TestResult {
+    let mut log = Log::new(1)?;
+    let webshop = log.log("2026-11-20T09:00", "2026-11-20T10:00", on(WEBSHOP)?)?;
+    let garden = log.log("2026-11-20T09:30", "2026-11-20T11:00", on(GARDEN)?)?;
+
+    let error = refused_november(&log, &catalog(Rounding::NONE)?)?;
+
+    assert_overlap_refused(&error, &log.state(), (webshop, garden), "10:00");
+    Ok(())
+}
+
+#[test]
+fn overlap_of_entries_off_bill_does_not_block_it() -> TestResult {
+    let mut log = Log::new(1)?;
+    let acme = log.log("2026-11-20T08:00", "2026-11-20T09:00", on(WEBSHOP)?)?;
+    _ = log.log("2026-11-20T09:00", "2026-11-20T10:00", on(BETA_SITE)?)?;
+    _ = log.log("2026-11-20T09:30", "2026-11-20T11:00", on(GARDEN)?)?;
 
     let bill = november(&log, &catalog(Rounding::NONE)?)?;
 
     assert_eq!(line_entries(&bill), vec![vec![acme]]);
+    Ok(())
+}
+
+#[test]
+fn overlap_with_other_entry_is_allowed_by_entry_of_bill() -> TestResult {
+    let mut log = Log::new(1)?;
+    let support = log.log("2026-11-20T09:00", "2026-11-20T10:00", on(SUPPORT)?)?;
+    _ = log.log("2026-11-20T09:30", "2026-11-20T11:00", on(BETA_SITE)?)?;
+
+    let bill = november(&log, &catalog(Rounding::NONE)?)?;
+
+    assert_eq!(line_entries(&bill), vec![vec![support]]);
     Ok(())
 }
 

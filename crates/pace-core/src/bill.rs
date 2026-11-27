@@ -133,8 +133,10 @@ impl Bill {
     ///
     /// # Errors
     ///
-    /// - [`BILL_OVERLAP`] if two of its entries overlap, unless one of them
-    ///   or its project's record allows it.
+    /// - [`BILL_OVERLAP`] if one of its entries overlaps another entry of
+    ///   the state, unless one of the two or its project's record allows
+    ///   it. The other entry may be running, billed already, of another
+    ///   client or not billable.
     /// - [`BILL_BEFORE_FIRST_RATE`] if no rate holds on the start day of an
     ///   entry.
     /// - If an amount is too big to count in minor units.
@@ -257,15 +259,19 @@ fn allows_overlap(entry: &Entry, catalog: &Catalog) -> bool {
             .is_some_and(|project| catalog.project_allows_overlap(project))
 }
 
-/// Refuse the bill if two of `entries` overlap and neither allows it:
-/// pace bills no time twice.
+/// Refuse the bill if one of `entries` overlaps any entry of the state,
+/// and neither of the two allows it: pace bills no time twice. The other
+/// entry may be running, billed already, of another client or project,
+/// not billable or outside the period.
 fn refuse_overlaps(input: &BillInput<'_>, entries: &[&Entry]) -> PaceResult<()> {
-    let billed: BTreeSet<EntryId> = entries.iter().map(|entry| entry.id).collect();
+    let on_bill: BTreeSet<EntryId> = entries.iter().map(|entry| entry.id).collect();
     let state = input.state;
     let pairs: Vec<String> = state
         .overlaps(input.now)
         .into_iter()
-        .filter(|overlap| billed.contains(&overlap.first.id) && billed.contains(&overlap.second.id))
+        .filter(|overlap| {
+            on_bill.contains(&overlap.first.id) || on_bill.contains(&overlap.second.id)
+        })
         .filter(|overlap| {
             !allows_overlap(overlap.first, input.catalog)
                 && !allows_overlap(overlap.second, input.catalog)
