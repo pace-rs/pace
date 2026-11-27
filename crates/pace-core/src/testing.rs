@@ -220,9 +220,14 @@ pub mod contract {
     }
 
     fn at(rfc9557: &str) -> PaceResult<ZonedDateTime> {
-        rfc9557
-            .parse()
-            .map_err(|error| PaceError::from(ErrorKind::Internal, error))
+        rfc9557.parse().map_err(|error| {
+            PaceError::with_source(
+                ErrorKind::Internal,
+                "the test time {time} is no RFC 9557 time",
+                error,
+            )
+            .attach_context("time", rfc9557)
+        })
     }
 
     fn device(number: u16) -> PaceResult<DeviceId> {

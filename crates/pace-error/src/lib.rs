@@ -253,11 +253,6 @@ impl PaceError {
         Self::new(kind, guidance).attach_source(source)
     }
 
-    /// Create an error from another error, using its message as guidance.
-    pub fn from<T: Error + Send + Sync + 'static>(kind: ErrorKind, error: T) -> Box<Self> {
-        Self::with_source(kind, error.to_string(), error)
-    }
-
     /// What the error is related to.
     #[must_use]
     pub const fn kind(&self) -> ErrorKind {

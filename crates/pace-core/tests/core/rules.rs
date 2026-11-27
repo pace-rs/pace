@@ -60,7 +60,14 @@ impl World {
         } else {
             berlin(now)
         }
-        .map_err(|error| PaceError::from(pace_error::ErrorKind::Internal, error))?;
+        .map_err(|error| {
+            PaceError::with_source(
+                pace_error::ErrorKind::Internal,
+                "the test time {time} is no time",
+                error,
+            )
+            .attach_context("time", now)
+        })?;
         let state = self.state();
         let batch = Rules {
             state: &state,

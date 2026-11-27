@@ -66,8 +66,14 @@ impl PaceApp {
 
     fn try_init(&mut self, command: &EntryPoint) -> PaceResult<()> {
         self.plain = command.plain;
-        self.register_components(command)
-            .map_err(|error| PaceError::from(ErrorKind::Internal, error).ask_report())?;
+        self.register_components(command).map_err(|error| {
+            PaceError::with_source(
+                ErrorKind::Internal,
+                "cannot register the application's components",
+                error,
+            )
+            .ask_report()
+        })?;
 
         let inputs = Inputs::gather(
             command.config.as_deref(),
@@ -105,8 +111,14 @@ impl PaceApp {
             project,
         });
 
-        self.after_config(())
-            .map_err(|error| PaceError::from(ErrorKind::Internal, error).ask_report())
+        self.after_config(()).map_err(|error| {
+            PaceError::with_source(
+                ErrorKind::Internal,
+                "the components refused the configuration",
+                error,
+            )
+            .ask_report()
+        })
     }
 }
 

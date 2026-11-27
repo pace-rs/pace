@@ -115,7 +115,9 @@ fn block_on<F: Future>(future: F) -> PaceResult<F::Output> {
             PaceError::new(ErrorKind::Internal, "the runtime component is missing").ask_report()
         })?
         .runtime()
-        .map_err(|error| PaceError::from(ErrorKind::Internal, error).ask_report())?;
+        .map_err(|error| {
+            PaceError::with_source(ErrorKind::Internal, "the runtime is gone", error).ask_report()
+        })?;
     let output = runtime.block_on(future);
     drop(components);
     Ok(output)
