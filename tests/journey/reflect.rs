@@ -240,52 +240,10 @@ fn reflect_without_any_entry_says_nothing_tracked() -> TestResult {
     Ok(())
 }
 
-/// The ID of the only device of `sandbox`, from the name of its directory.
-fn device_id(sandbox: &Sandbox) -> Result<String, Box<dyn std::error::Error>> {
-    let entry = std::fs::read_dir(sandbox.path("home/events"))?
-        .next()
-        .ok_or("no device directory")??;
-    Ok(entry.file_name().to_string_lossy().into_owned())
-}
-
-#[test]
-fn device_is_named_by_id_short_id_or_name() -> TestResult {
-    let sandbox = week_sandbox()?;
-    let id = device_id(&sandbox)?;
-    let file = sandbox.path(format!("home/events/{id}/device.toml"));
-    let text = std::fs::read_to_string(&file)?;
-    let renamed: Vec<String> = text
-        .lines()
-        .map(|line| {
-            if line.starts_with("name = ") {
-                "name = \"laptop\"".to_owned()
-            } else {
-                line.to_owned()
-            }
-        })
-        .collect();
-    std::fs::write(&file, renamed.join("\n") + "\n")?;
-    let whole = run(sandbox.pace_at("15:00").args(["reflect"]))?;
-    let short = &id[id.len() - 4..];
-
-    for device in [id.as_str(), short, "laptop"] {
-        let filtered = run(sandbox
-            .pace_at("15:00")
-            .args(["reflect", "--device", device]))?;
-        assert_eq!(filtered, whole, "{device}");
-    }
-    let output = sandbox
-        .pace_at("15:00")
-        .args(["reflect", "--device", "lapton"])
-        .output()?;
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = String::from_utf8(output.stderr)?;
-    assert!(stderr.contains("did you mean `laptop`?"), "{stderr}");
-    Ok(())
-}
-
-#[test]
-fn entries_of_other_device_leave_report_of_this_one() -> TestResult {
+/// A sandbox with two devices: another one that logged half an hour at
+/// 08:00, and this one, named `laptop`, that logged an hour at 09:00. It
+/// gives the ID of this device.
+fn two_device_sandbox() -> Result<(Sandbox, String), Box<dyn std::error::Error>> {
     let sandbox = catalog_sandbox()?;
     _ = run(sandbox
         .pace_at("09:00")
@@ -296,19 +254,77 @@ fn entries_of_other_device_leave_report_of_this_one() -> TestResult {
     _ = run(sandbox
         .pace_at("10:00")
         .args(["log", "Here", "--from", "09:00", "--to", "10:00"]))?;
-    let here = std::fs::read_to_string(sandbox.path("machine/device.toml"))?;
-    let here_id = here
+    let machine = std::fs::read_to_string(sandbox.path("machine/device.toml"))?;
+    let id = machine
         .lines()
         .find_map(|line| line.strip_prefix("id = "))
         .ok_or("no device ID")?
         .trim_matches('"')
         .to_owned();
+    let file = sandbox.path(format!("home/events/{id}/device.toml"));
+    let renamed: Vec<String> = std::fs::read_to_string(&file)?
+        .lines()
+        .map(|line| {
+            if line.starts_with("name = ") {
+                "name = \"laptop\"".to_owned()
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect();
+    std::fs::write(&file, renamed.join("\n") + "\n")?;
+    Ok((sandbox, id))
+}
 
-    let output = run(sandbox
-        .pace_at("10:00")
-        .args(["reflect", "today", "--device", &here_id]))?;
+/// The summary line of a report's transcript: `Tracked …`.
+fn summary_line(transcript: &str) -> Option<&str> {
+    transcript.lines().find(|line| line.starts_with("Tracked "))
+}
 
-    assert!(output.contains("Tracked 1h"), "{output}");
+#[test]
+fn device_filter_drops_entries_of_other_device() -> TestResult {
+    let (sandbox, id) = two_device_sandbox()?;
+
+    let whole = run(sandbox.pace_at("10:00").args(["reflect", "today"]))?;
+    assert_eq!(
+        summary_line(&whole),
+        Some("Tracked 1h 30m, untracked 8h 30m."),
+        "{whole}"
+    );
+    let id_end = &id[id.len() - 6..];
+    for device in [id.as_str(), id_end, "laptop"] {
+        let filtered = run(sandbox
+            .pace_at("10:00")
+            .args(["reflect", "today", "--device", device]))?;
+        assert_eq!(
+            summary_line(&filtered),
+            Some("Tracked 1h, untracked 9h."),
+            "{device}: {filtered}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn unknown_device_name_or_id_is_usage_error() -> TestResult {
+    let (sandbox, _) = two_device_sandbox()?;
+
+    for (device, expected) in [
+        ("lapton", "did you mean `laptop`?"),
+        (
+            "0193a7c4-0000-7000-8000-00000001ab12",
+            "no device has the name or ID `0193a7c4-0000-7000-8000-00000001ab12`",
+        ),
+    ] {
+        let output = sandbox
+            .pace_at("10:00")
+            .args(["reflect", "--device", device])
+            .output()?;
+
+        assert_eq!(output.status.code(), Some(2), "{device}");
+        let stderr = String::from_utf8(output.stderr)?;
+        assert!(stderr.contains(expected), "{stderr}");
+    }
     Ok(())
 }
 

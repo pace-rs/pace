@@ -295,7 +295,11 @@ fn device_filter(texts: &[String], known: &[Device]) -> PaceResult<BTreeSet<Devi
 
 fn named_devices(text: &str, known: &[Device]) -> PaceResult<Vec<DeviceId>> {
     if let Ok(id) = text.parse::<DeviceId>() {
-        return Ok(vec![id]);
+        return if known.iter().any(|device| device.id == id) {
+            Ok(vec![id])
+        } else {
+            Err(usage(unknown_device(text, known)))
+        };
     }
     let by_name: Vec<DeviceId> = known
         .iter()
@@ -418,6 +422,23 @@ mod tests {
         assert_eq!(ids("1ab12"), BTreeSet::from([laptop]));
         assert_eq!(ids("1AB12"), BTreeSet::from([laptop]));
         assert_eq!(ids("laptop"), BTreeSet::from([laptop]));
+    }
+
+    #[test]
+    fn whole_id_of_no_device_is_refused() {
+        let error = device_filter(
+            &["0193a7c4-0000-7000-8000-00000003ab12".to_owned()],
+            &devices(),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.exit_code(), ExitCode::Usage);
+        assert!(
+            error
+                .to_string()
+                .contains("no device has the name or ID `0193a7c4-0000-7000-8000-00000003ab12`"),
+            "{error}"
+        );
     }
 
     #[test]
