@@ -156,4 +156,74 @@ mod tests {
             Some("change the entry with `pace adjust`, or set VISUAL or EDITOR")
         );
     }
+
+    #[test]
+    fn editor_with_unclosed_quote_names_command() {
+        let error = edit_in_editor("vi 'notes", "", ".toml").unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "pace can't read the editor command `vi 'notes`"
+        );
+        assert_eq!(error.hint(), Some("check the quotes in VISUAL or EDITOR"));
+    }
+
+    #[test]
+    fn editor_without_words_is_empty_command() {
+        let error = edit_in_editor(" ", "", ".toml").unwrap_err();
+
+        assert_eq!(error.to_string(), "the editor command is empty");
+        assert_eq!(
+            error.hint(),
+            Some("set VISUAL or EDITOR to the editor you use, for example `nano`")
+        );
+    }
+
+    #[test]
+    fn editor_that_does_not_exist_names_command() {
+        let error = edit_in_editor("pace-has-no-such-editor", "", ".toml").unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "pace can't start the editor `pace-has-no-such-editor`"
+        );
+        assert_eq!(
+            error.hint(),
+            Some("set VISUAL or EDITOR to the editor you use, for example `nano`")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn editor_that_fails_changes_nothing() {
+        let error = edit_in_editor("false", "", ".toml").unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "the editor `false` ended with exit status: 1"
+        );
+        assert_eq!(error.hint(), Some("nothing was changed"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn editor_that_removes_file_changes_nothing() {
+        let error = edit_in_editor("rm", "", ".toml").unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "pace can't read the file back from the editor"
+        );
+        assert_eq!(error.hint(), Some("nothing was changed"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn editor_gets_text_in_file_with_suffix_and_returns_saved_text() {
+        let editor = "sh -c 'case \"$0\" in *.toml) sed -i s/draft/offer/ \"$0\";; esac'";
+
+        let text = edit_in_editor(editor, "note = \"draft\"\n", ".toml").unwrap();
+
+        assert_eq!(text, "note = \"offer\"\n");
+    }
 }
