@@ -25,3 +25,8 @@
 9. The project comes from the working directory: `.pace.toml` or `pace.toml`
    (with `.pace/`), else `[project-paths]`; the global config is
    `pace.global.toml`.
+10. Money follows the built-in `money` guide. A `Money` is whole minor units
+    with its `Currency`, and its arithmetic is checked and never saturates. An
+    amount rounds once, half up, at `Money::amount_for`. In pace a *rate* is a
+    price per hour (`Rate { hourly, from }`), not the `money` guide's rate from
+    one currency to another: pace converts no currency (restart.md 3.15).

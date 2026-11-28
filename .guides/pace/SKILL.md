@@ -1,13 +1,13 @@
 ---
 name: pace
-description: pace's own conventions for /work/pace and its books (docs, dev-docs, design) — errors with PaceError and exit codes, commands, flags and output, the core without I/O and its ports, tests (journey tests, snapshots, ID placeholders, test names), lints and codegate's gates, and the docs style. Load before writing, reviewing or naming pace's code, tests or docs; it refines rust, rust-architecture, code-principles and prose.
+description: pace's own conventions for /work/pace and its books (docs, dev-docs, design) — errors with PaceError and exit codes, commands, flags and output, the core without I/O and its ports, tests (journey tests, snapshots, ID placeholders, test names), lints and codegate's gates, and the docs style. Load before writing, reviewing or naming pace's code, tests or docs; it refines rust, rust-architecture, code-principles, money and prose.
 ---
 
 # pace
 
 The conventions of pace-ng, the restarted pace. The built-in guides
-`code-principles`, `rust`, `rust-architecture` and `prose` hold for pace too;
-this guide sits below them and wins where it says more.
+`code-principles`, `rust`, `rust-architecture`, `money` and `prose` hold for
+pace too; this guide sits below them and wins where it says more.
 
 The plan behind the rules is the design proposal *Restarting pace*
 (`design/src/proposals/restart.md`). What the code does today is in the
